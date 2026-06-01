@@ -42,7 +42,7 @@ The canonical plugin definition extends open-plugin-spec v1.0.0 with two additio
 }
 ```
 
-The schema URI is the authoritative machine-readable source for this spec. It validates the full canonical format including vendor extensions.
+The schema URI is the authoritative machine-readable source for this spec. It validates the full canonical format including vendor extensions. The JSON Schema file lives at `schema/v1.json` in this repository.
 
 ### 3.2 open-plugin-spec fields (unchanged)
 
