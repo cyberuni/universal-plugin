@@ -592,8 +592,12 @@ A `.plugin/plugin.json` that omits `vendorExtensions` is a valid open-plugin-spe
 
 6. **Zed support** — Zed uses TOML (`extension.toml`), not JSON, and is a different conceptual model (language/tool extensions, not agent plugin bundles). Zed support would require a separate build target with a fundamentally different output format.
 
-7. **Exclude vendors** — A `plugin build --exclude <vendor>` flag could allow opting out of a specific vendor without removing its `vendorExtensions` entry.
+7. **Vendor targeting model** — Should authors declare which vendors they support at all? The current model uses `vendorExtensions` keys as an implicit whitelist, but this breaks for new vendors that appear after the plugin is written. A blacklist (`vendorExclusions`) is less brittle, but the right default may be build-for-all-known-vendors with no author declaration needed. `vendorExtensions` would then be purely additive — vendor-specific fields only, not a support declaration. Exclusions would be a rare escape hatch (e.g. plugin assumes Linux shell, vendor is Windows-only).
 
-8. **Install-time build** — A `plugin install` command that runs `build` after cloning/downloading a plugin, instead of requiring pre-built manifests to be committed.
+8. **Generic-instruction authoring model** — An alternative to the current build-transform approach: author the plugin as generic instructions (SKILL.md, AGENTS.md prose) and treat vendor-specific config as optimization hints derived from those instructions — either by AI or a build step. Universal behavior lives in instructions; native hooks/configs are just more efficient expressions of the same intent. Open problems: (a) instructions must be precise enough to be reliably derivable ("run X at session start" works; "be helpful" does not), which is a discipline not a schema; (b) some vendor capabilities (monitors, marketplace metadata, connector apps) have no instruction equivalent and still need structured declarations. Whether the derivability discipline is worth the reduced schema authoring burden is unresolved.
 
-9. **`open-plugin-spec` marketplace.json** — The spec defines `.plugin/marketplace.json` for marketplace hosts. This system should validate and pass it through unchanged during build.
+9. **Exclude vendors** — A `plugin build --exclude <vendor>` flag could allow opting out of a specific vendor without removing its `vendorExtensions` entry.
+
+10. **Install-time build** — A `plugin install` command that runs `build` after cloning/downloading a plugin, instead of requiring pre-built manifests to be committed.
+
+11. **`open-plugin-spec` marketplace.json** — The spec defines `.plugin/marketplace.json` for marketplace hosts. This system should validate and pass it through unchanged during build.
