@@ -2,16 +2,6 @@
 
 This file provides guidance to AI coding assistants when working with code in this repository.
 
-## Skill Augmentations
-
-When reading any `SKILL.md` file, check for augmentation files in the same directory and merge them in order:
-
-1. `SKILL.md` — base skill (lowest precedence)
-2. `SKILL.project.md` — project-level overrides (team-shared, checked into the consuming project)
-3. `SKILL.local.md` — machine-local overrides (highest precedence, gitignored)
-
-Later layers extend and override earlier ones. Both `SKILL.project.md` and `SKILL.local.md` are ignored during `skills add` installation.
-
 ## Commit Discipline
 
 **Auto-commit rule:** When a unit of work is complete and verified, commit it immediately — do not wait for the user to ask. Batching multiple units into one commit, or finishing all work before committing, are both violations of this rule.
