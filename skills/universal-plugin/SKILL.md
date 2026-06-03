@@ -14,10 +14,10 @@ When the user wants to create, inspect, update, or delete a plugin targeting Cla
 Load governance before starting:
 
 ```bash
-npx cyber-skills governance show plugin-design
+npx cyber-universal-agent-plugin governance show plugin-design
 ```
 
-Read the output — it is the authoritative source for component selection rules and anti-patterns.
+Until the CLI is available, read `governances/plugin-design.md` from this plugin's installation directory. It is the authoritative source for component selection rules and anti-patterns.
 
 ---
 
