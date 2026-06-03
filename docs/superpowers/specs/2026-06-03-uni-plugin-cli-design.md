@@ -98,15 +98,21 @@ Agents and skills reference governance content by name rather than file path. `u
 
 ### Resolution order
 
-**project → global → package** (first match wins)
+Governance resolution follows the same scope system as skills: **enterprise → team → user → local**, where higher authority takes precedence on conflicts. Lower scopes can only add or specialize within the bounds set by higher scopes — they cannot weaken or override a governance defined at a higher scope.
 
-| Layer | Path |
-|---|---|
-| Project | `./governances/<name>.md` |
-| Global | `~/.agents/governances/<name>.md` |
-| Package | `governances/` shipped inside `uni-plugin` npm package |
+| Scope | Path | Authority |
+|---|---|---|
+| Enterprise | vendor/org-managed path (e.g. MDM-deployed) | Highest — cannot be overridden |
+| Team | repo-level or shared team config | Overrides user + local for conflicts |
+| User | `~/.agents/governances/<name>.md` | Overrides local for conflicts |
+| Local (project) | `./governances/<name>.md` | Lowest — project-specific additions only |
+| Package | `governances/` shipped inside `uni-plugin` npm package | Baseline defaults |
 
-This lets projects override shipped governances, and users override project governances via their global config.
+**Conflict rule:** when the same governance name exists at multiple scopes, the highest-authority scope wins. A local project cannot redefine a governance that enterprise has locked.
+
+**Additive rule:** governances defined only at a lower scope and absent from all higher scopes are loaded normally. Lower scopes extend, not replace.
+
+This mirrors the security model of the skills scope system and prevents a local project from weakening enterprise-mandated constraints (e.g. overriding a "never commit secrets" governance).
 
 ### Why governances are not `rules`
 
@@ -189,4 +195,4 @@ vitest, biome, tsdown, tsx, changeset, commitlint, husky, knip (same as `cyber-s
 
 2. **`plugin.json` top-level `governances` field** — whether to add this to the canonical schema is a standards-track question. Not needed for the CLI; `uni-plugin governance` is the consumption-side solution. Propose to open-plugin-spec when the consumption pattern is proven.
 
-3. **Global config path** — `~/.agents/governances/` assumes a shared agents config directory. The right global path may depend on what `cyber-skills` uses. Align before shipping `governance show`.
+3. **Scope path conventions** — the exact filesystem paths for enterprise and team scopes (and whether they are vendor-managed, MDM-deployed, or config-file-declared) need to align with how `cyber-skills` resolves scope paths. Resolve before shipping `governance show`. Enterprise scope path in particular must be write-protected at the OS level to be meaningful as a security boundary.
