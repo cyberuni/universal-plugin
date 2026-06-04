@@ -36,7 +36,7 @@ export function getProjectDir(root: string): string {
 
 export function getPackageDir(): string {
 	const thisFile = fileURLToPath(import.meta.url)
-	return path.join(path.dirname(thisFile), '..', '..', 'governances')
+	return path.join(path.dirname(thisFile), '..', 'governances')
 }
 
 export function getScopedPaths(root: string): ScopedPath[] {
