@@ -182,3 +182,9 @@ vitest, biome, tsdown, tsx, changeset, commitlint, husky, knip
 
 - [build](./build/spec.md) — compile canonical plugin manifest into vendor-specific output files
 - [governance](./governance/spec.md) — resolve and display governance documents by name across scopes
+- [validate](./validate/spec.md) — validate `.plugin/plugin.json` against schema and vendor rules
+- [init](./init/spec.md) — scaffold a new plugin project
+- [prepare](./prepare/spec.md) — post-install setup; copy runtime artifacts to vendor-expected paths
+- [plugin](./plugin/spec.md) — add, remove, update, find, search, list, and migrate installed plugins
+- [hook](./hook/spec.md) — register lifecycle hooks into vendor-specific config files
+- [marketplace](./marketplace/spec.md) — publish and register plugins in the discoverable index

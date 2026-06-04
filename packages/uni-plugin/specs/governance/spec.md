@@ -2,6 +2,7 @@
 
 **Status:** Implemented
 **Commands:** `uni-plugin governance show <name>`, `uni-plugin governance list`
+**Governance:** [cli-command](../../governances/cli-command.md)
 
 ---
 
@@ -54,9 +55,9 @@ No other Tier 1 vendor (Cursor, Codex, Copilot CLI) has a documented managed/ent
 | Windows | `C:\ProgramData\UniPlugin\governances` |
 | Linux | `/etc/uni-plugin/governances` |
 
-### `--json` output
+### `--format` output
 
-Both `show` and `list` accept `--json` for structured output. `show --json` returns `{ content, scope }`; `list --json` returns an array of `{ name, scope }` entries.
+Both `show` and `list` accept `--format <format>` (`text`, `json`, `agent`). `show --format json` returns `{ name, title, body, scope }`; `list --format json` returns an array of `{ name, scope }` entries. `--json` is a hidden backward-compat alias.
 
 ### `--root` option
 
@@ -67,8 +68,8 @@ Both commands accept `--root <path>` to override the project root (defaults to `
 ## Command surface
 
 ```
-uni-plugin governance show <name> [--root <path>] [--json]
-uni-plugin governance list [--root <path>] [--json]
+uni-plugin governance show <name> [--root <path>] [--format <format>]
+uni-plugin governance list [--root <path>] [--format <format>]
 ```
 
 **Exit codes:**

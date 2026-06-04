@@ -2,6 +2,7 @@
 
 **Status:** Implemented
 **Commands:** `uni-plugin build [--vendor <id>]`
+**Governance:** [cli-command](../../governances/cli-command.md)
 
 ---
 
@@ -69,7 +70,7 @@ With `--clean`, any existing output file for a vendor is deleted before writing 
 ## Command surface
 
 ```
-uni-plugin build [--vendor <id>] [--dry-run] [--clean] [--verbose]
+uni-plugin build [--vendor <id>] [--dry-run] [--clean] [--verbose] [--root <path>] [--format <format>]
 ```
 
 **Exit codes:**
