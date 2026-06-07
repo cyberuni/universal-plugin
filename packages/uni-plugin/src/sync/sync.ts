@@ -4,7 +4,6 @@ import type { VendorRegistry } from '../vendor-registry/vendor-registry.js'
 export interface SyncFs {
   readGlobalState(): StateFile
   writeGlobalState(state: StateFile): void
-  hasPlugin(vendorId: string, plugin: string): boolean
   shell(command: string): number
 }
 
@@ -43,7 +42,7 @@ export function applySyncAction(opts: {
     fs.writeGlobalState(withoutAction)
     return {
       outcome: 'manual',
-      instruction: `Install ${action.plugin}@${action.version} in ${action.toVendor} via its marketplace, then run /sync again.`,
+      instruction: `Install ${action.plugin}@${action.version} in ${action.toVendor} via its marketplace, then run: sync apply ${action.id}`,
     }
   }
 

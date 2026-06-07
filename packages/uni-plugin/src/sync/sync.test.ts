@@ -39,12 +39,10 @@ const baseAction = {
 function makeFs(opts: {
   state?: StateFile
   shellExitCode?: number
-  hasPlugin?: boolean
 }): SyncFs & { shelled?: string; written?: StateFile } {
   const result: SyncFs & { shelled?: string; written?: StateFile } = {
     readGlobalState: () => opts.state ?? emptyState(),
     writeGlobalState: (s) => { result.written = s },
-    hasPlugin: () => opts.hasPlugin ?? true,
     shell: (cmd) => { result.shelled = cmd; return opts.shellExitCode ?? 0 },
   }
   return result
@@ -77,6 +75,7 @@ describe('applySyncAction', () => {
     const fs = makeFs({ state, shellExitCode: 1 })
     const result = applySyncAction({ actionId: 'abc', registry: cursorRegistry, fs, now: '2026-06-07T10:00:00Z' })
     expect(result.outcome).toBe('failed')
+    expect(fs.written).toBeUndefined()
   })
 
   it('returns manual outcome and instruction when install command is null', () => {
