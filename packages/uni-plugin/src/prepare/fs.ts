@@ -24,8 +24,9 @@ function projectStatePath(root: string): string {
 function readStateFile(filePath: string): StateFile | null {
   try {
     return mergeSafeState(JSON.parse(fsNode.readFileSync(filePath, 'utf8')) as StateFile)
-  } catch {
-    return null
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null
+    throw err
   }
 }
 
@@ -50,8 +51,9 @@ export function realPrepareFs(vendor: VendorConfig, projectRoot?: string): Prepa
               : String(v),
           ]),
         )
-      } catch {
-        return {}
+      } catch (err: unknown) {
+        if ((err as NodeJS.ErrnoException).code === 'ENOENT') return {}
+        throw err
       }
     },
     readGlobalState: () => readStateFile(globalStatePath()) ?? emptyState(),
