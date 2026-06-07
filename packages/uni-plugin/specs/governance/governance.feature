@@ -47,11 +47,12 @@ Feature: governance list
   Background:
     Given the project root is a temporary directory
 
-  Scenario: no governances at any scope
-    Given no governance files exist at any scope
+  Scenario: package defaults are listed when project root has no governances
+    Given no governance files exist at managed, project, or user scope
     When I run "uni-plugin governance list --root <root>"
     Then the exit code is 0
-    And stdout contains "(none)"
+    And stdout contains "cli-command"
+    And stdout contains "package"
 
   Scenario: governance listed with name and scope
     Given a governance file "plugin-design.md" exists in "<root>/governances/"

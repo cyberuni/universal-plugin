@@ -57,7 +57,7 @@ test('build --dry-run lists vendors without writing', () => {
 	}
 })
 
-test('governance list returns (none) when no governances exist', () => {
+test('governance list includes packaged defaults when project root has no governances', () => {
 	const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'uni-plugin-gov-'))
 	try {
 		const result = spawnSync('node', [bin, 'governance', 'list', '--root', empty], {
@@ -65,7 +65,8 @@ test('governance list returns (none) when no governances exist', () => {
 			env: { ...process.env, NODE_NO_WARNINGS: '1' },
 		})
 		expect(result.status).toBe(0)
-		expect(result.stdout).toMatch(/\(none\)/)
+		expect(result.stdout).toMatch(/cli-command/)
+		expect(result.stdout).toMatch(/package/)
 	} finally {
 		fs.rmSync(empty, { recursive: true, force: true })
 	}
