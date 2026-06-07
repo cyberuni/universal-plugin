@@ -1,0 +1,42 @@
+{
+  "claude-code": {
+    "sessionStartEvent": "SessionStart",
+    "globalManifest": "~/.claude/plugins/installed_plugins.json",
+    "projectManifest": null,
+    "hookGlob": "~/.claude/plugins/universal-plugin/hooks/hooks.json",
+    "globalPluginDir": "~/.claude/plugins/",
+    "installCommand": "claude plugin install {name}",
+    "removeCommand": "claude plugin remove {name}",
+    "updateCommand": "claude plugin update {name}@{version}"
+  },
+  "cursor": {
+    "sessionStartEvent": "sessionStart",
+    "globalManifest": null,
+    "projectManifest": null,
+    "hookGlob": null,
+    "globalPluginDir": null,
+    "installCommand": null,
+    "removeCommand": null,
+    "updateCommand": null
+  },
+  "codex": {
+    "sessionStartEvent": "SessionStart",
+    "globalManifest": null,
+    "projectManifest": null,
+    "hookGlob": null,
+    "globalPluginDir": null,
+    "installCommand": null,
+    "removeCommand": null,
+    "updateCommand": null
+  },
+  "copilot-cli": {
+    "sessionStartEvent": "sessionStart",
+    "globalManifest": null,
+    "projectManifest": null,
+    "hookGlob": null,
+    "globalPluginDir": null,
+    "installCommand": null,
+    "removeCommand": null,
+    "updateCommand": null
+  }
+}
