@@ -19,7 +19,7 @@ function readGlobalState() {
 }
 
 export function governanceCommand(): Command {
-	const cmd = new Command('governance').description('Manage plugin governances').addHelpCommand(false)
+	const cmd = new Command('governance').description('Manage plugin governances').helpCommand(false)
 
 	cmd
 		.command('show <name>')
