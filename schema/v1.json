@@ -36,6 +36,10 @@
 			"type": "string",
 			"description": "SPDX license identifier (e.g. 'MIT', 'Apache-2.0')."
 		},
+		"packagePath": {
+			"type": "string",
+			"description": "Relative path (from repo root) to the npm package folder whose version this plugin tracks. Used by the 'publish sync-version' command."
+		},
 		"keywords": {
 			"type": "array",
 			"items": { "type": "string" },
