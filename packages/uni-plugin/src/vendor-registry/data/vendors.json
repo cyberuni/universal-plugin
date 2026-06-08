@@ -5,6 +5,7 @@
     "projectManifest": null,
     "hookGlob": "~/.claude/plugins/universal-plugin/hooks/hooks.json",
     "globalPluginDir": "~/.claude/plugins/",
+    "pluginRootSuffix": ".claude-plugin/plugin.json",
     "installCommand": "claude plugin install {name}",
     "removeCommand": "claude plugin remove {name}",
     "updateCommand": "claude plugin update {name}@{version}"
@@ -15,6 +16,7 @@
     "projectManifest": null,
     "hookGlob": null,
     "globalPluginDir": null,
+    "pluginRootSuffix": ".cursor-plugin/plugin.json",
     "installCommand": null,
     "removeCommand": null,
     "updateCommand": null
@@ -25,6 +27,7 @@
     "projectManifest": null,
     "hookGlob": null,
     "globalPluginDir": null,
+    "pluginRootSuffix": ".codex-plugin/plugin.json",
     "installCommand": null,
     "removeCommand": null,
     "updateCommand": null
@@ -35,6 +38,7 @@
     "projectManifest": null,
     "hookGlob": null,
     "globalPluginDir": null,
+    "pluginRootSuffix": "plugin.json",
     "installCommand": null,
     "removeCommand": null,
     "updateCommand": null

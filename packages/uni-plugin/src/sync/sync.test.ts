@@ -12,6 +12,7 @@ const cursorRegistry: VendorRegistry = {
     projectManifest: null,
     hookGlob: null,
     globalPluginDir: null,
+    pluginRootSuffix: '.cursor-plugin/plugin.json',
     installCommand: 'cursor plugin install {name}',
     removeCommand: 'cursor plugin remove {name}',
     updateCommand: 'cursor plugin update {name}@{version}',

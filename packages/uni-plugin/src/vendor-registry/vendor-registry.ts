@@ -4,6 +4,7 @@ export interface VendorConfig {
   projectManifest: string | null
   hookGlob: string | null
   globalPluginDir: string | null
+  pluginRootSuffix: string | null
   installCommand: string | null
   removeCommand: string | null
   updateCommand: string | null

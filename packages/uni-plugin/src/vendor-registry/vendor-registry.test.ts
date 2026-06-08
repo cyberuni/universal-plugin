@@ -8,12 +8,17 @@ const claudeCode: VendorConfig = {
   projectManifest: null,
   hookGlob: '~/.claude/plugins/universal-plugin/hooks/hooks.json',
   globalPluginDir: '~/.claude/plugins/',
+  pluginRootSuffix: '.claude-plugin/plugin.json',
   installCommand: 'claude plugin install {name}',
   removeCommand: 'claude plugin remove {name}',
   updateCommand: 'claude plugin update {name}@{version}',
 }
 
 const base: VendorRegistry = { 'claude-code': claudeCode }
+
+it('claudeCode fixture has pluginRootSuffix', () => {
+  expect(claudeCode.pluginRootSuffix).toBe('.claude-plugin/plugin.json')
+})
 
 describe('lookupVendor', () => {
   it('returns config for known vendor', () => {
