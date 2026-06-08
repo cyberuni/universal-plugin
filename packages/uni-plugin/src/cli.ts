@@ -10,7 +10,7 @@ import { syncCommand } from './sync/cli.js'
 
 const program = new Command()
 
-program.name('uni-plugin').description('Universal AI agent plugin build tool').version('0.0.0')
+program.name('uni-plugin').description('Universal AI agent plugin build tool').version('0.0.0').addHelpCommand(false)
 
 program.addCommand(buildCommand())
 program.addCommand(cleanCommand())
