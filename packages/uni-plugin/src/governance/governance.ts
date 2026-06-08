@@ -22,7 +22,7 @@ export interface ShowResult {
 
 export function getManagedDir(): string {
 	if (process.platform === 'darwin') return '/Library/Application Support/UniPlugin/governances'
-	if (process.platform === 'win32') return 'C:\\ProgramData\\UniPlugin\\governances'
+	if (process.platform === 'win32') return path.join(process.env['ProgramData'] ?? 'C:\\ProgramData', 'UniPlugin', 'governances')
 	return '/etc/uni-plugin/governances'
 }
 
