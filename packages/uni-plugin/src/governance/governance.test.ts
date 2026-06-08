@@ -10,6 +10,8 @@ import {
 	listGovernances,
 	showGovernance,
 } from './governance.js'
+import type { StateFile } from '../state/state.js'
+import { emptyState, writeAssetIndex } from '../state/state.js'
 
 function makeMockFs(files: Record<string, string>): GovernanceFs {
 	return {
@@ -103,6 +105,52 @@ describe('showGovernance', () => {
 			const govFs = makeMockFs({})
 			expect(showGovernance('missing', ROOT, govFs)).toBeNull()
 		})
+	})
+})
+
+function stateWithPlugin(pluginName: string): StateFile {
+	return writeAssetIndex(emptyState(), pluginName, { source: 'npm', version: '1.2.3' })
+}
+
+describe('showGovernance — namespaced name', () => {
+	it('resolves plugin-name/governance-name from asset store', () => {
+		const state = stateWithPlugin('uni-plugin')
+		const storePath = '/store'
+		const storeFile = path.join('/store', 'npm', 'uni-plugin@1.2.3', 'governances', 'plugin-design.md')
+		const govFs = makeMockFs({ [storeFile]: '# Plugin Design\ncontent' })
+
+		const result = showGovernance('uni-plugin/plugin-design', ROOT, govFs, { state, globalStorePath: storePath })
+
+		expect(result).not.toBeNull()
+		expect(result!.scope).toBe('store')
+		expect(result!.content).toBe('# Plugin Design\ncontent')
+	})
+
+	it('returns null when plugin not in asset index', () => {
+		const govFs = makeMockFs({})
+		const result = showGovernance('unknown-plugin/policy', ROOT, govFs, {
+			state: emptyState(),
+			globalStorePath: '/store',
+		})
+		expect(result).toBeNull()
+	})
+
+	it('project scope overrides store for namespaced name', () => {
+		const state = stateWithPlugin('uni-plugin')
+		const projectFile = path.join(ROOT, 'governances', 'uni-plugin', 'plugin-design.md')
+		const storeFile = path.join('/store', 'npm', 'uni-plugin@1.2.3', 'governances', 'plugin-design.md')
+		const govFs = makeMockFs({
+			[projectFile]: '# Override',
+			[storeFile]: '# Original',
+		})
+
+		const result = showGovernance('uni-plugin/plugin-design', ROOT, govFs, {
+			state,
+			globalStorePath: '/store',
+		})
+
+		expect(result!.scope).toBe('project')
+		expect(result!.content).toBe('# Override')
 	})
 })
 

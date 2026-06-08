@@ -2,8 +2,14 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { GovernanceFs } from './fs.js'
+import type { StateFile } from '../state/state.js'
 
-export type Scope = 'managed' | 'project' | 'user' | 'package'
+export type Scope = 'managed' | 'project' | 'user' | 'package' | 'store'
+
+export interface AssetStoreOpts {
+	state: StateFile
+	globalStorePath: string
+}
 
 export interface ScopedPath {
 	scope: Scope
@@ -48,7 +54,42 @@ export function getScopedPaths(root: string): ScopedPath[] {
 	]
 }
 
-export function showGovernance(name: string, root: string, govFs: GovernanceFs): ShowResult | null {
+export function showGovernance(
+	name: string,
+	root: string,
+	govFs: GovernanceFs,
+	storeOpts?: AssetStoreOpts,
+): ShowResult | null {
+	const slashIdx = name.indexOf('/')
+	if (slashIdx !== -1 && storeOpts) {
+		const pluginName = name.slice(0, slashIdx)
+		const assetName = name.slice(slashIdx + 1)
+
+		// Check managed, project, user scopes (no package) for overrides
+		const overrideScopes: Scope[] = ['managed', 'project', 'user']
+		for (const scope of overrideScopes) {
+			let dir: string
+			if (scope === 'managed') dir = getManagedDir()
+			else if (scope === 'project') dir = getProjectDir(root)
+			else dir = getUserDir()
+			const filePath = path.join(dir, pluginName, `${assetName}.md`)
+			if (govFs.exists(filePath)) {
+				return { content: govFs.read(filePath), scope }
+			}
+		}
+
+		// Look up asset index
+		const entry = storeOpts.state.assets[pluginName]
+		if (!entry) return null
+
+		const segment = path.join(entry.source, `${pluginName}@${entry.version}`)
+		const storePath = path.join(storeOpts.globalStorePath, segment, 'governances', `${assetName}.md`)
+		if (govFs.exists(storePath)) {
+			return { content: govFs.read(storePath), scope: 'store' }
+		}
+		return null
+	}
+
 	for (const { scope, dir } of getScopedPaths(root)) {
 		const filePath = path.join(dir, `${name}.md`)
 		if (govFs.exists(filePath)) {

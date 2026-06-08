@@ -1,8 +1,22 @@
+import * as os from 'node:os'
+import * as path from 'node:path'
+import * as fsNode from 'node:fs'
 import { Command, Option } from 'commander'
 import { ROOT_OPTION, resolveRoot } from '../cli-options.js'
 import { output, printTable } from '../output.js'
 import { realGovernanceFs } from './fs.js'
 import { listGovernances, showGovernance } from './governance.js'
+import { emptyState, mergeSafeState } from '../state/state.js'
+import { globalStorePath } from '../asset-store/asset-store.js'
+
+function readGlobalState() {
+	const p = path.join(os.homedir(), '.agents', 'uni-plugin.json')
+	try {
+		return mergeSafeState(JSON.parse(fsNode.readFileSync(p, 'utf8')))
+	} catch {
+		return emptyState()
+	}
+}
 
 export function governanceCommand(): Command {
 	const cmd = new Command('governance').description('Manage plugin governances')
@@ -13,7 +27,10 @@ export function governanceCommand(): Command {
 		.addOption(ROOT_OPTION)
 		.addOption(new Option('--json').hideHelp())
 		.action((name: string, opts: { root?: string }) => {
-			const result = showGovernance(name, resolveRoot(opts.root), realGovernanceFs)
+			const result = showGovernance(name, resolveRoot(opts.root), realGovernanceFs, {
+				state: readGlobalState(),
+				globalStorePath: globalStorePath(),
+			})
 			if (!result) {
 				process.stderr.write(`Governance "${name}" not found\n`)
 				process.exit(1)
