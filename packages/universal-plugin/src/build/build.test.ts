@@ -111,7 +111,10 @@ describe('buildPlugin', () => {
 			vendorExtensions: { 'claude-code': {} },
 		})
 		buildPlugin(dir)
-		const output = JSON.parse(fs.readFileSync(path.join(dir, '.claude-plugin', 'plugin.json'), 'utf8')) as Record<string, unknown>
+		const output = JSON.parse(fs.readFileSync(path.join(dir, '.claude-plugin', 'plugin.json'), 'utf8')) as Record<
+			string,
+			unknown
+		>
 		expect(output['packagePath']).toBeUndefined()
 	})
 })
