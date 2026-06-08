@@ -3,11 +3,10 @@
 	"type": "module",
 	"scripts": {
 		"build": "turbo build",
-		"check": "biome check --write .",
+		"check": "biome check --write",
 		"cs": "changeset",
 		"dev": "pnpm --filter uni-plugin dev",
 		"format": "biome format --write .",
-		"lint": "biome check .",
 		"prepare": "node -e \"if(!(process.env.CI||process.env.GITHUB_ACTIONS))require('child_process').execSync('husky',{stdio:'inherit'})\"",
 		"release": "changeset publish",
 		"test": "turbo test",
