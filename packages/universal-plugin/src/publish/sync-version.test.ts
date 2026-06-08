@@ -16,8 +16,8 @@ afterEach(() => {
 	fs.rmSync(dir, { recursive: true, force: true })
 })
 
-function writeManifest(manifest: object) {
-	fs.writeFileSync(path.join(dir, '.plugin', 'plugin.json'), JSON.stringify(manifest))
+function writeManifest(manifest: object, indent?: string | number) {
+	fs.writeFileSync(path.join(dir, '.plugin', 'plugin.json'), JSON.stringify(manifest, null, indent))
 }
 
 function writePackage(relFolder: string, pkg: object) {
@@ -85,5 +85,31 @@ describe('syncVersion', () => {
 		writePackage('packages/mypkg', { version: '1.2.3' })
 		syncVersion(dir, realSyncVersionFs)
 		expect(readManifest().version).toBe('1.2.3')
+	})
+
+	it('uses tab indentation by default when file has no indentation', () => {
+		writeManifest({ name: 'my-plugin', packagePath: 'pkg' })
+		writePackage('pkg', { version: '1.0.0' })
+		syncVersion(dir, realSyncVersionFs)
+		const raw = fs.readFileSync(path.join(dir, '.plugin', 'plugin.json'), 'utf8')
+		expect(raw).toContain('\t')
+	})
+
+	it('preserves tab indentation from existing file', () => {
+		writeManifest({ name: 'my-plugin', packagePath: 'pkg' }, '\t')
+		writePackage('pkg', { version: '1.0.0' })
+		syncVersion(dir, realSyncVersionFs)
+		const raw = fs.readFileSync(path.join(dir, '.plugin', 'plugin.json'), 'utf8')
+		expect(raw).toContain('\t')
+		expect(raw).not.toMatch(/\n {2}/)
+	})
+
+	it('preserves 2-space indentation from existing file', () => {
+		writeManifest({ name: 'my-plugin', packagePath: 'pkg' }, 2)
+		writePackage('pkg', { version: '1.0.0' })
+		syncVersion(dir, realSyncVersionFs)
+		const raw = fs.readFileSync(path.join(dir, '.plugin', 'plugin.json'), 'utf8')
+		expect(raw).toContain('\n  ')
+		expect(raw).not.toContain('\t')
 	})
 })

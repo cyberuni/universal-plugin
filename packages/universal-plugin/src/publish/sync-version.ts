@@ -6,13 +6,20 @@ export interface SyncVersionResult {
 	manifestPath: string
 }
 
+function detectIndent(json: string): string | number {
+	const match = json.match(/\n([ \t]+)/)
+	if (!match) return '\t'
+	return match[1].startsWith('\t') ? '\t' : match[1].length
+}
+
 export function syncVersion(root: string, syncFs: SyncVersionFs): SyncVersionResult {
 	const manifestPath = path.join(root, '.plugin', 'plugin.json')
 	if (!syncFs.exists(manifestPath)) {
 		throw new Error(`No .plugin/plugin.json found at ${root}`)
 	}
 
-	const manifest = JSON.parse(syncFs.read(manifestPath)) as Record<string, unknown>
+	const raw = syncFs.read(manifestPath)
+	const manifest = JSON.parse(raw) as Record<string, unknown>
 
 	const packagePath = manifest['packagePath']
 	if (!packagePath || typeof packagePath !== 'string') {
@@ -30,8 +37,9 @@ export function syncVersion(root: string, syncFs: SyncVersionFs): SyncVersionRes
 		throw new Error(`No version found in ${packagePath}/package.json`)
 	}
 
+	const indent = detectIndent(raw)
 	const updated = { ...manifest, version }
-	syncFs.write(manifestPath, `${JSON.stringify(updated, null, '\t')}\n`)
+	syncFs.write(manifestPath, `${JSON.stringify(updated, null, indent)}\n`)
 
 	return { version, manifestPath }
 }

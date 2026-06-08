@@ -34,6 +34,12 @@ export interface BuildResult {
 	warnings: string[]
 }
 
+function detectIndent(json: string): string | number {
+	const match = json.match(/\n([ \t]+)/)
+	if (!match) return '\t'
+	return match[1].startsWith('\t') ? '\t' : match[1].length
+}
+
 export function readManifest(root: string): PluginManifest {
 	const manifestPath = path.join(root, '.plugin', 'plugin.json')
 	if (!fs.existsSync(manifestPath)) {
@@ -55,6 +61,8 @@ export function validateManifest(manifest: PluginManifest): string[] {
 }
 
 export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult {
+	const manifestRaw = fs.readFileSync(path.join(root, '.plugin', 'plugin.json'), 'utf8')
+	const indent = detectIndent(manifestRaw)
 	const manifest = readManifest(root)
 	const errors = validateManifest(manifest)
 	if (errors.length > 0) throw new Error(`plugin.json validation failed:\n${errors.map((e) => `  - ${e}`).join('\n')}`)
@@ -101,7 +109,7 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 		if (!opts.dryRun) {
 			if (opts.clean && fs.existsSync(outputPath)) fs.unlinkSync(outputPath)
 			fs.mkdirSync(outputDir, { recursive: true })
-			fs.writeFileSync(outputPath, `${JSON.stringify(vendorManifest, null, 2)}\n`)
+			fs.writeFileSync(outputPath, `${JSON.stringify(vendorManifest, null, indent)}\n`)
 		}
 
 		written.push(outputPath)

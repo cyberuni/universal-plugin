@@ -15,8 +15,8 @@ afterEach(() => {
 	fs.rmSync(dir, { recursive: true, force: true })
 })
 
-function writeManifest(manifest: object) {
-	fs.writeFileSync(path.join(dir, '.plugin', 'plugin.json'), JSON.stringify(manifest))
+function writeManifest(manifest: object, indent?: string | number) {
+	fs.writeFileSync(path.join(dir, '.plugin', 'plugin.json'), JSON.stringify(manifest, null, indent))
 }
 
 describe('readManifest', () => {
@@ -102,6 +102,29 @@ describe('buildPlugin', () => {
 		expect(written.displayName).toBe('My Plugin')
 		expect(written.vendorExtensions).toBeUndefined()
 		expect(written.$schema).toBeUndefined()
+	})
+
+	it('uses tab indentation by default when .plugin/plugin.json has no indentation', () => {
+		writeManifest({ name: 'x', vendorExtensions: { 'claude-code': {} } })
+		buildPlugin(dir)
+		const raw = fs.readFileSync(path.join(dir, '.claude-plugin', 'plugin.json'), 'utf8')
+		expect(raw).toContain('\t')
+	})
+
+	it('vendor output follows tab indentation from .plugin/plugin.json', () => {
+		writeManifest({ name: 'x', vendorExtensions: { 'claude-code': {} } }, '\t')
+		buildPlugin(dir)
+		const raw = fs.readFileSync(path.join(dir, '.claude-plugin', 'plugin.json'), 'utf8')
+		expect(raw).toContain('\t')
+		expect(raw).not.toMatch(/\n {2}/)
+	})
+
+	it('vendor output follows 2-space indentation from .plugin/plugin.json', () => {
+		writeManifest({ name: 'x', vendorExtensions: { 'claude-code': {} } }, 2)
+		buildPlugin(dir)
+		const raw = fs.readFileSync(path.join(dir, '.claude-plugin', 'plugin.json'), 'utf8')
+		expect(raw).toContain('\n  ')
+		expect(raw).not.toContain('\t')
 	})
 
 	it('strips packagePath from vendor output', () => {
