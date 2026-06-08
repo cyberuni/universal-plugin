@@ -1,12 +1,15 @@
 import * as fsNode from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
+import { entryExists, populateEntry } from '../asset-store/fs.js'
+import { globalStorePath, storeEntryPath } from '../asset-store/asset-store.js'
 import { emptyState, mergeSafeState } from '../state/state.js'
 import type { StateFile } from '../state/state.js'
 import type { VendorConfig } from '../vendor-registry/vendor-registry.js'
 
 export interface PrepareFs {
   readManifest(): Record<string, string>
+  readPluginRoots(): Record<string, string>
   readGlobalState(): StateFile
   readProjectState(): StateFile | null
   writeGlobalState(state: StateFile): void
@@ -56,6 +59,14 @@ export function realPrepareFs(vendor: VendorConfig, projectRoot?: string): Prepa
         throw err
       }
     },
+    readPluginRoots(): Record<string, string> {
+      if (!vendor.globalPluginDir) return {}
+      const pluginDir = vendor.globalPluginDir.replace('~', os.homedir())
+      const manifest = this.readManifest()
+      return Object.fromEntries(
+        Object.keys(manifest).map((name) => [name, path.join(pluginDir, name)]),
+      )
+    },
     readGlobalState: () => readStateFile(globalStatePath()) ?? emptyState(),
     readProjectState: () =>
       projectRoot ? readStateFile(projectStatePath(projectRoot)) : null,
@@ -63,5 +74,19 @@ export function realPrepareFs(vendor: VendorConfig, projectRoot?: string): Prepa
     writeProjectState: (s) => {
       if (projectRoot) writeStateFile(projectStatePath(projectRoot), s)
     },
+  }
+}
+
+export function populateStoreFromVendorCache(
+  pluginRoots: Record<string, string>,
+  versions: Record<string, string>,
+): void {
+  const storePath = globalStorePath()
+  for (const [pluginName, pluginRoot] of Object.entries(pluginRoots)) {
+    const version = versions[pluginName] ?? 'unknown'
+    const segment = `npm/${pluginName}@${version}`
+    const entryPath = storeEntryPath(storePath, segment)
+    if (entryExists(entryPath)) continue
+    populateEntry(entryPath, pluginRoot)
   }
 }

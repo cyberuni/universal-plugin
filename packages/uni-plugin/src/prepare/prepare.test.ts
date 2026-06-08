@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { emptyState, takeSnapshot } from '../state/state.js'
+import { emptyState, takeSnapshot, writePluginIndex, writeAssetIndex } from '../state/state.js'
 import type { StateFile } from '../state/state.js'
 import type { PrepareFs } from './fs.js'
 import { runPrepare } from './prepare.js'
+
+// confirm writePluginIndex and writeAssetIndex exist
+void writePluginIndex
+void writeAssetIndex
 
 function makeFs(opts: {
   manifestPlugins?: Record<string, string>
@@ -12,6 +16,7 @@ function makeFs(opts: {
   const written: { global?: StateFile; project?: StateFile } = {}
   return {
     readManifest: () => opts.manifestPlugins ?? {},
+    readPluginRoots: () => ({}),
     readGlobalState: () => opts.globalState ?? emptyState(),
     readProjectState: () => opts.projectState ?? null,
     writeGlobalState: (s) => { written.global = s },
@@ -79,5 +84,25 @@ describe('runPrepare', () => {
       })
       expect(fs.written.project).toBeDefined()
     })
+  })
+})
+
+describe('runPrepare plugin index', () => {
+  it('writes plugin entry to state when plugin roots are provided', () => {
+    const pluginRoots = { 'uni-plugin': '/home/user/.claude/plugins/uni-plugin' }
+    const capturedStates: StateFile[] = []
+    const fs: PrepareFs = {
+      readManifest: () => ({ 'uni-plugin': '1.2.3' }),
+      readPluginRoots: () => pluginRoots,
+      readGlobalState: () => emptyState(),
+      readProjectState: () => null,
+      writeGlobalState: (s) => { capturedStates.push(s) },
+      writeProjectState: () => {},
+    }
+    runPrepare({ vendorId: 'claude-code', scope: 'global', fs, now: '2026-01-01T00:00:00Z' })
+    expect(capturedStates[0]!.plugins['claude-code']!['uni-plugin']).toMatchObject({
+      version: '1.2.3',
+    })
+    expect(capturedStates[0]!.assets['uni-plugin']).toMatchObject({ version: '1.2.3' })
   })
 })

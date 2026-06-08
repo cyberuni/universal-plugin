@@ -1,7 +1,7 @@
 import { Command, Option } from 'commander'
 import { loadRegistry } from '../vendor-registry/fs.js'
 import { lookupVendor } from '../vendor-registry/vendor-registry.js'
-import { realPrepareFs } from './fs.js'
+import { populateStoreFromVendorCache, realPrepareFs } from './fs.js'
 import { runPrepare } from './prepare.js'
 
 export function prepareCommand(): Command {
@@ -36,6 +36,7 @@ export function prepareCommand(): Command {
           now,
           dryRun: opts.dryRun,
         })
+        populateStoreFromVendorCache(prepareFs.readPluginRoots(), prepareFs.readManifest())
         if (newActionCount > 0) {
           process.stdout.write(
             `${newActionCount} plugin sync action(s) pending. Run /sync to review.\n`,

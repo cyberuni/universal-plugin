@@ -1,4 +1,5 @@
-import { addPendingAction, emptyState, takeSnapshot } from '../state/state.js'
+import * as os from 'node:os'
+import { addPendingAction, emptyState, takeSnapshot, writePluginIndex, writeAssetIndex } from '../state/state.js'
 import type { StateFile } from '../state/state.js'
 import { computeDelta } from './delta.js'
 import type { PrepareFs } from './fs.js'
@@ -29,6 +30,18 @@ export function runPrepare(opts: PrepareOptions): PrepareResult {
   let updatedState: StateFile = takeSnapshot(state, vendorId, scope, currentPlugins, now)
   for (const action of actions) {
     updatedState = addPendingAction(updatedState, action)
+  }
+
+  const pluginRoots = prepareFs.readPluginRoots()
+  for (const [pluginName, pluginPath] of Object.entries(pluginRoots)) {
+    const version = currentPlugins[pluginName] ?? 'unknown'
+    const relativePath = pluginPath.replace(os.homedir(), '~')
+    updatedState = writePluginIndex(updatedState, vendorId, pluginName, {
+      source: 'npm',
+      path: relativePath,
+      version,
+    })
+    updatedState = writeAssetIndex(updatedState, pluginName, { source: 'npm', version })
   }
 
   if (!dryRun) {
