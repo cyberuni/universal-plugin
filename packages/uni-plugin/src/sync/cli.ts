@@ -34,7 +34,7 @@ function realSyncFs(): SyncFs {
 }
 
 export function syncCommand(): Command {
-  const cmd = new Command('sync').description('Manage cross-vendor plugin sync')
+  const cmd = new Command('sync').description('Manage cross-vendor plugin sync').addHelpCommand(false)
 
   cmd
     .command('apply')
