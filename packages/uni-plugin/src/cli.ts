@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Command } from 'commander'
 
+import { cleanCommand } from './asset-store/cli.js'
 import { buildCommand } from './build/cli.js'
 import { governanceCommand } from './governance/cli.js'
 import { prepareCommand } from './prepare/cli.js'
@@ -12,6 +13,7 @@ const program = new Command()
 program.name('uni-plugin').description('Universal AI agent plugin build tool').version('0.0.0')
 
 program.addCommand(buildCommand())
+program.addCommand(cleanCommand())
 program.addCommand(governanceCommand())
 program.addCommand(prepareCommand())
 program.addCommand(syncCommand())
