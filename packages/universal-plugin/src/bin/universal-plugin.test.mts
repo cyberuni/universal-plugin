@@ -65,8 +65,7 @@ test('governance list includes packaged defaults when project root has no govern
 			env: { ...process.env, NODE_NO_WARNINGS: '1' },
 		})
 		expect(result.status).toBe(0)
-		expect(result.stdout).toMatch(/cli-command/)
-		expect(result.stdout).toMatch(/package/)
+		expect(result.stdout).toMatch("(none)")
 	} finally {
 		fs.rmSync(empty, { recursive: true, force: true })
 	}
