@@ -15,6 +15,7 @@ export interface SelfUpdateResult {
 export function runSelfUpdate(opts: { toVersion: string; fs: SelfUpdateFs }): SelfUpdateResult {
 	const { toVersion, fs } = opts
 	const [major] = toVersion.split('.')
+	if (!major || !/^\d+$/.test(major)) throw new Error(`Invalid version format: ${toVersion}`)
 	// Matches `npx uni-plugin@<same-major>.<any>.<any>` — does not match other majors
 	const pattern = new RegExp(`(npx uni-plugin@)${major}\\.[0-9]+\\.[0-9]+`, 'g')
 

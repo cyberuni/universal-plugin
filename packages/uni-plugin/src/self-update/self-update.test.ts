@@ -55,6 +55,11 @@ describe('runSelfUpdate', () => {
 		expect(result.updatedCount).toBe(0)
 	})
 
+	it('throws on non-numeric major version', () => {
+		const fs = makeFs({})
+		expect(() => runSelfUpdate({ toVersion: '(evil|)1.0.0', fs })).toThrow('Invalid version format')
+	})
+
 	it('clears the uniPluginUpdates entry for the updated major', () => {
 		const state: StateFile = {
 			...emptyState(),
