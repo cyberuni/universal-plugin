@@ -8,6 +8,7 @@ import {
 	getManagedDir,
 	getPackageDir,
 	getProjectDir,
+	getLocalDir,
 	getUserDir,
 	listGovernances,
 	showGovernance,
@@ -46,6 +47,12 @@ describe('getProjectDir', () => {
 	})
 })
 
+describe('getLocalDir', () => {
+	it('returns <root>/.agents/governances', () => {
+		expect(getLocalDir('/my/project')).toBe('/my/project/.agents/governances')
+	})
+})
+
 describe('showGovernance', () => {
 	describe('Given a governance exists at project scope', () => {
 		it('When showing by name, Then returns content and scope=project', () => {
@@ -73,6 +80,50 @@ describe('showGovernance', () => {
 
 			expect(result!.scope).toBe('project')
 			expect(result!.content).toBe('project version')
+		})
+	})
+
+	describe('Given a governance exists at local scope only', () => {
+		it('When showing by name, Then returns content and scope=local', () => {
+			const localFile = path.join(getLocalDir(ROOT), 'cli-command.md')
+			const govFs = makeMockFs({ [localFile]: 'local content' })
+
+			const result = showGovernance('cli-command', ROOT, govFs)
+
+			expect(result!.scope).toBe('local')
+			expect(result!.content).toBe('local content')
+		})
+	})
+
+	describe('Given the same governance exists at project and local scope', () => {
+		it('When showing by name, Then project scope wins', () => {
+			const projectFile = path.join(getProjectDir(ROOT), 'plugin-design.md')
+			const localFile = path.join(getLocalDir(ROOT), 'plugin-design.md')
+			const govFs = makeMockFs({
+				[projectFile]: 'project version',
+				[localFile]: 'local version',
+			})
+
+			const result = showGovernance('plugin-design', ROOT, govFs)
+
+			expect(result!.scope).toBe('project')
+			expect(result!.content).toBe('project version')
+		})
+	})
+
+	describe('Given the same governance exists at local and user scope', () => {
+		it('When showing by name, Then local scope wins', () => {
+			const localFile = path.join(getLocalDir(ROOT), 'plugin-design.md')
+			const userFile = path.join(getUserDir(), 'plugin-design.md')
+			const govFs = makeMockFs({
+				[localFile]: 'local version',
+				[userFile]: 'user version',
+			})
+
+			const result = showGovernance('plugin-design', ROOT, govFs)
+
+			expect(result!.scope).toBe('local')
+			expect(result!.content).toBe('local version')
 		})
 	})
 
@@ -179,6 +230,19 @@ describe('listGovernances', () => {
 	describe('Given no governances at any scope', () => {
 		it('When listing, Then returns empty array', () => {
 			expect(listGovernances(ROOT, makeMockFs({}))).toEqual([])
+		})
+	})
+
+	describe('Given a governance exists at local scope', () => {
+		it('When listing, Then returns entry with scope=local', () => {
+			const localFile = path.join(getLocalDir(ROOT), 'cli-command.md')
+			const govFs = makeMockFs({ [localFile]: 'content' })
+
+			const entries = listGovernances(ROOT, govFs)
+
+			expect(entries).toHaveLength(1)
+			expect(entries[0]!.name).toBe('cli-command')
+			expect(entries[0]!.scope).toBe('local')
 		})
 	})
 
