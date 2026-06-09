@@ -5,19 +5,19 @@ description: Use this skill whenever the user wants to publish, release, submit,
 
 # Publish Universal Plugin
 
-Guides submitting an already-packaged plugin to the universal plugin registry via a GitHub pull request. The registry follows the same model as Zed extensions — you open a PR that adds your plugin's entry; maintainers review and merge.
+Guides adding an already-packaged plugin to a marketplace repo by opening a pull request. Each vendor runtime may have its own marketplace manifest file inside the marketplace repo — update every one that exists.
 
-**Registry repo:** `cyberuni/marketplace` (adjust if the user has a different target)
+**Default marketplace repo:** `cyberuni/marketplace` (adjust if the user targets a different one)
 
 ## Overview
 
 Publishing has three steps:
 
 1. **Pre-flight** — validate the plugin is ready
-2. **Prepare entry** — build the registry entry JSON
-3. **Submit PR** — fork, branch, commit, open PR
+2. **Prepare entries** — build the entry for each vendor marketplace file that exists
+3. **Submit PR** — one PR that updates all relevant marketplace files
 
-Work through each step in order. Do not skip pre-flight even if the user says the plugin is ready — the checks catch common mistakes before they reach reviewers.
+Work through each step in order. Do not skip pre-flight even if the user says the plugin is ready.
 
 ---
 
@@ -27,18 +27,18 @@ Run these checks against the plugin directory. Stop and fix any failures before 
 
 ### 1a. Required metadata
 
-Read `plugin.json` (or whichever manifest exists). Verify:
+Read the plugin's root `plugin.json`. Verify:
 
-- `name` — present, kebab-case, unique (no spaces, no uppercase)
+- `name` — present, kebab-case (no spaces, no uppercase)
 - `version` — present, valid semver (`x.y.z`)
 - `description` — present, at least 10 characters
 - `author` — present (string or `{name, email}` object)
-- `homepage` or `repository` — at least one present (reviewers need a source link)
-- `license` — present (e.g. `MIT`, `Apache-2.0`)
+- `homepage` or `repository` — at least one present
+- `license` — present (SPDX identifier, e.g. `MIT`, `Apache-2.0`)
 
 ### 1b. Vendor manifest files
 
-Each runtime expects its manifest at a specific path. Check all four exist and each contains at minimum a `name` field:
+Each runtime expects its manifest at a specific path. Check all targeted runtimes and verify each has at minimum a `name` field:
 
 | Runtime | Expected path |
 |---|---|
@@ -47,70 +47,117 @@ Each runtime expects its manifest at a specific path. Check all four exist and e
 | Codex | `.codex-plugin/plugin.json` |
 | GitHub Copilot CLI | `plugin.json` (root) |
 
-Read `references/vendor-requirements.md` for the full required-field list per vendor and hook casing rules.
+See `references/vendor-requirements.md` for required fields and hook casing rules per vendor.
 
 ### 1c. Hook casing check
 
-If the plugin has hooks, verify each vendor manifest uses the correct casing for event names:
+If the plugin has hooks, verify each vendor manifest uses the correct event name casing:
 
 - Claude Code and Codex: **PascalCase** (`SessionStart`, `PreToolCall`)
 - Cursor and GitHub Copilot CLI: **camelCase** (`sessionStart`, `preToolCall`)
 
-Mixed casing in a single manifest causes silent hook failures at runtime.
+Mixed casing causes silent hook failures at runtime.
 
 ### 1d. Skills check (if present)
 
-If the plugin ships skills, each `skills/<name>/SKILL.md` must exist and have valid YAML frontmatter with at minimum `name` and `description` fields.
+If the plugin ships skills, each `skills/<name>/SKILL.md` must exist with valid YAML frontmatter containing at minimum `name` and `description`.
 
 ### 1e. Report
 
-After all checks, list what passed and what failed. Do not proceed to Step 2 until all checks pass.
+List what passed and what failed. Do not proceed to Step 2 until all checks pass.
 
 ---
 
-## Step 2: Prepare registry entry
+## Step 2: Prepare marketplace entries
 
-Build the JSON object that will be added to the registry. Use this exact shape:
+### 2a. Detect which vendor marketplace files exist
+
+Clone or check out the marketplace repo locally, then look for vendor marketplace files:
+
+| File | Runtime |
+|---|---|
+| `.claude-plugin/marketplace.json` | Claude Code |
+| `.cursor-plugin/marketplace.json` | Cursor |
+
+Only prepare entries for files that actually exist — do not create new vendor marketplace files.
+
+### 2b. Claude Code entry (`.claude-plugin/marketplace.json`)
+
+The richer format. Use this shape:
 
 ```json
 {
   "name": "<plugin-name>",
-  "version": "<semver>",
+  "source": {
+    "source": "url",
+    "url": "<git-clone-url>.git"
+  },
   "description": "<one-line description>",
-  "author": "<author name or org>",
+  "author": { "name": "<author>" },
   "homepage": "<URL>",
-  "repository": "<git clone URL>",
+  "repository": "<git-clone-url>",
   "license": "<SPDX identifier>",
-  "runtimes": ["claude-code", "cursor", "codex", "copilot-cli"],
-  "publishedAt": "<ISO 8601 date>"
+  "category": "<category>"
 }
 ```
 
-Rules:
-- `runtimes` lists only the runtimes whose vendor manifests passed validation in Step 1b
-- `publishedAt` is today's date in `YYYY-MM-DD` format
-- `homepage` and `repository` should both be present if available; omit whichever is absent rather than leaving empty
+**`source`** — use `"source": "url"` with the `.git` clone URL for public repos. Other options: `github` (sparse checkout), `git` (with ref/path), `file`, `directory`.
 
-Show the entry to the user and ask them to confirm before proceeding.
+**`category`** — choose closest: `research`, `skills`, `setup`, `productivity`, `plugin-authoring`.
+
+**`skills`** — if the plugin ships skills users invoke directly, list their relative paths:
+```json
+"skills": ["./skills/my-skill"]
+```
+
+**`strict`** — set `false` unless the plugin requires exact version pinning.
+
+Omit optional fields rather than leaving them empty.
+
+### 2c. Cursor entry (`.cursor-plugin/marketplace.json`)
+
+The simpler format — only three required fields:
+
+```json
+{
+  "name": "<plugin-name>",
+  "source": {
+    "source": "url",
+    "url": "<git-clone-url>.git"
+  },
+  "description": "<one-line description>"
+}
+```
+
+The `source` field supports the same options as Claude Code (`url`, `github`, `git`, `file`, `directory`).
+
+### 2d. Update scenario
+
+If the plugin is already listed (this is an update), find its existing entry, update changed fields, and preserve any curator-added fields not in the standard shape. Do not overwrite `publishedAt` if present — add `"updatedAt": "<today>"` instead.
+
+Show all prepared entries to the user and ask them to confirm before proceeding.
 
 ---
 
 ## Step 3: Submit PR
 
-Use the `gh` CLI throughout. Confirm each command with the user before running if it affects shared state (fork, push, PR open).
+Use the `gh` CLI. Confirm commands that affect shared state before running.
 
-### 3a. Fork and clone the registry
+### 3a. Get the marketplace repo locally
+
+If the user has write access (org member), work directly:
 
 ```bash
-gh repo fork cyberuni/universal-plugin-registry --clone --remote
-cd universal-plugin-registry
+gh repo clone cyberuni/marketplace
+cd marketplace
 ```
 
-If the user already has a fork, skip the fork step and just ensure the fork is up to date:
+If a fork is needed:
 
 ```bash
-git fetch upstream
-git merge upstream/main
+gh repo fork cyberuni/marketplace --clone --remote
+cd marketplace
+git fetch upstream && git merge upstream/main
 ```
 
 ### 3b. Create a branch
@@ -119,20 +166,14 @@ git merge upstream/main
 git checkout -b add-<plugin-name>
 ```
 
-### 3c. Add the registry entry
+### 3c. Edit all detected marketplace files
 
-The registry stores entries in `plugins/<plugin-name>.json`. Write the entry from Step 2 to that file:
-
-```bash
-# write the JSON to plugins/<plugin-name>.json
-```
-
-If `plugins/<plugin-name>.json` already exists, this is an update — read the existing file first and preserve any fields not in the standard entry shape (some entries may have curator-added fields).
+For each vendor marketplace file detected in Step 2a, append the plugin entry to its `plugins` array. Preserve formatting and all existing entries exactly. Stage all changed files together.
 
 ### 3d. Commit and push
 
 ```bash
-git add plugins/<plugin-name>.json
+git add .claude-plugin/marketplace.json .cursor-plugin/marketplace.json  # whichever exist
 git commit -m "feat: add <plugin-name> v<version>"
 git push origin add-<plugin-name>
 ```
@@ -141,7 +182,7 @@ git push origin add-<plugin-name>
 
 ```bash
 gh pr create \
-  --repo cyberuni/universal-plugin-registry \
+  --repo cyberuni/marketplace \
   --title "Add <plugin-name> v<version>" \
   --body "$(cat <<'EOF'
 ## Plugin
@@ -150,6 +191,7 @@ gh pr create \
 **Version:** <version>
 **Author:** <author>
 **License:** <license>
+**Category:** <category>
 
 ## Description
 
@@ -159,8 +201,13 @@ gh pr create \
 
 - [x] Claude Code
 - [x] Cursor
-- [x] Codex
-- [x] GitHub Copilot CLI
+- [ ] Codex  (no marketplace file)
+- [ ] GitHub Copilot CLI  (no marketplace file)
+
+## Marketplace files updated
+
+- `.claude-plugin/marketplace.json`
+- `.cursor-plugin/marketplace.json`
 
 ## Links
 
@@ -169,10 +216,11 @@ gh pr create \
 
 ## Checklist
 
-- [ ] All four vendor manifests present and valid
+- [ ] All targeted vendor manifests present and valid
 - [ ] Hook event casing correct per vendor
 - [ ] Semver version string
 - [ ] SPDX license identifier
+- [ ] Entry appended to each detected marketplace file
 EOF
 )"
 ```
@@ -186,9 +234,10 @@ Return the PR URL to the user when done.
 | Problem | Fix |
 |---|---|
 | Hook events silently don't fire | Check casing: Claude Code/Codex need PascalCase, Cursor/Copilot CLI need camelCase |
-| Codex rejects manifest | `version` and `description` are required by Codex — add them if missing |
+| Codex rejects manifest | `version` and `description` are required by Codex |
 | PR rejected: missing source link | Add `homepage` or `repository` to plugin.json |
-| PR rejected: name conflict | Rename the plugin — check the registry for existing `plugins/<name>.json` files first |
+| Name conflict in marketplace | Check existing entries in each marketplace file first |
+| Plugin loads but skills missing | Add `skills` array to the Claude Code marketplace entry |
 
 ---
 
