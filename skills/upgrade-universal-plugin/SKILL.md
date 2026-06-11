@@ -34,6 +34,8 @@ grep -rn "npx universal-plugin@" . \
 
 Report a summary: how many files, which files, and the versions currently pinned.
 
+If zero occurrences are found, report that there is nothing to upgrade and stop — do not modify files or create a commit.
+
 ### Step 3 — Confirm with the user
 
 Show the list of files and the planned replacement, then ask for confirmation before making any changes.
