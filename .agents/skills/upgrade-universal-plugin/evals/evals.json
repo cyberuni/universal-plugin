@@ -1,0 +1,35 @@
+{
+	"skill_name": "upgrade-universal-plugin",
+	"evals": [
+		{
+			"id": 1,
+			"prompt": "Upgrade universal-plugin to the latest version across this project.",
+			"expected_output": "Runs `npm view universal-plugin version` to resolve the latest version, greps all .md/.json/.yaml/.ts/.js files for `npx universal-plugin@`, reports how many files and occurrences were found with current pinned versions, then asks for confirmation before applying any changes.",
+			"files": []
+		},
+		{
+			"id": 2,
+			"prompt": "Pin all npx universal-plugin calls to version 2.3.1.",
+			"expected_output": "Uses 2.3.1 directly without fetching from npm. If the current pins are on a different major (e.g. 1.x), warns about a cross-major bump and requires explicit confirmation before proceeding. Within the same major, shows files and confirms before applying.",
+			"files": []
+		},
+		{
+			"id": 3,
+			"prompt": "Update universal-plugin from 1.4.0 to 1.5.0.",
+			"expected_output": "Finds all `npx universal-plugin@1.4.0` occurrences (same major), shows the list, confirms with the user, then applies replacements using the Edit tool (not sed). Re-runs the grep after to verify no old pins remain, then commits with `chore: upgrade npx universal-plugin pin to @1.5.0`.",
+			"files": []
+		},
+		{
+			"id": 4,
+			"prompt": "There are no npx universal-plugin@ calls in this project. Upgrade to the latest.",
+			"expected_output": "Resolves the latest version, runs the grep, finds zero occurrences, and reports that there is nothing to upgrade — no files are modified and no commit is created.",
+			"files": []
+		},
+		{
+			"id": 5,
+			"prompt": "Upgrade universal-plugin from 1.9.0 to 2.0.0.",
+			"expected_output": "Detects a major-version boundary (1.x → 2.x), warns the user that cross-major bumps may include breaking changes, and requires explicit confirmation before applying. Proceeds only after confirmation, then applies, verifies, and commits.",
+			"files": []
+		}
+	]
+}
