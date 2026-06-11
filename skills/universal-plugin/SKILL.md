@@ -70,16 +70,16 @@ Infer from context; ask only if ambiguous. Apply rules from the `plugin-design` 
 
 ### Step 4 — Scaffold files
 
-Read the templates from `.plugin/assets/templates/` and fill in the placeholders:
+Read the templates from `assets/templates/` and fill in the placeholders:
 
 | File to create | Template |
 |----------------|----------|
-| `.plugin/plugin.json` | `.plugin/assets/templates/plugin.json` |
-| `skills/<name>/SKILL.md` | `.plugin/assets/templates/skill.md` |
-| `commands/<name>.md` | `.plugin/assets/templates/command.md` |
-| `agents/<name>.md` | `.plugin/assets/templates/agent.md` |
-| `hooks/hooks.json` | `.plugin/assets/templates/hooks.json` |
-| `commands/setup.md` (when `rules/` included) | `.plugin/assets/templates/setup-command.md` |
+| `.plugin/plugin.json` | `assets/templates/plugin.json` |
+| `skills/<name>/SKILL.md` | `assets/templates/skill.md` |
+| `commands/<name>.md` | `assets/templates/command.md` |
+| `agents/<name>.md` | `assets/templates/agent.md` |
+| `hooks/hooks.json` | `assets/templates/hooks.json` |
+| `commands/setup.md` (when `rules/` included) | `assets/templates/setup-command.md` |
 
 Directory layout:
 
