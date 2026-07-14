@@ -134,8 +134,10 @@ https://github.com/cyberuni/universal-plugin/blob/main/spec/universal-plugin-sys
 
 ### Step 6 — Audit skills
 
+Audit each skill via the aced **improve-skill** skill's mechanical `validate.mts` engine:
+
 ```bash
-npx cyber-skills audit validate --path skills/<skill-name>
+node "<path to aced improve-skill>/scripts/validate.mts" --path skills/<skill-name>
 ```
 
 Fix any CRITICAL findings. Then invoke the **audit-skill** skill for full review.
@@ -228,7 +230,7 @@ Delete the plugin root directory. Confirm with the user before proceeding — th
 
 ## References
 
-- Governance: `npx cyber-skills governance show plugin-design`
+- Governance: `npx cyberplace governance show plugin-design`
 - Spec: https://github.com/cyberuni/universal-plugin/blob/main/spec/universal-plugin-system.md
 - Schema: https://raw.githubusercontent.com/cyberuni/universal-plugin/refs/heads/main/schema/v1.json
 - Examples: https://github.com/cyberuni/universal-plugin/tree/main/examples
