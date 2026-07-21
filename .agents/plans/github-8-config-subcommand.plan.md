@@ -15,8 +15,14 @@ todos:
     status: completed
   - content: "Spec gate R1: cold spec-judge ALIGNED false — fixed exit codes, table rows, position scenario, axi list; reserved-key=packagePath only (vendors dropped as dead); charter=keep+note"
     status: completed
-  - content: "Spec gate R2: cold spec-judge re-dispatched to verify fixes; on ALIGNED true → freeze both .feature + ledger leash/gate + status handling"
-    status: in_progress
+  - content: "Spec gate: R3 cold spec-judge ALIGNED true (0 findings); ratified in-session; both .feature frozen, ledger leash+gate + correction; status approved. Committed."
+    status: completed
+  - content: "Deliver: src/config/ (domain+fs+cli, clean-arch), wired into cli.ts; 42 config tests; verify 295/295; knip clean; rebased onto main c26b019 (spec.md approval conflict resolved to github-8)"
+    status: completed
+  - content: "Impl gate: cold sdd-impl-judge approve (33/33, mutation-backstopped); ratified; status implemented + approval.impl; impl gate ledger line. Post-gate: (none) empty-state + removed stale cli-command.md"
+    status: completed
+  - content: "Handoff: Warden placement check 0-blocking (config/ at blessed home); PR #16 (Closes #8); followup #18 filed (install-script adoption gated on version-locking)"
+    status: completed
   - content: "Deliver: impl config command group + verification per frozen scenario; rebase onto main"
     status: pending
   - content: "Impl gate + handoff (PR, Closes #8)"
@@ -60,22 +66,11 @@ shape. Finalized at handoff by Warden.
 
 ## NEXT
 
-Explore draft is COMPLETE and on disk (config/ group + add/get nodes, both `.feature` parse clean —
-purely additive, nothing frozen touched; root spec.md capability/placement/by-concept updated).
+**Mission complete — landed, awaiting merge.** PR #16 (`Closes #8`) is open against `main` with all
+gates passed. Nothing left to do until merge.
 
-**Blocked at the spec gate on the cold spec-judge** — dispatch failed on the session limit (resets
-5am America/Los_Angeles). On resume:
+On merge: #8 auto-closes; retire this plan + combat log via the doctrine loop
+(`sdd:plan-retirement`). Follow-up #18 (install-script adoption, gated on version-locking) re-enters
+SDD only when a later mission is started from it.
 
-1. Re-dispatch the cold `sdd:sdd-spec-judge` over the config nodes (brief: 4 locked decisions —
-   AXI TOON default + `--format json` on get; `add` requires `name`; append/replace-by-name +
-   preserve other keys; capability-first `config/` group + 2 unit nodes; all-new, nothing frozen).
-2. Incorporate the verdict / any `<!-- open: -->` markers; loop if not converged (cap 3).
-3. Spec gate: freeze `add.feature` + `get.feature` (`@frozen`), write `kind: leash` + `gate` lines
-   to `ledger/github-8.<hash>.jsonl`, set root spec `status` handling (config nodes approved).
-4. Deliver: impl `src/config/` (pure merge-by-name domain + fs adapter + cli/AXI wiring), one
-   verification per frozen scenario, wire `configCommand()` into `src/cli.ts`; rebase onto main.
-5. Impl gate + handoff: PR with `Closes #8`; record any follow-up (install-script adoption gated on
-   version-locking) as a `kind: followup` ledger line.
-
-No ledger `leash` line written yet (write it at gate entry on resume). Statusline skipped — no
-`.agents/sdd/` reader wired.
+Corpus formation pass is due (on-demand, not auto-run) — `sdd:manage` → "audit the corpus structure".
