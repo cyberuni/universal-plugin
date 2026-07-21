@@ -85,9 +85,7 @@ function getCommand(fs: ConfigFs): Command {
 				const entries = getEntries(fs.read(root), opts.key)
 
 				output(entries, () => {
-					if (entries.length > 0) {
-						printTable(entries as Record<string, unknown>[], [{ label: 'name', get: (e) => String(e.name ?? '') }])
-					}
+					printTable(entries as Record<string, unknown>[], [{ label: 'name', get: (e) => String(e.name ?? '') }])
 					console.log(`${opts.key}: ${entries.length} entries`)
 				})
 

@@ -216,6 +216,7 @@ test('an absent key prints a definitive empty state', () => {
 	seed({ packagePath: 'packages/universal-plugin' })
 	const r = run('config', 'get', '--key', 'sdd-plugins')
 	expect(r.status).toBe(0)
+	expect(r.stdout).toMatch(/\(none\)/)
 	expect(r.stdout).toMatch(/0 entries/)
 })
 
@@ -223,6 +224,7 @@ test('a key present with an empty array prints a definitive empty state', () => 
 	seed({ 'sdd-plugins': [] })
 	const r = run('config', 'get', '--key', 'sdd-plugins')
 	expect(r.status).toBe(0)
+	expect(r.stdout).toMatch(/\(none\)/)
 	expect(r.stdout).toMatch(/0 entries/)
 })
 
