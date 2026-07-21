@@ -204,6 +204,13 @@ test('a spec after @ that is not valid semver is treated as a dist-tag and goes 
 	expect(result.stderr).toContain('upx: no installed tool-a')
 })
 
+test('a dist-tag miss notice names it a dist-tag, not a range being satisfied', () => {
+	const result = run(['tool-a@next'])
+	expect(result.stderr).toContain('upx: no installed tool-a')
+	expect(result.stderr).toContain('dist-tag')
+	expect(result.stderr).not.toContain('satisfies')
+})
+
 // ── npx fallback ──
 
 test('no installed version satisfying the range falls back to npx with a notice', () => {

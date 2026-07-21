@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Install, RunFs } from './run.js'
 import {
+	distTagNotice,
 	fallbackNotice,
 	isSemverRange,
 	isValidPackageName,
@@ -199,6 +200,16 @@ describe('fallbackNotice', () => {
 	})
 })
 
+describe('distTagNotice', () => {
+	it('keeps the fixed prefix, names the dist-tag, and never claims "satisfies"', () => {
+		const notice = distTagNotice('tool-a', 'next')
+		expect(notice).toMatch(/^upx: no installed tool-a/)
+		expect(notice).toContain('dist-tag')
+		expect(notice).toContain('npx')
+		expect(notice).not.toContain('satisfies')
+	})
+})
+
 // ── runUpx orchestration (fake RunFs, no spawning) ──
 
 function fakeRunFs(
@@ -256,6 +267,9 @@ describe('runUpx', () => {
 		const outcome = runUpx(['tool-a@next'], fs)
 		expect(fs.spawnNpxCalls).toEqual([['tool-a@next']])
 		expect(outcome.kind === 'exit' && outcome.notice).toMatch(/^upx: no installed tool-a/)
+		// a dist-tag is not a range — the notice must not claim versions failed to "satisfy" it
+		expect(outcome.kind === 'exit' && outcome.notice).not.toContain('satisfies')
+		expect(outcome.kind === 'exit' && outcome.notice).toContain('dist-tag')
 	})
 
 	it('passes through the child exit code', () => {

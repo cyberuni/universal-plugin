@@ -66,7 +66,9 @@ How `upx` turns `<pkg>@<range>` into a running binary:
 - **Range semantics** — `<range>` accepts caret, tilde, exact, or any semver range; a bare `upx <pkg>`
   matches any installed version. Matching is `semver.satisfies` against each install's version.
 - **Dist-tag → npx** — a non-semver spec after `@` (a dist-tag) cannot be matched locally and goes to
-  the npx fallback, even when the package **is** installed.
+  the npx fallback, even when the package **is** installed. Its notice keeps the fixed
+  `upx: no installed <pkg>` prefix but **names the dist-tag** rather than claiming a version failed to
+  "satisfy" it — a tag is not a range.
 - **npx fallback** — when no installed version satisfies `<range>`, `upx` runs `npx <pkg>@<range> [args…]`
   so the call still succeeds, and prints a single-line stderr notice with the fixed prefix
   `upx: no installed <pkg> satisfies "<range>", using npx`. `upx` degrades, it does not fail, on a miss.

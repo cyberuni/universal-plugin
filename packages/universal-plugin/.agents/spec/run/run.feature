@@ -70,6 +70,12 @@ Feature: upx — the local-first package runner
     Then stdout contains "NPX-SHIM tool-a@next"
     And stderr contains "upx: no installed tool-a"
 
+  Scenario: a dist-tag miss notice names it a dist-tag, not a range being satisfied
+    When I run "upx tool-a@next"
+    Then stderr contains "upx: no installed tool-a"
+    And stderr contains "dist-tag"
+    And stderr does not contain "satisfies"
+
   # ── npx fallback ──
 
   Scenario: no installed version satisfying the range falls back to npx with a notice

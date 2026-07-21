@@ -5,24 +5,24 @@ project-path: packages/universal-plugin
 approval:
   spec:
     verdict: approve
-    by: unional
+    by: agent
     cause: dimension
     why:
-      floor: none — no narrowing. `run/` is a brand-new node (nothing to weaken); `plugin/bundle/` gains 6 purely-additive scenarios (`gherkin-cli diff`: 6 added / 0 modified / 0 removed) so its freeze self-clears with no re-open. Clearance n/a, Compatibility n/a (impl unbuilt this CR — no shipped semver bump), Conflict none (both suites self-consistent).
-      blast: moderate — one new behavioral node (`run/`, the lean `upx` bin) + additive `--runner npx|upx` on `plugin/bundle/` + root capability/placement/charter/concept maps. Reuses no network path; `upx` resolves against local/global installs, npx fallback only on a miss.
-      novelty: moderate — a productized local-first package runner realizing #10's real problem (npx ~1s/call latency, benchmarked ~10× win) after the original upx-swap premise was disproven (npm `upx` is the UPX packer; no off-the-shelf runner exists). Range-satisfying local→global resolution with transparent passthrough and a fixed npx fallback; `bundle` default preserves each ref's runner word.
-      confidence: high — cold sdd-spec-judge 3-lens {oracle, builder, architect} ALIGNED true on round 3; all 11 semver fixture/range pairs verified under node-semver 7.8.1; observable fixture-marker + npx-shim harness (no registry dependence); 26 boolean run scenarios, prose↔suite 1:1; both `.feature` parse clean (gherkin-cli). Ratified by the user in-session ("freeze it and continue to impl").
-      cr: github-10
+      floor: none — additive. `run/` gains 1 purely-additive scenario (`gherkin-cli diff`: 1 added / 0 modified / 0 removed) locking the dist-tag miss notice, so its freeze self-clears with no re-open. Clearance n/a (nothing narrowed), Compatibility n/a (patch-level notice-wording refinement — no shipped semver bump this CR), Conflict none (new scenario compatible with the sibling `@next` and the range-miss scenarios).
+      blast: minor — one additive scenario on `run/` plus a `distTagNotice`/`fallbackNotice` split in `src/run/run.ts`; no other node or command touched.
+      novelty: low — a notice-wording correctness fix realizing github-10 follow-up #12 (item 2): a dist-tag miss must not claim installed versions failed to "satisfy" the tag, since a tag is not a range.
+      confidence: high — cold sdd-spec-judge 3-lens {oracle, builder, architect} ALIGNED true; new scenario discriminates (a naive shared-notice fix fails it); prose↔suite 1:1; additive `gherkin-cli diff` verified. Self-asserted (by agent, auto-spec leash).
+      cr: github-12
   impl:
     verdict: approve
     by: agent
     cause: dimension
     why:
-      floor: none — purely additive impl against a frozen contract. No Clearance (nothing narrowed/deleted), no Compatibility (new `upx` bin + additive `--runner` flag — no shipped semver bump this CR), no Conflict (both frozen suites stayed self-consistent).
-      blast: moderate — new `src/run/` (pure domain + `RunFs` infra + lean hand-rolled `cli.ts`, no commander) building the `upx` second bin (`bin/upx.mjs`, `dist/run.mjs` 7.99kB); `semver` dep added; `src/pin`/`src/bundle` gain the `--runner` flag (default preserves each ref's runner word). No sync-engine or network surface touched.
-      novelty: moderate — a local-first package runner (ancestor `node_modules` walk → `npm root -g` → npx fallback, transparent passthrough, dist-tag→npx, fail-loud bin resolution) realizing #10's benchmarked ~10× latency win; the bundle change is a small additive runner-word selection.
-      confidence: high — cold sdd-impl-judge re-derived all 32 frozen scenarios and verified each via real process-boundary e2e (bug-detecting on local<global, nearest-ancestor, dist-tag, bare-miss, exit-3/7 passthrough, multi-bin/no-bin fail-loud); pnpm verify green (251/251 across 16 files); lean-bin + clean-architecture confirmed; no `.feature`/`.agents/spec` edits. Passed clean first round (no judge-iteration correction). Self-asserted (by agent) — ratify or kick back.
-      cr: github-10
+      floor: none — purely additive impl against the just-frozen scenario. No Clearance (nothing narrowed/deleted), no Compatibility (notice-wording refinement — no shipped semver bump this CR), no Conflict (frozen suite stayed self-consistent).
+      blast: minor — `src/run/run.ts` gains `distTagNotice` (the npx-fallback path picks it vs `fallbackNotice` by `isSemverRange(range)`); verifications added in `src/run/run.test.ts` + `src/bin/upx.test.mts`. No sync/network/bundle surface touched.
+      novelty: low — split the shared fallback notice so the dist-tag branch names the tag instead of claiming "satisfies"; range-miss and bare-`*` paths keep `fallbackNotice` unchanged.
+      confidence: high — cold sdd-impl-judge re-derived all 26 frozen scenarios by hand and verified each; range-miss notice still contains "satisfies" (split non-regression confirmed); pnpm test green (253/253 across 16 files, +2 vs github-10); run.ts stays pure domain; no scope creep. Passed clean first round (no judge-iteration correction). Self-asserted (by agent) — ratify or kick back.
+      cr: github-12
 ---
 
 # universal-plugin — the cross-vendor plugin build/derivation engine (CLI)

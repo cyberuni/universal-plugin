@@ -149,6 +149,13 @@ export function fallbackNotice(pkg: string, range: string): string {
 	return `upx: no installed ${pkg} satisfies "${range}", using npx`
 }
 
+/** A dist-tag (`next`, `latest`) is not a version range, so the miss notice must not claim the
+ *  installed versions failed to "satisfy" it — it never could. Keeps the fixed
+ *  `upx: no installed <pkg>` prefix shared with {@link fallbackNotice}. */
+export function distTagNotice(pkg: string, tag: string): string {
+	return `upx: no installed ${pkg}; "${tag}" is a dist-tag, using npx`
+}
+
 export const HELP_TEXT = `Usage: upx <pkg>@<range> [args…]
 
 Runs a package's CLI from a local or global install matching <range>, falling
@@ -177,7 +184,8 @@ export function runUpx(argv: string[], fs: RunFs): RunOutcome {
 	const { pkg, range, bare } = specResult.spec
 	const childArgs = parsedArgv.args.childArgs
 
-	if (isSemverRange(range)) {
+	const semverRange = isSemverRange(range)
+	if (semverRange) {
 		const locals = fs.findLocalInstalls(pkg)
 		const globalInstall = fs.findGlobalInstall(pkg)
 		const install = selectInstall(range, locals, globalInstall)
@@ -192,5 +200,6 @@ export function runUpx(argv: string[], fs: RunFs): RunOutcome {
 
 	const npxSpec = bare ? pkg : `${pkg}@${range}`
 	const code = fs.spawnNpx([npxSpec, ...childArgs])
-	return { kind: 'exit', code, notice: fallbackNotice(pkg, range) }
+	const notice = semverRange ? fallbackNotice(pkg, range) : distTagNotice(pkg, range)
+	return { kind: 'exit', code, notice }
 }
