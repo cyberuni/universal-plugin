@@ -1,5 +1,5 @@
 ---
-status: approved
+status: implemented
 name: universal-plugin
 project-path: packages/universal-plugin
 approval:
@@ -12,6 +12,16 @@ approval:
       blast: moderate — new `config/` command group + `config/add` + `config/get` behavioral nodes; dropped the dead `vendors` key from `.agents/universal-plugin.json`; root capability/placement/by-concept + `axi/` exercised-by maps updated.
       novelty: moderate — a plugin-registered keyed config store in the CLI's own `.agents/universal-plugin.json` (append-or-replace-by-`name` idempotent `add` + lazy `get`) realizing #8; reserved-key `packagePath` rejection (the CLI's own string config, read by `publish sync-version`); AXI-conformant (TOON default keyed on `name` + count aggregate; `--format json` raw stored array).
       confidence: high — cold sdd-spec-judge 3-lens {oracle, builder, architect} ALIGNED true on round 3 (0 findings); 33 boolean scenarios, prose↔suite 1:1 both ways; both `.feature` parse clean (gherkin-cli) + `check-suite` OK. R1 caught exit-code discrimination + table-row gaps + unfalsifiable replace-position + missing reserved-key coverage; R2 caught 4 stale-`vendors` prose refs — both fixed, grep-verified zero `vendors` in `config/`+`axi/`. Ratified by the user in-session ("ratify").
+      cr: github-8
+  impl:
+    verdict: approve
+    by: unional
+    cause: dimension
+    why:
+      floor: none — purely additive impl against the frozen contract. No Clearance (nothing narrowed/deleted), no Compatibility (new `config` command group — no shipped semver bump this CR), no Conflict (both frozen suites stayed self-consistent; the rebase-onto-`main` conflict was in the `spec.md` approval block, resolved to github-8 — not a `.feature` edit).
+      blast: moderate — new `src/config/` (pure domain + `ConfigFs` adapter + AXI-wired `cli.ts`) building the `config add`/`config get` group, wired into `src/cli.ts`; empty state prints `(none)`. Also dropped the dead `vendors` key and removed the outdated `.agents/governances/cli-command.md` governance. No sync/network surface touched.
+      novelty: moderate — a plugin-registered keyed config store in the CLI's own `.agents/universal-plugin.json` (append-or-replace-by-`name` idempotent `add` + lazy `get`); reserved-key `packagePath` rejection; AXI-conformant output.
+      confidence: high — cold sdd-impl-judge re-derived all 33 frozen scenarios independently and verified each, mutation-backstopped on reserved-key + replace-by-name (both mutations caught, file restored); merged tree green (`pnpm verify` 295/295 across 18 files, rebased onto `main` `c26b019`); clean-architecture layering confirmed; no `.feature`/`.agents/spec` edits by the impl-producer. Ratified by the user in-session ("ratify").
       cr: github-8
 ---
 
