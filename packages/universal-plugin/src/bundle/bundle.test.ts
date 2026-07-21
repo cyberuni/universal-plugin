@@ -197,6 +197,49 @@ describe('bundlePins — multiple packages', () => {
 	})
 })
 
+// ── Runner selection ──
+describe('bundlePins — runner selection', () => {
+	// Scenario: --runner upx emits the upx runner word when pinning a workspace CLI
+	it('emits upx on every rewritten ref when --runner upx is given', () => {
+		const fs = fakeFs({ '/skills/x/SKILL.md': 'npx cyberplace@0.0.9' })
+		const workspace = fakeWorkspace({ cyberplace: '0.1.0' })
+
+		bundlePins(fs, workspace, { runner: 'upx' })
+
+		expect(fs.files['/skills/x/SKILL.md']).toBe('upx cyberplace@0.1.0')
+	})
+
+	// Scenario: the default runner preserves an existing npx reference as npx
+	it('preserves an existing npx reference as npx by default', () => {
+		const fs = fakeFs({ '/skills/x/SKILL.md': 'npx cyberplace@0.0.9' })
+		const workspace = fakeWorkspace({ cyberplace: '0.1.0' })
+
+		bundlePins(fs, workspace)
+
+		expect(fs.files['/skills/x/SKILL.md']).toBe('npx cyberplace@0.1.0')
+	})
+
+	// Scenario: the default runner recognizes and re-pins an existing upx reference as upx
+	it('recognizes and re-pins an existing upx reference as upx by default', () => {
+		const fs = fakeFs({ '/skills/x/SKILL.md': 'upx cyberplace@0.0.9' })
+		const workspace = fakeWorkspace({ cyberplace: '0.1.0' })
+
+		bundlePins(fs, workspace)
+
+		expect(fs.files['/skills/x/SKILL.md']).toBe('upx cyberplace@0.1.0')
+	})
+
+	// Scenario: --runner npx forces an existing upx reference back to npx
+	it('forces an existing upx reference back to npx when --runner npx is given', () => {
+		const fs = fakeFs({ '/skills/x/SKILL.md': 'upx cyberplace@0.0.9' })
+		const workspace = fakeWorkspace({ cyberplace: '0.1.0' })
+
+		bundlePins(fs, workspace, { runner: 'npx' })
+
+		expect(fs.files['/skills/x/SKILL.md']).toBe('npx cyberplace@0.1.0')
+	})
+})
+
 // Scenario: no pins to resolve is a definitive empty state
 describe('bundlePins — empty state', () => {
 	it('returns no pins when no skill references an npx <pkg>@<pin>', () => {

@@ -1,5 +1,5 @@
 ---
-status: approved
+status: implemented
 name: universal-plugin
 project-path: packages/universal-plugin
 approval:
@@ -18,11 +18,11 @@ approval:
     by: agent
     cause: dimension
     why:
-      floor: none — purely additive impl against a frozen contract. No Clearance (no scenario narrowed/deleted), no Compatibility (the AXI output surface was newly built, not a shipped semver bump), no Conflict (the frozen suite stayed self-consistent).
-      blast: small — closes the last standing impl gap in the #84/#85 build/bundle split: `plugin build`'s output surface (`src/build/build.ts` + `src/build/cli.ts`) re-implemented to the frozen AXI contract; e2e scenarios added; build node README's impl-trails disclaimer removed. No spec/suite change.
-      novelty: low — mechanically models `plugin bundle`'s AXI form (#85): default TOON table + `built N, skipped M, failed K` aggregate, `--format json` with a top-level `built` array, stderr next-step `→ universal-plugin plugin validate`.
-      confidence: high — cold sdd-impl-judge re-derived every scenario's oracle and drove the built CLI by hand across fixtures: all 18 frozen `build.feature` scenarios PASS, 0 failing, no regressions; pnpm verify green (171 tests). One judge-iteration correction (`--format json` initially lacked the frozen `built` array) recorded and fixed pre-gate. Self-asserted (by agent) — ratify or kick back.
-      cr: github-89-build-axi
+      floor: none — purely additive impl against a frozen contract. No Clearance (nothing narrowed/deleted), no Compatibility (new `upx` bin + additive `--runner` flag — no shipped semver bump this CR), no Conflict (both frozen suites stayed self-consistent).
+      blast: moderate — new `src/run/` (pure domain + `RunFs` infra + lean hand-rolled `cli.ts`, no commander) building the `upx` second bin (`bin/upx.mjs`, `dist/run.mjs` 7.99kB); `semver` dep added; `src/pin`/`src/bundle` gain the `--runner` flag (default preserves each ref's runner word). No sync-engine or network surface touched.
+      novelty: moderate — a local-first package runner (ancestor `node_modules` walk → `npm root -g` → npx fallback, transparent passthrough, dist-tag→npx, fail-loud bin resolution) realizing #10's benchmarked ~10× latency win; the bundle change is a small additive runner-word selection.
+      confidence: high — cold sdd-impl-judge re-derived all 32 frozen scenarios and verified each via real process-boundary e2e (bug-detecting on local<global, nearest-ancestor, dist-tag, bare-miss, exit-3/7 passthrough, multi-bin/no-bin fail-loud); pnpm verify green (251/251 across 16 files); lean-bin + clean-architecture confirmed; no `.feature`/`.agents/spec` edits. Passed clean first round (no judge-iteration correction). Self-asserted (by agent) — ratify or kick back.
+      cr: github-10
 ---
 
 # universal-plugin — the cross-vendor plugin build/derivation engine (CLI)
