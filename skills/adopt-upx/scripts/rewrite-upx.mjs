@@ -18,7 +18,7 @@
 //
 // Idempotent: a second run finds no more `npx <pkg>@<semver>` occurrences to rewrite.
 
-import { readFileSync, writeFileSync, statSync, readdirSync } from 'node:fs'
+import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
 const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', '.turbo'])
