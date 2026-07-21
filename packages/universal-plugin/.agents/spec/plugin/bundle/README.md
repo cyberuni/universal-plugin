@@ -44,6 +44,12 @@ output per the AXI contract:
 - **Best-effort on a broken workspace entry** — a referenced workspace package whose local
   `package.json` version is missing or unreadable is a warning (stderr) that **skips that package**;
   `bundle` still exits 0.
+- **Runner selection** — `bundle` recognizes both `npx <pkg>@<pin>` and `upx <pkg>@<pin>` references.
+  `--runner <npx|upx>` chooses the runner word written on every rewritten reference; **omitting it
+  preserves** each reference's existing runner word (an `npx` ref stays `npx`, an `upx` ref stays
+  `upx`) while still re-pinning the version. `upx` is the local-first runner ([`run/`](../../run/README.md));
+  emitting it is opt-in because a released plugin then depends on `upx` being on the consumer's PATH,
+  whereas `npx` always ships with npm. An unknown `--runner` value fails loud.
 - **Doc-example ignore** — a skill declared **pin-exempt** (its version strings are illustration, not
   real invocations) is never rewritten, even when the referenced package is a workspace CLI and even
   for concrete-looking pins; no pins row is emitted for a package inside a pin-exempt skill.
@@ -83,6 +89,7 @@ Every scenario in [`bundle.feature`](./bundle.feature) maps to one of these beha
 | **pin from workspace** | workspace CLI pinned to local `package.json` version; placeholder resolves; workspace wins over a newer registry; no network |
 | **idempotent** | pin already at the workspace version → `unchanged` |
 | **best-effort broken entry** | unreadable workspace `package.json` warns + skips, exit 0 |
+| **runner selection** | `--runner npx\|upx` sets the emitted runner word; default preserves each ref's runner; both `npx`/`upx` refs recognized; unknown value fails loud |
 | **doc-example ignore** | pin-exempt skill never rewritten (concrete or placeholder, workspace or not); no pins row |
 | **external pins skipped** | no workspace entry → left untouched, status `skipped` |
 | **version-map artifact** | writes `.plugin/pins.json` (workspace-resolved `{pkg: version}`); excludes external/`skipped`; `--dry-run` skips it |

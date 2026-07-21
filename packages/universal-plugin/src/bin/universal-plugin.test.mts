@@ -457,6 +457,94 @@ test('plugin bundle --help documents synopsis, flags, and an example', () => {
 	expect(result.stdout).toMatch(/Example:/)
 })
 
+// Scenario: --help documents the --runner flag
+test('plugin bundle --help documents the --runner flag', () => {
+	const result = spawnSync('node', [bin, 'plugin', 'bundle', '--help'], {
+		encoding: 'utf8',
+		env: { ...process.env, NODE_NO_WARNINGS: '1' },
+	})
+	expect(result.status).toBe(0)
+	expect(result.stdout).toMatch(/--runner/)
+})
+
+// ── Runner selection (--runner npx|upx; default preserves each ref's runner) ──
+
+// Scenario: --runner upx emits the upx runner word when pinning a workspace CLI
+test('plugin bundle --runner upx emits the upx runner word when pinning a workspace CLI', () => {
+	const root = mkBundleFixture('universal-plugin-bundle-runner-upx-')
+	try {
+		writeWorkspacePkg(root, 'cyberplace', '0.1.0')
+		writeSkill(root, 'x/SKILL.md', 'npx cyberplace@0.0.9')
+		const result = runBundle(root, '--runner', 'upx')
+		expect(result.status).toBe(0)
+		const content = fs.readFileSync(path.join(root, 'skills', 'x', 'SKILL.md'), 'utf8')
+		expect(content).toContain('upx cyberplace@0.1.0')
+		expect(content).not.toContain('npx cyberplace')
+	} finally {
+		fs.rmSync(root, { recursive: true, force: true })
+	}
+})
+
+// Scenario: the default runner preserves an existing npx reference as npx
+test('plugin bundle default runner preserves an existing npx reference as npx', () => {
+	const root = mkBundleFixture('universal-plugin-bundle-runner-defaultnpx-')
+	try {
+		writeWorkspacePkg(root, 'cyberplace', '0.1.0')
+		writeSkill(root, 'x/SKILL.md', 'npx cyberplace@0.0.9')
+		const result = runBundle(root)
+		expect(result.status).toBe(0)
+		const content = fs.readFileSync(path.join(root, 'skills', 'x', 'SKILL.md'), 'utf8')
+		expect(content).toContain('npx cyberplace@0.1.0')
+		expect(content).not.toContain('upx cyberplace')
+	} finally {
+		fs.rmSync(root, { recursive: true, force: true })
+	}
+})
+
+// Scenario: the default runner recognizes and re-pins an existing upx reference as upx
+test('plugin bundle default runner recognizes and re-pins an existing upx reference as upx', () => {
+	const root = mkBundleFixture('universal-plugin-bundle-runner-defaultupx-')
+	try {
+		writeWorkspacePkg(root, 'cyberplace', '0.1.0')
+		writeSkill(root, 'x/SKILL.md', 'upx cyberplace@0.0.9')
+		const result = runBundle(root)
+		expect(result.status).toBe(0)
+		const content = fs.readFileSync(path.join(root, 'skills', 'x', 'SKILL.md'), 'utf8')
+		expect(content).toContain('upx cyberplace@0.1.0')
+		expect(content).not.toContain('npx cyberplace')
+	} finally {
+		fs.rmSync(root, { recursive: true, force: true })
+	}
+})
+
+// Scenario: --runner npx forces an existing upx reference back to npx
+test('plugin bundle --runner npx forces an existing upx reference back to npx', () => {
+	const root = mkBundleFixture('universal-plugin-bundle-runner-forcenpx-')
+	try {
+		writeWorkspacePkg(root, 'cyberplace', '0.1.0')
+		writeSkill(root, 'x/SKILL.md', 'upx cyberplace@0.0.9')
+		const result = runBundle(root, '--runner', 'npx')
+		expect(result.status).toBe(0)
+		const content = fs.readFileSync(path.join(root, 'skills', 'x', 'SKILL.md'), 'utf8')
+		expect(content).toContain('npx cyberplace@0.1.0')
+		expect(content).not.toContain('upx cyberplace')
+	} finally {
+		fs.rmSync(root, { recursive: true, force: true })
+	}
+})
+
+// Scenario: an unknown --runner value fails loud
+test('plugin bundle --runner yarn fails loud naming the value', () => {
+	const root = mkBundleFixture('universal-plugin-bundle-runner-unknown-')
+	try {
+		const result = runBundle(root, '--runner', 'yarn')
+		expect(result.status).toBe(1)
+		expect(result.stderr).toMatch(/yarn/)
+	} finally {
+		fs.rmSync(root, { recursive: true, force: true })
+	}
+})
+
 test('governance list includes packaged defaults when project root has no governances', () => {
 	const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-gov-'))
 	try {

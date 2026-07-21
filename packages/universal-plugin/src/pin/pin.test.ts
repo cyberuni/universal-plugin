@@ -4,7 +4,12 @@ import { extractPins } from './pin.js'
 describe('extractPins', () => {
 	it('extracts a single npx pin', () => {
 		const pins = extractPins('Run `npx cyberplace@1.2.0` to install.')
-		expect(pins).toEqual([{ pkg: 'cyberplace', current: '1.2.0', file: '' }])
+		expect(pins).toEqual([{ pkg: 'cyberplace', current: '1.2.0', file: '', runner: 'npx' }])
+	})
+
+	it('extracts a single upx pin', () => {
+		const pins = extractPins('Run `upx cyberplace@1.2.0` to install.')
+		expect(pins).toEqual([{ pkg: 'cyberplace', current: '1.2.0', file: '', runner: 'upx' }])
 	})
 
 	it('extracts multiple pins', () => {

@@ -19,6 +19,22 @@ Or pin to an exact version for reproducible builds:
 npx universal-plugin@0.2.0 <command>
 ```
 
+## upx — the fast package runner
+
+`npm i -g universal-plugin` also puts a second bin, `upx`, on PATH. `upx <pkg>@^<major>` finds an
+already-installed version satisfying the range (local `node_modules` first, then global) and runs
+it directly — about 10× faster than `npx`'s ~1s per-call resolve+spawn cost — falling back to
+`npx` when nothing installed matches:
+
+```sh
+npm i -g universal-plugin
+upx cyber-skills@^2 audit validate
+```
+
+Use a caret range on the major, not an exact pin, so one global install serves every caller. `upx`
+needs to be installed to be on PATH; `npx` always ships with npm, so `npx` remains the safe default
+where `universal-plugin` isn't installed globally.
+
 ## Commands
 
 ### plugin — author the canonical manifest

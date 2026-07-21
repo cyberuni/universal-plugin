@@ -18,6 +18,10 @@ export interface BundleResult {
 
 export interface BundleOptions {
 	dryRun?: boolean
+	/** Runner word to write on every rewritten reference. Omitted preserves each reference's
+	 *  existing runner word (an `npx` ref stays `npx`, an `upx` ref stays `upx`) while still
+	 *  re-pinning the version. */
+	runner?: 'npx' | 'upx'
 }
 
 /** Resolves a package's version from the monorepo workspace — the release-time source of truth
@@ -33,12 +37,14 @@ function escapeRegExp(value: string): string {
 	return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-/** Rewrites every `npx <pkg>@<anything>` occurrence in `content` to `npx <pkg>@<next>`, regardless
- *  of whether the occurrence is a concrete version or a placeholder like `<version>` — so every
- *  reference to one CLI converges on the same resolved value. */
-function rewritePin(content: string, pkg: string, next: string): string {
-	const pattern = new RegExp(`(npx\\s+(?:--yes\\s+|-y\\s+)?${escapeRegExp(pkg)}@)[^\\s\`'")]+`, 'g')
-	return content.replace(pattern, `$1${next}`)
+/** Rewrites every `npx <pkg>@<anything>` or `upx <pkg>@<anything>` occurrence in `content` to
+ *  `<runner> <pkg>@<next>`, regardless of whether the occurrence is a concrete version or a
+ *  placeholder like `<version>` — so every reference to one CLI converges on the same resolved
+ *  value. `forceRunner` omitted preserves each occurrence's existing runner word (an `npx`
+ *  reference stays `npx`, an `upx` reference stays `upx`). */
+function rewritePin(content: string, pkg: string, next: string, forceRunner?: 'npx' | 'upx'): string {
+	const pattern = new RegExp(`(npx|upx)(\\s+(?:--yes\\s+|-y\\s+)?${escapeRegExp(pkg)}@)[^\\s\`'")]+`, 'g')
+	return content.replace(pattern, (_match, runner: string, mid: string) => `${forceRunner ?? runner}${mid}${next}`)
 }
 
 const FRONTMATTER_PATTERN = /^---\r?\n([\s\S]*?)\r?\n---/
@@ -113,7 +119,7 @@ export function bundlePins(pinFs: PinFs, versionSource: VersionSource, opts: Bun
 		let changed = false
 		for (const file of inScope) {
 			const content = contents.get(file)!
-			const rewritten = rewritePin(content, pkg, target)
+			const rewritten = rewritePin(content, pkg, target, opts.runner)
 			if (rewritten !== content) {
 				changed = true
 				contents.set(file, rewritten)

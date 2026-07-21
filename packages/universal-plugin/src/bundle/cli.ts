@@ -15,6 +15,7 @@ interface BundleCliOptions {
 	dryRun?: boolean
 	full?: boolean
 	root?: string
+	runner?: string
 }
 
 export function bundleCommand(): Command {
@@ -26,17 +27,26 @@ export function bundleCommand(): Command {
 		.option('--dry-run', 'Resolve and report pins without writing them')
 		.option('--full', 'Show every pins row without truncation')
 		.option('--format <format>', 'Output format: json or toon (default: toon)')
+		.option(
+			'--runner <runner>',
+			"Runner word to emit on rewritten refs: npx or upx (default: preserve each ref's runner)",
+		)
 		.addOption(ROOT_OPTION)
 		.addHelpText('after', '\nExample:\n  $ universal-plugin plugin bundle --dry-run --full\n')
 		.action((opts: BundleCliOptions) => {
 			try {
+				const runner = opts.runner
+				if (runner !== undefined && runner !== 'npx' && runner !== 'upx') {
+					throw new Error(`error: unknown --runner value "${runner}" (expected npx or upx)`)
+				}
+
 				const root = resolveRoot(opts.root)
 				const manifest = readManifest(root)
 				const skillsDir = resolveSkillsDir(root, manifest.skills as string | undefined)
 				const pinFs = realPinFs(skillsDir)
 				const versionSource = realVersionSource(discoverWorkspace(root))
 
-				const result = bundlePins(pinFs, versionSource, { dryRun: opts.dryRun })
+				const result = bundlePins(pinFs, versionSource, { dryRun: opts.dryRun, runner })
 
 				if (!opts.dryRun) writePinsMap(root, result.pins)
 

@@ -181,3 +181,43 @@ Feature: plugin bundle — materialize the release form
     Then the exit code is 0
     And stdout contains a synopsis, the flags, and one example
     And stdout mentions "--dry-run" and "--full"
+
+  # ── Runner selection (--runner npx|upx; default preserves each ref's runner) ──
+
+  Scenario: --runner upx emits the upx runner word when pinning a workspace CLI
+    Given a skill "skills/x/SKILL.md" contains "npx cyberplace@0.0.9"
+    When I run "universal-plugin plugin bundle --runner upx"
+    Then "skills/x/SKILL.md" contains "upx cyberplace@0.1.0"
+    And "skills/x/SKILL.md" does not contain "npx cyberplace"
+    And the exit code is 0
+
+  Scenario: the default runner preserves an existing npx reference as npx
+    Given a skill "skills/x/SKILL.md" contains "npx cyberplace@0.0.9"
+    When I run "universal-plugin plugin bundle"
+    Then "skills/x/SKILL.md" contains "npx cyberplace@0.1.0"
+    And "skills/x/SKILL.md" does not contain "upx cyberplace"
+    And the exit code is 0
+
+  Scenario: the default runner recognizes and re-pins an existing upx reference as upx
+    Given a skill "skills/x/SKILL.md" contains "upx cyberplace@0.0.9"
+    When I run "universal-plugin plugin bundle"
+    Then "skills/x/SKILL.md" contains "upx cyberplace@0.1.0"
+    And "skills/x/SKILL.md" does not contain "npx cyberplace"
+    And the exit code is 0
+
+  Scenario: --runner npx forces an existing upx reference back to npx
+    Given a skill "skills/x/SKILL.md" contains "upx cyberplace@0.0.9"
+    When I run "universal-plugin plugin bundle --runner npx"
+    Then "skills/x/SKILL.md" contains "npx cyberplace@0.1.0"
+    And "skills/x/SKILL.md" does not contain "upx cyberplace"
+    And the exit code is 0
+
+  Scenario: an unknown --runner value fails loud
+    When I run "universal-plugin plugin bundle --runner yarn"
+    Then the exit code is 1
+    And stderr contains "yarn"
+
+  Scenario: --help documents the --runner flag
+    When I run "universal-plugin plugin bundle --help"
+    Then the exit code is 0
+    And stdout mentions "--runner"

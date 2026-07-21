@@ -5,24 +5,24 @@ project-path: packages/universal-plugin
 approval:
   spec:
     verdict: approve
-    by: agent
+    by: unional
     cause: dimension
     why:
-      floor: Clearance — narrows `plugin/build/`, deleting the pin-resolution scenarios + the `--registry`/`--range`/`--package`/`--allow-major`/`--skip-pins` flags from the frozen `build.feature` (pin resolution relocates to the new `plugin/bundle/` node). PRE-AUTHORIZED by the user in-session this run; `build.feature` re-opened for the narrowing and re-frozen at this gate. Compatibility n/a (impl unbuilt this CR — no shipped semver bump). Conflict none — the root maps route pins to `bundle` only and narrowed `build.feature` retains zero pin references.
-      blast: moderate — one narrowed node (`plugin/build/`) + one new node (`plugin/bundle/`) + root capability/placement/concept maps. The pin machinery relocates via the existing `RegistryClient` DIP seam (a workspace-version source reading local `packages/<pkg>/package.json`); workspace-only, offline — removes build's former network dependency rather than adding one.
-      novelty: moderate — a structural `build`/`bundle` split along the dev-vs-release axis (new verb) realizing #84's "pinning belongs to release, not build" thesis; the pin mechanics themselves are established (relocated, not invented). Workspace resolution fixes the off-by-one registry lookup at `changeset version` time; a doc-example ignore protects `upgrade-universal-plugin`'s illustration strings; external (non-workspace) pins are skipped.
-      confidence: high — cold sdd-spec-judge 3-lens {oracle, builder, architect} ALIGNED true (all three PASS first round). check-spec-state OK / check-suite OK (boolean throughout, correct sectioning) / concept-index updated (new `release` concept), 0 open markers. One non-blocking coverage gap (bundle lacked build's missing-manifest precondition) closed with a mirror scenario before freeze. Self-asserted (by agent) — ratify or kick back.
-      cr: build-bundle-split
+      floor: none — no narrowing. `run/` is a brand-new node (nothing to weaken); `plugin/bundle/` gains 6 purely-additive scenarios (`gherkin-cli diff`: 6 added / 0 modified / 0 removed) so its freeze self-clears with no re-open. Clearance n/a, Compatibility n/a (impl unbuilt this CR — no shipped semver bump), Conflict none (both suites self-consistent).
+      blast: moderate — one new behavioral node (`run/`, the lean `upx` bin) + additive `--runner npx|upx` on `plugin/bundle/` + root capability/placement/charter/concept maps. Reuses no network path; `upx` resolves against local/global installs, npx fallback only on a miss.
+      novelty: moderate — a productized local-first package runner realizing #10's real problem (npx ~1s/call latency, benchmarked ~10× win) after the original upx-swap premise was disproven (npm `upx` is the UPX packer; no off-the-shelf runner exists). Range-satisfying local→global resolution with transparent passthrough and a fixed npx fallback; `bundle` default preserves each ref's runner word.
+      confidence: high — cold sdd-spec-judge 3-lens {oracle, builder, architect} ALIGNED true on round 3; all 11 semver fixture/range pairs verified under node-semver 7.8.1; observable fixture-marker + npx-shim harness (no registry dependence); 26 boolean run scenarios, prose↔suite 1:1; both `.feature` parse clean (gherkin-cli). Ratified by the user in-session ("freeze it and continue to impl").
+      cr: github-10
   impl:
     verdict: approve
     by: agent
     cause: dimension
     why:
-      floor: none — purely additive impl against a frozen contract. No Clearance (no scenario narrowed/deleted), no Compatibility (the AXI output surface was newly built, not a shipped semver bump), no Conflict (the frozen suite stayed self-consistent).
-      blast: small — closes the last standing impl gap in the #84/#85 build/bundle split: `plugin build`'s output surface (`src/build/build.ts` + `src/build/cli.ts`) re-implemented to the frozen AXI contract; e2e scenarios added; build node README's impl-trails disclaimer removed. No spec/suite change.
-      novelty: low — mechanically models `plugin bundle`'s AXI form (#85): default TOON table + `built N, skipped M, failed K` aggregate, `--format json` with a top-level `built` array, stderr next-step `→ universal-plugin plugin validate`.
-      confidence: high — cold sdd-impl-judge re-derived every scenario's oracle and drove the built CLI by hand across fixtures: all 18 frozen `build.feature` scenarios PASS, 0 failing, no regressions; pnpm verify green (171 tests). One judge-iteration correction (`--format json` initially lacked the frozen `built` array) recorded and fixed pre-gate. Self-asserted (by agent) — ratify or kick back.
-      cr: github-89-build-axi
+      floor: none — purely additive impl against a frozen contract. No Clearance (nothing narrowed/deleted), no Compatibility (new `upx` bin + additive `--runner` flag — no shipped semver bump this CR), no Conflict (both frozen suites stayed self-consistent).
+      blast: moderate — new `src/run/` (pure domain + `RunFs` infra + lean hand-rolled `cli.ts`, no commander) building the `upx` second bin (`bin/upx.mjs`, `dist/run.mjs` 7.99kB); `semver` dep added; `src/pin`/`src/bundle` gain the `--runner` flag (default preserves each ref's runner word). No sync-engine or network surface touched.
+      novelty: moderate — a local-first package runner (ancestor `node_modules` walk → `npm root -g` → npx fallback, transparent passthrough, dist-tag→npx, fail-loud bin resolution) realizing #10's benchmarked ~10× latency win; the bundle change is a small additive runner-word selection.
+      confidence: high — cold sdd-impl-judge re-derived all 32 frozen scenarios and verified each via real process-boundary e2e (bug-detecting on local<global, nearest-ancestor, dist-tag, bare-miss, exit-3/7 passthrough, multi-bin/no-bin fail-loud); pnpm verify green (251/251 across 16 files); lean-bin + clean-architecture confirmed; no `.feature`/`.agents/spec` edits. Passed clean first round (no judge-iteration correction). Self-asserted (by agent) — ratify or kick back.
+      cr: github-10
 ---
 
 # universal-plugin — the cross-vendor plugin build/derivation engine (CLI)
@@ -84,10 +84,11 @@ is a peer of the `cyberfleet` CLI.
 |---|---|---|
 | [`plugin/`](./plugin/README.md) | group | the `plugin` command group — build / bundle / validate / init |
 | [`plugin/build/`](./plugin/build/README.md) | behavioral | `universal-plugin plugin build [--vendor] [--dry-run] [--clean]` — derive per-vendor manifests from the canonical `.plugin/plugin.json` (dev-consumable form; no pins) |
-| [`plugin/bundle/`](./plugin/bundle/README.md) | behavioral | `universal-plugin plugin bundle [--dry-run] [--full] [--format]` — materialize the release form: pin the `npx <cli>@<version>` references in the plugin's skills to their shipping workspace versions |
+| [`plugin/bundle/`](./plugin/bundle/README.md) | behavioral | `universal-plugin plugin bundle [--dry-run] [--full] [--format] [--runner]` — materialize the release form: pin the `npx`/`upx <cli>@<version>` references in the plugin's skills to their shipping workspace versions (`--runner` selects the emitted runner word) |
 | [`plugin/validate/`](./plugin/validate/README.md) | behavioral | `universal-plugin plugin validate [--vendor] [--strict]` — check the canonical manifest against schema + vendor rules |
 | [`plugin/init/`](./plugin/init/README.md) | behavioral | `universal-plugin plugin init [--name] [--vendor] [--scaffold] [--force] [--yes]` — scaffold a new plugin project |
 | [`governance/`](./governance/README.md) | behavioral | `universal-plugin governance show <name>` / `list` — resolve governance documents by name across scopes |
+| [`run/`](./run/README.md) | behavioral | `upx <pkg>@<range> [args…]` — a lean **second bin**: run a package's CLI from a range-satisfying local/global install (fast), else fall back to `npx`. Kept separate from the main CLI for fast cold-start |
 | [`axi/`](./axi/README.md) | reference | the **AXI** output contract — shared token-efficient CLI conventions (TOON default, aggregates, empty states, next-step, fail-loud, content-first, help) every command follows |
 
 ## Placement map
@@ -105,6 +106,11 @@ Where a new concept lives — slot here, do not invent placement (strategy = **c
   files departs with the sync engine — see the non-goals below).
 - **a new name→document resolution op** (resolve or list governance by name across scopes) →
   `governance/`.
+- **a new fast-invocation / package-runner op** (run an installed CLI in place of `npx`) → `run/`
+  (the `upx` bin). **Charter note:** a generic runner is broader than "derive/validate/scaffold the
+  manifest", but it lives here deliberately — `plugin bundle` already emits `upx` references at release,
+  so the runner and its emitter ship and version as one unit — and ships as a **separate lean bin** so
+  its cold-start stays fast. Recorded placement, not charter drift.
 - **a new shared output / CLI convention** (TOON shape, aggregate, next-step, empty-state,
   truncation, help, content-first) → `axi/` (the reference contract), plus concrete scenarios in each
   behavioral node that exercises it. Never a per-command copy of the convention.
@@ -129,9 +135,10 @@ scanned node).
 
 | Concept | Facets |
 |---|---|
-| `axi` | `axi/` (reference) · `governance/` (behavior) · `plugin/build/` (behavior) · `plugin/bundle/` (behavior) · `plugin/init/` (behavior) · `plugin/validate/` (behavior) |
+| `axi` | `axi/` (reference) · `governance/` (behavior) · `plugin/build/` (behavior) · `plugin/bundle/` (behavior) · `plugin/init/` (behavior) · `plugin/validate/` (behavior) · `run/` (behavior) |
 | `canonical-manifest` | `plugin/build/` (behavior) · `plugin/init/` (behavior) · `plugin/validate/` (behavior) |
 | `governance` | `governance/` (behavior) |
 | `release` | `plugin/bundle/` (behavior) |
+| `run` | `run/` (behavior) |
 
 <!-- END generated: by-concept -->
