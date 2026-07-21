@@ -1,11 +1,11 @@
 ---
 name: adopt-upx
-description: Use this skill when the user wants to make their skills use upx — the fast local-first package runner shipped by universal-plugin. Trigger on phrases like "make my skills use upx", "adopt the upx runner", "speed up npx calls", "switch to upx", or "rewrite npx pins to upx". Rewrites `npx <pkg>@<version>` references to `upx <pkg>@^<major>` across one skill, a named set, or every skill in the project.
+description: Use this skill when the user wants to make their skills use upx — the fast local-first package runner shipped by universal-plugin. Trigger on phrases like "make my skills use upx", "adopt the upx runner", "speed up npx calls", "switch to upx", or "rewrite npx pins to upx". Rewrites `npx <pkg>@<version>` references to a caret range on `upx` (`^<major>`, or `^0.<minor>` for a 0.x pin) across one skill, a named set, or every skill in the project.
 ---
 
 # Adopt upx
 
-Rewrites `npx <pkg>@<version>` references inside `SKILL.md` files to `upx <pkg>@^<major>` — the
+Rewrites `npx <pkg>@<version>` references inside `SKILL.md` files to a caret range on `upx` — the
 fast local-first runner shipped by `universal-plugin` (see
 `packages/universal-plugin/.agents/spec/run/README.md` for the full `upx` contract).
 
@@ -37,6 +37,11 @@ skill with no `upx` on PATH breaks for that user (see Tradeoff).
 `npx <pkg>@<version>` → `upx <pkg>@^<major>` — a caret range on the major version, not the exact
 pin. That's the point: one global `upx` install then satisfies every skill's call to that CLI at
 that major, instead of `npx` re-resolving+spawning per exact version every time.
+
+**`0.x` versions are special.** Under semver a `0.x` minor bump is a breaking change, so `^0`
+(= `>=0.0.0 <1.0.0`) is far too loose — it would match across incompatible `0.x` lines. A `0.x` pin
+is rewritten to `upx <pkg>@^0.<minor>` instead (e.g. `pkg@0.2.3` → `upx pkg@^0.2`, matching only the
+`0.2.x` line). `^<major>` applies only to `>=1.0.0`.
 
 Left alone (never rewritten):
 
@@ -101,7 +106,8 @@ fallback logic ever gets a chance to run.
 ## Verify
 
 1. Re-run the script over the same scope — it should report `0 file(s) rewritten` (idempotent).
-2. Spot-check a rewritten skill: the pin should read `upx <pkg>@^<major>`, not a concrete version.
+2. Spot-check a rewritten skill: the pin should read `upx <pkg>@^<major>` (or `upx <pkg>@^0.<minor>`
+   for a 0.x package), not a concrete version.
 3. Confirm any pin-exempt skills (e.g. `upgrade-universal-plugin`) were skipped, not rewritten.
 4. If the project has a skill validator (`validate-skill` / `improve-skill`), run it over each
    touched skill to confirm the rewrite didn't break frontmatter or Markdown structure.

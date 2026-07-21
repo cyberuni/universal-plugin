@@ -9,7 +9,9 @@
 //   node rewrite-upx.mjs --all --dry-run           # report only, write nothing
 //
 // Rewrite rule: `npx <pkg>@<concrete-semver>` -> `upx <pkg>@^<major>` (caret on the major, so
-// one global `upx` install serves many pinned callers). Left alone:
+// one global `upx` install serves many pinned callers). A `0.x` pin instead becomes
+// `upx <pkg>@^0.<minor>` — under semver a `0.x` minor bump is breaking, so `^0` would be far too
+// loose. Left alone:
 //   - `@<placeholder>` (non-semver, e.g. `@<version>`) — not a real pin
 //   - dist-tags (e.g. `@next`, `@latest`) — upx can't range-match these, they go to npx anyway
 //   - any occurrence already using `upx` — nothing to rewrite
@@ -40,13 +42,20 @@ function isPinExempt(content) {
 	return PIN_EXEMPT_PATTERN.test(match[1])
 }
 
+// `>=1.0.0` → `^<major>` (any release in that major). A `0.x` version is special: under semver a
+// `0.x` minor bump is a breaking change, so `^0` (= `>=0.0.0 <1.0.0`) is far too loose — pin the
+// minor instead with `^0.<minor>` (= that `0.<minor>.x` line only).
+function caretRange(version) {
+	const [major, minor] = version.split('.')
+	return major === '0' ? `^0.${minor}` : `^${major}`
+}
+
 function rewriteContent(content) {
 	let changed = 0
 	const next = content.replace(NPX_REF_PATTERN, (whole, ws, pkg, version) => {
 		if (!SEMVER_PATTERN.test(version)) return whole // placeholder or dist-tag — leave alone
-		const major = version.split('.')[0]
 		changed++
-		return `upx${ws}${pkg}@^${major}`
+		return `upx${ws}${pkg}@${caretRange(version)}`
 	})
 	return { next, changed }
 }

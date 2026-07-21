@@ -1,7 +1,8 @@
 # adopt-upx skill
 
-Rewrites `npx <pkg>@<version>` references in `SKILL.md` files to `upx <pkg>@^<major>` — the fast
-local-first runner shipped by `universal-plugin`.
+Rewrites `npx <pkg>@<version>` references in `SKILL.md` files to a caret range on `upx`
+(`^<major>`, or `^0.<minor>` for a 0.x pin) — the fast local-first runner shipped by
+`universal-plugin`.
 
 ## When to use
 
@@ -12,7 +13,8 @@ cached).
 ## What it does
 
 1. Confirms `upx` is installed (`npm i -g universal-plugin`) and on PATH.
-2. Rewrites `npx <pkg>@<concrete-semver>` → `upx <pkg>@^<major>` across a chosen scope:
+2. Rewrites `npx <pkg>@<concrete-semver>` → `upx <pkg>@^<major>` (or `^0.<minor>` for a 0.x pin)
+   across a chosen scope:
    - one specific skill (a path)
    - a named set (a list of paths and/or globs)
    - every skill in the project (`--all`)
