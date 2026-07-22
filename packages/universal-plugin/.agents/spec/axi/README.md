@@ -9,8 +9,10 @@ A **reference artifact**: the shared output contract every `universal-plugin` co
 AI agent spends the fewest tokens per interaction. It adopts [AXI](https://github.com/kunchenguid/axi)
 (Agent Experience Interface) — a design framework whose principles treat the agent's token budget as
 a first-class constraint. This node states the cross-cutting conventions **once**; each behavioral
-node ([`plugin/build/`](../plugin/build/README.md), [`plugin/validate/`](../plugin/validate/README.md),
-[`plugin/init/`](../plugin/init/README.md), [`governance/`](../governance/README.md)) references this
+node ([`plugin/build/`](../plugin/build/README.md), [`plugin/bundle/`](../plugin/bundle/README.md),
+[`plugin/validate/`](../plugin/validate/README.md), [`plugin/init/`](../plugin/init/README.md),
+[`governance/`](../governance/README.md), [`run/`](../run/README.md),
+[`config/add/`](../config/add/README.md), [`config/get/`](../config/get/README.md)) references this
 contract and carries the concrete scenarios that exercise it.
 
 ## Subject
@@ -61,8 +63,8 @@ contract and carries the concrete scenarios that exercise it.
 - **stderr** carries the human affordances — the next-step line (#9), warnings, and structured errors
   (#6). Redirecting or discarding stderr never corrupts the parsed result.
 
-- **Conformance** — verified through the consumer suites of the four behavioral nodes (each asserts
-  the contract concretely for its command), never by this artifact itself. A reference artifact carries
+- **Conformance** — verified through the consumer suites of each behavioral node listed above (each
+  asserts the contract concretely for its command), never by this artifact itself. A reference artifact carries
   this `## Subject` in place of `## Use Cases` + a `.feature`.
 - **Boundary** — this bar owns the *shared* output shape. Each command's *domain* behavior (what build
   derives, what validate checks, how governance resolves) lives in that command's node. The deferred

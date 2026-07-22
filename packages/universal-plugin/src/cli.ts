@@ -4,6 +4,7 @@ import { Command } from 'commander'
 import { cleanCommand } from './asset-store/cli.js'
 import { buildCommand } from './build/cli.js'
 import { bundleCommand } from './bundle/cli.js'
+import { configCommand } from './config/cli.js'
 import { governanceCommand } from './governance/cli.js'
 import { prepareCommand } from './prepare/cli.js'
 import { publishCommand } from './publish/cli.js'
@@ -27,6 +28,7 @@ function pluginCommand(): Command {
 
 program.addCommand(pluginCommand())
 program.addCommand(cleanCommand())
+program.addCommand(configCommand())
 program.addCommand(governanceCommand())
 program.addCommand(prepareCommand())
 program.addCommand(publishCommand())

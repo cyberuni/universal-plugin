@@ -5,24 +5,24 @@ project-path: packages/universal-plugin
 approval:
   spec:
     verdict: approve
-    by: agent
+    by: unional
     cause: dimension
     why:
-      floor: none — additive. `run/` gains 1 purely-additive scenario (`gherkin-cli diff`: 1 added / 0 modified / 0 removed) locking the dist-tag miss notice, so its freeze self-clears with no re-open. Clearance n/a (nothing narrowed), Compatibility n/a (patch-level notice-wording refinement — no shipped semver bump this CR), Conflict none (new scenario compatible with the sibling `@next` and the range-miss scenarios).
-      blast: minor — one additive scenario on `run/` plus a `distTagNotice`/`fallbackNotice` split in `src/run/run.ts`; no other node or command touched.
-      novelty: low — a notice-wording correctness fix realizing github-10 follow-up #12 (item 2): a dist-tag miss must not claim installed versions failed to "satisfy" the tag, since a tag is not a range.
-      confidence: high — cold sdd-spec-judge 3-lens {oracle, builder, architect} ALIGNED true; new scenario discriminates (a naive shared-notice fix fails it); prose↔suite 1:1; additive `gherkin-cli diff` verified. Self-asserted (by agent, auto-spec leash).
-      cr: github-12
+      floor: none — all-new `config/` nodes; no pre-existing frozen scenario touched. Clearance n/a, Compatibility n/a (impl unbuilt this CR — no shipped semver bump), Conflict none (both suites self-consistent).
+      blast: moderate — new `config/` command group + `config/add` + `config/get` behavioral nodes; dropped the dead `vendors` key from `.agents/universal-plugin.json`; root capability/placement/by-concept + `axi/` exercised-by maps updated.
+      novelty: moderate — a plugin-registered keyed config store in the CLI's own `.agents/universal-plugin.json` (append-or-replace-by-`name` idempotent `add` + lazy `get`) realizing #8; reserved-key `packagePath` rejection (the CLI's own string config, read by `publish sync-version`); AXI-conformant (TOON default keyed on `name` + count aggregate; `--format json` raw stored array).
+      confidence: high — cold sdd-spec-judge 3-lens {oracle, builder, architect} ALIGNED true on round 3 (0 findings); 33 boolean scenarios, prose↔suite 1:1 both ways; both `.feature` parse clean (gherkin-cli) + `check-suite` OK. R1 caught exit-code discrimination + table-row gaps + unfalsifiable replace-position + missing reserved-key coverage; R2 caught 4 stale-`vendors` prose refs — both fixed, grep-verified zero `vendors` in `config/`+`axi/`. Ratified by the user in-session ("ratify").
+      cr: github-8
   impl:
     verdict: approve
-    by: agent
+    by: unional
     cause: dimension
     why:
-      floor: none — purely additive impl against the just-frozen scenario. No Clearance (nothing narrowed/deleted), no Compatibility (notice-wording refinement — no shipped semver bump this CR), no Conflict (frozen suite stayed self-consistent).
-      blast: minor — `src/run/run.ts` gains `distTagNotice` (the npx-fallback path picks it vs `fallbackNotice` by `isSemverRange(range)`); verifications added in `src/run/run.test.ts` + `src/bin/upx.test.mts`. No sync/network/bundle surface touched.
-      novelty: low — split the shared fallback notice so the dist-tag branch names the tag instead of claiming "satisfies"; range-miss and bare-`*` paths keep `fallbackNotice` unchanged.
-      confidence: high — cold sdd-impl-judge re-derived all 26 frozen scenarios by hand and verified each; range-miss notice still contains "satisfies" (split non-regression confirmed); pnpm test green (253/253 across 16 files, +2 vs github-10); run.ts stays pure domain; no scope creep. Passed clean first round (no judge-iteration correction). Self-asserted (by agent) — ratify or kick back.
-      cr: github-12
+      floor: none — purely additive impl against the frozen contract. No Clearance (nothing narrowed/deleted), no Compatibility (new `config` command group — no shipped semver bump this CR), no Conflict (both frozen suites stayed self-consistent; the rebase-onto-`main` conflict was in the `spec.md` approval block, resolved to github-8 — not a `.feature` edit).
+      blast: moderate — new `src/config/` (pure domain + `ConfigFs` adapter + AXI-wired `cli.ts`) building the `config add`/`config get` group, wired into `src/cli.ts`; empty state prints `(none)`. Also dropped the dead `vendors` key and removed the outdated `.agents/governances/cli-command.md` governance. No sync/network surface touched.
+      novelty: moderate — a plugin-registered keyed config store in the CLI's own `.agents/universal-plugin.json` (append-or-replace-by-`name` idempotent `add` + lazy `get`); reserved-key `packagePath` rejection; AXI-conformant output.
+      confidence: high — cold sdd-impl-judge re-derived all 33 frozen scenarios independently and verified each, mutation-backstopped on reserved-key + replace-by-name (both mutations caught, file restored); merged tree green (`pnpm verify` 295/295 across 18 files, rebased onto `main` `c26b019`); clean-architecture layering confirmed; no `.feature`/`.agents/spec` edits by the impl-producer. Ratified by the user in-session ("ratify").
+      cr: github-8
 ---
 
 # universal-plugin — the cross-vendor plugin build/derivation engine (CLI)
@@ -88,6 +88,9 @@ is a peer of the `cyberfleet` CLI.
 | [`plugin/validate/`](./plugin/validate/README.md) | behavioral | `universal-plugin plugin validate [--vendor] [--strict]` — check the canonical manifest against schema + vendor rules |
 | [`plugin/init/`](./plugin/init/README.md) | behavioral | `universal-plugin plugin init [--name] [--vendor] [--scaffold] [--force] [--yes]` — scaffold a new plugin project |
 | [`governance/`](./governance/README.md) | behavioral | `universal-plugin governance show <name>` / `list` — resolve governance documents by name across scopes |
+| [`config/`](./config/README.md) | group | the `config` command group — read/write plugin-registered keyed config in `.agents/universal-plugin.json` |
+| [`config/add/`](./config/add/README.md) | behavioral | `universal-plugin config add --key <key> --entry '<json>'` — append (or replace by `name`) an entry in the array at `<key>`; idempotent, preserves other keys |
+| [`config/get/`](./config/get/README.md) | behavioral | `universal-plugin config get --key <key> [--format json]` — read the array at `<key>` (TOON default; raw array under `--format json`) |
 | [`run/`](./run/README.md) | behavioral | `upx <pkg>@<range> [args…]` — a lean **second bin**: run a package's CLI from a range-satisfying local/global install (fast), else fall back to `npx`. Kept separate from the main CLI for fast cold-start |
 | [`axi/`](./axi/README.md) | reference | the **AXI** output contract — shared token-efficient CLI conventions (TOON default, aggregates, empty states, next-step, fail-loud, content-first, help) every command follows |
 
@@ -106,6 +109,17 @@ Where a new concept lives — slot here, do not invent placement (strategy = **c
   files departs with the sync engine — see the non-goals below).
 - **a new name→document resolution op** (resolve or list governance by name across scopes) →
   `governance/`.
+- **a new plugin-registered config op** (read or write a keyed array in `.agents/universal-plugin.json`
+  that plugins write at install and other plugins read at runtime) → `config/` (a verb node under the
+  `config` group: `config/add/` writes, `config/get/` reads). **Charter note:** a keyed config store is
+  broader than "derive/validate/scaffold the manifest", but it lives here deliberately — the file it
+  reads and writes is **this CLI's own** `.agents/universal-plugin.json` (already the home of
+  `packagePath`, read by `publish sync-version`), resolved from cwd; owning structured access to its own
+  config file is not the marketplace/install concern that departs to `cyberplace`. Recorded placement,
+  not charter drift. A config op **preserves every other top-level key** on write. **Reserved key:**
+  `packagePath` is the CLI's own **string** config, not a plugin-registered array — both verbs **reject**
+  `--key packagePath` (fail loud, write nothing) rather than coerce it. Entry-shape validation beyond
+  valid JSON + a required `name` (the `add` merge key) is the **consumer's**, not this CLI's.
 - **a new fast-invocation / package-runner op** (run an installed CLI in place of `npx`) → `run/`
   (the `upx` bin). **Charter note:** a generic runner is broader than "derive/validate/scaffold the
   manifest", but it lives here deliberately — `plugin bundle` already emits `upx` references at release,
@@ -135,8 +149,9 @@ scanned node).
 
 | Concept | Facets |
 |---|---|
-| `axi` | `axi/` (reference) · `governance/` (behavior) · `plugin/build/` (behavior) · `plugin/bundle/` (behavior) · `plugin/init/` (behavior) · `plugin/validate/` (behavior) · `run/` (behavior) |
+| `axi` | `axi/` (reference) · `config/add/` (behavior) · `config/get/` (behavior) · `governance/` (behavior) · `plugin/build/` (behavior) · `plugin/bundle/` (behavior) · `plugin/init/` (behavior) · `plugin/validate/` (behavior) · `run/` (behavior) |
 | `canonical-manifest` | `plugin/build/` (behavior) · `plugin/init/` (behavior) · `plugin/validate/` (behavior) |
+| `config` | `config/add/` (behavior) · `config/get/` (behavior) |
 | `governance` | `governance/` (behavior) |
 | `release` | `plugin/bundle/` (behavior) |
 | `run` | `run/` (behavior) |
