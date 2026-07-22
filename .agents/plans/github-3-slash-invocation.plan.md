@@ -7,14 +7,14 @@ status: draft
 todos:
   - content: "Intake: fetch #3, locate spec (implemented), find #3 mostly stale; user scoped CR to slash-invocation decision only"
     status: completed
-  - content: "Explore: research commands/ vs skills/ slash-invocation across Claude Code, Cursor, Codex, Copilot CLI (leverage .research/ + targeted lookups)"
-    status: pending
-  - content: "Explore: decide — pure design ADR (0004-slash-invocation) OR does it mandate a plugin/build derivation behavior change (→ revise plugin/build node)?"
-    status: pending
-  - content: "Author: write ADR 0004-slash-invocation.md under design/decisions/ (if behavior change, add spec+.feature+gate for plugin/build)"
-    status: pending
-  - content: "Handoff: commit ADR; comment on #3 mapping every item to status (done/rejected/open); close #3 as superseded"
-    status: pending
+  - content: "Explore: researched commands/ vs skills/ across 4 vendors — skills are universal minimum, command = invocation policy on a skill"
+    status: completed
+  - content: "Explore: route settled — pure design ADR (build has no commands concept today); no plugin/build behavior change this CR"
+    status: completed
+  - content: "Author: wrote ADR-0004-slash-invocation.md (design record, no .feature/gate); committed a0dbe2b"
+    status: completed
+  - content: "Handoff: #3 reconciliation comment + closed as superseded; follow-up #21 filed (per-vendor command derivation in build)"
+    status: completed
 ---
 
 # github-3 — slash-invocation decision (commands/ vs skills/ across vendors)
@@ -50,6 +50,6 @@ should the canonical `.plugin/plugin.json` carry a `commands/` concept distinct 
 
 ## NEXT
 
-Run the slash-invocation research (todo 2): survey how Claude Code / Cursor / Codex / Copilot CLI
-distinguish user-typed slash commands from model-invoked skills, and whether `plugin build` currently
-emits any `commands/` artifacts. Then settle the route decision above with the user.
+Mission complete. ADR-0004 committed (a0dbe2b), #3 closed as superseded, follow-up #21 filed.
+Remaining: push `config-add` + open a docs PR for ADR-0004 (awaiting user go-ahead — #3 is already
+closed so no auto-close reference needed). Deferred build-derivation work lives in #21.
