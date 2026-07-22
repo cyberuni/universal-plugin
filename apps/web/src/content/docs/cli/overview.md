@@ -22,6 +22,7 @@ npx universal-plugin@$(npm view universal-plugin version) <command>
 | Command | Purpose |
 |---|---|
 | [`build`](/cli/build/) | Generate vendor manifests from `.plugin/plugin.json` |
+| [`config`](/cli/config/) | Read/write plugin-registered config in `.agents/universal-plugin.json` |
 
 ## Fast alternative: upx
 
