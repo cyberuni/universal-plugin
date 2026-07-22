@@ -65,14 +65,10 @@ Feature: upx — the local-first package runner
     Then stdout contains "TOOL-A-LOCAL"
     And stdout does not contain "NPX-SHIM"
 
-  Scenario: a spec after @ that is not valid semver is treated as a dist-tag and goes to npx
+  Scenario: a dist-tag spec goes to npx, and the miss notice names it a dist-tag, not a range being satisfied
     When I run "upx tool-a@next"
     Then stdout contains "NPX-SHIM tool-a@next"
     And stderr contains "upx: no installed tool-a"
-
-  Scenario: a dist-tag miss notice names it a dist-tag, not a range being satisfied
-    When I run "upx tool-a@next"
-    Then stderr contains "upx: no installed tool-a"
     And stderr contains "dist-tag"
     And stderr does not contain "satisfies"
 
