@@ -55,9 +55,12 @@ Config file location: `.agents/universal-plugin.json` in the repo root (resolved
 
 ---
 
+## Resolved
+
+- **Version locking** — resolved. Callers pin the runner to an explicit version with `npx universal-plugin@<version>` (or the local-first `upx universal-plugin@^<major>`), kept current by the `upgrade-universal-plugin` skill. The same mechanism ships in `plugin bundle --runner` and the prepare-hook pinning convention. This unblocks calling `config add` from plugin install scripts (see `apps/web/src/content/docs/cli/config.md`). Adoption inside each consumer plugin's own install flow is tracked per-plugin (issue #18).
+
 ## Open questions
 
-- **Version locking** — the `npx universal-plugin@<version>` pinning mechanism is not yet designed. Until it is, callers cannot safely pin. This is a prerequisite for shipping `config add` in plugin install scripts. See the version-locking issue.
 - **Remove command** — not in scope for v1; can be added when a plugin uninstall flow exists.
 
 ---
