@@ -38,7 +38,7 @@
 		"projectManifest": null,
 		"hookGlob": null,
 		"globalPluginDir": null,
-		"pluginRootSuffix": "plugin.json",
+		"pluginRootSuffix": ".github/plugin/plugin.json",
 		"installCommand": null,
 		"removeCommand": null,
 		"updateCommand": null

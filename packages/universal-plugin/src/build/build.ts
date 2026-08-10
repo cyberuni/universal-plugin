@@ -9,7 +9,9 @@ const VENDOR_OUTPUT: Record<VendorId, string> = {
 	'claude-code': '.claude-plugin/plugin.json',
 	cursor: '.cursor-plugin/plugin.json',
 	codex: '.codex-plugin/plugin.json',
-	'copilot-cli': 'plugin.json',
+	// Root `plugin.json` is now the canonical manifest (ADR-0007); copilot's derived manifest moves to
+	// `.github/plugin/plugin.json`, one of the paths Copilot CLI searches, to avoid colliding with it.
+	'copilot-cli': '.github/plugin/plugin.json',
 }
 
 const KNOWN_VENDORS = new Set<string>(Object.keys(VENDOR_OUTPUT))
@@ -81,14 +83,20 @@ export function readManifest(root: string): PluginManifest {
 	return JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as PluginManifest
 }
 
-export function validateManifest(manifest: PluginManifest): string[] {
+/** Validates the manifest. Vendor rules apply only to the vendors actually being built: pass
+ *  `targets` to scope the check (build passes its selected targets), else it defaults to the
+ *  manifest's own selection (`vendors ?? harnesses` keys). */
+export function validateManifest(manifest: PluginManifest, targets?: string[]): string[] {
 	const errors: string[] = []
 	if (!manifest.name) errors.push('name is required')
-	const harnesses = universalPluginExtension(manifest).harnesses ?? {}
-	if (harnesses['codex'] && !manifest.description) {
+	const uext = universalPluginExtension(manifest)
+	const harnesses = uext.harnesses ?? {}
+	const checked = targets ?? uext.vendors ?? Object.keys(harnesses)
+	const codexTargeted = checked.includes('codex') && Boolean(harnesses['codex'])
+	if (codexTargeted && !manifest.description) {
 		errors.push('description is required when targeting codex')
 	}
-	if (harnesses['codex'] && !manifest.version) {
+	if (codexTargeted && !manifest.version) {
 		errors.push('version is required when targeting codex')
 	}
 	return errors
@@ -102,15 +110,16 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 	const manifestRaw = fs.readFileSync(manifestPath, 'utf8')
 	const indent = detectIndent(manifestRaw)
 	const manifest = readManifest(root)
-	const errors = validateManifest(manifest)
-	if (errors.length > 0) throw new Error(`plugin.json validation failed:\n${errors.map((e) => `  - ${e}`).join('\n')}`)
 
 	const warnings: string[] = []
 	const rows: VendorRow[] = []
 	const uext = universalPluginExtension(manifest)
 	const harnesses = uext.harnesses ?? {}
 
-	let vendors = Object.keys(harnesses).filter((v): v is VendorId => {
+	// Target selection (ADR-0007): the explicit `vendors` list when present, else every harnesses key.
+	const targets = uext.vendors ?? Object.keys(harnesses)
+
+	let vendors = targets.filter((v): v is VendorId => {
 		if (!KNOWN_VENDORS.has(v)) {
 			warnings.push(`Unknown vendor "${v}" in harnesses — skipped`)
 			rows.push({ vendor: v, path: '-', status: 'skipped' })
@@ -130,6 +139,11 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 		warnings.push('No vendors declared in harnesses — nothing to build')
 		return { vendors: [], written: [], warnings, rows, summary: summarize(rows) }
 	}
+
+	// Eager validation, scoped to the vendors actually being built — a codex block that is not a
+	// selected target must not block a build of the others.
+	const errors = validateManifest(manifest, vendors)
+	if (errors.length > 0) throw new Error(`plugin.json validation failed:\n${errors.map((e) => `  - ${e}`).join('\n')}`)
 
 	const written: string[] = []
 	// A derived <harness>/plugin.json carries the spec metadata plus the canonical component paths the

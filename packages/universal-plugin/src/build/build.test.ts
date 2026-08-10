@@ -116,10 +116,37 @@ describe('buildPlugin', () => {
 		expect(() => buildPlugin(dir, { vendor: 'cursor' })).toThrow('not declared')
 	})
 
-	it('writes vendor manifests with merged fields', () => {
+	it('the vendors list selects the build targets when present', () => {
 		writeManifest({
 			name: 'my-plugin',
+			extensions: up({ vendors: ['claude-code', 'cursor'], harnesses: { 'claude-code': {}, cursor: {}, codex: {} } }),
+		})
+		const result = buildPlugin(dir, { dryRun: true })
+		expect(result.vendors).toEqual(['claude-code', 'cursor'])
+	})
+
+	it('falls back to all harnesses keys when no vendors list is present', () => {
+		writeManifest({ name: 'my-plugin', extensions: up({ harnesses: { 'claude-code': {}, cursor: {} } }) })
+		const result = buildPlugin(dir, { dryRun: true })
+		expect(result.vendors).toEqual(['claude-code', 'cursor'])
+	})
+
+	it('derives copilot-cli to .github/plugin/plugin.json, not the canonical root', () => {
+		writeManifest({ name: 'my-plugin', extensions: up({ harnesses: { 'copilot-cli': {} } }) })
+		const canonicalBefore = fs.readFileSync(path.join(dir, 'plugin.json'), 'utf8')
+		buildPlugin(dir)
+		expect(fs.existsSync(path.join(dir, '.github', 'plugin', 'plugin.json'))).toBe(true)
+		// The canonical root plugin.json is the source, never a build output — it must be left untouched.
+		expect(fs.readFileSync(path.join(dir, 'plugin.json'), 'utf8')).toBe(canonicalBefore)
+	})
+
+	it('writes vendor manifests with merged fields', () => {
+		writeManifest({
+			$schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json',
+			name: 'my-plugin',
 			extensions: up({
+				vendors: ['claude-code'],
+				packagePath: './',
 				skills: './skills/',
 				harnesses: { 'claude-code': { displayName: 'My Plugin' } },
 			}),
@@ -129,7 +156,10 @@ describe('buildPlugin', () => {
 		expect(written.name).toBe('my-plugin')
 		expect(written.skills).toBe('./skills/')
 		expect(written.displayName).toBe('My Plugin')
+		// The canonical wrapper + universal-plugin's orchestration keys never leak into a derived manifest.
 		expect(written.harnesses).toBeUndefined()
+		expect(written.vendors).toBeUndefined()
+		expect(written.packagePath).toBeUndefined()
 		expect(written.extensions).toBeUndefined()
 		expect(written.$schema).toBeUndefined()
 	})
