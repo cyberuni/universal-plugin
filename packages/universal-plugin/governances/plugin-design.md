@@ -210,7 +210,7 @@ If the repo needs explicit symlink tracking: `mcp.json symlink` in `.gitattribut
 
 ## Component Authoring Rules
 
-**Skills:** Author `skills/<name>/SKILL.md` following the **skill-design** governance. Within a plugin, reference MCP tools by fully qualified name: `{plugin-name}:{server-name}__{tool-name}`.
+**Skills:** Author `skills/<name>/SKILL.md` following the **skill-design** governance. Within a plugin, reference MCP tools by fully qualified name: `{plugin-name}:{server-name}__{tool-name}`. Use the **slash-invocation** governance when a skill needs a user-only, model-only, or explicit both-invocation policy.
 
 **Commands:** One `.md` file per command in `commands/`. Filename (minus extension) is the command identifier. Optional frontmatter: `description`, `argument-hint`, `allowed-tools`, `disable-model-invocation`. `$ARGUMENTS` expands to user input.
 

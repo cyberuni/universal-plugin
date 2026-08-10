@@ -1,4 +1,5 @@
 import * as fs from 'node:fs'
+import * as os from 'node:os'
 import * as path from 'node:path'
 import { detectIndent } from '../json.js'
 
@@ -41,6 +42,17 @@ export interface BuildResult {
 	warnings: string[]
 	rows: VendorRow[]
 	summary: { built: number; skipped: number; failed: number }
+}
+
+type InvocationPolicy = 'user' | 'model' | 'both'
+
+interface Skill {
+	path: string
+	name: string
+	invocationPolicy: InvocationPolicy
+	hasInvocationPolicy: boolean
+	body: string
+	content: string
 }
 
 export function readManifest(root: string): PluginManifest {
@@ -101,6 +113,7 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 
 	const written: string[] = []
 	const { vendorExtensions: _ext, $schema: _schema, ...canonical } = manifest
+	const skills = readSkills(root, manifest)
 
 	for (const vendor of vendors) {
 		const relPath = VENDOR_OUTPUT[vendor]
@@ -123,6 +136,7 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 				fs.writeFileSync(outputPath, `${JSON.stringify(vendorManifest, null, indent)}\n`)
 			}
 			written.push(outputPath)
+			writeSkillArtifacts(root, vendor, skills, opts, written, warnings)
 			rows.push({ vendor, path: relPath, status: 'built' })
 		} catch (err) {
 			warnings.push(`Failed to write "${vendor}" → ${relPath}: ${err instanceof Error ? err.message : String(err)}`)
@@ -131,6 +145,102 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 	}
 
 	return { vendors, written, warnings, rows, summary: summarize(rows) }
+}
+
+function writeSkillArtifacts(
+	root: string,
+	vendor: VendorId,
+	skills: Skill[],
+	opts: BuildOptions,
+	written: string[],
+	warnings: string[],
+) {
+	for (const skill of skills) {
+		if (vendor === 'claude-code') {
+			writeClaudeSkill(skill, opts, written)
+			continue
+		}
+
+		if (skill.invocationPolicy === 'model') continue
+
+		if (vendor === 'cursor') {
+			writeArtifact(path.join(root, '.cursor', 'commands', `${skill.name}.md`), skill.body, opts, written)
+			continue
+		}
+
+		if (vendor === 'codex') {
+			try {
+				writeArtifact(path.join(os.homedir(), '.codex', 'prompts', `${skill.name}.md`), skill.body, opts, written)
+			} catch (err) {
+				warnings.push(
+					`Failed to write Codex prompt for skill "${skill.name}" (best-effort): ${err instanceof Error ? err.message : String(err)}`,
+				)
+			}
+		}
+	}
+}
+
+function readSkills(root: string, manifest: PluginManifest): Skill[] {
+	const skillsPath = typeof manifest.skills === 'string' ? manifest.skills : './skills/'
+	const skillsDir = path.resolve(root, skillsPath)
+	if (!fs.existsSync(skillsDir)) return []
+
+	return listSkillFiles(skillsDir).map((skillPath) => parseSkill(skillPath))
+}
+
+function listSkillFiles(dir: string): string[] {
+	return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+		const entryPath = path.join(dir, entry.name)
+		if (entry.isDirectory()) return listSkillFiles(entryPath)
+		return entry.isFile() && entry.name === 'SKILL.md' ? [entryPath] : []
+	})
+}
+
+function parseSkill(skillPath: string): Skill {
+	const content = fs.readFileSync(skillPath, 'utf8')
+	const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/)
+	const frontmatter = match?.[1] ?? ''
+	const rawPolicy = frontmatter.match(/^invocation-policy:\s*['"]?(user|model|both)['"]?\s*(?:#.*)?$/m)?.[1]
+	const declaredPolicy = frontmatter.match(/^invocation-policy:\s*(\S+)/m)?.[1]
+	if (declaredPolicy && !rawPolicy) {
+		throw new Error(`Invalid invocation-policy "${declaredPolicy}" in ${skillPath}; expected user, model, or both`)
+	}
+
+	return {
+		path: skillPath,
+		name: path.basename(path.dirname(skillPath)),
+		invocationPolicy: (rawPolicy as InvocationPolicy | undefined) ?? 'both',
+		hasInvocationPolicy: rawPolicy !== undefined,
+		body: match ? content.slice(match[0].length) : content,
+		content,
+	}
+}
+
+function writeClaudeSkill(skill: Skill, opts: BuildOptions, written: string[]) {
+	if (!skill.hasInvocationPolicy) return
+	const content = withClaudeInvocationFlags(skill)
+	if (content === skill.content) return
+	if (!opts.dryRun) fs.writeFileSync(skill.path, content)
+	written.push(skill.path)
+}
+
+function withClaudeInvocationFlags(skill: Skill): string {
+	const match = skill.content.match(/^---\r?\n([\s\S]*?)\r?\n---/)
+	if (!match) return skill.content
+
+	const lines = match[1].split(/\r?\n/).filter((line) => !/^(disable-model-invocation|user-invocable):\s*/.test(line))
+	if (skill.invocationPolicy === 'user') lines.push('disable-model-invocation: true')
+	if (skill.invocationPolicy === 'model') lines.push('user-invocable: false')
+	return `${skill.content.slice(0, match.index)}---\n${lines.join('\n')}\n---${skill.content.slice(match.index! + match[0].length)}`
+}
+
+function writeArtifact(outputPath: string, content: string, opts: BuildOptions, written: string[]) {
+	if (!opts.dryRun) {
+		if (opts.clean && fs.existsSync(outputPath)) fs.unlinkSync(outputPath)
+		fs.mkdirSync(path.dirname(outputPath), { recursive: true })
+		fs.writeFileSync(outputPath, content)
+	}
+	written.push(outputPath)
 }
 
 function summarize(rows: VendorRow[]): BuildResult['summary'] {
