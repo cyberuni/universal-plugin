@@ -9,7 +9,6 @@ let dir: string
 
 beforeEach(() => {
 	dir = fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-syncver-'))
-	fs.mkdirSync(path.join(dir, '.plugin'))
 	fs.mkdirSync(path.join(dir, '.agents'))
 })
 
@@ -18,7 +17,7 @@ afterEach(() => {
 })
 
 function writeManifest(manifest: object, indent?: string | number) {
-	fs.writeFileSync(path.join(dir, '.plugin', 'plugin.json'), JSON.stringify(manifest, null, indent))
+	fs.writeFileSync(path.join(dir, 'plugin.json'), JSON.stringify(manifest, null, indent))
 }
 
 function writeAgentsConfig(config: object) {
@@ -31,14 +30,14 @@ function writePackage(relFolder: string, pkg: object) {
 }
 
 function readManifest(): Record<string, unknown> {
-	return JSON.parse(fs.readFileSync(path.join(dir, '.plugin', 'plugin.json'), 'utf8')) as Record<string, unknown>
+	return JSON.parse(fs.readFileSync(path.join(dir, 'plugin.json'), 'utf8')) as Record<string, unknown>
 }
 
 describe('syncVersion', () => {
-	it('throws when .plugin/plugin.json is missing', () => {
+	it('throws when plugin.json is missing', () => {
 		const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-empty-'))
 		try {
-			expect(() => syncVersion(empty, realSyncVersionFs)).toThrow(/No .plugin\/plugin.json/)
+			expect(() => syncVersion(empty, realSyncVersionFs)).toThrow(/No plugin.json/)
 		} finally {
 			fs.rmSync(empty, { recursive: true, force: true })
 		}
@@ -62,7 +61,7 @@ describe('syncVersion', () => {
 		expect(() => syncVersion(dir, realSyncVersionFs)).toThrow(/No version found in packages\/mypkg\/package.json/)
 	})
 
-	it('writes version from packagePath into .plugin/plugin.json', () => {
+	it('writes version from packagePath into plugin.json', () => {
 		writeManifest({ name: 'my-plugin' })
 		writeAgentsConfig({ packagePath: 'packages/mypkg' })
 		writePackage('packages/mypkg', { name: 'mypkg', version: '1.2.3' })
@@ -81,12 +80,12 @@ describe('syncVersion', () => {
 		expect(manifest.description).toBe('desc')
 	})
 
-	it('returns manifestPath pointing to .plugin/plugin.json', () => {
+	it('returns manifestPath pointing to plugin.json', () => {
 		writeManifest({ name: 'x' })
 		writeAgentsConfig({ packagePath: 'pkg' })
 		writePackage('pkg', { version: '0.1.0' })
 		const result = syncVersion(dir, realSyncVersionFs)
-		expect(result.manifestPath).toBe(path.join(dir, '.plugin', 'plugin.json'))
+		expect(result.manifestPath).toBe(path.join(dir, 'plugin.json'))
 	})
 
 	it('overwrites an existing version field', () => {
@@ -102,7 +101,7 @@ describe('syncVersion', () => {
 		writeAgentsConfig({ packagePath: 'pkg' })
 		writePackage('pkg', { version: '1.0.0' })
 		syncVersion(dir, realSyncVersionFs)
-		const raw = fs.readFileSync(path.join(dir, '.plugin', 'plugin.json'), 'utf8')
+		const raw = fs.readFileSync(path.join(dir, 'plugin.json'), 'utf8')
 		expect(raw).toContain('\t')
 	})
 
@@ -111,7 +110,7 @@ describe('syncVersion', () => {
 		writeAgentsConfig({ packagePath: 'pkg' })
 		writePackage('pkg', { version: '1.0.0' })
 		syncVersion(dir, realSyncVersionFs)
-		const raw = fs.readFileSync(path.join(dir, '.plugin', 'plugin.json'), 'utf8')
+		const raw = fs.readFileSync(path.join(dir, 'plugin.json'), 'utf8')
 		expect(raw).toContain('\t')
 		expect(raw).not.toMatch(/\n {2}/)
 	})
@@ -121,7 +120,7 @@ describe('syncVersion', () => {
 		writeAgentsConfig({ packagePath: 'pkg' })
 		writePackage('pkg', { version: '1.0.0' })
 		syncVersion(dir, realSyncVersionFs)
-		const raw = fs.readFileSync(path.join(dir, '.plugin', 'plugin.json'), 'utf8')
+		const raw = fs.readFileSync(path.join(dir, 'plugin.json'), 'utf8')
 		expect(raw).toContain('\n  ')
 		expect(raw).not.toContain('\t')
 	})

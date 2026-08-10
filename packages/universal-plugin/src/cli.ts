@@ -15,7 +15,7 @@ const program = new Command()
 
 program.name('universal-plugin').description('Universal AI agent plugin build tool').version('0.0.0').helpCommand(false)
 
-// The `plugin` command group: author the canonical .plugin/plugin.json.
+// The `plugin` command group: author the canonical plugin.json.
 // build and bundle are implemented; validate and init are specced (impl-deferred).
 function pluginCommand(): Command {
 	const cmd = new Command('plugin').description(

@@ -8,9 +8,9 @@ export interface SyncVersionResult {
 }
 
 export function syncVersion(root: string, syncFs: SyncVersionFs): SyncVersionResult {
-	const manifestPath = path.join(root, '.plugin', 'plugin.json')
+	const manifestPath = path.join(root, 'plugin.json')
 	if (!syncFs.exists(manifestPath)) {
-		throw new Error(`No .plugin/plugin.json found at ${root}`)
+		throw new Error(`No plugin.json found at ${root}`)
 	}
 
 	const agentsConfigPath = path.join(root, '.agents', 'universal-plugin.json')

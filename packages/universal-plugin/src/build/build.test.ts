@@ -11,7 +11,6 @@ beforeEach(() => {
 	dir = fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-test-'))
 	home = fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-home-'))
 	process.env['HOME'] = home
-	fs.mkdirSync(path.join(dir, '.plugin'))
 })
 
 afterEach(() => {
@@ -20,7 +19,12 @@ afterEach(() => {
 })
 
 function writeManifest(manifest: object, indent?: string | number) {
-	fs.writeFileSync(path.join(dir, '.plugin', 'plugin.json'), JSON.stringify(manifest, null, indent))
+	fs.writeFileSync(path.join(dir, 'plugin.json'), JSON.stringify(manifest, null, indent))
+}
+
+/** Wraps universal-plugin build config in the canonical Agent Plugins Spec extensions namespace. */
+function up(config: Record<string, unknown>): Record<string, Record<string, unknown>> {
+	return { 'org.cyberuni.universal-plugin': config }
 }
 
 function writeSkill(name: string, content: string) {
@@ -30,10 +34,10 @@ function writeSkill(name: string, content: string) {
 }
 
 describe('readManifest', () => {
-	it('throws when .plugin/plugin.json is missing', () => {
+	it('throws when plugin.json is missing', () => {
 		const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-empty-'))
 		try {
-			expect(() => readManifest(empty)).toThrow('No .plugin/plugin.json')
+			expect(() => readManifest(empty)).toThrow('No plugin.json')
 		} finally {
 			fs.rmSync(empty, { recursive: true, force: true })
 		}
@@ -46,12 +50,12 @@ describe('readManifest', () => {
 })
 
 describe('buildPlugin', () => {
-	it('throws the friendly error when .plugin/plugin.json is missing', () => {
+	it('throws the friendly error when plugin.json is missing', () => {
 		const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-empty-'))
 		try {
 			// Guards the CLI code path (buildPlugin), not just readManifest — the raw indent
-			// read must not shadow the friendly "No .plugin/plugin.json found" message.
-			expect(() => buildPlugin(empty)).toThrow('No .plugin/plugin.json found')
+			// read must not shadow the friendly "No plugin.json found" message.
+			expect(() => buildPlugin(empty)).toThrow('No plugin.json found')
 		} finally {
 			fs.rmSync(empty, { recursive: true, force: true })
 		}
@@ -65,85 +69,88 @@ describe('validateManifest', () => {
 	})
 
 	it('returns error when codex vendor lacks description', () => {
-		const errors = validateManifest({ name: 'x', version: '1.0.0', vendorExtensions: { codex: {} } })
+		const errors = validateManifest({ name: 'x', version: '1.0.0', extensions: up({ harnesses: { codex: {} } }) })
 		expect(errors).toContain('description is required when targeting codex')
 	})
 
 	it('returns error when codex vendor lacks version', () => {
-		const errors = validateManifest({ name: 'x', description: 'y', vendorExtensions: { codex: {} } })
+		const errors = validateManifest({ name: 'x', description: 'y', extensions: up({ harnesses: { codex: {} } }) })
 		expect(errors).toContain('version is required when targeting codex')
 	})
 
 	it('returns no errors for valid manifest', () => {
-		const errors = validateManifest({ name: 'x', vendorExtensions: { 'claude-code': {} } })
+		const errors = validateManifest({ name: 'x', extensions: up({ harnesses: { 'claude-code': {} } }) })
 		expect(errors).toHaveLength(0)
 	})
 })
 
 describe('buildPlugin', () => {
-	it('returns empty result with warning when vendorExtensions is absent', () => {
+	it('returns empty result with warning when harnesses is absent', () => {
 		writeManifest({ name: 'my-plugin' })
 		const result = buildPlugin(dir, { dryRun: true })
 		expect(result.vendors).toHaveLength(0)
 		expect(result.warnings[0]).toMatch(/nothing to build/)
 	})
 
-	it('lists vendors from vendorExtensions keys', () => {
-		writeManifest({ name: 'my-plugin', vendorExtensions: { 'claude-code': {}, cursor: {} } })
+	it('lists vendors from harnesses keys', () => {
+		writeManifest({ name: 'my-plugin', extensions: up({ harnesses: { 'claude-code': {}, cursor: {} } }) })
 		const result = buildPlugin(dir, { dryRun: true })
 		expect(result.vendors).toEqual(['claude-code', 'cursor'])
 	})
 
 	it('warns and skips unknown vendors', () => {
-		writeManifest({ name: 'my-plugin', vendorExtensions: { unknown: {} } })
+		writeManifest({ name: 'my-plugin', extensions: up({ harnesses: { unknown: {} } }) })
 		const result = buildPlugin(dir, { dryRun: true })
 		expect(result.warnings[0]).toMatch(/Unknown vendor/)
 		expect(result.vendors).toHaveLength(0)
 	})
 
 	it('--vendor filters to a single vendor', () => {
-		writeManifest({ name: 'my-plugin', vendorExtensions: { 'claude-code': {}, cursor: {} } })
+		writeManifest({ name: 'my-plugin', extensions: up({ harnesses: { 'claude-code': {}, cursor: {} } }) })
 		const result = buildPlugin(dir, { dryRun: true, vendor: 'claude-code' })
 		expect(result.vendors).toEqual(['claude-code'])
 	})
 
-	it('throws when --vendor is not in vendorExtensions', () => {
-		writeManifest({ name: 'my-plugin', vendorExtensions: { 'claude-code': {} } })
+	it('throws when --vendor is not in harnesses', () => {
+		writeManifest({ name: 'my-plugin', extensions: up({ harnesses: { 'claude-code': {} } }) })
 		expect(() => buildPlugin(dir, { vendor: 'cursor' })).toThrow('not declared')
 	})
 
 	it('writes vendor manifests with merged fields', () => {
 		writeManifest({
 			name: 'my-plugin',
-			skills: './skills/',
-			vendorExtensions: { 'claude-code': { displayName: 'My Plugin' } },
+			extensions: up({
+				skills: './skills/',
+				harnesses: { 'claude-code': { displayName: 'My Plugin' } },
+			}),
 		})
 		buildPlugin(dir)
 		const written = JSON.parse(fs.readFileSync(path.join(dir, '.claude-plugin', 'plugin.json'), 'utf8'))
 		expect(written.name).toBe('my-plugin')
 		expect(written.skills).toBe('./skills/')
 		expect(written.displayName).toBe('My Plugin')
-		expect(written.vendorExtensions).toBeUndefined()
+		expect(written.harnesses).toBeUndefined()
+		expect(written.extensions).toBeUndefined()
 		expect(written.$schema).toBeUndefined()
 	})
 
-	it('uses tab indentation by default when .plugin/plugin.json has no indentation', () => {
-		writeManifest({ name: 'x', vendorExtensions: { 'claude-code': {} } })
+	it('uses tab indentation by default when plugin.json has no indentation', () => {
+		writeManifest({ name: 'x', extensions: up({ harnesses: { 'claude-code': {} } }) })
 		buildPlugin(dir)
 		const raw = fs.readFileSync(path.join(dir, '.claude-plugin', 'plugin.json'), 'utf8')
 		expect(raw).toContain('\t')
 	})
 
-	it('vendor output follows tab indentation from .plugin/plugin.json', () => {
-		writeManifest({ name: 'x', vendorExtensions: { 'claude-code': {} } }, '\t')
+	it('vendor output follows tab indentation from plugin.json', () => {
+		writeManifest({ name: 'x', extensions: up({ harnesses: { 'claude-code': {} } }) }, '\t')
 		buildPlugin(dir)
 		const raw = fs.readFileSync(path.join(dir, '.claude-plugin', 'plugin.json'), 'utf8')
 		expect(raw).toContain('\t')
 		expect(raw).not.toMatch(/\n {2}/)
 	})
 
-	it('vendor output follows 2-space indentation from .plugin/plugin.json', () => {
-		writeManifest({ name: 'x', vendorExtensions: { 'claude-code': {} } }, 2)
+	it('vendor output follows 2-space indentation from plugin.json', () => {
+		writeManifest({ name: 'x', extensions: up({ harnesses: { 'claude-code': {} } }) }, 2)
 		buildPlugin(dir)
 		const raw = fs.readFileSync(path.join(dir, '.claude-plugin', 'plugin.json'), 'utf8')
 		expect(raw).toContain('\n  ')
@@ -151,7 +158,7 @@ describe('buildPlugin', () => {
 	})
 
 	it('derives a Cursor command from a user-invocable skill', () => {
-		writeManifest({ name: 'x', vendorExtensions: { cursor: {} } })
+		writeManifest({ name: 'x', extensions: up({ harnesses: { cursor: {} } }) })
 		writeSkill('deploy', '---\ninvocation-policy: user\ndescription: Deploy safely\n---\nDeploy $ARGUMENTS.')
 
 		buildPlugin(dir)
@@ -160,7 +167,7 @@ describe('buildPlugin', () => {
 	})
 
 	it('derives a best-effort Codex prompt from a both-invocable skill', () => {
-		writeManifest({ name: 'x', version: '1.0.0', description: 'x', vendorExtensions: { codex: {} } })
+		writeManifest({ name: 'x', version: '1.0.0', description: 'x', extensions: up({ harnesses: { codex: {} } }) })
 		writeSkill('review', '---\ninvocation-policy: both\n---\nReview the current diff.')
 
 		buildPlugin(dir)
@@ -169,7 +176,7 @@ describe('buildPlugin', () => {
 	})
 
 	it('does not derive a command from a model-only skill', () => {
-		writeManifest({ name: 'x', vendorExtensions: { cursor: {} } })
+		writeManifest({ name: 'x', extensions: up({ harnesses: { cursor: {} } }) })
 		writeSkill('context', '---\ninvocation-policy: model\n---\nBackground context.')
 
 		buildPlugin(dir)
@@ -178,7 +185,7 @@ describe('buildPlugin', () => {
 	})
 
 	it('maps canonical invocation policies to Claude frontmatter', () => {
-		writeManifest({ name: 'x', vendorExtensions: { 'claude-code': {} } })
+		writeManifest({ name: 'x', extensions: up({ harnesses: { 'claude-code': {} } }) })
 		writeSkill('deploy', '---\ninvocation-policy: user\nuser-invocable: false\n---\nDeploy.')
 		writeSkill('context', '---\ninvocation-policy: model\ndisable-model-invocation: true\n---\nContext.')
 
@@ -197,7 +204,7 @@ describe('buildPlugin', () => {
 	})
 
 	it('rejects an unsupported invocation policy', () => {
-		writeManifest({ name: 'x', vendorExtensions: { cursor: {} } })
+		writeManifest({ name: 'x', extensions: up({ harnesses: { cursor: {} } }) })
 		writeSkill('invalid', '---\ninvocation-policy: never\n---\nNope.')
 
 		expect(() => buildPlugin(dir)).toThrow('expected user, model, or both')

@@ -1,6 +1,6 @@
 import { Command } from 'commander'
 
-import { readManifest } from '../build/build.js'
+import { readManifest, universalPluginExtension } from '../build/build.js'
 import { ROOT_OPTION, resolveRoot } from '../cli-options.js'
 import { output, printTable } from '../output.js'
 import { realPinFs, resolveSkillsDir } from '../pin/fs.js'
@@ -42,7 +42,7 @@ export function bundleCommand(): Command {
 
 				const root = resolveRoot(opts.root)
 				const manifest = readManifest(root)
-				const skillsDir = resolveSkillsDir(root, manifest.skills as string | undefined)
+				const skillsDir = resolveSkillsDir(root, universalPluginExtension(manifest).skills as string | undefined)
 				const pinFs = realPinFs(skillsDir)
 				const versionSource = realVersionSource(discoverWorkspace(root))
 

@@ -10,7 +10,7 @@ export function publishCommand(): Command {
 
 	cmd
 		.command('sync-version')
-		.description('Sync version from packagePath/package.json into .plugin/plugin.json')
+		.description('Sync version from packagePath/package.json into plugin.json')
 		.addOption(ROOT_OPTION)
 		.action((opts: { root?: string }) => {
 			try {
