@@ -48,8 +48,16 @@ standard while its derivation engine keeps serving the runtimes as they actually
 2. **All `universal-plugin`-specific config moves under `extensions`, keyed by reverse domain.**
    - Our own tool config (the build-target list formerly `vendors`, and any future tool config) lives
      under **`extensions["org.cyberuni.universal-plugin"]`**.
-   - Per-harness data (formerly `vendorExtensions.<harness>`) lives under that harness's namespace —
-     `extensions["com.anthropic.claude-code"]`, etc. (§8).
+   - Per-harness data (formerly `vendorExtensions.<harness>`) lives under
+     **`extensions["org.cyberuni.universal-plugin"].harnesses.<vendor>`**, keyed by our own vendor id.
+     _(Amended 2026-08-09: originally scattered into per-harness reverse-domain namespaces
+     `extensions["com.anthropic.claude-code"]`, etc. Reopened during the schema lock — the runtimes
+     **never read the canonical `plugin.json`** (see Context; `universal-plugin` derives every
+     per-harness manifest), so these blocks are `universal-plugin`'s **own build inputs**, not data a
+     harness reads. They belong under the one namespace we own, and `com.*` would mean minting
+     reverse-domain strings for vendors we don't control. All `universal-plugin` config — the
+     build-target list `vendors`, the `harnesses` override map, `packagePath`, and the component input
+     paths — now nests under `org.cyberuni.universal-plugin`.)_
    - `schema/v1.json` is **rewritten**, not patched: it validates the closed spec manifest and defines
      the shape *inside* the `org.cyberuni.universal-plugin` namespace — no sibling
      `vendors`/`vendorExtensions`.
@@ -69,8 +77,8 @@ standard while its derivation engine keeps serving the runtimes as they actually
 
 - **Breaking, package-wide (~57 files).** Every reference to `.plugin/plugin.json` (build, validate,
   bundle, `publish sync-version`, `cli`, fixtures, tests) and to `.agents/skills/` retargets to the
-  root layout; `vendorExtensions` → `extensions["com.<vendor>"]`; `vendors` →
-  `extensions["org.cyberuni.universal-plugin"].vendors`.
+  root layout; `vendorExtensions` → `extensions["org.cyberuni.universal-plugin"].harnesses`; `vendors`
+  → `extensions["org.cyberuni.universal-plugin"].vendors`.
 - **`schema/v1.json` rewrite** as in Decision 2. Any uncommitted WIP adding a top-level `"agents"` key
   to the manifest is a **closed-schema violation** and is dropped, not merged.
 - **Root `spec.md` revised** — the "canonical `.plugin/plugin.json`" framing, capability map, and
