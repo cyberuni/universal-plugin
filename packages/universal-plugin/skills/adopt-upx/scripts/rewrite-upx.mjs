@@ -16,7 +16,7 @@
 //   - dist-tags (e.g. `@next`, `@latest`) — upx can't range-match these, they go to npx anyway
 //   - any occurrence already using `upx` — nothing to rewrite
 //   - any SKILL.md whose frontmatter declares `pin-exempt: true` — its versions are illustration
-//     (same convention `plugin bundle` uses; see packages/universal-plugin/.agents/spec/plugin/bundle/README.md)
+//     (the same convention the plugin bundler uses)
 //
 // Idempotent: a second run finds no more `npx <pkg>@<semver>` occurrences to rewrite.
 

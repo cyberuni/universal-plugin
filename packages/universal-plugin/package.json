@@ -27,7 +27,13 @@
 	"files": [
 		"bin",
 		"dist",
-		"governances"
+		"governances",
+		"plugin.json",
+		".claude-plugin",
+		".cursor-plugin",
+		".codex-plugin",
+		"skills",
+		"agents"
 	],
 	"scripts": {
 		"build": "tsdown",

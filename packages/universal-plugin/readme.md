@@ -5,6 +5,12 @@
 
 Universal AI agent plugin build tool. Author one canonical plugin manifest (root `plugin.json`) and generate vendor-specific manifests for Claude Code, Cursor, Codex, and GitHub Copilot CLI.
 
+## Specification
+
+This package follows the [Agent Plugins Specification](https://github.com/agentplugins/agent-plugins-spec).
+Consult that repository's versioned specification and releases before changing manifest
+or component compatibility behavior; it is the canonical reference for the current standard.
+
 ## Usage
 
 No install required — run with `npx`:

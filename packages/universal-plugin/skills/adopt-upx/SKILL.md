@@ -6,8 +6,8 @@ description: Use this skill when the user wants to make their skills use upx —
 # Adopt upx
 
 Rewrites `npx <pkg>@<version>` references inside `SKILL.md` files to a caret range on `upx` — the
-fast local-first runner shipped by `universal-plugin` (see
-`packages/universal-plugin/.agents/spec/run/README.md` for the full `upx` contract).
+fast local-first runner shipped by `universal-plugin` (see the package
+[`readme.md`](../../readme.md#upx--the-fast-package-runner) for the `upx` contract).
 
 ## When to use
 
@@ -52,8 +52,7 @@ Left alone (never rewritten):
 - **Already-`upx` references** — nothing to do
 - **Any skill marked `pin-exempt: true`** in its frontmatter — its version strings are
   documentation/illustration, not real invocations. This mirrors how `plugin bundle` treats
-  pin-exempt skills (`packages/universal-plugin/.agents/spec/plugin/bundle/README.md`) — the
-  `upgrade-universal-plugin` skill is a live example of a pin-exempt skill.
+  pin-exempt skills; `upgrade-universal-plugin` is a live example.
 
 ## Choose scope
 

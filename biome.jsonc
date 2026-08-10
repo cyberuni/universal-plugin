@@ -6,7 +6,11 @@
 	},
 	"overrides": [
 		{
-			"includes": ["packages/*/src/**/*.ts", "packages/*/src/**/*.mts", "skills/*/scripts/**/*.mjs"],
+			"includes": [
+				"packages/*/src/**/*.ts",
+				"packages/*/src/**/*.mts",
+				"packages/*/skills/*/scripts/**/*.mjs"
+			],
 			"linter": {
 				"rules": {
 					"suspicious": {

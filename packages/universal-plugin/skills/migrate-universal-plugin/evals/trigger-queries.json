@@ -1,0 +1,35 @@
+{
+	"skill_name": "migrate-universal-plugin",
+	"trigger_queries": [
+		{
+			"id": 1,
+			"query": "Move our root plugin.json and skills into packages/my-plugin so npm ships them.",
+			"should_trigger": true,
+			"split": "train"
+		},
+		{
+			"id": 2,
+			"query": "Our npm package publishes the CLI but not its Claude and Codex plugin assets. Fix the package layout.",
+			"should_trigger": true,
+			"split": "train"
+		},
+		{
+			"id": 3,
+			"query": "Ship this universal agent plugin through npm instead of from the monorepo root.",
+			"should_trigger": true,
+			"split": "val"
+		},
+		{
+			"id": 4,
+			"query": "Upgrade all npx universal-plugin pins to version 0.3.0.",
+			"should_trigger": false,
+			"split": "train"
+		},
+		{
+			"id": 5,
+			"query": "Create a new universal plugin from scratch for Claude Code and Cursor.",
+			"should_trigger": false,
+			"split": "val"
+		}
+	]
+}

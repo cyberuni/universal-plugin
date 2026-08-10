@@ -44,3 +44,30 @@ author guidance for slash invocation.
 ### Lessons Captured
 
 - [ ] Added to `tasks/lessons.md` (if corrections occurred)
+
+---
+
+## npm-distributed plugin migration
+
+### Scope
+
+- **In**: Move this repository's distributable plugin manifest, vendor manifests,
+  public skills, and plugin agent under `packages/universal-plugin/`; update npm
+  packaging and release-version synchronization; retain a reference to the
+  Agent Plugins Specification.
+- **Out**: Project-local `.agents/` skills and the repository marketplace draft.
+
+### Action Items
+
+- [x] Inventory the top-level plugin assets and their current distribution paths.
+- [x] Relocate distributable plugin assets into `packages/universal-plugin/`.
+- [x] Configure the package to ship the plugin assets and sync its manifest version.
+- [x] Add the public `migrate-universal-plugin` skill and a reference to the Agent Plugins Specification.
+- [x] Validate the packed npm tarball and the package test suite.
+- [ ] Review and commit the focused migration.
+
+### Review
+
+- `pnpm --filter universal-plugin verify` — passed (331 tests).
+- `npm pack --dry-run --json` from `packages/universal-plugin` — includes manifests, agent, and all public skills.
+- `cyber-skills@0.7.0 audit validate` — no critical or high findings. Its one MEDIUM description-length warning is deferred because the project's current skill-description research specifies a 150–400 character target; this description is 392 characters.

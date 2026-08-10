@@ -1,0 +1,11 @@
+{
+	"skill_name": "migrate-universal-plugin",
+	"evals": [
+		{
+			"id": 1,
+			"prompt": "Move the top-level universal plugin into packages/universal-plugin so npm distributes it.",
+			"expected_output": "Inventories and relocates only distributable plugin assets, adds them to package.json files, updates version synchronization, verifies npm pack --dry-run, and preserves project-local .agents content.",
+			"files": []
+		}
+	]
+}
