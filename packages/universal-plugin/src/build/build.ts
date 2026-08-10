@@ -5,7 +5,9 @@ import { detectIndent } from '../json.js'
 
 type VendorId = 'claude-code' | 'cursor' | 'codex' | 'copilot-cli'
 
-const VENDOR_OUTPUT: Record<VendorId, string> = {
+/** Where each vendor's derived manifest lands, relative to the project root. Shared with
+ *  `plugin init --npm`, which wires exactly these paths into `package.json` `files`. */
+export const VENDOR_OUTPUT: Record<VendorId, string> = {
 	'claude-code': '.claude-plugin/plugin.json',
 	cursor: '.cursor-plugin/plugin.json',
 	codex: '.codex-plugin/plugin.json',
