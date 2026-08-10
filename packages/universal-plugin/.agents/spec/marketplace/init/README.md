@@ -75,8 +75,9 @@ proving a discovered plugin will install successfully in every vendor runtime.
   `unchanged` regardless of object-key order or whitespace.
 - The command validates metadata and plans every selected artifact before changing any of them. A
   differing selected artifact stops the whole command with a `--force` remedy. `--force` replaces
-  only selected artifacts; `--dry-run` always writes nothing. Selected artifacts are committed as one
-  set: if any selected artifact cannot be written, no selected artifact changes.
+  only selected artifacts; `--dry-run` always writes nothing. Each selected artifact is written
+  atomically. If a later selected write fails, the command reports the error and exits non-zero; it
+  does not claim cross-artifact rollback.
 - A selected artifact path and every existing parent segment are resolved through symbolic links
   before staging. A link resolving outside `--root` fails before an artifact is staged or written.
 - Every result row contains `target`, `status`, `paths`, and `plugins`, with an optional `reason`.
@@ -111,11 +112,10 @@ flowchart TD
   M -- no --> E1
   M -- yes --> L
   L -- yes --> N[Report planned artifacts; write nothing]
-  L -- no --> O[Stage every changed selected artifact]
-  O --> P{Can every selected artifact commit?}
-  P -- no --> E1
-  P -- yes --> P1[Commit the selected artifact set]
-  P1 --> P2[Report generated or unchanged artifacts]
+  L -- no --> O[Atomically write each changed selected artifact]
+  O --> P{Did a selected write fail?}
+  P -- yes --> E1
+  P -- no --> P2[Report generated or unchanged artifacts]
   I --> Q[Add skipped-default Cursor row when no target flags]
   N --> Q
   P2 --> Q
@@ -164,7 +164,7 @@ flowchart TD
 | equivalent convergence | selected artifacts contain semantically equivalent JSON | `an equivalent rerun is unchanged` |
 | conflict guard | a selected artifact differs; no `--force` | `a differing selected artifact fails without changing any selected artifact` |
 | force branch | a selected artifact differs; `--force` | `force replaces only selected differing artifacts` |
-| atomic commit guard | staging one selected artifact fails | `a selected-artifact write failure changes no selected artifact` |
+| write-error branch | a selected artifact write fails | `a selected-artifact write failure reports an error` |
 | output link guard | selected output parent is a link outside `--root` | `an external selected-output symlink fails before writes` |
 | output file-link guard | selected output file is a link outside `--root` | `an external selected-output file symlink fails before writes` |
 

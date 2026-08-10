@@ -37,16 +37,17 @@ afterward as a conformance check. No behavior is intentionally removed.
 
 ## NEXT
 
-Spec gate passed provisionally: the cold judge aligned Oracle, Builder, and Architect; the 37-scenario
-suite is frozen. Gherkin parse, referenced-artifact/use-case coverage, root-state, and concept-index
-checks pass. The isolated `check-suite` dependency is unavailable; its availability is recorded in
-the gate rationale.
+The user re-opened the selected-write branch after the first spec gate: selected artifacts are each
+written atomically, and a later write error is reported with non-zero exit rather than a claimed
+cross-artifact rollback. A fresh cold review passed all three lenses and the suite is re-frozen.
+Finish implementation conformance and run the impl gate.
 
 Resolved decision (user-confirmed): #25's root-level `plugin.json` is a marketplace metadata
 manifest, independent of the canonical `.plugin/plugin.json` agent-plugin manifest. A repository may
 carry both. Keep #25 discovery on the top-level marketplace manifest and state the distinction in its
 contract.
 
-Deliver against the frozen contract. Known implementation gaps: recursive manifest discovery accepts
-nested manifests, selected writes are not an atomic set, and neither read nor write symlink containment
-is enforced. Add per-scenario verification before the impl gate.
+Implementation now bounds discovery to direct-child non-vendor plugin directories and applies
+containment checks to scan roots, plugin roots, manifests, output parents, and output files. It keeps
+the user-directed best-effort selected-write behavior. Add any targeted coverage the impl gate needs;
+do not touch the unrelated `.agents/cyberlegion/` worktree content.

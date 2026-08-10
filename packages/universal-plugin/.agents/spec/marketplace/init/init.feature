@@ -260,14 +260,16 @@ Feature: marketplace init — derive local marketplace metadata
     And the Claude result row has status "generated"
     And the exit code is 0
 
-  Scenario: a selected-artifact write failure changes no selected artifact
+  Scenario: a selected-artifact write failure reports an error
     Given the root plugin.json has author "Ari"
     And its plugins directory contains eligible plugins "alpha" and "beta"
     Given selected Claude and Copilot catalogs contain differing existing content
     And the filesystem refuses the Copilot catalog replacement
     When I run "universal-plugin marketplace init --claude --copilot --force --root <root>"
     Then the exit code is 1
-    And the Claude and Copilot catalog contents are unchanged
+    And stderr names the selected-artifact write error
+    And the Claude catalog contains the generated marketplace catalog
+    And the Copilot catalog contents remain intact
 
   Scenario: an external selected-output symlink fails before writes
     Given the root plugin.json has author "Ari"

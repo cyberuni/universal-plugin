@@ -10,8 +10,8 @@ approval:
     why:
       floor: none — user-directed re-open rewrote the prematurely frozen marketplace suite without dropping its prior behavior; the new contract widens safety and observability coverage. Compatibility is deferred to the implementation gate; Conflict none.
       blast: moderate — one behavioral node plus its root capability and generated concept indexes; local repository metadata only.
-      novelty: moderate — bounded top-level marketplace manifests that deliberately coexist with canonical agent-plugin manifests; all-or-nothing selected writes and containment guards.
-      confidence: high — cold spec judge aligned Oracle, Builder, and Architect after re-derivation; 37 mapped boolean scenarios; Gherkin parse, referenced-artifact/use-case coverage, root state, and concept-index checks pass. The isolated check-suite dependency is unavailable, so gherkin-cli parse is the executable form evidence.
+      novelty: moderate — bounded top-level marketplace manifests that deliberately coexist with canonical agent-plugin manifests; per-artifact atomic writes, explicit write-error reporting, and containment guards.
+      confidence: high — two cold spec judges aligned Oracle, Builder, and Architect after re-derivation and the user-directed write-semantics re-open; 37 mapped boolean scenarios; Gherkin parse, referenced-artifact/use-case coverage, root state, and concept-index checks pass. The isolated check-suite dependency is unavailable, so gherkin-cli parse is the executable form evidence.
       cr: github-25
   impl:
     verdict: approve
