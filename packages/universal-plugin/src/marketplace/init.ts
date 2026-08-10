@@ -113,10 +113,22 @@ function sameArtifact(fs: MarketplaceFs, file: string, content: string): boolean
 	const existing = fs.read(file)
 	if (!file.endsWith('.json')) return existing === content
 	try {
-		return JSON.stringify(JSON.parse(existing)) === JSON.stringify(JSON.parse(content))
+		return JSON.stringify(normalizeJson(JSON.parse(existing))) === JSON.stringify(normalizeJson(JSON.parse(content)))
 	} catch {
 		return false
 	}
+}
+
+/** JSON object key order and whitespace do not change a catalog's meaning; array order does. */
+function normalizeJson(value: unknown): unknown {
+	if (Array.isArray(value)) return value.map(normalizeJson)
+	if (typeof value !== 'object' || value === null) return value
+	const record = value as Record<string, unknown>
+	return Object.fromEntries(
+		Object.keys(record)
+			.sort()
+			.map((key) => [key, normalizeJson(record[key])]),
+	)
 }
 
 export function initializeMarketplace(

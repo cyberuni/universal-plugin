@@ -96,6 +96,11 @@ test('supports dry runs, unchanged reruns, force conflicts, empty defaults, and 
 		expect(initializeMarketplace(root, { dryRun: true })[0]).toMatchObject({ status: 'planned' })
 		expect(fs.existsSync(path.join(root, '.claude-plugin/marketplace.json'))).toBe(false)
 		initializeMarketplace(root)
+		const catalog = readJson(root, '.claude-plugin/marketplace.json') as Record<string, unknown>
+		fs.writeFileSync(
+			path.join(root, '.claude-plugin/marketplace.json'),
+			JSON.stringify({ plugins: catalog.plugins, owner: catalog.owner, name: catalog.name }),
+		)
 		expect(initializeMarketplace(root)[0]).toMatchObject({ status: 'unchanged' })
 		fs.writeFileSync(path.join(root, '.claude-plugin/marketplace.json'), '{"different":true}\n')
 		expect(() => initializeMarketplace(root)).toThrow(/--force/)
