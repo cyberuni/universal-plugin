@@ -1,3 +1,4 @@
+@frozen
 Feature: plugin init — scaffold a plugin project, and wire an npm package to ship it
 
   Background:
@@ -26,6 +27,12 @@ Feature: plugin init — scaffold a plugin project, and wire an npm package to s
     Then "plugin.json" has an "extensions" member "org.cyberuni.universal-plugin"
     And that member's "vendors" array contains "claude-code"
     And that member's "vendors" array contains "cursor"
+
+  Scenario: without --vendor no vendors list is recorded
+    When I run "universal-plugin plugin init --yes --root <root>"
+    Then the exit code is 0
+    And "plugin.json" is written at the project root
+    And "plugin.json" declares no "vendors" list under the "org.cyberuni.universal-plugin" extensions member
 
   Scenario: --scaffold creates the standard directories
     When I run "universal-plugin plugin init --scaffold --yes --root <root>"

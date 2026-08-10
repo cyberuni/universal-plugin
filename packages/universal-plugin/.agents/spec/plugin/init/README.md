@@ -52,7 +52,9 @@ The entry points, each a mode of the `universal-plugin plugin init` verb, given 
   - *trigger:* an author starts (or re-scaffolds) a plugin project.
   - *inputs:* the flags above; the project root (`--root`, else cwd).
   - *outcome:* a root `plugin.json` written with a `name` and the closed metadata shape; optionally
-    the standard directories; each `--vendor` recorded in the build-target list.
+    the standard directories; each `--vendor` recorded in the build-target list. With **no** `--vendor`,
+    no `vendors` list is written — `plugin build` then falls back to every `harnesses` key (its frozen
+    `vendors ?? harnesses`-keys contract), so a fresh scaffold constrains nothing.
 - **Wire an npm package to ship the plugin** — `plugin init --npm [--vendor <id>]… [--force]`.
   - *trigger:* an author wants the built vendor manifests to travel on `npm publish`.
   - *inputs:* an existing `package.json` at the root; the `--vendor` set (default `claude-code`).
@@ -85,12 +87,17 @@ graph TD
   NM -->|no| nm2[name = root directory name]
   W --> VN{--vendor given?}
   VN -->|yes| vn1[record vendors in extensions org.cyberuni.universal-plugin]
+  VN -->|no| vn2[no vendors list recorded · build falls back to harnesses keys]
   W --> SC{--scaffold?}
   SC -->|yes| sc1[create skills/ agents/ governances/ commands/]
   SC -->|no| sc2[manifest only]
   W --> NP{--npm?}
   NP -->|yes| wire[add each vendor's derived manifest path + skills/ to package.json files]
   NP -->|no| skip[package.json untouched]
+  nm1 --> OUT
+  nm2 --> OUT
+  vn1 --> OUT
+  vn2 --> OUT
   wire --> OUT
   skip --> OUT
   sc1 --> OUT
@@ -113,6 +120,7 @@ Grouped by use case; 1:1 with [`init.feature`](./init.feature). `| Edge | Path (
 | name = --name | `--name` given | `--name sets the plugin name` |
 | name = dir | no `--name`, root named `cool-plugin` | `defaults the plugin name to the root directory name` |
 | record vendors | `--vendor` given | `--vendor records the vendor in the universal-plugin extensions namespace` |
+| no vendors list | no `--vendor` | `without --vendor no vendors list is recorded` |
 | create dirs | `--scaffold` | `--scaffold creates the standard directories` |
 | manifest only | no `--scaffold` | `without --scaffold only the manifest is written` |
 | guard: exists | manifest exists, no `--force` | `an existing manifest fails pointing at --force` |
