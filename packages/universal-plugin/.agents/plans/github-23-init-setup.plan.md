@@ -13,9 +13,9 @@ todos:
   - content: "PHASE 1 migration: schema/v1.json rewrite (closed manifest + org.cyberuni.universal-plugin extensions shape); drop WIP top-level 'agents' key"
     status: completed
   - content: "PHASE 1 migration: retarget build/validate/bundle/publish-sync-version/cli + fixtures/tests from .plugin/plugin.json -> plugin.json; vendorExtensions -> extensions[org.cyberuni.universal-plugin].harnesses; vendors -> extensions[org.cyberuni.universal-plugin].vendors"
-    status: pending
+    status: completed
   - content: "PHASE 1 migration: docs/examples/governances sweep off .plugin/ + .agents/skills/; pnpm verify green"
-    status: pending
+    status: completed
   - content: "Spec gate: freeze touched .feature(s), record ledger gate line (Clearance fires — init.feature rewritten off .plugin/), set status approved"
     status: pending
   - content: "Deliver `plugin init --npm` (publish half only) on the new canonical: write root plugin.json + wire package.json files[] with derived <harness>/plugin.json paths + skills/"
@@ -88,34 +88,39 @@ it moves to `repobuddy/buddy-agent-harness` (ADR-0006). Concern count stays two 
 
 ## NEXT
 
-Schema contract **locked** (`474c8c2`) and ADR-0007 amended (`1219f9d`) — the user-review gate is
-**cleared**. `schema/v1.json` now validates the closed Agent Plugins Spec v1.0.0 manifest with all
-config under `extensions["org.cyberuni.universal-plugin"]` (`vendors`, `packagePath`, component paths,
-`harnesses.<vendor>`). `pnpm verify` green (nothing consumes the schema, so it lands standalone).
+**PHASE 1 code + docs migration landed (7 commits, `pnpm verify` 300/300 green):**
+`1219f9d` ADR-0007 amend · `474c8c2` schema lock · `2e934a4` source layer (build/bundle/sync-version
+read root `plugin.json` + org namespace; derivation re-assembled) · `2a46892` repo manifest → root
+`plugin.json`, `.plugin/plugin.json` deleted · `9ebfa8f` 13 examples + template · `6aa5754` living-docs
+sweep (skill docs, READMEs, apps/web, governances/plugin-design.md).
 
-**Next action — PHASE 1 mechanical migration (~57 files), now unblocked.** Delegable. Retarget every
-reference from the old canonical to the new, `pnpm verify` green per commit:
-- **Source** (`src/build`, `validate`, `bundle`, `publish sync-version`, `cli`, `readManifest`) +
-  test fixtures: read root `plugin.json` (not `.plugin/plugin.json`); read config from
-  `extensions["org.cyberuni.universal-plugin"]` — `.harnesses.<vendor>` (was `manifest.vendorExtensions`),
-  `.vendors`, component paths. **More than a rename:** `build.ts` today strips `$schema`+`vendorExtensions`
-  then spreads `canonical` into each derived manifest; under the closed canonical it must lift the
-  metadata fields + the harness block and NOT spread `extensions` — the derived vendor manifest is
-  re-assembled from the new nested shape.
-- **13 example `plugin.json`** (examples/**) + `skills/universal-plugin/assets/templates/plugin.json`:
-  rewrite to the new shape (`$schema` const, closed top level, config under the org namespace).
-- **Root `plugin.json`** already exists in the OLD shape (top-level `skills`) — rewrite it too.
-- **Sweep** docs/governances/specs off `.plugin/` + `.agents/skills/` + `vendorExtensions`/top-level
-  component keys: `skills/universal-plugin/{README,SKILL}.md`, `governances/plugin-design.md`,
-  `specs/universal-plugin-system.md`, `docs/superpowers/plans/*`.
-- Delete `.plugin/plugin.json` once nothing reads it.
+**Two design decisions surfaced during PHASE 1 — need resolution before the spec gate / init delivery:**
 
-**WIP to clear first:** uncommitted `.plugin/plugin.json` `"agents"` key (revert) and untracked
-`agents/agentskills-specialist.md` — the closed-schema violation the plan flagged. (agents/ as a
-*directory* is a legit scaffolded component; only the top-level manifest `agents` key is barred.)
+1. **copilot-cli output collides with the canonical.** `build.ts` `VENDOR_OUTPUT['copilot-cli'] =
+   'plugin.json'` (root). Now that the canonical IS root `plugin.json`, building copilot-cli would
+   **overwrite the canonical source**. Needs a per-harness answer ("what path does Copilot CLI actually
+   read?" — a fact, not a design we invent). Options: derive copilot to a distinct path; or treat the
+   canonical root `plugin.json` as already-Copilot-readable (it's a valid Agent Plugins Spec manifest)
+   and skip a separate copilot output. **Blocking the copilot build path.**
 
-Then: **spec gate** (Clearance fires — `init.feature` rewritten off `.plugin/`) → deliver `plugin init
---npm` → impl gate → handoff.
+2. **`vendors` vs `harnesses` keys drive the build.** `build.ts` derives the build set from
+   `Object.keys(harnesses)` and ignores `vendors`. But the schema, the init node, and the migrated
+   examples/template treat **`vendors`** as the build-target list. The swept prose (SKILL.md,
+   plugin-design.md) now describes the **`vendors`-based** design (build CLI flagged "not yet
+   available", so design-leads-impl is acceptable). Reconcile: likely make build honor `vendors` (fall
+   back to `harnesses` keys when `vendors` absent, for back-comat with examples like figma that set only
+   `harnesses`). Belongs with the init-node delivery (init writes `vendors`).
+
+**Remaining PHASE 1 / spec work:**
+- **SDD spec node — spec gate (todo #8).** `.agents/spec/plugin/{build,validate,bundle,init}/*.feature`
+  + their READMEs + `glossary.md` + `spec.md` still say `.plugin/plugin.json`. Rewriting them
+  **unfreezes the suites and fires Clearance** — run through spec-gate, not a blind sweep.
+- **Scope call:** `docs/specs/universal-plugin/` is a *legacy backfill* tree (not the active spec,
+  unreferenced) — recommend **leave as historical**; confirm with user.
+- **Untracked WIP still present:** `agents/agentskills-specialist.md` (harmless; not referenced by any
+  manifest) and local `.claude/`. Left in place; not carried into any commit.
+
+Then: **spec gate** → deliver `plugin init --npm` → impl gate → handoff.
 
 ### Session landmarks (this branch, do not redo — see commits)
 - Design record: ADR-0005/0006 (adopted from unit-198195), ADR-0007 (adopt spec canonical), ADR-0001
