@@ -17,7 +17,7 @@ todos:
   - content: "PHASE 1 migration: docs/examples/governances sweep off .plugin/ + .agents/skills/; pnpm verify green"
     status: completed
   - content: "Spec gate: rewrite build/validate/bundle .feature + READMEs + glossary + spec.md off .plugin/plugin.json -> root plugin.json; fold resolved build decisions into build.feature (copilot output .github/plugin/plugin.json; targets = vendors ?? harnesses keys); freeze touched .feature(s), record ledger gate line (Clearance fires), set status approved"
-    status: pending
+    status: completed
   - content: "Impl: apply resolved build decisions in code — build.ts VENDOR_OUTPUT['copilot-cli'] = '.github/plugin/plugin.json' + vendor-registry pluginRootSuffix; build.ts target selection = vendors ?? Object.keys(harnesses); pnpm verify green"
     status: pending
   - content: "Deliver `plugin init --npm` (publish half only) on the new canonical: write root plugin.json + wire package.json files[] with derived <harness>/plugin.json paths + skills/"
@@ -90,24 +90,30 @@ it moves to `repobuddy/buddy-agent-harness` (ADR-0006). Concern count stays two 
 
 ## NEXT — resume here
 
-**Next action.** Take the SDD spec node through the **spec gate** (todo #8): rewrite
-`.agents/spec/plugin/{build,validate,bundle}/*.feature` + their READMEs + `glossary.md` + `spec.md`
-off `.plugin/plugin.json` → root `plugin.json`, **and** fold the two resolved build decisions (below)
-into `build.feature`. This is not a blind sweep — the rewrite unfreezes those suites and fires
-**Clearance**; run it via `start-mission`/`spec-gate` (freeze touched features, write the ledger gate
-line, set status). Then apply the matching `build.ts` + `vendor-registry` code and verify at the impl
-gate. (The `plugin/init/` node is already re-derived — leave it.)
+**Spec gate LANDED (todo #8, commit `b7c2ec5`).** The `plugin/{build,validate,bundle}` nodes are
+migrated onto the ADR-0007 canonical (root `plugin.json`; `extensions["org.cyberuni.universal-plugin"]`
+.{harnesses,vendors,packagePath}); the two build decisions are folded into `build.feature` as
+scenarios; Clearance fired and was user-ratified; cold sdd-spec-judge ALIGNED true (R2); ledger gate
+line written (`ledger/github-23.7a9e50.jsonl`); the three `.feature` files stay `@frozen`; root
+`spec.md` `status: approved`. The frozen contract now leads the impl — code must catch up.
 
-**Apply these resolved decisions during that work (settled with the user — do not relitigate):**
-1. **copilot-cli derives to `.github/plugin/plugin.json`** — the old `VENDOR_OUTPUT['copilot-cli'] =
-   'plugin.json'` now collides with the canonical root `plugin.json`. Copilot searches root, `.plugin/`,
-   `.github/plugin/` (research E51); the nested-`extensions` canonical is not directly Copilot-consumable,
-   so a distinct derived file is required. Touches `build.ts` `VENDOR_OUTPUT`, `vendor-registry`
-   `pluginRootSuffix`, and the `build.feature` output-path scenario.
-2. **Build targets = `vendors ?? Object.keys(harnesses)`** — `build` honors the `vendors` list, falling
-   back to all `harnesses` keys when absent (back-compat for harnesses-only examples like figma). Today
-   `build.ts` ignores `vendors` and uses `harnesses` keys only. Touches `build.ts` target selection and
-   the `build.feature` selection scenarios.
+**Next action — todo #9 (impl: apply the two resolved build decisions in code).** The spec is now the
+bar; `build.ts` currently lags it on exactly two points. Bring code into conformance, then `pnpm verify`:
+1. **copilot-cli output path** — `src/build/build.ts` `VENDOR_OUTPUT['copilot-cli']` is still
+   `'plugin.json'` (collides with the canonical root); set it to `'.github/plugin/plugin.json'`. Mirror
+   in `vendor-registry` `pluginRootSuffix` for `copilot-cli`. Satisfies build.feature scenario
+   "copilot-cli derives to .github/plugin/plugin.json, not the canonical root".
+2. **Build-target selection** — `build.ts` derives from `Object.keys(harnesses)` only; change to
+   `vendors ?? Object.keys(harnesses)` (honor the `extensions[...].vendors` list when present, else all
+   harnesses keys). Satisfies build.feature scenarios "the vendors list selects the build targets when
+   present" / "build falls back to all harnesses keys when no vendors list is present".
+
+Update `build.test.ts` fixtures/assertions to match; keep `pnpm verify` green.
+
+**Note:** the rest of `build.ts` already reads the new canonical (root `plugin.json`, `harnesses`,
+`extensions` namespace) from PHASE 1 — only these two behaviors lag. `validate`/`bundle` impls remain
+spec-first / impl-deferred (their frozen contracts are now migrated; no code owes them this CR beyond
+what already exists).
 
 **Open scope call (decide before/at handoff):** `docs/specs/universal-plugin/` is a *legacy backfill*
 tree (not the active spec, unreferenced anywhere living) — recommend **leave as historical**; unconfirmed.
