@@ -16,7 +16,9 @@ todos:
     status: completed
   - content: "PHASE 1 migration: docs/examples/governances sweep off .plugin/ + .agents/skills/; pnpm verify green"
     status: completed
-  - content: "Spec gate: freeze touched .feature(s), record ledger gate line (Clearance fires — init.feature rewritten off .plugin/), set status approved"
+  - content: "Spec gate: rewrite build/validate/bundle .feature + READMEs + glossary + spec.md off .plugin/plugin.json -> root plugin.json; fold resolved build decisions into build.feature (copilot output .github/plugin/plugin.json; targets = vendors ?? harnesses keys); freeze touched .feature(s), record ledger gate line (Clearance fires), set status approved"
+    status: pending
+  - content: "Impl: apply resolved build decisions in code — build.ts VENDOR_OUTPUT['copilot-cli'] = '.github/plugin/plugin.json' + vendor-registry pluginRootSuffix; build.ts target selection = vendors ?? Object.keys(harnesses); pnpm verify green"
     status: pending
   - content: "Deliver `plugin init --npm` (publish half only) on the new canonical: write root plugin.json + wire package.json files[] with derived <harness>/plugin.json paths + skills/"
     status: pending
@@ -86,46 +88,48 @@ it moves to `repobuddy/buddy-agent-harness` (ADR-0006). Concern count stays two 
 - **CR structure:** on **this branch**, one-concern-per-commit (design record → migration → node);
   splittable to its own PR at handoff. (User did not opt for a separate issue.)
 
-## NEXT
+## NEXT — resume here
 
-**PHASE 1 code + docs migration landed (7 commits, `pnpm verify` 300/300 green):**
-`1219f9d` ADR-0007 amend · `474c8c2` schema lock · `2e934a4` source layer (build/bundle/sync-version
-read root `plugin.json` + org namespace; derivation re-assembled) · `2a46892` repo manifest → root
-`plugin.json`, `.plugin/plugin.json` deleted · `9ebfa8f` 13 examples + template · `6aa5754` living-docs
-sweep (skill docs, READMEs, apps/web, governances/plugin-design.md).
+**Next action.** Take the SDD spec node through the **spec gate** (todo #8): rewrite
+`.agents/spec/plugin/{build,validate,bundle}/*.feature` + their READMEs + `glossary.md` + `spec.md`
+off `.plugin/plugin.json` → root `plugin.json`, **and** fold the two resolved build decisions (below)
+into `build.feature`. This is not a blind sweep — the rewrite unfreezes those suites and fires
+**Clearance**; run it via `start-mission`/`spec-gate` (freeze touched features, write the ledger gate
+line, set status). Then apply the matching `build.ts` + `vendor-registry` code and verify at the impl
+gate. (The `plugin/init/` node is already re-derived — leave it.)
 
-**Two design decisions surfaced during PHASE 1 — RESOLVED with the user (apply at the spec gate + impl):**
+**Apply these resolved decisions during that work (settled with the user — do not relitigate):**
+1. **copilot-cli derives to `.github/plugin/plugin.json`** — the old `VENDOR_OUTPUT['copilot-cli'] =
+   'plugin.json'` now collides with the canonical root `plugin.json`. Copilot searches root, `.plugin/`,
+   `.github/plugin/` (research E51); the nested-`extensions` canonical is not directly Copilot-consumable,
+   so a distinct derived file is required. Touches `build.ts` `VENDOR_OUTPUT`, `vendor-registry`
+   `pluginRootSuffix`, and the `build.feature` output-path scenario.
+2. **Build targets = `vendors ?? Object.keys(harnesses)`** — `build` honors the `vendors` list, falling
+   back to all `harnesses` keys when absent (back-compat for harnesses-only examples like figma). Today
+   `build.ts` ignores `vendors` and uses `harnesses` keys only. Touches `build.ts` target selection and
+   the `build.feature` selection scenarios.
 
-1. **copilot-cli derives to `.github/plugin/plugin.json`** (user-confirmed). The old
-   `VENDOR_OUTPUT['copilot-cli'] = 'plugin.json'` collided with the canonical (now root `plugin.json`).
-   Copilot CLI searches root, `.plugin/`, and `.github/plugin/` (research E51); `.github/plugin/
-   plugin.json` is a searched, GitHub-idiomatic path with no collision. The canonical's nested
-   `extensions` shape is NOT directly Copilot-consumable (Copilot wants top-level component keys +
-   camelCase hooks), so a distinct derived file is required — reuse-the-canonical was rejected.
-   → change `build.ts` `VENDOR_OUTPUT['copilot-cli']` and `vendor-registry` `pluginRootSuffix`; update
-   `build.feature` output-path scenario.
+**Open scope call (decide before/at handoff):** `docs/specs/universal-plugin/` is a *legacy backfill*
+tree (not the active spec, unreferenced anywhere living) — recommend **leave as historical**; unconfirmed.
 
-2. **Build targets = `vendors ?? Object.keys(harnesses)`** (user-confirmed). `build` honors the
-   `vendors` list; when absent, falls back to all `harnesses` keys (back-compat: figma & other
-   harnesses-only examples still build). Makes `init --vendor` (which writes `vendors`) actually control
-   the build; keeps the swept prose accurate. → change `build.ts` target selection; update `build.feature`
-   selection scenarios; init-node delivery relies on this.
+**Then:** deliver `plugin init --npm` — a NEW command (none ships today; spec-first/impl-deferred per the
+init README) — → impl gate → handoff (PR, Closes #23; PHASE 1 is splittable to its own PR).
 
-**Next action — SDD spec node + the two resolved behavior changes (spec gate, todo #8).**
-`.agents/spec/plugin/{build,validate,bundle}/*.feature` + READMEs + `glossary.md` + `spec.md` still say
-`.plugin/plugin.json` (init node already re-derived). Rewrite them off the old canonical AND fold in the
-two resolved decisions above (build.feature: copilot output path `.github/plugin/plugin.json`; target
-selection `vendors ?? harnesses keys`). This **unfreezes the suites and fires Clearance** — run through
-spec-gate (freeze touched features, ledger gate line, status), not a blind sweep. Then apply the matching
-`build.ts` + `vendor-registry` code changes and verify at the impl gate.
+**Findings the diff won't show:**
+- `schema/v1.json` is a published/editor contract only — **no code consumes it** (build uses a hand-rolled
+  `validateManifest`), so the schema lock landed standalone and green.
+- `build.ts` re-assembles each derived manifest as *metadata + component paths + that harness's block*,
+  excluding `$schema`/`extensions`/`vendors`/`packagePath` — chosen to preserve prior output (skills path
+  still lands in the derived manifest) per the `build.test.ts:writes vendor manifests` assertion.
+- `.plugin/pins.json` (bundle artifact) is intentionally **kept** — only the manifest left `.plugin/`.
+- Untracked, intentionally not committed: `agents/agentskills-specialist.md` (harmless WIP, referenced by
+  no manifest) and local `.claude/`.
+- Do **not** relearn the method or relitigate settled ground — see `## Resolved decisions`.
 
-- **Scope call (open):** `docs/specs/universal-plugin/` is a *legacy backfill* tree (not the active
-  spec, unreferenced) — recommend **leave as historical**; confirm with user.
-- **Untracked WIP still present:** `agents/agentskills-specialist.md` (harmless; not referenced by any
-  manifest) and local `.claude/`. Left in place; not carried into any commit.
-
-Then: deliver `plugin init --npm` (a NEW command — none ships today; spec-first/impl-deferred per the
-init README) → impl gate → handoff (PR, Closes #23; PHASE 1 is splittable to its own PR).
+**PHASE 1 landed this session (9 commits, `pnpm verify` 300/300 green):** `1219f9d` ADR-0007 amend ·
+`474c8c2` schema lock · `2e934a4` source layer · `2a46892` repo manifest → root `plugin.json`
+(`.plugin/plugin.json` deleted) · `9ebfa8f` 13 examples + template · `6aa5754` living-docs sweep ·
+`66344d2`/`ad50a20`/`2bc3c10` plan checkpoints.
 
 ### Session landmarks (this branch, do not redo — see commits)
 - Design record: ADR-0005/0006 (adopted from unit-198195), ADR-0007 (adopt spec canonical), ADR-0001
