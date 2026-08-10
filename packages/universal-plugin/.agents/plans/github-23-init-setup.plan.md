@@ -19,6 +19,8 @@ todos:
   - content: "Spec gate: rewrite build/validate/bundle .feature + READMEs + glossary + spec.md off .plugin/plugin.json -> root plugin.json; fold resolved build decisions into build.feature (copilot output .github/plugin/plugin.json; targets = vendors ?? harnesses keys); freeze touched .feature(s), record ledger gate line (Clearance fires), set status approved"
     status: completed
   - content: "Impl: apply resolved build decisions in code — build.ts VENDOR_OUTPUT['copilot-cli'] = '.github/plugin/plugin.json' + vendor-registry pluginRootSuffix; build.ts target selection = vendors ?? Object.keys(harnesses); pnpm verify green"
+    status: completed
+  - content: "Spec gate for plugin/init: freeze init.feature (re-derived on the new canonical in todo #3 but left UNFROZEN; the todo-#3 rewrite broke the backfill-era freeze). Take it Draft→Approved via spec-gate before delivering its impl."
     status: pending
   - content: "Deliver `plugin init --npm` (publish half only) on the new canonical: write root plugin.json + wire package.json files[] with derived <harness>/plugin.json paths + skills/"
     status: pending
@@ -90,30 +92,40 @@ it moves to `repobuddy/buddy-agent-harness` (ADR-0006). Concern count stays two 
 
 ## NEXT — resume here
 
-**Spec gate LANDED (todo #8, commit `b7c2ec5`).** The `plugin/{build,validate,bundle}` nodes are
-migrated onto the ADR-0007 canonical (root `plugin.json`; `extensions["org.cyberuni.universal-plugin"]`
-.{harnesses,vendors,packagePath}); the two build decisions are folded into `build.feature` as
-scenarios; Clearance fired and was user-ratified; cold sdd-spec-judge ALIGNED true (R2); ledger gate
-line written (`ledger/github-23.7a9e50.jsonl`); the three `.feature` files stay `@frozen`; root
-`spec.md` `status: approved`. The frozen contract now leads the impl — code must catch up.
+**LANDED this session (2 units, both committed, `pnpm verify` 303/303 green):**
+- **Spec gate — build/validate/bundle (todo #8, commit `b7c2ec5`).** Migrated onto the ADR-0007
+  canonical (root `plugin.json`; `extensions["org.cyberuni.universal-plugin"].{harnesses,vendors,
+  packagePath}`); two build decisions folded into `build.feature`; Clearance fired + user-ratified;
+  cold sdd-spec-judge ALIGNED true (R2, `packagePath`-strip gap fixed); ledger gate line
+  (`ledger/github-23.7a9e50.jsonl`); the three `.feature` files `@frozen`; root `spec.md`
+  `status: approved`.
+- **Build-decisions impl (todo #9, commit `54bc109`).** `build.ts` now: copilot-cli →
+  `.github/plugin/plugin.json` (+ `vendor-registry` `pluginRootSuffix`); target selection =
+  `vendors ?? Object.keys(harnesses)`; eager validation scoped to the selected targets (a non-target
+  codex block no longer blocks). +3 tests, strip test strengthened.
 
-**Next action — todo #9 (impl: apply the two resolved build decisions in code).** The spec is now the
-bar; `build.ts` currently lags it on exactly two points. Bring code into conformance, then `pnpm verify`:
-1. **copilot-cli output path** — `src/build/build.ts` `VENDOR_OUTPUT['copilot-cli']` is still
-   `'plugin.json'` (collides with the canonical root); set it to `'.github/plugin/plugin.json'`. Mirror
-   in `vendor-registry` `pluginRootSuffix` for `copilot-cli`. Satisfies build.feature scenario
-   "copilot-cli derives to .github/plugin/plugin.json, not the canonical root".
-2. **Build-target selection** — `build.ts` derives from `Object.keys(harnesses)` only; change to
-   `vendors ?? Object.keys(harnesses)` (honor the `extensions[...].vendors` list when present, else all
-   harnesses keys). Satisfies build.feature scenarios "the vendors list selects the build targets when
-   present" / "build falls back to all harnesses keys when no vendors list is present".
+**Next action — todo #10 prerequisite: SPEC-GATE `plugin/init` first (new todo, now #10).**
+`plugin/init/init.feature` was re-derived on the new canonical (todo #3) but is **UNFROZEN** — the
+todo-#3 rewrite broke its backfill-era freeze and it was never re-gated (verified: no `@frozen` tag).
+`plugin init` has **no impl** today (`src/cli.ts` registers only build+bundle). So the delivery order is:
+1. **Spec-gate `init.feature`** (Draft→Approved, freeze) — run the same spec-gate flow used for todo #8
+   (structural checks → cold sdd-spec-judge {oracle,builder,architect} → freeze + ledger gate line).
+   The suite is already clean of the old canonical (0 `.plugin/plugin.json` / `vendorExtensions` refs)
+   and carries the `--npm` scenarios. Confirm whether this is additive vs the backfill freeze (likely a
+   re-derivation → Clearance, user-ratify) before freezing.
+2. **Deliver `plugin init --npm` impl (todo #11 was #10)** — a NEW command against the frozen
+   `init.feature`: scaffold root `plugin.json` + (on `--npm`) wire `package.json` `files[]` with the
+   derived `<harness>/plugin.json` paths + `skills/`. Register it in `src/cli.ts`. Clean architecture
+   (domain/app/cli layering per package AGENTS.md).
+3. **Impl gate (todo #12)** → **Handoff (todo #13)**: PR `Closes #23`; PHASE 1 splittable to its own PR.
 
-Update `build.test.ts` fixtures/assertions to match; keep `pnpm verify` green.
+**Tooling note (spec-gate scripts).** `check-suite.mts` / `classify-edit-class.mts` import `gherkin-cli`,
+which is not installed in the SDD skill dir. This session installed `gherkin-cli@0.0.2` into the
+scratchpad and symlinked it at `<spec-gate>/scripts/node_modules` for the run, then removed the symlink.
+Re-do that (or `npm i gherkin-cli@0.0.2` beside the scripts) to run those two scripts on resume.
 
-**Note:** the rest of `build.ts` already reads the new canonical (root `plugin.json`, `harnesses`,
-`extensions` namespace) from PHASE 1 — only these two behaviors lag. `validate`/`bundle` impls remain
-spec-first / impl-deferred (their frozen contracts are now migrated; no code owes them this CR beyond
-what already exists).
+**`validate`/`bundle` impls remain spec-first / impl-deferred** — their frozen contracts are migrated;
+no code owes them this CR beyond what already ships.
 
 **Open scope call (decide before/at handoff):** `docs/specs/universal-plugin/` is a *legacy backfill*
 tree (not the active spec, unreferenced anywhere living) — recommend **leave as historical**; unconfirmed.
