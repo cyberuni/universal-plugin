@@ -11,8 +11,8 @@ todos:
   - content: "Reconcile root spec.md: their two-concern + shared-object-rule base, re-applied on the new canonical (root plugin.json + skills/ + extensions); keep status draft"
     status: completed
   - content: "PHASE 1 migration: schema/v1.json rewrite (closed manifest + org.cyberuni.universal-plugin extensions shape); drop WIP top-level 'agents' key"
-    status: pending
-  - content: "PHASE 1 migration: retarget build/validate/bundle/publish-sync-version/cli + fixtures/tests from .plugin/plugin.json -> plugin.json; vendorExtensions -> extensions[com.<vendor>]; vendors -> extensions[org.cyberuni.universal-plugin].vendors"
+    status: completed
+  - content: "PHASE 1 migration: retarget build/validate/bundle/publish-sync-version/cli + fixtures/tests from .plugin/plugin.json -> plugin.json; vendorExtensions -> extensions[org.cyberuni.universal-plugin].harnesses; vendors -> extensions[org.cyberuni.universal-plugin].vendors"
     status: pending
   - content: "PHASE 1 migration: docs/examples/governances sweep off .plugin/ + .agents/skills/; pnpm verify green"
     status: pending
@@ -52,9 +52,26 @@ it moves to `repobuddy/buddy-agent-harness` (ADR-0006). Concern count stays two 
 - **Adopt Agent Plugins Spec v1.0.0 as canonical (ADR-0007, revises ADR-0001).** Root `plugin.json`
   (not `.plugin/plugin.json`) + `skills/` (not `.agents/skills/`) + `mcp.json`. Manifest field set is
   **closed** (`additionalProperties:false`). All tool config under `extensions`:
-  `extensions["org.cyberuni.universal-plugin"].vendors` (was `vendors`) and `extensions["com.<vendor>"]`
-  (was `vendorExtensions.<vendor>`). Namespace confirmed by user. `schema/v1.json` **rewritten**, not
-  patched. WIP top-level `"agents"` key is a closed-schema violation — **drop it**.
+  `extensions["org.cyberuni.universal-plugin"].vendors` (was `vendors`) and
+  `extensions["org.cyberuni.universal-plugin"].harnesses.<vendor>` (was `vendorExtensions.<vendor>`).
+  `schema/v1.json` **rewritten**, not patched. WIP top-level `"agents"` key is a closed-schema
+  violation — **drop it**.
+- **Schema locked & committed (this session) — `474c8c2`.** User-reviewed shape, three decisions
+  settled at the gate:
+  - **All `universal-plugin` config nests under the one namespace we own,
+    `extensions["org.cyberuni.universal-plugin"]`** — component paths, `vendors`, `packagePath`, and
+    per-harness overrides. **Amends ADR-0007 §Decision 2** (`1219f9d`): originally per-harness data
+    was to scatter into `com.<vendor>` reverse-domain namespaces; reopened because runtimes never read
+    the canonical (`universal-plugin` derives every per-harness manifest), so those blocks are our own
+    build inputs and `com.*` would mint reverse domains we don't own.
+  - **Per-harness overrides key = `harnesses.<vendor>`** (user preferred `harnesses` over reusing
+    `vendorExtensions`). Real, used feature — pass-through of each harness's native marketplace fields
+    (Cursor `publisher`/`logo`, Codex `interface`/`apps`, Claude Code `displayName`/`defaultEnabled`);
+    `plugin build` copies each block verbatim into the derived manifest.
+  - **`$schema` is a required const** = `https://agent-plugins.org/schemas/1.0.0/plugin.schema.json`
+    (spec-strict, user choice). Editors validate the spec base only; `universal-plugin`'s own validate
+    uses `schema/v1.json` internally. `schema/v1.json` is a published/editor contract — **no code
+    consumes it** (build uses a hand-rolled `validateManifest`).
 - **Derive per-harness, never symlink (ADR-0007).** Runtimes mostly don't read root `plugin.json`; they
   keep their own paths with **different content**, so `plugin build` derives one `<harness>/plugin.json`
   per vendor — different content ⇒ no symlinks. `plugin init --npm` wires those derived paths into
@@ -71,22 +88,31 @@ it moves to `repobuddy/buddy-agent-harness` (ADR-0006). Concern count stays two 
 
 ## NEXT
 
-Design record reconciled and committed (ADR-0005/0006 theirs, 0007 mine; ADR-0001 amended). `plugin/init/`
-node re-derived, `check-suite` green. Remaining:
+Schema contract **locked** (`474c8c2`) and ADR-0007 amended (`1219f9d`) — the user-review gate is
+**cleared**. `schema/v1.json` now validates the closed Agent Plugins Spec v1.0.0 manifest with all
+config under `extensions["org.cyberuni.universal-plugin"]` (`vendors`, `packagePath`, component paths,
+`harnesses.<vendor>`). `pnpm verify` green (nothing consumes the schema, so it lands standalone).
 
-**Next action — start PHASE 1 by locking the schema contract.** Rewrite `schema/v1.json` to the closed
-Agent Plugins Spec v1.0.0 manifest (`$schema` const + `name` required; `additionalProperties:false`)
-with all tool config nested under `extensions["org.cyberuni.universal-plugin"]` (the `vendors` build-
-target list) — no sibling `vendors`/`vendorExtensions`. Drop the uncommitted WIP top-level `"agents"`
-key (closed-schema violation). Show the user the new shape before delegating the bulk. **Blocking:** the
-user asked to review the new schema shape before the ~57-file mechanical migration is delegated.
+**Next action — PHASE 1 mechanical migration (~57 files), now unblocked.** Delegable. Retarget every
+reference from the old canonical to the new, `pnpm verify` green per commit:
+- **Source** (`src/build`, `validate`, `bundle`, `publish sync-version`, `cli`, `readManifest`) +
+  test fixtures: read root `plugin.json` (not `.plugin/plugin.json`); read config from
+  `extensions["org.cyberuni.universal-plugin"]` — `.harnesses.<vendor>` (was `manifest.vendorExtensions`),
+  `.vendors`, component paths. **More than a rename:** `build.ts` today strips `$schema`+`vendorExtensions`
+  then spreads `canonical` into each derived manifest; under the closed canonical it must lift the
+  metadata fields + the harness block and NOT spread `extensions` — the derived vendor manifest is
+  re-assembled from the new nested shape.
+- **13 example `plugin.json`** (examples/**) + `skills/universal-plugin/assets/templates/plugin.json`:
+  rewrite to the new shape (`$schema` const, closed top level, config under the org namespace).
+- **Root `plugin.json`** already exists in the OLD shape (top-level `skills`) — rewrite it too.
+- **Sweep** docs/governances/specs off `.plugin/` + `.agents/skills/` + `vendorExtensions`/top-level
+  component keys: `skills/universal-plugin/{README,SKILL}.md`, `governances/plugin-design.md`,
+  `specs/universal-plugin-system.md`, `docs/superpowers/plans/*`.
+- Delete `.plugin/plugin.json` once nothing reads it.
 
-Then, PHASE 1 continues (its own commit series, `pnpm verify` green per commit):
-- Retarget source (`build`/`validate`/`bundle`/`publish sync-version`/`cli`) + fixtures/tests off
-  `.plugin/plugin.json` → `plugin.json`; `vendorExtensions` → `extensions["com.<vendor>"]`; `vendors` →
-  `extensions["org.cyberuni.universal-plugin"].vendors`. ~57 files — mechanical, delegable once the
-  schema is locked.
-- Sweep docs/examples/governances off `.plugin/` + `.agents/skills/`.
+**WIP to clear first:** uncommitted `.plugin/plugin.json` `"agents"` key (revert) and untracked
+`agents/agentskills-specialist.md` — the closed-schema violation the plan flagged. (agents/ as a
+*directory* is a legit scaffolded component; only the top-level manifest `agents` key is barred.)
 
 Then: **spec gate** (Clearance fires — `init.feature` rewritten off `.plugin/`) → deliver `plugin init
 --npm` → impl gate → handoff.
