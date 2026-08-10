@@ -94,33 +94,38 @@ read root `plugin.json` + org namespace; derivation re-assembled) · `2a46892` r
 `plugin.json`, `.plugin/plugin.json` deleted · `9ebfa8f` 13 examples + template · `6aa5754` living-docs
 sweep (skill docs, READMEs, apps/web, governances/plugin-design.md).
 
-**Two design decisions surfaced during PHASE 1 — need resolution before the spec gate / init delivery:**
+**Two design decisions surfaced during PHASE 1 — RESOLVED with the user (apply at the spec gate + impl):**
 
-1. **copilot-cli output collides with the canonical.** `build.ts` `VENDOR_OUTPUT['copilot-cli'] =
-   'plugin.json'` (root). Now that the canonical IS root `plugin.json`, building copilot-cli would
-   **overwrite the canonical source**. Needs a per-harness answer ("what path does Copilot CLI actually
-   read?" — a fact, not a design we invent). Options: derive copilot to a distinct path; or treat the
-   canonical root `plugin.json` as already-Copilot-readable (it's a valid Agent Plugins Spec manifest)
-   and skip a separate copilot output. **Blocking the copilot build path.**
+1. **copilot-cli derives to `.github/plugin/plugin.json`** (user-confirmed). The old
+   `VENDOR_OUTPUT['copilot-cli'] = 'plugin.json'` collided with the canonical (now root `plugin.json`).
+   Copilot CLI searches root, `.plugin/`, and `.github/plugin/` (research E51); `.github/plugin/
+   plugin.json` is a searched, GitHub-idiomatic path with no collision. The canonical's nested
+   `extensions` shape is NOT directly Copilot-consumable (Copilot wants top-level component keys +
+   camelCase hooks), so a distinct derived file is required — reuse-the-canonical was rejected.
+   → change `build.ts` `VENDOR_OUTPUT['copilot-cli']` and `vendor-registry` `pluginRootSuffix`; update
+   `build.feature` output-path scenario.
 
-2. **`vendors` vs `harnesses` keys drive the build.** `build.ts` derives the build set from
-   `Object.keys(harnesses)` and ignores `vendors`. But the schema, the init node, and the migrated
-   examples/template treat **`vendors`** as the build-target list. The swept prose (SKILL.md,
-   plugin-design.md) now describes the **`vendors`-based** design (build CLI flagged "not yet
-   available", so design-leads-impl is acceptable). Reconcile: likely make build honor `vendors` (fall
-   back to `harnesses` keys when `vendors` absent, for back-comat with examples like figma that set only
-   `harnesses`). Belongs with the init-node delivery (init writes `vendors`).
+2. **Build targets = `vendors ?? Object.keys(harnesses)`** (user-confirmed). `build` honors the
+   `vendors` list; when absent, falls back to all `harnesses` keys (back-compat: figma & other
+   harnesses-only examples still build). Makes `init --vendor` (which writes `vendors`) actually control
+   the build; keeps the swept prose accurate. → change `build.ts` target selection; update `build.feature`
+   selection scenarios; init-node delivery relies on this.
 
-**Remaining PHASE 1 / spec work:**
-- **SDD spec node — spec gate (todo #8).** `.agents/spec/plugin/{build,validate,bundle,init}/*.feature`
-  + their READMEs + `glossary.md` + `spec.md` still say `.plugin/plugin.json`. Rewriting them
-  **unfreezes the suites and fires Clearance** — run through spec-gate, not a blind sweep.
-- **Scope call:** `docs/specs/universal-plugin/` is a *legacy backfill* tree (not the active spec,
-  unreferenced) — recommend **leave as historical**; confirm with user.
+**Next action — SDD spec node + the two resolved behavior changes (spec gate, todo #8).**
+`.agents/spec/plugin/{build,validate,bundle}/*.feature` + READMEs + `glossary.md` + `spec.md` still say
+`.plugin/plugin.json` (init node already re-derived). Rewrite them off the old canonical AND fold in the
+two resolved decisions above (build.feature: copilot output path `.github/plugin/plugin.json`; target
+selection `vendors ?? harnesses keys`). This **unfreezes the suites and fires Clearance** — run through
+spec-gate (freeze touched features, ledger gate line, status), not a blind sweep. Then apply the matching
+`build.ts` + `vendor-registry` code changes and verify at the impl gate.
+
+- **Scope call (open):** `docs/specs/universal-plugin/` is a *legacy backfill* tree (not the active
+  spec, unreferenced) — recommend **leave as historical**; confirm with user.
 - **Untracked WIP still present:** `agents/agentskills-specialist.md` (harmless; not referenced by any
   manifest) and local `.claude/`. Left in place; not carried into any commit.
 
-Then: **spec gate** → deliver `plugin init --npm` → impl gate → handoff.
+Then: deliver `plugin init --npm` (a NEW command — none ships today; spec-first/impl-deferred per the
+init README) → impl gate → handoff (PR, Closes #23; PHASE 1 is splittable to its own PR).
 
 ### Session landmarks (this branch, do not redo — see commits)
 - Design record: ADR-0005/0006 (adopted from unit-198195), ADR-0007 (adopt spec canonical), ADR-0001
