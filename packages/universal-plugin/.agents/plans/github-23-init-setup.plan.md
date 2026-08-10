@@ -9,7 +9,7 @@ todos:
   - content: "Re-derive plugin/init node (README use-case→CFG→scenario map + init.feature) on new canonical, incl. `plugin init --npm` publish half; check-suite green"
     status: completed
   - content: "Reconcile root spec.md: their two-concern + shared-object-rule base, re-applied on the new canonical (root plugin.json + skills/ + extensions); keep status draft"
-    status: in_progress
+    status: completed
   - content: "PHASE 1 migration: schema/v1.json rewrite (closed manifest + org.cyberuni.universal-plugin extensions shape); drop WIP top-level 'agents' key"
     status: pending
   - content: "PHASE 1 migration: retarget build/validate/bundle/publish-sync-version/cli + fixtures/tests from .plugin/plugin.json -> plugin.json; vendorExtensions -> extensions[com.<vendor>]; vendors -> extensions[org.cyberuni.universal-plugin].vendors"
