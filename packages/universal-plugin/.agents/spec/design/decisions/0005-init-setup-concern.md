@@ -3,6 +3,15 @@
 **Status:** accepted
 **Date:** 2026-08-09
 **Revises:** [ADR-0001](./0001-realign-to-build-engine.md)
+**Mechanics superseded by:** [ADR-0006](./0006-adopt-agent-plugins-spec-canonical.md)
+
+> **Rebased by ADR-0006.** The *charter* decision below stands — repository/project init & setup
+> expands `plugin init`; the boundary is three-way with **repobuddy** owning consuming-setup. Its
+> *mechanics* are replaced: there is **no `.agents/skills/` and no symlink wiring**. Under ADR-0006 the
+> canonical layout is root `plugin.json` + `skills/`; `plugin init` scaffolds that, and `plugin build`
+> **derives** each `<harness>/plugin.json` (distinct content — not a link). Read Facet 1's "relative
+> symlink / copy-fallback" and Facet 2's "derived `.claude-plugin/plugin.json` + `files[]`" as
+> superseded by ADR-0006's derivation model.
 
 ## Context
 
