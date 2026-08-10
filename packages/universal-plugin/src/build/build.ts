@@ -5,22 +5,44 @@ import { detectIndent } from '../json.js'
 
 type VendorId = 'claude-code' | 'cursor' | 'codex' | 'copilot-cli'
 
-const VENDOR_OUTPUT: Record<VendorId, string> = {
+/** Where each vendor's derived manifest lands, relative to the project root. Shared with
+ *  `plugin init --npm`, which wires exactly these paths into `package.json` `files`. */
+export const VENDOR_OUTPUT: Record<VendorId, string> = {
 	'claude-code': '.claude-plugin/plugin.json',
 	cursor: '.cursor-plugin/plugin.json',
 	codex: '.codex-plugin/plugin.json',
-	'copilot-cli': 'plugin.json',
+	// Root `plugin.json` is now the canonical manifest (ADR-0007); copilot's derived manifest moves to
+	// `.github/plugin/plugin.json`, one of the paths Copilot CLI searches, to avoid colliding with it.
+	'copilot-cli': '.github/plugin/plugin.json',
 }
 
 const KNOWN_VENDORS = new Set<string>(Object.keys(VENDOR_OUTPUT))
+
+/** universal-plugin's own build config, nested under extensions["org.cyberuni.universal-plugin"]
+ *  in the canonical Agent Plugins Spec v1.0.0 manifest (ADR-0007). */
+export interface UniversalPluginExtension {
+	vendors?: string[]
+	packagePath?: string
+	/** Per-harness manifest overrides, keyed by vendor id (was top-level `vendorExtensions`). */
+	harnesses?: Record<string, Record<string, unknown>>
+	skills?: unknown
+	[key: string]: unknown
+}
 
 export interface PluginManifest {
 	$schema?: string
 	name: string
 	version?: string
 	description?: string
-	vendorExtensions?: Record<string, Record<string, unknown>>
+	extensions?: Record<string, Record<string, unknown>>
 	[key: string]: unknown
+}
+
+const UP_NAMESPACE = 'org.cyberuni.universal-plugin'
+
+/** Reads universal-plugin's config block from the canonical manifest's extensions map. */
+export function universalPluginExtension(manifest: PluginManifest): UniversalPluginExtension {
+	return (manifest.extensions?.[UP_NAMESPACE] as UniversalPluginExtension | undefined) ?? {}
 }
 
 export interface BuildOptions {
@@ -56,43 +78,52 @@ interface Skill {
 }
 
 export function readManifest(root: string): PluginManifest {
-	const manifestPath = path.join(root, '.plugin', 'plugin.json')
+	const manifestPath = path.join(root, 'plugin.json')
 	if (!fs.existsSync(manifestPath)) {
-		throw new Error(`No .plugin/plugin.json found at ${root}`)
+		throw new Error(`No plugin.json found at ${root}`)
 	}
 	return JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as PluginManifest
 }
 
-export function validateManifest(manifest: PluginManifest): string[] {
+/** Validates the manifest. Vendor rules apply only to the vendors actually being built: pass
+ *  `targets` to scope the check (build passes its selected targets), else it defaults to the
+ *  manifest's own selection (`vendors ?? harnesses` keys). */
+export function validateManifest(manifest: PluginManifest, targets?: string[]): string[] {
 	const errors: string[] = []
 	if (!manifest.name) errors.push('name is required')
-	if (manifest.vendorExtensions?.codex && !manifest.description) {
+	const uext = universalPluginExtension(manifest)
+	const harnesses = uext.harnesses ?? {}
+	const checked = targets ?? uext.vendors ?? Object.keys(harnesses)
+	const codexTargeted = checked.includes('codex') && Boolean(harnesses['codex'])
+	if (codexTargeted && !manifest.description) {
 		errors.push('description is required when targeting codex')
 	}
-	if (manifest.vendorExtensions?.codex && !manifest.version) {
+	if (codexTargeted && !manifest.version) {
 		errors.push('version is required when targeting codex')
 	}
 	return errors
 }
 
 export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult {
-	const manifestPath = path.join(root, '.plugin', 'plugin.json')
+	const manifestPath = path.join(root, 'plugin.json')
 	if (!fs.existsSync(manifestPath)) {
-		throw new Error(`No .plugin/plugin.json found at ${root}`)
+		throw new Error(`No plugin.json found at ${root}`)
 	}
 	const manifestRaw = fs.readFileSync(manifestPath, 'utf8')
 	const indent = detectIndent(manifestRaw)
 	const manifest = readManifest(root)
-	const errors = validateManifest(manifest)
-	if (errors.length > 0) throw new Error(`plugin.json validation failed:\n${errors.map((e) => `  - ${e}`).join('\n')}`)
 
 	const warnings: string[] = []
 	const rows: VendorRow[] = []
-	const vendorExtensions = manifest.vendorExtensions ?? {}
+	const uext = universalPluginExtension(manifest)
+	const harnesses = uext.harnesses ?? {}
 
-	let vendors = Object.keys(vendorExtensions).filter((v): v is VendorId => {
+	// Target selection (ADR-0007): the explicit `vendors` list when present, else every harnesses key.
+	const targets = uext.vendors ?? Object.keys(harnesses)
+
+	let vendors = targets.filter((v): v is VendorId => {
 		if (!KNOWN_VENDORS.has(v)) {
-			warnings.push(`Unknown vendor "${v}" in vendorExtensions — skipped`)
+			warnings.push(`Unknown vendor "${v}" in harnesses — skipped`)
 			rows.push({ vendor: v, path: '-', status: 'skipped' })
 			return false
 		}
@@ -101,31 +132,41 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 
 	if (opts.vendor) {
 		if (!vendors.includes(opts.vendor as VendorId)) {
-			throw new Error(`Vendor "${opts.vendor}" not declared in vendorExtensions`)
+			throw new Error(`Vendor "${opts.vendor}" not declared in harnesses`)
 		}
 		vendors = [opts.vendor as VendorId]
 	}
 
 	if (vendors.length === 0) {
-		warnings.push('No vendors declared in vendorExtensions — nothing to build')
+		warnings.push('No vendors declared in harnesses — nothing to build')
 		return { vendors: [], written: [], warnings, rows, summary: summarize(rows) }
 	}
 
+	// Eager validation, scoped to the vendors actually being built — a codex block that is not a
+	// selected target must not block a build of the others.
+	const errors = validateManifest(manifest, vendors)
+	if (errors.length > 0) throw new Error(`plugin.json validation failed:\n${errors.map((e) => `  - ${e}`).join('\n')}`)
+
 	const written: string[] = []
-	const { vendorExtensions: _ext, $schema: _schema, ...canonical } = manifest
+	// A derived <harness>/plugin.json carries the spec metadata plus the canonical component paths the
+	// harness consumes, then that harness's own overrides. universal-plugin's build orchestration
+	// (`vendors`, `packagePath`, `harnesses`) and the spec wrapper (`$schema`, `extensions`) are ours —
+	// they never belong in a harness manifest.
+	const { $schema: _schema, extensions: _extensions, ...metadata } = manifest
+	const { vendors: _vendors, packagePath: _packagePath, harnesses: _harnesses, ...componentConfig } = uext
 	const skills = readSkills(root, manifest)
 
 	for (const vendor of vendors) {
 		const relPath = VENDOR_OUTPUT[vendor]
 		const outputPath = path.join(root, relPath)
 		const outputDir = path.dirname(outputPath)
-		const vendorFields = vendorExtensions[vendor] ?? {}
-		const vendorManifest = { ...canonical, ...vendorFields }
+		const vendorFields = harnesses[vendor] ?? {}
+		const vendorManifest = { ...metadata, ...componentConfig, ...vendorFields }
 
 		if (opts.verbose) {
 			console.log(`[${vendor}] → ${outputPath}`)
 			for (const key of Object.keys(vendorFields)) {
-				console.log(`  + ${key} (from vendorExtensions)`)
+				console.log(`  + ${key} (from harnesses.${vendor})`)
 			}
 		}
 
@@ -181,7 +222,8 @@ function writeSkillArtifacts(
 }
 
 function readSkills(root: string, manifest: PluginManifest): Skill[] {
-	const skillsPath = typeof manifest.skills === 'string' ? manifest.skills : './skills/'
+	const skillsCfg = universalPluginExtension(manifest).skills
+	const skillsPath = typeof skillsCfg === 'string' ? skillsCfg : './skills/'
 	const skillsDir = path.resolve(root, skillsPath)
 	if (!fs.existsSync(skillsDir)) return []
 

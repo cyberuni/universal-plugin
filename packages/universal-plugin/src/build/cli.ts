@@ -15,7 +15,7 @@ interface BuildCliOptions {
 }
 
 export function buildCommand(): Command {
-	const cmd = new Command('build').description('Generate vendor manifests from .plugin/plugin.json')
+	const cmd = new Command('build').description('Generate vendor manifests from plugin.json')
 
 	cmd
 		.option('--vendor <id>', 'Build only the named vendor')

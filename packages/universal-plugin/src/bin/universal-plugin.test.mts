@@ -24,7 +24,7 @@ test('prints error for unknown command', () => {
 	expect(result.stderr).toMatch(/unknown command/)
 })
 
-test('plugin build fails when .plugin/plugin.json is missing', () => {
+test('plugin build fails when plugin.json is missing', () => {
 	const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-smoke-'))
 	try {
 		const result = spawnSync('node', [bin, 'plugin', 'build', '--root', empty], {
@@ -32,7 +32,7 @@ test('plugin build fails when .plugin/plugin.json is missing', () => {
 			env: { ...process.env, NODE_NO_WARNINGS: '1' },
 		})
 		expect(result.status).toBe(1)
-		expect(result.stderr).toMatch(/No \.plugin\/plugin\.json found/)
+		expect(result.stderr).toMatch(/No plugin\.json found/)
 	} finally {
 		fs.rmSync(empty, { recursive: true, force: true })
 	}
@@ -41,10 +41,9 @@ test('plugin build fails when .plugin/plugin.json is missing', () => {
 test('plugin build --dry-run lists vendors without writing', () => {
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-dryrun-'))
 	try {
-		fs.mkdirSync(path.join(root, '.plugin'))
 		fs.writeFileSync(
-			path.join(root, '.plugin', 'plugin.json'),
-			JSON.stringify({ name: 'test-plugin', vendorExtensions: { 'claude-code': {} } }),
+			path.join(root, 'plugin.json'),
+			JSON.stringify({ name: 'test-plugin', extensions: { 'org.cyberuni.universal-plugin': { harnesses: { 'claude-code': {} } } } }),
 		)
 		const result = spawnSync('node', [bin, 'plugin', 'build', '--dry-run', '--root', root], {
 			encoding: 'utf8',
@@ -60,10 +59,9 @@ test('plugin build --dry-run lists vendors without writing', () => {
 test('plugin build --format json returns a structured build result', () => {
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-buildjson-'))
 	try {
-		fs.mkdirSync(path.join(root, '.plugin'))
 		fs.writeFileSync(
-			path.join(root, '.plugin', 'plugin.json'),
-			JSON.stringify({ name: 'test-plugin', vendorExtensions: { 'claude-code': {} } }),
+			path.join(root, 'plugin.json'),
+			JSON.stringify({ name: 'test-plugin', extensions: { 'org.cyberuni.universal-plugin': { harnesses: { 'claude-code': {} } } } }),
 		)
 		const result = spawnSync('node', [bin, 'plugin', 'build', '--format', 'json', '--root', root], {
 			encoding: 'utf8',
@@ -90,12 +88,11 @@ test('plugin build --help no longer documents pin-resolution flags', () => {
 	expect(result.stdout).not.toMatch(/--allow-major/)
 })
 
-function mkBuildFixture(prefix: string, vendorExtensions: Record<string, unknown>) {
+function mkBuildFixture(prefix: string, harnesses: Record<string, unknown>) {
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), prefix))
-	fs.mkdirSync(path.join(root, '.plugin'))
 	fs.writeFileSync(
-		path.join(root, '.plugin', 'plugin.json'),
-		JSON.stringify({ name: 'test-plugin', vendorExtensions }),
+		path.join(root, 'plugin.json'),
+		JSON.stringify({ name: 'test-plugin', extensions: { 'org.cyberuni.universal-plugin': { harnesses } } }),
 	)
 	return root
 }
@@ -123,12 +120,11 @@ test('plugin build prints per-vendor TOON rows and a pre-computed aggregate', ()
 	}
 })
 
-// Scenario: no vendorExtensions declared is a definitive empty state
-test('plugin build with no vendorExtensions prints the built-0 aggregate and nothing-to-build', () => {
+// Scenario: no harnesses declared is a definitive empty state
+test('plugin build with no harnesses prints the built-0 aggregate and nothing-to-build', () => {
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-build-empty-'))
 	try {
-		fs.mkdirSync(path.join(root, '.plugin'))
-		fs.writeFileSync(path.join(root, '.plugin', 'plugin.json'), JSON.stringify({ name: 'test-plugin' }))
+		fs.writeFileSync(path.join(root, 'plugin.json'), JSON.stringify({ name: 'test-plugin' }))
 		const result = runBuild(root)
 		expect(result.status).toBe(0)
 		expect(result.stdout).toMatch(/built 0/)
@@ -168,8 +164,7 @@ test('plugin build ends stderr with a next-step suggestion', () => {
 
 function mkBundleFixture(prefix: string) {
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), prefix))
-	fs.mkdirSync(path.join(root, '.plugin'))
-	fs.writeFileSync(path.join(root, '.plugin', 'plugin.json'), JSON.stringify({ name: 'test-plugin' }))
+	fs.writeFileSync(path.join(root, 'plugin.json'), JSON.stringify({ name: 'test-plugin' }))
 	return root
 }
 
@@ -194,13 +189,13 @@ function runBundle(root: string, ...args: string[]) {
 	})
 }
 
-// Scenario: missing .plugin/plugin.json fails
-test('plugin bundle fails when .plugin/plugin.json is missing', () => {
+// Scenario: missing plugin.json fails
+test('plugin bundle fails when plugin.json is missing', () => {
 	const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-bundle-missing-'))
 	try {
 		const result = runBundle(empty)
 		expect(result.status).toBe(1)
-		expect(result.stderr).toMatch(/No \.plugin\/plugin\.json found/)
+		expect(result.stderr).toMatch(/No plugin\.json found/)
 	} finally {
 		fs.rmSync(empty, { recursive: true, force: true })
 	}
@@ -660,13 +655,12 @@ test('governance list --format json returns array of entries (frozen invocation)
 	}
 })
 
-test('publish sync-version writes version from packagePath into .plugin/plugin.json', () => {
+test('publish sync-version writes version from packagePath into plugin.json', () => {
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-syncver-'))
 	try {
-		fs.mkdirSync(path.join(root, '.plugin'))
 		fs.mkdirSync(path.join(root, '.agents'))
 		fs.mkdirSync(path.join(root, 'pkg'), { recursive: true })
-		fs.writeFileSync(path.join(root, '.plugin', 'plugin.json'), JSON.stringify({ name: 'test-plugin' }))
+		fs.writeFileSync(path.join(root, 'plugin.json'), JSON.stringify({ name: 'test-plugin' }))
 		fs.writeFileSync(path.join(root, '.agents', 'universal-plugin.json'), JSON.stringify({ packagePath: 'pkg' }))
 		fs.writeFileSync(path.join(root, 'pkg', 'package.json'), JSON.stringify({ version: '3.1.0' }))
 		const result = spawnSync('node', [bin, 'publish', 'sync-version', '--root', root], {
@@ -674,7 +668,7 @@ test('publish sync-version writes version from packagePath into .plugin/plugin.j
 			env: { ...process.env, NODE_NO_WARNINGS: '1' },
 		})
 		expect(result.status).toBe(0)
-		const manifest = JSON.parse(fs.readFileSync(path.join(root, '.plugin', 'plugin.json'), 'utf8')) as Record<string, unknown>
+		const manifest = JSON.parse(fs.readFileSync(path.join(root, 'plugin.json'), 'utf8')) as Record<string, unknown>
 		expect(manifest['version']).toBe('3.1.0')
 	} finally {
 		fs.rmSync(root, { recursive: true, force: true })
@@ -684,9 +678,8 @@ test('publish sync-version writes version from packagePath into .plugin/plugin.j
 test('publish sync-version exits 1 when packagePath is missing from manifest', () => {
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-syncver-'))
 	try {
-		fs.mkdirSync(path.join(root, '.plugin'))
 		fs.writeFileSync(
-			path.join(root, '.plugin', 'plugin.json'),
+			path.join(root, 'plugin.json'),
 			JSON.stringify({ name: 'test-plugin' }),
 		)
 		const result = spawnSync('node', [bin, 'publish', 'sync-version', '--root', root], {

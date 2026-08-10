@@ -3,7 +3,7 @@ title: Introduction
 description: What universal-plugin is and why it exists.
 ---
 
-**universal-plugin** is a build tool for universal AI agent plugins. You write one canonical definition in `.plugin/plugin.json`, and `universal-plugin build` generates a spec-conformant vendor manifest for each runtime you target.
+**universal-plugin** is a build tool for universal AI agent plugins. You write one canonical definition in root `plugin.json`, and `universal-plugin build` generates a spec-conformant vendor manifest for each runtime you target.
 
 ## The problem
 
@@ -11,19 +11,25 @@ Every major AI coding agent runtime — Claude Code, Cursor, Codex, GitHub Copil
 
 ## The solution
 
-A single source of truth in `.plugin/plugin.json` following the [open-plugin-spec](https://github.com/vercel-labs/open-plugin-spec), extended with a `vendorExtensions` field for vendor-specific additions. Running `universal-plugin build` produces each vendor's manifest as a build artifact.
+A single source of truth in root `plugin.json`, following the closed [Agent Plugins Specification v1.0.0](https://agent-plugins.org) field set (`$schema`, `name`, `version`, `description`, `author`, `homepage`, `repository`, `license`, `keywords`, `extensions`). All `universal-plugin` build config — component paths, the vendor target list, and per-harness overrides — nests under `extensions["org.cyberuni.universal-plugin"]`. Running `universal-plugin build` produces each vendor's manifest as a build artifact.
 
 ```json
 {
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "my-plugin",
-  "skills": "./skills/",
-  "mcpServers": "./.mcp.json",
-  "hooks": "./hooks/hooks.json",
-  "vendorExtensions": {
-    "claude-code": { "monitors": "./monitors/monitors.json" },
-    "cursor": { "publisher": "my-org", "logo": "./assets/logo.png" },
-    "codex": { "version": "1.0.0", "description": "My plugin." },
-    "copilot-cli": {}
+  "extensions": {
+    "org.cyberuni.universal-plugin": {
+      "vendors": ["claude-code", "cursor", "codex", "copilot-cli"],
+      "skills": "./skills/",
+      "mcpServers": "./mcp.json",
+      "hooks": "./hooks/hooks.json",
+      "harnesses": {
+        "claude-code": { "monitors": "./monitors/monitors.json" },
+        "cursor": { "publisher": "my-org", "logo": "./assets/logo.png" },
+        "codex": { "version": "1.0.0", "description": "My plugin." },
+        "copilot-cli": {}
+      }
+    }
   }
 }
 ```
@@ -41,7 +47,7 @@ Running `universal-plugin build` from the plugin root generates:
 
 - **Hook event names** — canonical PascalCase (`SessionStart`) is translated to each vendor's casing (camelCase for Cursor, PascalCase for Claude Code and Codex).
 - **Env vars** — canonical `${PLUGIN_ROOT}` is translated to vendor-native names in hook commands and MCP configs.
-- **Vendor-specific fields** — fields in `vendorExtensions.<vendor>` are merged into the generated manifest; fields the vendor doesn't support are dropped with a warning.
+- **Vendor-specific fields** — fields in `extensions["org.cyberuni.universal-plugin"].harnesses.<vendor>` are merged into the generated manifest; fields the vendor doesn't support are dropped with a warning.
 - **Required field enforcement** — Codex requires `version` and `description`; build fails with a clear error if they're missing.
 
 ## Generated files are build artifacts

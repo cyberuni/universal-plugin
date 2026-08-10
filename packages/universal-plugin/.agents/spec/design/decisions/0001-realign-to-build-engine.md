@@ -2,6 +2,11 @@
 
 **Status:** accepted
 **Date:** 2026-07-04
+**Amended by:** [0005](./0005-repo-project-init-setup.md) — adds a repository/project init & setup
+concern, later narrowed to the publish half by [0006](./0006-narrow-init-setup-to-the-publish-half.md);
+and [0007](./0007-adopt-agent-plugins-spec-canonical.md) — replaces the `.plugin/plugin.json` canonical
+with root `plugin.json` (Agent Plugins Spec v1.0.0). The "everything else is declared out" list below is
+unchanged: marketplace, plugin-install, and lifecycle hooks still belong to `cyberplace`.
 
 ## Context
 

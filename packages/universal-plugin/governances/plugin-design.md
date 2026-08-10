@@ -4,15 +4,17 @@ Authoritative rules for creating, validating, and transforming cross-vendor agen
 
 A **plugin** is the distribution unit — it bundles skills, MCP servers, hooks, commands, agents, and other extensions into a single installable package. A **skill** is the capability unit inside a plugin. Install plugins; invoke skills.
 
-## Source of Truth: `.plugin/plugin.json`
+## Source of Truth: root `plugin.json`
 
-Author `.plugin/plugin.json` as the canonical manifest. All vendor manifests are derived from it via `build`. This file is never read directly by vendors at runtime; it is the single source that the build layer transforms into each vendor's manifest.
+Author `plugin.json` at the plugin root as the canonical manifest — the Agent Plugins Specification v1.0.0 shape (closed field set, `additionalProperties: false`). All vendor manifests are derived from it via `build`. This file is never read directly by vendors at runtime; it is the single source that the build layer transforms into each vendor's manifest.
 
-Schema declaration (first field):
+Schema declaration (first field, fixed by the spec):
 
 ```json
-{ "$schema": "https://schema.cyberuni.dev/universal-agent-plugin/v1.json" }
+{ "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json" }
 ```
+
+Only ten top-level fields exist: `$schema`, `name`, `version`, `description`, `author`, `homepage`, `repository`, `license`, `keywords`, `extensions`. No other top-level keys are permitted. All `universal-plugin`-specific config — component paths, the vendor build-target list, and per-harness overrides — nests under `extensions["org.cyberuni.universal-plugin"]`.
 
 ### Required fields
 
@@ -34,12 +36,12 @@ Schema declaration (first field):
 
 ### Component path fields
 
-Each accepts `string | string[] | { paths: string[] }`. Every path must start with `./`. No `../` segments — traversal rejected by conformant hosts.
+All component paths and build config live under `extensions["org.cyberuni.universal-plugin"]` — the closed spec's field set has no top-level component keys. Each path field accepts `string | string[] | { paths: string[] }`. Every path must start with `./`. No `../` segments — traversal rejected by conformant hosts.
 
-| Field | Component | Core? | Notes |
+| Field (under `extensions["org.cyberuni.universal-plugin"]`) | Component | Core? | Notes |
 | --- | --- | --- | --- |
 | `skills` | Skill directories containing `SKILL.md` | Yes | Default: `./skills/` |
-| `mcpServers` | `.mcp.json` path or inline MCP config | Yes | Default: `./.mcp.json` |
+| `mcpServers` | `mcp.json` path or inline MCP config | Yes | Default: `./mcp.json` |
 | `commands` | Slash command `.md` files | Extended | Default: `./commands/` |
 | `agents` | Agent `.md` files | Extended | Default: `./agents/` |
 | `rules` | Context rule `.mdc` files | Extended | Cursor-only; ignored by other hosts |
@@ -49,9 +51,9 @@ Each accepts `string | string[] | { paths: string[] }`. Every path must start wi
 
 A conformant host must support at least one core component (`skills` or `mcpServers`). Extended types are silently ignored on non-supporting hosts — do not rely on them for core plugin functionality.
 
-### `vendorExtensions` field
+### `extensions["org.cyberuni.universal-plugin"]` — `vendors` and `harnesses`
 
-Declares which vendor manifests `build` generates, and provides vendor-specific fields for each. Each key is a recognized vendor ID; its presence drives build output. An empty `{}` opts into that vendor's output with no vendor-specific fields.
+`vendors` (array of vendor IDs) declares which vendor manifests `build` generates. `harnesses` (object keyed by vendor ID) provides vendor-specific fields for each declared vendor — the former `vendorExtensions.<vendor>` block, renamed and relocated. An empty `{}` entry in `harnesses` opts that vendor into build output with no vendor-specific fields, but the vendor ID must still be listed in `vendors` to be built.
 
 | Vendor ID | Output path | Required beyond `name` |
 | --- | --- | --- |
@@ -82,8 +84,7 @@ Vendor-specific extension fields:
 
 ```
 <plugin-name>/
-├── .plugin/
-│   └── plugin.json               ← canonical source of truth
+├── plugin.json                    ← canonical source of truth
 │
 ├── skills/<skill-name>/SKILL.md  ← shared: all vendors, identical format
 │
@@ -117,7 +118,7 @@ Generated build artifacts (gitignore or commit — author's choice):
 
 ## Vendor Manifest Derivation
 
-Build reads `.plugin/plugin.json`, applies the rules below, writes each vendor's output.
+Build reads root `plugin.json`, applies the rules below, writes each vendor's output.
 
 ### Metadata field mapping
 
@@ -241,7 +242,7 @@ If the repo needs explicit symlink tracking: `mcp.json symlink` in `.gitattribut
 
 Default scope: **team**.
 
-**npm distribution:** All manifest directories (`.plugin/`, `.claude-plugin/`, `.cursor-plugin/`, `.codex-plugin/`) and component directories (`skills/`, `commands/`, `agents/`, `hooks/`) must be in `package.json#files`. `package.json` carries distribution metadata only — no plugin semantics.
+**npm distribution:** The canonical `plugin.json`, the generated manifest directories (`.claude-plugin/`, `.cursor-plugin/`, `.codex-plugin/`), and component directories (`skills/`, `commands/`, `agents/`, `hooks/`) must be in `package.json#files`. `package.json` carries distribution metadata only — no plugin semantics.
 
 ## Anti-Patterns
 

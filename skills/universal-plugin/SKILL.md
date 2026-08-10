@@ -25,7 +25,7 @@ Until the CLI is available, read `governances/plugin-design.md` from this plugin
 
 ### Step 1 — Gather plugin identity
 
-Ask if not provided. All fields map to the canonical `.plugin/plugin.json`.
+Ask if not provided. All fields map to the canonical root `plugin.json`.
 
 | Field | Required | Notes |
 |-------|----------|-------|
@@ -40,7 +40,7 @@ Ask if not provided. All fields map to the canonical `.plugin/plugin.json`.
 
 ### Step 2 — Choose vendor targets
 
-Ask the user which runtimes to support. Each chosen vendor becomes a key in `vendorExtensions` — that is what drives the `build` output; no separate `vendors` declaration is required.
+Ask the user which runtimes to support. Each chosen vendor becomes a key in `extensions["org.cyberuni.universal-plugin"].harnesses` — that is what drives the `build` output. Add the vendor's id to `extensions["org.cyberuni.universal-plugin"].vendors` too, so `build` knows to generate its manifest.
 
 | Vendor ID | Output manifest path | Hook event case | Required fields beyond `name` |
 |-----------|---------------------|-----------------|-------------------------------|
@@ -74,7 +74,7 @@ Read the templates from `assets/templates/` and fill in the placeholders:
 
 | File to create | Template |
 |----------------|----------|
-| `.plugin/plugin.json` | `assets/templates/plugin.json` |
+| `plugin.json` | `assets/templates/plugin.json` |
 | `skills/<name>/SKILL.md` | `assets/templates/skill.md` |
 | `commands/<name>.md` | `assets/templates/command.md` |
 | `agents/<name>.md` | `assets/templates/agent.md` |
@@ -85,8 +85,7 @@ Directory layout:
 
 ```
 <plugin-name>/
-├── .plugin/
-│   └── plugin.json         ← canonical definition (source of truth)
+├── plugin.json              ← canonical definition (source of truth)
 ├── skills/<name>/SKILL.md
 ├── commands/
 ├── agents/
@@ -96,34 +95,39 @@ Directory layout:
 └── README.md
 ```
 
-### Step 5 — Populate vendorExtensions
+### Step 5 — Populate extensions["org.cyberuni.universal-plugin"]
 
-In `.plugin/plugin.json`, add a `vendorExtensions` key with one entry per chosen vendor. An empty `{}` opts into that vendor's output with no vendor-specific fields.
+In root `plugin.json`, under `extensions["org.cyberuni.universal-plugin"]`, add the chosen vendors to `vendors` and add a `harnesses` object with one entry per chosen vendor. An empty `{}` opts into that vendor's output with no vendor-specific fields.
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/cyberuni/universal-plugin/refs/heads/main/schema/v1.json",
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "<plugin-name>",
   "version": "1.0.0",
   "description": "<description>",
   "author": { "name": "<author>" },
-  "skills": "./skills/",
-  "vendorExtensions": {
-    "claude-code": {},
-    "cursor": {
-      "publisher": "<org>",
-      "category": "<category>",
-      "tags": ["<tag>"]
-    },
-    "codex": {
-      "interface": {
-        "displayName": "<Human Name>",
-        "category": "<category>"
+  "extensions": {
+    "org.cyberuni.universal-plugin": {
+      "vendors": ["claude-code", "cursor", "codex", "copilot-cli"],
+      "skills": "./skills/",
+      "harnesses": {
+        "claude-code": {},
+        "cursor": {
+          "publisher": "<org>",
+          "category": "<category>",
+          "tags": ["<tag>"]
+        },
+        "codex": {
+          "interface": {
+            "displayName": "<Human Name>",
+            "category": "<category>"
+          }
+        },
+        "copilot-cli": {
+          "category": "<category>",
+          "tags": ["<tag>"]
+        }
       }
-    },
-    "copilot-cli": {
-      "category": "<category>",
-      "tags": ["<tag>"]
     }
   }
 }
@@ -146,9 +150,9 @@ Fix any CRITICAL findings. Then invoke the **audit-skill** skill for full review
 
 > **Note:** The `build` CLI is not yet available. Use the manual steps below.
 
-For each vendor in `vendorExtensions`:
-1. Copy canonical fields from `.plugin/plugin.json`
-2. Merge vendor-specific fields from `vendorExtensions.<vendor>`
+For each vendor in `extensions["org.cyberuni.universal-plugin"].vendors`:
+1. Copy canonical fields from root `plugin.json`
+2. Merge vendor-specific fields from `extensions["org.cyberuni.universal-plugin"].harnesses.<vendor>`
 3. Drop fields not supported by that vendor (see spec §6.1)
 4. Translate hook event names (see spec §4.2)
 5. Translate `${PLUGIN_ROOT}` and `${PLUGIN_DATA}` env vars (see spec §5)
@@ -170,7 +174,7 @@ ln -sf "$(pwd)" ~/.cursor/plugins/local/<plugin-name>   # Cursor → Developer: 
 
 Show the current state of a plugin.
 
-1. Read `.plugin/plugin.json` — show `name`, `version`, declared vendors (keys of `vendorExtensions`).
+1. Read root `plugin.json` — show `name`, `version`, declared vendors (`extensions["org.cyberuni.universal-plugin"].vendors`).
 2. For each vendor, check whether the generated manifest exists at its output path.
 3. Report status: which vendors are built, which are missing or stale.
 
@@ -191,19 +195,19 @@ Vendors declared: claude-code, cursor, codex, copilot-cli
 
 ### Add a vendor
 
-1. Add the vendor key to `vendorExtensions` in `.plugin/plugin.json`.
+1. Add the vendor id to `extensions["org.cyberuni.universal-plugin"].vendors` in root `plugin.json`, and add its key to `extensions["org.cyberuni.universal-plugin"].harnesses`.
 2. Populate vendor-specific fields (see spec §3.3).
 3. If vendor requires extra fields (`codex`: `version`, `description`), ensure they are in the canonical section.
 4. Re-run Step 7 (build) for the new vendor.
 
 ### Remove a vendor
 
-1. Remove the vendor key from `vendorExtensions`.
+1. Remove the vendor id from `extensions["org.cyberuni.universal-plugin"].vendors` and its key from `harnesses`.
 2. Delete the generated manifest at its output path.
 
 ### Add or remove a component
 
-1. Add/remove the component field in `.plugin/plugin.json` (e.g. `"commands": "./commands/"`).
+1. Add/remove the component field under `extensions["org.cyberuni.universal-plugin"]` in root `plugin.json` (e.g. `"commands": "./commands/"`).
 2. Scaffold or delete the corresponding files.
 3. Re-run Step 7 (build) to regenerate all vendor manifests.
 

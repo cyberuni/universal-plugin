@@ -2,7 +2,7 @@
 Feature: plugin validate — check the canonical manifest
 
   Background:
-    Given a project root with ".plugin/plugin.json"
+    Given a project root with a canonical "plugin.json"
 
   # ── Valid + missing manifest ──
 
@@ -13,11 +13,11 @@ Feature: plugin validate — check the canonical manifest
     And stdout is a TOON result with "valid" equal to true
     And stdout contains empty "schemaViolations" and "vendorViolations" arrays
 
-  Scenario: missing .plugin/plugin.json fails
-    Given the project root has no ".plugin/plugin.json"
+  Scenario: missing plugin.json fails
+    Given the project root has no canonical "plugin.json"
     When I run "universal-plugin plugin validate"
     Then the exit code is 1
-    And stderr contains "No .plugin/plugin.json found"
+    And stderr contains "No plugin.json found"
 
   # ── Schema violations ──
 
@@ -39,7 +39,7 @@ Feature: plugin validate — check the canonical manifest
   # ── Vendor rules ──
 
   Scenario: vendor rule violation is reported
-    Given the manifest declares vendorExtensions for "codex"
+    Given the manifest declares harnesses for "codex"
     And the manifest has no description or version
     When I run "universal-plugin plugin validate"
     Then the exit code is 1
@@ -47,29 +47,29 @@ Feature: plugin validate — check the canonical manifest
     And stdout contains a vendorViolations row with message "version is required when targeting codex"
 
   Scenario: --vendor limits vendor rule checks to one vendor
-    Given the manifest declares vendorExtensions for "codex" and "cursor"
+    Given the manifest declares harnesses for "codex" and "cursor"
     And the manifest has no description or version
     When I run "universal-plugin plugin validate --vendor cursor"
     Then the exit code is 0
     And stdout is a TOON result with "valid" equal to true
 
   Scenario: --vendor unknown value fails
-    Given the manifest declares vendorExtensions for "claude-code"
+    Given the manifest declares harnesses for "claude-code"
     When I run "universal-plugin plugin validate --vendor acme"
     Then the exit code is 1
     And stderr contains "Unknown vendor"
 
   # ── Unknown vendor keys + --strict ──
 
-  Scenario: unknown vendorExtensions key emits warning but exits 0 without --strict
-    Given vendorExtensions contains an unknown vendor key "acme"
+  Scenario: unknown harnesses key emits warning but exits 0 without --strict
+    Given harnesses contains an unknown vendor key "acme"
     When I run "universal-plugin plugin validate"
     Then the exit code is 0
     And stdout is a TOON result with "valid" equal to true
     And stderr contains "Unknown vendor"
 
   Scenario: --strict promotes warnings to errors
-    Given vendorExtensions contains an unknown vendor key "acme"
+    Given harnesses contains an unknown vendor key "acme"
     When I run "universal-plugin plugin validate --strict"
     Then the exit code is 1
     And stdout is a TOON result with "valid" equal to false
@@ -130,11 +130,11 @@ Feature: plugin validate — check the canonical manifest
 
   Scenario: bare "plugin" command runs validate on the current project
     Given the manifest is a valid canonical plugin.json
-    And the manifest declares vendorExtensions for "claude-code" and "cursor"
+    And the manifest declares harnesses for "claude-code" and "cursor"
     When I run "universal-plugin plugin"
     Then the exit code is 0
     And stdout is a TOON result with "valid" equal to true
-    And stdout reports the declared vendors "claude-code" and "cursor"
+    And stdout reports the declared harnesses "claude-code" and "cursor"
 
   # ── Non-interactive + fail-loud unknown flag ──
 

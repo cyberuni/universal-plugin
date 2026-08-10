@@ -1,18 +1,18 @@
 ---
-status: implemented
+status: approved
 name: universal-plugin
 project-path: packages/universal-plugin
 approval:
   spec:
     verdict: approve
     by: unional
-    cause: dimension
+    cause: floor
     why:
-      floor: none — all-new `config/` nodes; no pre-existing frozen scenario touched. Clearance n/a, Compatibility n/a (impl unbuilt this CR — no shipped semver bump), Conflict none (both suites self-consistent).
-      blast: moderate — new `config/` command group + `config/add` + `config/get` behavioral nodes; dropped the dead `vendors` key from `.agents/universal-plugin.json`; root capability/placement/by-concept + `axi/` exercised-by maps updated.
-      novelty: moderate — a plugin-registered keyed config store in the CLI's own `.agents/universal-plugin.json` (append-or-replace-by-`name` idempotent `add` + lazy `get`) realizing #8; reserved-key `packagePath` rejection (the CLI's own string config, read by `publish sync-version`); AXI-conformant (TOON default keyed on `name` + count aggregate; `--format json` raw stored array).
-      confidence: high — cold sdd-spec-judge 3-lens {oracle, builder, architect} ALIGNED true on round 3 (0 findings); 33 boolean scenarios, prose↔suite 1:1 both ways; both `.feature` parse clean (gherkin-cli) + `check-suite` OK. R1 caught exit-code discrimination + table-row gaps + unfalsifiable replace-position + missing reserved-key coverage; R2 caught 4 stale-`vendors` prose refs — both fixed, grep-verified zero `vendors` in `config/`+`axi/`. Ratified by the user in-session ("ratify").
-      cr: github-8
+      floor: Clearance — the `.plugin/plugin.json`→root `plugin.json` migration (ADR-0007) narrows/rewrites frozen `plugin/{build,validate,bundle}` scenarios (classify-edit-class MIXED on all three). Pre-settled by ADR-0007, ratified live by the user in-session as positional ratifier; no shipped behavior narrows (validate/bundle impls never built; build already migrated in PHASE 1). Compatibility n/a (no shipped semver bump). Conflict none.
+      blast: moderate — three behavioral `plugin/` nodes' `.feature` + READMEs + `glossary.md` + `plugin/` group index migrated onto the ADR-0007 canonical (root `plugin.json`, closed field set, `extensions["org.cyberuni.universal-plugin"].{harnesses,vendors,packagePath}`); two build decisions folded into `build.feature`. `.plugin/pins.json` bundle artifact intentionally retained (only the manifest moved to root).
+      novelty: moderate — the closed Agent Plugins Spec v1.0.0 manifest with all tool config nested under the one owned extensions namespace; per-harness overrides via `harnesses.<vendor>`; `vendors ?? harnesses`-keys build-target selection; copilot-cli derived output relocated to `.github/plugin/plugin.json` off the now-canonical root `plugin.json`.
+      confidence: high — cold sdd-spec-judge 3-lens {oracle, builder, architect} ALIGNED true on round 2. R1 Builder FAIL on one CR-introduced coverage gap (`build/README` named `packagePath` among stripped orchestration keys but the strip scenario asserted only `$schema`/`extensions`/`harnesses`/`vendors`) → scenario strengthened to establish + assert `packagePath` absence → re-graded PASS. `check-suite` OK, `check-spec-state` OK, 0 open markers, vocabulary consistent (lone `vendorExtensions` is the glossary's intentional historical note). 2 pre-existing non-blocking architect observations out of scope. Ratified by the user in-session ("Approve").
+      cr: github-23
   impl:
     verdict: approve
     by: unional
@@ -36,15 +36,20 @@ approval:
 
 ## What this is
 
-One canonical `.plugin/plugin.json` is the single source of truth for a plugin. The `universal-plugin`
-CLI turns that canonical manifest into what each AI-agent runtime (Claude Code, Cursor, Codex,
-Copilot CLI) expects, and resolves shared governance documents by name. Two concerns:
+One canonical `plugin.json` at the project root — Agent Plugins Specification v1.0.0 form, a **closed**
+field set with tool-specific data under `extensions` (ADR-0007) — is the single source of truth for a
+plugin. The `universal-plugin` CLI turns that canonical manifest into what each AI-agent runtime
+(Claude Code, Cursor, Codex, Copilot CLI) expects, and resolves shared governance documents by name.
+Two concerns:
 
 - **The `plugin` command group** — `universal-plugin plugin build` **derives** per-vendor manifests
   from the canonical one; `plugin bundle` **materializes** the release form (pins the plugin's skill
   `npx <cli>@<version>` references to the shipping workspace versions); `plugin validate` **checks** the
-  canonical manifest against the schema and each vendor's rules; `plugin init` **scaffolds** a new
-  plugin project.
+  canonical manifest against the schema and each vendor's rules; `plugin init` **scaffolds** the
+  canonical manifest, and `plugin init --npm` additionally wires an npm package so its **built** vendor
+  manifests ship on `npm publish` — the one **publish-side** setup op in charter (ADR-0006). Setting a
+  directory up to *consume* skills (the `skills/` layout, per-harness compatibility artifacts, the
+  enabled-harness record) is **not** here — that is `repobuddy/buddy-agent-harness`.
 - **`governance`** — `universal-plugin governance show <name>` / `list` **resolves** governance
   documents by name across a fixed scope precedence, so agents reference governance by name, not by a
   fragile filesystem path.
@@ -57,8 +62,10 @@ output contract — token-efficient [TOON](https://toonformat.dev/) output by de
 pre-computed aggregates, definitive empty states, structured/fail-loud errors, content-first group
 commands, next-step suggestions, and consistent help — stated once in [`axi/`](./axi/README.md) and
 exercised by each behavioral node (ADR-0003). AXI principle #7 (session-hook setup + installable
-skill) is deferred to a follow-up CR: it crosses the charter boundary (hooks → `cyberplace`, skills →
-`cyberspace`/`aced`).
+skill) is **half in charter**: the installable skill — one that is the interactive front-end to this
+CLI's own verb — ships with the verb (ADR-0005 §3), while **session hooks stay out** (`cyberplace`)
+and skills whose *subject* is authoring craft stay with `cyberspace`/`aced`. No verb here needs such a
+skill today — the one that did (harness selection) left with the consume half (ADR-0006 §5).
 
 ## Why this is its own project
 
@@ -73,20 +80,31 @@ plugin-install, hook, marketplace). The repo's concern split broke that apart:
   detect → `sync apply` → `self-update` / `publish sync-version`, backed by the asset-store and the
   source/vendor registries and state) is a **separate concern destined to leave** — see the Placement
   map non-goals and `design/decisions/`.
+- **consuming-project setup** — setting a directory up to *use* installed plugins (the skills layout,
+  per-harness compatibility, the enabled-harness record) — belongs to
+  **`repobuddy/buddy-agent-harness`**, not here (ADR-0006).
 
-What remains here — deriving, validating, and scaffolding the canonical manifest, plus resolving
-governance by name — is the deterministic engine. It ships to npm as one `universal-plugin` bin and
-is a peer of the `cyberfleet` CLI.
+What remains here — deriving, validating, and scaffolding the canonical manifest (including wiring a
+package to ship it via `plugin init --npm`), plus resolving governance by name — is the deterministic
+engine. It ships to npm as one `universal-plugin` bin and is a peer of the `cyberfleet` CLI.
+
+**What decides whether something belongs here is the object it operates on** (ADR-0006): a concern is
+this package's only if its object is the **canonical manifest** or this CLI's **own configuration**.
+That is why `plugin init --npm` is in charter — it wires how the manifest ships — while setting a
+directory up to *consume* skills is not, since it touches neither. Direction (**inbound vs outbound**)
+still separates this package from `cyberplace`, but it is a **necessary condition, not a sufficient
+one**: it rules `cyberplace` out; it never rules this package in. ADR-0005 used it as if it did, and
+ADR-0006 corrects that.
 
 ## Capability map
 
 | Folder | Type | What |
 |---|---|---|
 | [`plugin/`](./plugin/README.md) | group | the `plugin` command group — build / bundle / validate / init |
-| [`plugin/build/`](./plugin/build/README.md) | behavioral | `universal-plugin plugin build [--vendor] [--dry-run] [--clean]` — derive per-vendor manifests from the canonical `.plugin/plugin.json` (dev-consumable form; no pins) |
+| [`plugin/build/`](./plugin/build/README.md) | behavioral | `universal-plugin plugin build [--vendor] [--dry-run] [--clean]` — derive per-vendor manifests from the canonical `plugin.json` (dev-consumable form; no pins) |
 | [`plugin/bundle/`](./plugin/bundle/README.md) | behavioral | `universal-plugin plugin bundle [--dry-run] [--full] [--format] [--runner]` — materialize the release form: pin the `npx`/`upx <cli>@<version>` references in the plugin's skills to their shipping workspace versions (`--runner` selects the emitted runner word) |
 | [`plugin/validate/`](./plugin/validate/README.md) | behavioral | `universal-plugin plugin validate [--vendor] [--strict]` — check the canonical manifest against schema + vendor rules |
-| [`plugin/init/`](./plugin/init/README.md) | behavioral | `universal-plugin plugin init [--name] [--vendor] [--scaffold] [--force] [--yes]` — scaffold a new plugin project |
+| [`plugin/init/`](./plugin/init/README.md) | behavioral | `universal-plugin plugin init [--name] [--vendor] [--scaffold] [--force] [--yes] [--npm]` — scaffold the canonical `plugin.json`; `--npm` also wires an npm package's `files` to ship the derived vendor manifests (ADR-0006). Consuming-side harness setup → `repobuddy/buddy-agent-harness` |
 | [`governance/`](./governance/README.md) | behavioral | `universal-plugin governance show <name>` / `list` — resolve governance documents by name across scopes |
 | [`config/`](./config/README.md) | group | the `config` command group — read/write plugin-registered keyed config in `.agents/universal-plugin.json` |
 | [`config/add/`](./config/add/README.md) | behavioral | `universal-plugin config add --key <key> --entry '<json>'` — append (or replace by `name`) an entry in the array at `<key>`; idempotent, preserves other keys |
@@ -98,7 +116,7 @@ is a peer of the `cyberfleet` CLI.
 
 Where a new concept lives — slot here, do not invent placement (strategy = **capability-first**):
 
-- **a new canonical-manifest op** (derive / check / scaffold the `.plugin/plugin.json`) →
+- **a new canonical-manifest op** (derive / check / scaffold the root `plugin.json`) →
   `plugin/<verb>/` (a new unit node under the `plugin` group).
 - **a new op resolving/pinning the version pins in the plugin's own skills** (the
   `npx <cli>@<version>` references a plugin's skills carry) → **`plugin/bundle/`** — pinning is a
@@ -125,10 +143,19 @@ Where a new concept lives — slot here, do not invent placement (strategy = **c
   manifest", but it lives here deliberately — `plugin bundle` already emits `upx` references at release,
   so the runner and its emitter ship and version as one unit — and ships as a **separate lean bin** so
   its cold-start stays fast. Recorded placement, not charter drift.
+- **a new op making an npm package _publish_ a plugin** (wire `package.json` `files` so the built
+  vendor manifests ship — e.g. the derived `.claude-plugin/plugin.json` for Claude Code's npm plugin
+  source) → **`plugin/init/`**, under its `--npm` flag. `plugin init` already scaffolds the canonical
+  `plugin.json`; publishing is that same scaffold plus its shipping wiring, so it stays one verb on the
+  manifest rather than a second beside it. In charter because its object **is** the manifest (ADR-0006).
 - **a new shared output / CLI convention** (TOON shape, aggregate, next-step, empty-state,
   truncation, help, content-first) → `axi/` (the reference contract), plus concrete scenarios in each
   behavioral node that exercises it. Never a per-command copy of the convention.
 - **a cross-capability CLI e2e** (spans ≥2 nodes) → `acceptance/`.
+- **an op setting up a directory to _consume_ skills** (the `skills/` layout, per-harness compatibility
+  artifacts, the enabled-harness record) → **not here** — that is `repobuddy/buddy-agent-harness`. It
+  touches neither the canonical manifest nor this CLI's own config, so it fails the shared-object test;
+  ADR-0006 withdrew it from ADR-0005.
 - **marketplace / plugin-install / lifecycle-hook op** → **not here** — that is the `cyberplace`
   package.
 - **cross-vendor sync / self-update / publish / asset-store op** → **not a capability here** — the

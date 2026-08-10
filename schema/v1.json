@@ -2,16 +2,15 @@
 	"$schema": "https://json-schema.org/draft/2020-12/schema",
 	"$id": "https://raw.githubusercontent.com/cyberuni/universal-plugin/refs/heads/main/schema/v1.json",
 	"title": "Universal Agent Plugin",
-	"description": "Canonical plugin definition for the universal-plugin build system. Extends open-plugin-spec v1.0.0 with 'vendors' and 'vendorExtensions'.",
+	"description": "Canonical plugin manifest for the universal-plugin build system. An Agent Plugins Specification v1.0.0 manifest (closed field set); all universal-plugin build config — component paths, build targets, and per-harness overrides — lives under extensions[\"org.cyberuni.universal-plugin\"].",
 	"type": "object",
-	"required": ["name"],
+	"required": ["$schema", "name"],
 	"additionalProperties": false,
 	"properties": {
 		"$schema": {
-			"type": "string",
-			"description": "JSON Schema URI. Use 'https://schema.cyberuni.dev/universal-agent-plugin/v1.json'."
+			"const": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+			"description": "Agent Plugins Specification v1.0.0 schema URI (required, fixed by the spec)."
 		},
-
 		"name": { "$ref": "#/$defs/pluginName" },
 		"version": {
 			"type": "string",
@@ -36,58 +35,14 @@
 			"type": "string",
 			"description": "SPDX license identifier (e.g. 'MIT', 'Apache-2.0')."
 		},
-		"packagePath": {
-			"type": "string",
-			"description": "Relative path (from repo root) to the npm package folder whose version this plugin tracks."
-		},
 		"keywords": {
 			"type": "array",
 			"items": { "type": "string" },
 			"description": "Discovery and categorization tags."
 		},
-
-		"skills": {
-			"$ref": "#/$defs/pathValue",
-			"description": "Skill directories. Default: ./skills/. Each subdirectory must contain SKILL.md."
-		},
-		"mcpServers": {
-			"$ref": "#/$defs/mcpServersValue",
-			"description": "MCP server configuration. Path string, path config, or inline mcpServers object. Default: ./.mcp.json."
-		},
-		"commands": {
-			"$ref": "#/$defs/pathValue",
-			"description": "Command markdown files. Default: ./commands/."
-		},
-		"agents": {
-			"$ref": "#/$defs/pathValue",
-			"description": "Agent definition markdown files. Default: ./agents/."
-		},
-		"rules": {
-			"$ref": "#/$defs/pathValue",
-			"description": "Rule markdown files (.mdc). Default: ./rules/."
-		},
-		"hooks": {
-			"$ref": "#/$defs/hooksValue",
-			"description": "Hook configuration. Path string, path config, or inline hooks object. Default: ./hooks/hooks.json. Event names must be PascalCase canonical names — the build translates per vendor."
-		},
-		"lspServers": {
-			"$ref": "#/$defs/lspServersValue",
-			"description": "LSP server configuration. Path string, path config, or inline server map. Default: ./.lsp.json."
-		},
-		"outputStyles": {
-			"$ref": "#/$defs/pathValue",
-			"description": "Output style resources. Default: ./output-styles/."
-		},
-
-		"vendors": {
-			"type": "array",
-			"items": { "$ref": "#/$defs/vendorId" },
-			"uniqueItems": true,
-			"description": "Vendor targets to generate manifests for during 'plugin build'."
-		},
-		"vendorExtensions": {
-			"$ref": "#/$defs/vendorExtensions",
-			"description": "Vendor-specific fields merged into the generated manifest for each vendor."
+		"extensions": {
+			"$ref": "#/$defs/extensions",
+			"description": "Tool-specific config, keyed by reverse-domain namespace (Agent Plugins Spec v1.0.0 §8). The only sanctioned channel for non-spec fields."
 		}
 	},
 
@@ -112,6 +67,70 @@
 				"name": { "type": "string" },
 				"email": { "type": "string", "format": "email" },
 				"url": { "type": "string", "format": "uri" }
+			}
+		},
+
+		"extensions": {
+			"type": "object",
+			"description": "Reverse-domain-keyed extension map (Agent Plugins Spec v1.0.0 §8). All universal-plugin config lives under the single namespace we own, 'org.cyberuni.universal-plugin'. Unknown reverse-domain extensions are permitted and pass through untouched.",
+			"propertyNames": { "pattern": "^[a-z][a-z0-9]*(\\.[a-z0-9-]+)+$" },
+			"additionalProperties": true,
+			"properties": {
+				"org.cyberuni.universal-plugin": { "$ref": "#/$defs/universalPluginExtension" }
+			}
+		},
+
+		"universalPluginExtension": {
+			"type": "object",
+			"additionalProperties": false,
+			"description": "universal-plugin build configuration: the build-target list, per-harness manifest overrides, the npm package tracked, and the canonical component input paths the build derives per harness.",
+			"properties": {
+				"vendors": {
+					"type": "array",
+					"items": { "$ref": "#/$defs/vendorId" },
+					"uniqueItems": true,
+					"description": "Vendor targets to generate manifests for during 'plugin build'."
+				},
+				"harnesses": {
+					"$ref": "#/$defs/harnesses",
+					"description": "Per-harness fields copied verbatim into that harness's derived manifest during 'plugin build'. Keyed by vendor id."
+				},
+				"packagePath": {
+					"type": "string",
+					"description": "Relative path (from repo root) to the npm package folder whose version this plugin tracks."
+				},
+				"skills": {
+					"$ref": "#/$defs/pathValue",
+					"description": "Skill directories. Default: ./skills/. Each subdirectory must contain SKILL.md."
+				},
+				"mcpServers": {
+					"$ref": "#/$defs/mcpServersValue",
+					"description": "MCP server configuration. Path string, path config, or inline mcpServers object. Default: ./mcp.json."
+				},
+				"commands": {
+					"$ref": "#/$defs/pathValue",
+					"description": "Command markdown files. Default: ./commands/."
+				},
+				"agents": {
+					"$ref": "#/$defs/pathValue",
+					"description": "Agent definition markdown files. Default: ./agents/."
+				},
+				"rules": {
+					"$ref": "#/$defs/pathValue",
+					"description": "Rule markdown files (.mdc). Default: ./rules/."
+				},
+				"hooks": {
+					"$ref": "#/$defs/hooksValue",
+					"description": "Hook configuration. Path string, path config, or inline hooks object. Default: ./hooks/hooks.json. Event names must be PascalCase canonical names — the build translates per vendor."
+				},
+				"lspServers": {
+					"$ref": "#/$defs/lspServersValue",
+					"description": "LSP server configuration. Path string, path config, or inline server map. Default: ./.lsp.json."
+				},
+				"outputStyles": {
+					"$ref": "#/$defs/pathValue",
+					"description": "Output style resources. Default: ./output-styles/."
+				}
 			}
 		},
 
@@ -450,9 +469,22 @@
 			}
 		},
 
-		"vendorExtensionClaudeCode": {
+		"harnesses": {
 			"type": "object",
 			"additionalProperties": false,
+			"description": "Per-harness manifest overrides, keyed by vendor id. Each block is copied verbatim into that harness's derived manifest.",
+			"properties": {
+				"claude-code": { "$ref": "#/$defs/harnessExtensionClaudeCode" },
+				"cursor": { "$ref": "#/$defs/harnessExtensionCursor" },
+				"codex": { "$ref": "#/$defs/harnessExtensionCodex" },
+				"copilot-cli": { "$ref": "#/$defs/harnessExtensionCopilotCli" }
+			}
+		},
+
+		"harnessExtensionClaudeCode": {
+			"type": "object",
+			"additionalProperties": false,
+			"description": "Per-harness overrides merged into the derived .claude-plugin/plugin.json (was vendorExtensions['claude-code']).",
 			"properties": {
 				"displayName": { "type": "string" },
 				"defaultEnabled": { "type": "boolean" },
@@ -505,9 +537,10 @@
 			}
 		},
 
-		"vendorExtensionCursor": {
+		"harnessExtensionCursor": {
 			"type": "object",
 			"additionalProperties": false,
+			"description": "Per-harness overrides merged into the derived .cursor-plugin/plugin.json (was vendorExtensions['cursor']).",
 			"properties": {
 				"displayName": { "type": "string" },
 				"publisher": { "type": "string" },
@@ -528,9 +561,10 @@
 			}
 		},
 
-		"vendorExtensionCodex": {
+		"harnessExtensionCodex": {
 			"type": "object",
 			"additionalProperties": false,
+			"description": "Per-harness overrides merged into the derived .codex-plugin/plugin.json (was vendorExtensions['codex']).",
 			"properties": {
 				"version": {
 					"type": "string",
@@ -545,9 +579,10 @@
 			}
 		},
 
-		"vendorExtensionCopilotCli": {
+		"harnessExtensionCopilotCli": {
 			"type": "object",
 			"additionalProperties": false,
+			"description": "Per-harness overrides merged into the derived plugin.json for Copilot CLI (was vendorExtensions['copilot-cli']).",
 			"properties": {
 				"category": { "type": "string" },
 				"tags": { "type": "array", "items": { "type": "string" } },
@@ -555,17 +590,6 @@
 					"$ref": "#/$defs/vendorOnlyHooksMap",
 					"description": "Copilot CLI-only hook events (e.g. agentStop, permissionRequest, notification). Merged with translated canonical hooks."
 				}
-			}
-		},
-
-		"vendorExtensions": {
-			"type": "object",
-			"additionalProperties": false,
-			"properties": {
-				"claude-code": { "$ref": "#/$defs/vendorExtensionClaudeCode" },
-				"cursor": { "$ref": "#/$defs/vendorExtensionCursor" },
-				"codex": { "$ref": "#/$defs/vendorExtensionCodex" },
-				"copilot-cli": { "$ref": "#/$defs/vendorExtensionCopilotCli" }
 			}
 		},
 
