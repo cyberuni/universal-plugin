@@ -5,18 +5,28 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { buildPlugin, readManifest, validateManifest } from './build.js'
 
 let dir: string
+let home: string
 
 beforeEach(() => {
 	dir = fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-test-'))
+	home = fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-home-'))
+	process.env['HOME'] = home
 	fs.mkdirSync(path.join(dir, '.plugin'))
 })
 
 afterEach(() => {
 	fs.rmSync(dir, { recursive: true, force: true })
+	fs.rmSync(home, { recursive: true, force: true })
 })
 
 function writeManifest(manifest: object, indent?: string | number) {
 	fs.writeFileSync(path.join(dir, '.plugin', 'plugin.json'), JSON.stringify(manifest, null, indent))
+}
+
+function writeSkill(name: string, content: string) {
+	const skillDir = path.join(dir, 'skills', name)
+	fs.mkdirSync(skillDir, { recursive: true })
+	fs.writeFileSync(path.join(skillDir, 'SKILL.md'), content)
 }
 
 describe('readManifest', () => {
@@ -138,5 +148,58 @@ describe('buildPlugin', () => {
 		const raw = fs.readFileSync(path.join(dir, '.claude-plugin', 'plugin.json'), 'utf8')
 		expect(raw).toContain('\n  ')
 		expect(raw).not.toContain('\t')
+	})
+
+	it('derives a Cursor command from a user-invocable skill', () => {
+		writeManifest({ name: 'x', vendorExtensions: { cursor: {} } })
+		writeSkill('deploy', '---\ninvocation-policy: user\ndescription: Deploy safely\n---\nDeploy $ARGUMENTS.')
+
+		buildPlugin(dir)
+
+		expect(fs.readFileSync(path.join(dir, '.cursor', 'commands', 'deploy.md'), 'utf8')).toBe('Deploy $ARGUMENTS.')
+	})
+
+	it('derives a best-effort Codex prompt from a both-invocable skill', () => {
+		writeManifest({ name: 'x', version: '1.0.0', description: 'x', vendorExtensions: { codex: {} } })
+		writeSkill('review', '---\ninvocation-policy: both\n---\nReview the current diff.')
+
+		buildPlugin(dir)
+
+		expect(fs.readFileSync(path.join(home, '.codex', 'prompts', 'review.md'), 'utf8')).toBe('Review the current diff.')
+	})
+
+	it('does not derive a command from a model-only skill', () => {
+		writeManifest({ name: 'x', vendorExtensions: { cursor: {} } })
+		writeSkill('context', '---\ninvocation-policy: model\n---\nBackground context.')
+
+		buildPlugin(dir)
+
+		expect(fs.existsSync(path.join(dir, '.cursor', 'commands', 'context.md'))).toBe(false)
+	})
+
+	it('maps canonical invocation policies to Claude frontmatter', () => {
+		writeManifest({ name: 'x', vendorExtensions: { 'claude-code': {} } })
+		writeSkill('deploy', '---\ninvocation-policy: user\nuser-invocable: false\n---\nDeploy.')
+		writeSkill('context', '---\ninvocation-policy: model\ndisable-model-invocation: true\n---\nContext.')
+
+		buildPlugin(dir)
+
+		expect(fs.readFileSync(path.join(dir, 'skills', 'deploy', 'SKILL.md'), 'utf8')).toContain(
+			'disable-model-invocation: true',
+		)
+		expect(fs.readFileSync(path.join(dir, 'skills', 'deploy', 'SKILL.md'), 'utf8')).not.toContain(
+			'user-invocable: false',
+		)
+		expect(fs.readFileSync(path.join(dir, 'skills', 'context', 'SKILL.md'), 'utf8')).toContain('user-invocable: false')
+		expect(fs.readFileSync(path.join(dir, 'skills', 'context', 'SKILL.md'), 'utf8')).not.toContain(
+			'disable-model-invocation: true',
+		)
+	})
+
+	it('rejects an unsupported invocation policy', () => {
+		writeManifest({ name: 'x', vendorExtensions: { cursor: {} } })
+		writeSkill('invalid', '---\ninvocation-policy: never\n---\nNope.')
+
+		expect(() => buildPlugin(dir)).toThrow('expected user, model, or both')
 	})
 })
