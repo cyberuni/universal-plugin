@@ -7,6 +7,7 @@ import { bundleCommand } from './bundle/cli.js'
 import { configCommand } from './config/cli.js'
 import { governanceCommand } from './governance/cli.js'
 import { initCommand } from './init/cli.js'
+import { marketplaceCommand } from './marketplace/cli.js'
 import { prepareCommand } from './prepare/cli.js'
 import { publishCommand } from './publish/cli.js'
 import { selfUpdateCommand } from './self-update/cli.js'
@@ -32,6 +33,7 @@ program.addCommand(pluginCommand())
 program.addCommand(cleanCommand())
 program.addCommand(configCommand())
 program.addCommand(governanceCommand())
+program.addCommand(marketplaceCommand())
 program.addCommand(prepareCommand())
 program.addCommand(publishCommand())
 program.addCommand(syncCommand())

@@ -1,28 +1,28 @@
 ---
-status: approved
+status: implemented
 name: universal-plugin
 project-path: packages/universal-plugin
 approval:
   spec:
     verdict: approve
-    by: unional
-    cause: floor
-    why:
-      floor: Clearance — the `.plugin/plugin.json`→root `plugin.json` migration (ADR-0007) narrows/rewrites frozen `plugin/{build,validate,bundle}` scenarios (classify-edit-class MIXED on all three). Pre-settled by ADR-0007, ratified live by the user in-session as positional ratifier; no shipped behavior narrows (validate/bundle impls never built; build already migrated in PHASE 1). Compatibility n/a (no shipped semver bump). Conflict none.
-      blast: moderate — three behavioral `plugin/` nodes' `.feature` + READMEs + `glossary.md` + `plugin/` group index migrated onto the ADR-0007 canonical (root `plugin.json`, closed field set, `extensions["org.cyberuni.universal-plugin"].{harnesses,vendors,packagePath}`); two build decisions folded into `build.feature`. `.plugin/pins.json` bundle artifact intentionally retained (only the manifest moved to root).
-      novelty: moderate — the closed Agent Plugins Spec v1.0.0 manifest with all tool config nested under the one owned extensions namespace; per-harness overrides via `harnesses.<vendor>`; `vendors ?? harnesses`-keys build-target selection; copilot-cli derived output relocated to `.github/plugin/plugin.json` off the now-canonical root `plugin.json`.
-      confidence: high — cold sdd-spec-judge 3-lens {oracle, builder, architect} ALIGNED true on round 2. R1 Builder FAIL on one CR-introduced coverage gap (`build/README` named `packagePath` among stripped orchestration keys but the strip scenario asserted only `$schema`/`extensions`/`harnesses`/`vendors`) → scenario strengthened to establish + assert `packagePath` absence → re-graded PASS. `check-suite` OK, `check-spec-state` OK, 0 open markers, vocabulary consistent (lone `vendorExtensions` is the glossary's intentional historical note). 2 pre-existing non-blocking architect observations out of scope. Ratified by the user in-session ("Approve").
-      cr: github-23
-  impl:
-    verdict: approve
-    by: unional
+    by: agent
     cause: dimension
     why:
-      floor: none — purely additive impl against the frozen contract. No Clearance (nothing narrowed/deleted), no Compatibility (new `config` command group — no shipped semver bump this CR), no Conflict (both frozen suites stayed self-consistent; the rebase-onto-`main` conflict was in the `spec.md` approval block, resolved to github-8 — not a `.feature` edit).
-      blast: moderate — new `src/config/` (pure domain + `ConfigFs` adapter + AXI-wired `cli.ts`) building the `config add`/`config get` group, wired into `src/cli.ts`; empty state prints `(none)`. Also dropped the dead `vendors` key and removed the outdated `.agents/governances/cli-command.md` governance. No sync/network surface touched.
-      novelty: moderate — a plugin-registered keyed config store in the CLI's own `.agents/universal-plugin.json` (append-or-replace-by-`name` idempotent `add` + lazy `get`); reserved-key `packagePath` rejection; AXI-conformant output.
-      confidence: high — cold sdd-impl-judge re-derived all 33 frozen scenarios independently and verified each, mutation-backstopped on reserved-key + replace-by-name (both mutations caught, file restored); merged tree green (`pnpm verify` 295/295 across 18 files, rebased onto `main` `c26b019`); clean-architecture layering confirmed; no `.feature`/`.agents/spec` edits by the impl-producer. Ratified by the user in-session ("ratify").
-      cr: github-8
+      floor: none — user-directed re-open rewrote the prematurely frozen marketplace suite without dropping its prior behavior; the new contract widens safety and observability coverage. Compatibility is deferred to the implementation gate; Conflict none.
+      blast: moderate — one behavioral node plus its root capability and generated concept indexes; local repository metadata only.
+      novelty: moderate — bounded top-level marketplace manifests that deliberately coexist with canonical agent-plugin manifests; per-artifact atomic writes, explicit write-error reporting, and containment guards.
+      confidence: high — two cold spec judges aligned Oracle, Builder, and Architect after re-derivation and the user-directed write-semantics re-open; 37 mapped boolean scenarios; Gherkin parse, referenced-artifact/use-case coverage, root state, and concept-index checks pass. The isolated check-suite dependency is unavailable, so gherkin-cli parse is the executable form evidence.
+      cr: github-25
+  impl:
+    verdict: approve
+    by: agent
+    cause: dimension
+    why:
+      floor: none — the user explicitly authorized the selected-write contract to weaken from cross-artifact rollback to honest best-effort error reporting; no frozen behavior was silently dropped. Compatibility none; Conflict none.
+      blast: moderate — marketplace discovery and filesystem adapter gain bounded direct-child traversal and local containment checks; no network or provisioning surface.
+      novelty: moderate — physical-path containment for all local manifest and generated-output boundaries, plus per-artifact atomic write failure semantics.
+      confidence: high — cold implementation judge passed every frozen contract dimension; full package verification passes (305 tests), Gherkin parses 37 frozen scenarios, spec-state and concept-index checks pass.
+      cr: github-25
 ---
 
 # universal-plugin — the cross-vendor plugin build/derivation engine (CLI)
@@ -106,6 +106,8 @@ ADR-0006 corrects that.
 | [`plugin/validate/`](./plugin/validate/README.md) | behavioral | `universal-plugin plugin validate [--vendor] [--strict]` — check the canonical manifest against schema + vendor rules |
 | [`plugin/init/`](./plugin/init/README.md) | behavioral | `universal-plugin plugin init [--name] [--vendor] [--scaffold] [--force] [--yes] [--npm]` — scaffold the canonical `plugin.json`; `--npm` also wires an npm package's `files` to ship the derived vendor manifests (ADR-0006). Consuming-side harness setup → `repobuddy/buddy-agent-harness` |
 | [`governance/`](./governance/README.md) | behavioral | `universal-plugin governance show <name>` / `list` — resolve governance documents by name across scopes |
+| [`marketplace/`](./marketplace/README.md) | group | the repository-local marketplace metadata command group |
+| [`marketplace/init/`](./marketplace/init/README.md) | behavioral | `universal-plugin marketplace init [--claude] [--codex] [--copilot] [--cursor]` — generate local vendor catalogs or a Cursor submission scaffold; no remote marketplace operation |
 | [`config/`](./config/README.md) | group | the `config` command group — read/write plugin-registered keyed config in `.agents/universal-plugin.json` |
 | [`config/add/`](./config/add/README.md) | behavioral | `universal-plugin config add --key <key> --entry '<json>'` — append (or replace by `name`) an entry in the array at `<key>`; idempotent, preserves other keys |
 | [`config/get/`](./config/get/README.md) | behavioral | `universal-plugin config get --key <key> [--format json]` — read the array at `<key>` (TOON default; raw array under `--format json`) |
@@ -127,6 +129,10 @@ Where a new concept lives — slot here, do not invent placement (strategy = **c
   files departs with the sync engine — see the non-goals below).
 - **a new name→document resolution op** (resolve or list governance by name across scopes) →
   `governance/`.
+- **a new repository-local marketplace metadata derivation** (discover eligible plugin roots and
+  emit vendor catalogs or an explicit Cursor submission scaffold) → `marketplace/init/`. This is
+  deterministic file generation only: publishing, registration, installation, authentication,
+  provisioning, dashboard automation, and service APIs remain outside this package.
 - **a new plugin-registered config op** (read or write a keyed array in `.agents/universal-plugin.json`
   that plugins write at install and other plugins read at runtime) → `config/` (a verb node under the
   `config` group: `config/add/` writes, `config/get/` reads). **Charter note:** a keyed config store is
@@ -156,8 +162,9 @@ Where a new concept lives — slot here, do not invent placement (strategy = **c
   artifacts, the enabled-harness record) → **not here** — that is `repobuddy/buddy-agent-harness`. It
   touches neither the canonical manifest nor this CLI's own config, so it fails the shared-object test;
   ADR-0006 withdrew it from ADR-0005.
-- **marketplace / plugin-install / lifecycle-hook op** → **not here** — that is the `cyberplace`
-  package.
+- **remote marketplace / plugin-install / lifecycle-hook op** → **not here** — that is the
+  `cyberplace` package. Repository-local marketplace metadata derivation is the narrow exception
+  placed at `marketplace/init/` above.
 - **cross-vendor sync / self-update / publish / asset-store op** → **not a capability here** — the
   shipped sync engine is a non-goal **destined to leave** `universal-plugin` (destination TBD; see
   `design/decisions/`).
@@ -176,10 +183,11 @@ scanned node).
 
 | Concept | Facets |
 |---|---|
-| `axi` | `axi/` (reference) · `config/add/` (behavior) · `config/get/` (behavior) · `governance/` (behavior) · `plugin/build/` (behavior) · `plugin/bundle/` (behavior) · `plugin/init/` (behavior) · `plugin/validate/` (behavior) · `run/` (behavior) |
+| `axi` | `axi/` (reference) · `config/add/` (behavior) · `config/get/` (behavior) · `governance/` (behavior) · `marketplace/init/` (behavior) · `plugin/build/` (behavior) · `plugin/bundle/` (behavior) · `plugin/init/` (behavior) · `plugin/validate/` (behavior) · `run/` (behavior) |
 | `canonical-manifest` | `plugin/build/` (behavior) · `plugin/init/` (behavior) · `plugin/validate/` (behavior) |
 | `config` | `config/add/` (behavior) · `config/get/` (behavior) |
 | `governance` | `governance/` (behavior) |
+| `marketplace` | `marketplace/init/` (behavior) |
 | `release` | `plugin/bundle/` (behavior) |
 | `run` | `run/` (behavior) |
 
