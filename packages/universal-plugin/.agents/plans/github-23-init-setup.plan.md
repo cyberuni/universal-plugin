@@ -74,18 +74,30 @@ it moves to `repobuddy/buddy-agent-harness` (ADR-0006). Concern count stays two 
 Design record reconciled and committed (ADR-0005/0006 theirs, 0007 mine; ADR-0001 amended). `plugin/init/`
 node re-derived, `check-suite` green. Remaining:
 
-1. **Reconcile root `spec.md`** (`in_progress`): take the parallel unit's two-concern + shared-object-rule
-   framing as base, re-applied on the new canonical (root `plugin.json` + `skills/` + `extensions`).
-   Their spec.md carries the right *scope*; my earlier edits carry the right *canonical* — merge both.
-2. **PHASE 1 — canonical migration** (its own commit series):
-   a. Rewrite `schema/v1.json` — closed spec manifest + `org.cyberuni.universal-plugin` extensions shape;
-      drop the WIP `"agents"` key.
-   b. Retarget source (`build`/`validate`/`bundle`/`publish sync-version`/`cli`) + fixtures/tests off
-      `.plugin/plugin.json` → `plugin.json`; `vendorExtensions` → `extensions["com.<vendor>"]`; `vendors`
-      → `extensions["org.cyberuni.universal-plugin"].vendors`. ~57 files — mechanical bulk, delegable once
-      the schema contract is locked; `pnpm verify` green per commit.
-   c. Sweep docs/examples/governances off `.plugin/` + `.agents/skills/`.
-3. **Spec gate** → then deliver `plugin init --npm` → impl gate → handoff.
+**Next action — start PHASE 1 by locking the schema contract.** Rewrite `schema/v1.json` to the closed
+Agent Plugins Spec v1.0.0 manifest (`$schema` const + `name` required; `additionalProperties:false`)
+with all tool config nested under `extensions["org.cyberuni.universal-plugin"]` (the `vendors` build-
+target list) — no sibling `vendors`/`vendorExtensions`. Drop the uncommitted WIP top-level `"agents"`
+key (closed-schema violation). Show the user the new shape before delegating the bulk. **Blocking:** the
+user asked to review the new schema shape before the ~57-file mechanical migration is delegated.
+
+Then, PHASE 1 continues (its own commit series, `pnpm verify` green per commit):
+- Retarget source (`build`/`validate`/`bundle`/`publish sync-version`/`cli`) + fixtures/tests off
+  `.plugin/plugin.json` → `plugin.json`; `vendorExtensions` → `extensions["com.<vendor>"]`; `vendors` →
+  `extensions["org.cyberuni.universal-plugin"].vendors`. ~57 files — mechanical, delegable once the
+  schema is locked.
+- Sweep docs/examples/governances off `.plugin/` + `.agents/skills/`.
+
+Then: **spec gate** (Clearance fires — `init.feature` rewritten off `.plugin/`) → deliver `plugin init
+--npm` → impl gate → handoff.
+
+### Session landmarks (this branch, do not redo — see commits)
+- Design record: ADR-0005/0006 (adopted from unit-198195), ADR-0007 (adopt spec canonical), ADR-0001
+  amended; RFC-0001 (enterprise marketplace lockdown). See `design/decisions/` + `design/rfcs/`.
+- `spec.md` reconciled to publish-only scope on the new canonical (`status: draft`).
+- `plugin/init/` node re-derived to the spec-format bar (What/Use Cases/CFG/Scenario map) + `--npm` +
+  verified distribution caveat; `check-suite` green.
+- Do **not** relearn the method or relitigate settled ground — see `## Resolved decisions`.
 
 **Handoff to record:** the consume half + the **verified harness registry** (5 rows vs vendor docs,
 Windsurf corrected; recoverable from unit-198195 at commit `bdc0f51`) migrate to
