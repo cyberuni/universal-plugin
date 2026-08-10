@@ -27,3 +27,29 @@ plan rather than inferring a substitute from stale todo states.
 **Context:** Repositories with several retained `.agents/plans/*.plan.md` files.
 
 **Category:** `workflow`
+
+## Do not backfill when asked to author a spec
+
+**Pattern:** Treated existing #25 code as the source for re-deriving the contract after the user
+asked to redo the spec.
+
+**Rule:** For a request to author or redo an SDD spec, derive use cases from the stated product intent,
+then derive the CFG and scenario map. Inspect implementation only after the contract is authored, as a
+conformance check; use a backfill flow only when the user explicitly requests one.
+
+**Context:** SDD missions where implementation exists before a valid contract.
+
+**Category:** `architecture`
+
+## Do not import a neighboring model into an independent capability
+
+**Pattern:** Treated the project’s canonical `.plugin/plugin.json` as the required manifest for the
+#25 marketplace initializer, despite the issue’s independent top-level marketplace manifest.
+
+**Rule:** Resolve terminology within the capability’s stated purpose before applying a project-wide
+model. When two artifacts may coexist, state their boundary explicitly instead of silently collapsing
+one into the other.
+
+**Context:** Repository tools that operate beside, rather than on, canonical agent-plugin metadata.
+
+**Category:** `architecture`
