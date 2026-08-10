@@ -1,0 +1,2 @@
+{"seq":1,"kind":"leash","cr":"github-25","leash":"auto-spec","by":"user","blast":"moderate","approach":["spec-first","cold-judge","re-open-authorized"]}
+{"seq":2,"kind":"gate","cr":"github-25","gate":"spec","verdict":"approve","by":"agent","cause":"dimension","frozen":["marketplace/init/init.feature"]}

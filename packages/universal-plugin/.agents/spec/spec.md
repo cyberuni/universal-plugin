@@ -5,14 +5,14 @@ project-path: packages/universal-plugin
 approval:
   spec:
     verdict: approve
-    by: unional
-    cause: floor
+    by: agent
+    cause: dimension
     why:
-      floor: Clearance — the `.plugin/plugin.json`→root `plugin.json` migration (ADR-0007) narrows/rewrites frozen `plugin/{build,validate,bundle}` scenarios (classify-edit-class MIXED on all three). Pre-settled by ADR-0007, ratified live by the user in-session as positional ratifier; no shipped behavior narrows (validate/bundle impls never built; build already migrated in PHASE 1). Compatibility n/a (no shipped semver bump). Conflict none.
-      blast: moderate — three behavioral `plugin/` nodes' `.feature` + READMEs + `glossary.md` + `plugin/` group index migrated onto the ADR-0007 canonical (root `plugin.json`, closed field set, `extensions["org.cyberuni.universal-plugin"].{harnesses,vendors,packagePath}`); two build decisions folded into `build.feature`. `.plugin/pins.json` bundle artifact intentionally retained (only the manifest moved to root).
-      novelty: moderate — the closed Agent Plugins Spec v1.0.0 manifest with all tool config nested under the one owned extensions namespace; per-harness overrides via `harnesses.<vendor>`; `vendors ?? harnesses`-keys build-target selection; copilot-cli derived output relocated to `.github/plugin/plugin.json` off the now-canonical root `plugin.json`.
-      confidence: high — cold sdd-spec-judge 3-lens {oracle, builder, architect} ALIGNED true on round 2. R1 Builder FAIL on one CR-introduced coverage gap (`build/README` named `packagePath` among stripped orchestration keys but the strip scenario asserted only `$schema`/`extensions`/`harnesses`/`vendors`) → scenario strengthened to establish + assert `packagePath` absence → re-graded PASS. `check-suite` OK, `check-spec-state` OK, 0 open markers, vocabulary consistent (lone `vendorExtensions` is the glossary's intentional historical note). 2 pre-existing non-blocking architect observations out of scope. Ratified by the user in-session ("Approve").
-      cr: github-23
+      floor: none — user-directed re-open rewrote the prematurely frozen marketplace suite without dropping its prior behavior; the new contract widens safety and observability coverage. Compatibility is deferred to the implementation gate; Conflict none.
+      blast: moderate — one behavioral node plus its root capability and generated concept indexes; local repository metadata only.
+      novelty: moderate — bounded top-level marketplace manifests that deliberately coexist with canonical agent-plugin manifests; all-or-nothing selected writes and containment guards.
+      confidence: high — cold spec judge aligned Oracle, Builder, and Architect after re-derivation; 37 mapped boolean scenarios; Gherkin parse, referenced-artifact/use-case coverage, root state, and concept-index checks pass. The isolated check-suite dependency is unavailable, so gherkin-cli parse is the executable form evidence.
+      cr: github-25
   impl:
     verdict: approve
     by: unional
@@ -183,7 +183,7 @@ scanned node).
 
 | Concept | Facets |
 |---|---|
-| `axi` | `axi/` (reference) · `config/add/` (behavior) · `config/get/` (behavior) · `governance/` (behavior) · `plugin/build/` (behavior) · `plugin/bundle/` (behavior) · `plugin/init/` (behavior) · `plugin/validate/` (behavior) · `run/` (behavior) |
+| `axi` | `axi/` (reference) · `config/add/` (behavior) · `config/get/` (behavior) · `governance/` (behavior) · `marketplace/init/` (behavior) · `plugin/build/` (behavior) · `plugin/bundle/` (behavior) · `plugin/init/` (behavior) · `plugin/validate/` (behavior) · `run/` (behavior) |
 | `canonical-manifest` | `plugin/build/` (behavior) · `plugin/init/` (behavior) · `plugin/validate/` (behavior) |
 | `config` | `config/add/` (behavior) · `config/get/` (behavior) |
 | `governance` | `governance/` (behavior) |
