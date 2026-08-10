@@ -25,6 +25,13 @@ Every command follows the AXI output contract ([../../axi/](../../axi/README.md)
 - **Ship on publish** — an npm package declares which files travel in its tarball via `package.json`
   `files`; `--npm` adds the derived vendor manifests and the skills directory to that list.
 
+> **Distribution caveat.** Claude Code's **npm** plugin source is **not supported for
+> organization-distributed (Team / Enterprise) marketplaces** — those support only `github`, `url`,
+> and `git-subdir` sources (org sync reads the marketplace repo through the Claude GitHub / GHE App).
+> `--npm` wires the package regardless; the limitation is the *consumer's* (public / personal
+> distribution, or the relative-path-in-marketplace-repo workaround). Recorded so an author is not
+> surprised — see `## References`.
+
 **Non-goals** — deriving the vendor manifests (`plugin build`); checking a manifest
 (`plugin validate`); pinning release versions (`plugin bundle`); **setting a repository up to
 *consume* skills** — the canonical skills layout, per-harness compatibility links, and the
@@ -142,3 +149,7 @@ Grouped by use case; 1:1 with [`init.feature`](./init.feature). `| Edge | Path (
   and the `extensions` reverse-domain namespace this node scaffolds. Adoption recorded in ADR-0007.
 - ADR-0006 (this project) — backs the scope: `plugin init --npm` (the publish half) stays; the
   consume half moves to `repobuddy/buddy-agent-harness`.
+- [Claude Code — Create and distribute a plugin marketplace](https://code.claude.com/docs/en/plugin-marketplaces)
+  — backs the **Distribution caveat**: "Plugin sources of type `github`, `url`, and `git-subdir` are
+  supported. `npm` and `archive` sources are not" for Team/Enterprise organization distribution
+  (verified 2026-08-09).
