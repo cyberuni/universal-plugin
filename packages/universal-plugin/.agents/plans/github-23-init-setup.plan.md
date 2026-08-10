@@ -27,7 +27,7 @@ todos:
   - content: "Impl gate: pnpm verify green; plugin build derives clean; per-scenario verification"
     status: completed
   - content: "Handoff — PR referencing Closes #23 (+ split PHASE 1 into its own PR if desired), combat log, distilled summary"
-    status: pending
+    status: completed
 ---
 
 # github-23 — repository/project init & setup for universal-plugin
@@ -91,6 +91,15 @@ it moves to `repobuddy/buddy-agent-harness` (ADR-0006). Concern count stays two 
   splittable to its own PR at handoff. (User did not opt for a separate issue.)
 
 ## NEXT — resume here
+
+**MISSION COMPLETE.** All todos done; PR open: **https://github.com/cyberuni/universal-plugin/pull/28**
+(`Closes #23`, single PR for the whole branch — user chose not to split PHASE 1). Branch
+`github-23-init-setup` pushed to `origin`, 28 commits ahead of `main`. Nothing to resume unless PR
+review returns changes. Buddy-agent-harness handoff notes (record, don't build) are at the bottom of
+this file: the consume half + verified 5-row harness registry (unit-198195 `bdc0f51`), and
+carry-forward #24 (Codex ≥0.117.0 no longer reads `~/.codex/prompts/`).
+
+---
 
 **LANDED this session (2 units, both committed, `pnpm verify` 303/303 green):**
 - **Spec gate — build/validate/bundle (todo #8, commit `b7c2ec5`).** Migrated onto the ADR-0007
