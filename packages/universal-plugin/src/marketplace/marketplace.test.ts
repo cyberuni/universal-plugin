@@ -3,6 +3,7 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import { expect, test } from 'vitest'
 
+import { realMarketplaceFs } from './fs.js'
 import { initializeMarketplace } from './init.js'
 
 function fixture(prefix: string): string {
@@ -132,16 +133,84 @@ test('deduplicates explicit scan directories and excludes vendor manifest direct
 	try {
 		fs.mkdirSync(path.join(root, 'extensions', 'beta'), { recursive: true })
 		fs.writeFileSync(path.join(root, 'extensions', 'beta', 'plugin.json'), JSON.stringify({ name: 'beta' }))
-		fs.mkdirSync(path.join(root, 'extensions', '.plugin', 'ignored'), { recursive: true })
-		fs.writeFileSync(
-			path.join(root, 'extensions', '.plugin', 'ignored', 'plugin.json'),
-			JSON.stringify({ name: 'ignored' }),
-		)
+		fs.mkdirSync(path.join(root, 'extensions', '.plugin'), { recursive: true })
+		fs.writeFileSync(path.join(root, 'extensions', '.plugin', 'plugin.json'), JSON.stringify({ name: 'ignored' }))
 		const result = initializeMarketplace(root, { targets: ['claude'], scanDirs: ['extensions', 'extensions'] })
 		expect(result[0]).toMatchObject({ plugins: ['beta'] })
 		expect(readJson(root, '.claude-plugin/marketplace.json')).toMatchObject({
 			plugins: [{ name: 'beta', source: './extensions/beta' }],
 		})
+	} finally {
+		fs.rmSync(root, { recursive: true, force: true })
+	}
+})
+
+test('discovers only direct-child marketplace manifests and rejects external symlinks', () => {
+	const root = fixture('universal-plugin-marketplace-bounded-')
+	const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-marketplace-outside-'))
+	try {
+		fs.mkdirSync(path.join(root, 'plugins', 'alpha', 'nested'), { recursive: true })
+		fs.writeFileSync(path.join(root, 'plugins', 'alpha', 'nested', 'plugin.json'), JSON.stringify({ name: 'nested' }))
+		expect(initializeMarketplace(root, { targets: ['claude'] })[0]?.plugins).toEqual(['alpha'])
+
+		fs.mkdirSync(path.join(outside, 'external'))
+		fs.writeFileSync(path.join(outside, 'external', 'plugin.json'), JSON.stringify({ name: 'external' }))
+		fs.symlinkSync(path.join(outside, 'external'), path.join(root, 'extensions'))
+		expect(() => initializeMarketplace(root, { targets: ['claude'], scanDirs: ['extensions'] })).toThrow(
+			/within --root/,
+		)
+		fs.rmSync(path.join(root, 'extensions'))
+
+		fs.symlinkSync(path.join(outside, 'external'), path.join(root, 'plugins', 'external'))
+		expect(() => initializeMarketplace(root, { targets: ['claude'], force: true })).toThrow(/within --root/)
+		fs.rmSync(path.join(root, 'plugins', 'external'))
+		fs.writeFileSync(path.join(outside, 'manifest.json'), JSON.stringify({ name: 'external' }))
+		fs.rmSync(path.join(root, 'plugins', 'alpha', 'plugin.json'))
+		fs.symlinkSync(path.join(outside, 'manifest.json'), path.join(root, 'plugins', 'alpha', 'plugin.json'))
+		expect(() => initializeMarketplace(root, { targets: ['claude'], force: true })).toThrow(/within --root/)
+		fs.rmSync(path.join(root, 'plugins', 'alpha', 'plugin.json'))
+		fs.writeFileSync(path.join(root, 'plugins', 'alpha', 'plugin.json'), JSON.stringify({ name: 'alpha' }))
+
+		fs.rmSync(path.join(root, '.claude-plugin', 'marketplace.json'))
+		fs.symlinkSync(outside, path.join(root, '.claude-plugin', 'marketplace.json'))
+		expect(() => initializeMarketplace(root, { targets: ['claude'], force: true })).toThrow(/within --root/)
+		fs.rmSync(path.join(root, '.claude-plugin', 'marketplace.json'))
+		fs.rmSync(path.join(root, '.claude-plugin'), { recursive: true })
+		fs.symlinkSync(outside, path.join(root, '.claude-plugin'))
+		expect(() => initializeMarketplace(root, { targets: ['claude'], force: true })).toThrow(/within --root/)
+	} finally {
+		fs.rmSync(root, { recursive: true, force: true })
+		fs.rmSync(outside, { recursive: true, force: true })
+	}
+})
+
+test('reports a later selected-artifact write failure', () => {
+	const root = fixture('universal-plugin-marketplace-rollback-')
+	try {
+		initializeMarketplace(root, { targets: ['claude', 'copilot'] })
+		const claude = path.join(root, '.claude-plugin', 'marketplace.json')
+		const copilot = path.join(root, '.github', 'plugin', 'marketplace.json')
+		fs.writeFileSync(claude, '{"old":"claude"}\n')
+		fs.writeFileSync(copilot, '{"old":"copilot"}\n')
+		const beforeCopilot = fs.readFileSync(copilot, 'utf8')
+		let failOnce = true
+		const failingFs = {
+			...realMarketplaceFs,
+			writeAtomically(file: string, content: string) {
+				if (file === copilot && failOnce) {
+					failOnce = false
+					throw new Error('write failed')
+				}
+				realMarketplaceFs.writeAtomically(file, content)
+			},
+		}
+		expect(() => initializeMarketplace(root, { targets: ['claude', 'copilot'], force: true }, failingFs)).toThrow(
+			/write failed/,
+		)
+		expect(readJson(root, '.claude-plugin/marketplace.json')).toMatchObject({
+			plugins: [{ name: 'alpha', source: './plugins/alpha' }],
+		})
+		expect(fs.readFileSync(copilot, 'utf8')).toBe(beforeCopilot)
 	} finally {
 		fs.rmSync(root, { recursive: true, force: true })
 	}

@@ -12,9 +12,9 @@ todos:
   - content: "Run the spec gate and record the #25 contract verdict"
     status: completed
   - content: "Verify the implementation against the frozen #25 contract"
-    status: in_progress
+    status: completed
   - content: "Run the impl gate and hand off #25"
-    status: pending
+    status: completed
 ---
 
 # github-25 — repository-local marketplace initializer
@@ -40,7 +40,10 @@ afterward as a conformance check. No behavior is intentionally removed.
 The user re-opened the selected-write branch after the first spec gate: selected artifacts are each
 written atomically, and a later write error is reported with non-zero exit rather than a claimed
 cross-artifact rollback. A fresh cold review passed all three lenses and the suite is re-frozen.
-Finish implementation conformance and run the impl gate.
+Completed: the re-frozen 37-scenario contract passed its cold implementation gate. Package verification,
+Gherkin parsing, spec-state, use-case coverage, and concept-index checks are green. The installed
+suite structural checker remains unavailable because its isolated `gherkin-cli` dependency is absent;
+direct `gherkin-cli` parsing is recorded as executable form evidence.
 
 Resolved decision (user-confirmed): #25's root-level `plugin.json` is a marketplace metadata
 manifest, independent of the canonical `.plugin/plugin.json` agent-plugin manifest. A repository may

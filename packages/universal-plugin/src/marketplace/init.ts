@@ -36,6 +36,23 @@ function isInside(root: string, candidate: string): boolean {
 	return relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative))
 }
 
+function containingExistingPath(file: string, fs: MarketplaceFs): string {
+	let current = file
+	while (!fs.exists(current)) {
+		const parent = path.dirname(current)
+		if (parent === current) throw new Error(`error: path "${file}" must resolve within --root`)
+		current = parent
+	}
+	return current
+}
+
+function assertContained(root: string, candidate: string, fs: MarketplaceFs, label: string): void {
+	const resolvedRoot = fs.realpath(root)
+	const resolvedCandidate = fs.realpath(containingExistingPath(candidate, fs))
+	if (!isInside(resolvedRoot, resolvedCandidate))
+		throw new Error(`error: ${label} "${candidate}" must resolve within --root`)
+}
+
 function parseManifest(fs: MarketplaceFs, file: string): Record<string, unknown> {
 	try {
 		const parsed = JSON.parse(fs.read(file))
@@ -57,6 +74,7 @@ function manifestOwner(manifest: Record<string, unknown>): string | undefined {
 
 function deriveMetadata(root: string, fs: MarketplaceFs, opts: MarketplaceInitOptions): RootMetadata {
 	const rootManifest = path.join(root, 'plugin.json')
+	if (fs.exists(rootManifest)) assertContained(root, rootManifest, fs, 'root plugin.json')
 	const manifest = fs.exists(rootManifest) ? parseManifest(fs, rootManifest) : {}
 	const name = opts.name ?? path.basename(root)
 	const owner = opts.owner ?? manifestOwner(manifest)
@@ -76,6 +94,7 @@ function scanRoots(root: string, fs: MarketplaceFs, scanDirs?: string[]): string
 			throw new Error(`error: plugin scan directory "${scanRoot}" does not exist`)
 		}
 		if (!fs.isDirectory(scanRoot)) throw new Error(`error: plugin scan directory "${scanRoot}" is not a directory`)
+		assertContained(root, scanRoot, fs, '--plugin-scan-dir')
 	}
 	return roots.filter((scanRoot) => fs.exists(scanRoot))
 }
@@ -84,10 +103,14 @@ function discoverPlugins(root: string, fs: MarketplaceFs, scanDirs?: string[]): 
 	const plugins: MarketplacePlugin[] = []
 	const names = new Set<string>()
 	for (const scanRoot of scanRoots(root, fs, scanDirs)) {
-		for (const manifestPath of fs.listFiles(scanRoot).sort()) {
-			if (path.resolve(manifestPath) === path.join(root, 'plugin.json')) continue
-			const relativeManifest = path.relative(root, manifestPath).split(path.sep).join('/')
-			if (/(^|\/)(\.plugin|\.claude-plugin|\.codex-plugin|\.cursor-plugin)\//.test(relativeManifest)) continue
+		for (const entry of fs.listEntries(scanRoot).sort()) {
+			if (['.plugin', '.claude-plugin', '.codex-plugin', '.cursor-plugin'].includes(entry)) continue
+			const pluginRoot = path.join(scanRoot, entry)
+			if (!fs.isDirectory(pluginRoot)) continue
+			assertContained(root, pluginRoot, fs, 'plugin directory')
+			const manifestPath = path.join(pluginRoot, 'plugin.json')
+			if (!fs.exists(manifestPath)) continue
+			assertContained(root, manifestPath, fs, 'plugin manifest')
 			const manifest = parseManifest(fs, manifestPath)
 			if (typeof manifest.name !== 'string' || manifest.name.trim() === '') {
 				throw new Error(`error: manifest "${manifestPath}" must contain a non-empty name`)
@@ -95,13 +118,16 @@ function discoverPlugins(root: string, fs: MarketplaceFs, scanDirs?: string[]): 
 			assertMarketplaceName(manifest.name, 'plugin name')
 			if (names.has(manifest.name)) throw new Error(`error: duplicate plugin name "${manifest.name}"`)
 			names.add(manifest.name)
-			const source = `./${path.relative(root, path.dirname(manifestPath)).split(path.sep).join('/')}`
-			if (!isInside(root, path.resolve(root, source)))
-				throw new Error(`error: plugin source "${source}" must resolve within --root`)
+			const source = `./${path.relative(root, pluginRoot).split(path.sep).join('/')}`
 			plugins.push({ name: manifest.name, source, metadata: manifest })
 		}
 	}
 	return plugins.sort((a, b) => a.name.localeCompare(b.name))
+}
+
+function writeArtifacts(fs: MarketplaceFs, artifacts: { path: string; content: string }[], root: string): void {
+	const changed = artifacts.filter((artifact) => !sameArtifact(fs, path.join(root, artifact.path), artifact.content))
+	for (const artifact of changed) fs.writeAtomically(path.join(root, artifact.path), artifact.content)
 }
 
 function selectedTargets(targets?: MarketplaceTarget[]): MarketplaceTarget[] {
@@ -141,6 +167,9 @@ export function initializeMarketplace(
 	const plugins = discoverPlugins(root, fs, opts.scanDirs)
 	const targets = selectedTargets(opts.targets)
 	const planned = targets.map((target) => ({ target, artifacts: serializeTarget(target, metadata, plugins) }))
+	for (const { artifacts } of planned) {
+		for (const artifact of artifacts) assertContained(root, path.join(root, artifact.path), fs, 'selected artifact')
+	}
 
 	const conflicts: string[] = []
 	for (const entry of planned) {
@@ -167,12 +196,11 @@ export function initializeMarketplace(
 	})
 
 	if (!opts.dryRun && plugins.length > 0) {
-		for (const { artifacts } of planned) {
-			for (const artifact of artifacts) {
-				const output = path.join(root, artifact.path)
-				if (!sameArtifact(fs, output, artifact.content)) fs.writeAtomically(output, artifact.content)
-			}
-		}
+		writeArtifacts(
+			fs,
+			planned.flatMap((entry) => entry.artifacts),
+			root,
+		)
 	}
 
 	if (!opts.targets || opts.targets.length === 0) {

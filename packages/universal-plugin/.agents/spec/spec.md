@@ -1,5 +1,5 @@
 ---
-status: approved
+status: implemented
 name: universal-plugin
 project-path: packages/universal-plugin
 approval:
@@ -15,14 +15,14 @@ approval:
       cr: github-25
   impl:
     verdict: approve
-    by: unional
+    by: agent
     cause: dimension
     why:
-      floor: none — purely additive impl against the frozen contract. No Clearance (nothing narrowed/deleted), no Compatibility (new `config` command group — no shipped semver bump this CR), no Conflict (both frozen suites stayed self-consistent; the rebase-onto-`main` conflict was in the `spec.md` approval block, resolved to github-8 — not a `.feature` edit).
-      blast: moderate — new `src/config/` (pure domain + `ConfigFs` adapter + AXI-wired `cli.ts`) building the `config add`/`config get` group, wired into `src/cli.ts`; empty state prints `(none)`. Also dropped the dead `vendors` key and removed the outdated `.agents/governances/cli-command.md` governance. No sync/network surface touched.
-      novelty: moderate — a plugin-registered keyed config store in the CLI's own `.agents/universal-plugin.json` (append-or-replace-by-`name` idempotent `add` + lazy `get`); reserved-key `packagePath` rejection; AXI-conformant output.
-      confidence: high — cold sdd-impl-judge re-derived all 33 frozen scenarios independently and verified each, mutation-backstopped on reserved-key + replace-by-name (both mutations caught, file restored); merged tree green (`pnpm verify` 295/295 across 18 files, rebased onto `main` `c26b019`); clean-architecture layering confirmed; no `.feature`/`.agents/spec` edits by the impl-producer. Ratified by the user in-session ("ratify").
-      cr: github-8
+      floor: none — the user explicitly authorized the selected-write contract to weaken from cross-artifact rollback to honest best-effort error reporting; no frozen behavior was silently dropped. Compatibility none; Conflict none.
+      blast: moderate — marketplace discovery and filesystem adapter gain bounded direct-child traversal and local containment checks; no network or provisioning surface.
+      novelty: moderate — physical-path containment for all local manifest and generated-output boundaries, plus per-artifact atomic write failure semantics.
+      confidence: high — cold implementation judge passed every frozen contract dimension; full package verification passes (305 tests), Gherkin parses 37 frozen scenarios, spec-state and concept-index checks pass.
+      cr: github-25
 ---
 
 # universal-plugin — the cross-vendor plugin build/derivation engine (CLI)
