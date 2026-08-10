@@ -1,7 +1,8 @@
 # plugin — the manifest command group
 
-The `plugin` command group is the canonical-manifest engine. One canonical `.plugin/plugin.json` is
-the source of truth; these verbs turn it into what each vendor expects and keep it well-formed:
+The `plugin` command group is the canonical-manifest engine. One canonical `plugin.json` at the
+project root (Agent Plugins Specification v1.0.0 form) is the source of truth; these verbs turn it
+into what each vendor expects and keep it well-formed:
 
 - [`build/`](./build/README.md) — `universal-plugin plugin build` derives per-vendor manifests
   (dev-consumable form; no pins).

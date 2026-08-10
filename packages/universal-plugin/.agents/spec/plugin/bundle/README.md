@@ -33,8 +33,8 @@ Follows the AXI output contract ([../../axi/](../../axi/README.md)).
 **Subject** — rewriting the plugin's own skill pins to the shipping workspace versions at release,
 output per the AXI contract:
 
-- **Rooted at a plugin project** — `bundle` operates on a plugin project rooted at `.plugin/plugin.json`;
-  a missing manifest fails loud (exit 1), like `build`.
+- **Rooted at a plugin project** — `bundle` operates on a plugin project rooted at the canonical root
+  `plugin.json`; a missing manifest fails loud (exit 1), like `build`.
 - **Pin from workspace** — `bundle` scans the plugin's skills for `npx <pkg>@<pin>` references and, for
   each package that exists in the workspace, rewrites the pin to that package's local
   `packages/<pkg>/package.json` version. A placeholder pin (`@<version>`) on a workspace CLI resolves
@@ -71,7 +71,7 @@ output per the AXI contract:
   flags with a synopsis and one example.
 
 **Non-goals** — deriving vendor manifests ([`plugin build`](../build/README.md) owns that; `bundle`
-does not rewrite the `.plugin/plugin.json` manifest or the vendor outputs — its only writes are the
+does not rewrite the canonical root `plugin.json` manifest or the vendor outputs — its only writes are the
 skill pins plus the generated `.plugin/pins.json` sibling); resolving pins against a
 **registry** (that was `build`'s old model — off by one at release — and is retired, not moved here);
 crossing a major boundary or styling ranges (the workspace version is taken verbatim); the **builder
@@ -85,7 +85,7 @@ Every scenario in [`bundle.feature`](./bundle.feature) maps to one of these beha
 
 | Behavior | What it covers |
 |---|---|
-| **rooted at a plugin project** | missing `.plugin/plugin.json` fails loud (exit 1) |
+| **rooted at a plugin project** | missing root `plugin.json` fails loud (exit 1) |
 | **pin from workspace** | workspace CLI pinned to local `package.json` version; placeholder resolves; workspace wins over a newer registry; no network |
 | **idempotent** | pin already at the workspace version → `unchanged` |
 | **best-effort broken entry** | unreadable workspace `package.json` warns + skips, exit 0 |

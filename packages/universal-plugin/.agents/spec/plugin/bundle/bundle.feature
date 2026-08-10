@@ -2,16 +2,16 @@
 Feature: plugin bundle — materialize the release form
 
   Background:
-    Given a project root with ".plugin/plugin.json"
+    Given a project root with a canonical "plugin.json"
     And the workspace package "cyberplace" is at version "0.1.0"
 
   # ── Preconditions ──
 
-  Scenario: missing .plugin/plugin.json fails
-    Given the project root has no ".plugin/plugin.json"
+  Scenario: missing plugin.json fails
+    Given the project root has no canonical "plugin.json"
     When I run "universal-plugin plugin bundle"
     Then the exit code is 1
-    And stderr contains "No .plugin/plugin.json found"
+    And stderr contains "No plugin.json found"
 
   # ── Pin from workspace ──
 
