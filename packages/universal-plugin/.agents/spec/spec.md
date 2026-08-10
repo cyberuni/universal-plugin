@@ -106,6 +106,8 @@ ADR-0006 corrects that.
 | [`plugin/validate/`](./plugin/validate/README.md) | behavioral | `universal-plugin plugin validate [--vendor] [--strict]` — check the canonical manifest against schema + vendor rules |
 | [`plugin/init/`](./plugin/init/README.md) | behavioral | `universal-plugin plugin init [--name] [--vendor] [--scaffold] [--force] [--yes] [--npm]` — scaffold the canonical `plugin.json`; `--npm` also wires an npm package's `files` to ship the derived vendor manifests (ADR-0006). Consuming-side harness setup → `repobuddy/buddy-agent-harness` |
 | [`governance/`](./governance/README.md) | behavioral | `universal-plugin governance show <name>` / `list` — resolve governance documents by name across scopes |
+| [`marketplace/`](./marketplace/README.md) | group | the repository-local marketplace metadata command group |
+| [`marketplace/init/`](./marketplace/init/README.md) | behavioral | `universal-plugin marketplace init [--claude] [--codex] [--copilot] [--cursor]` — generate local vendor catalogs or a Cursor submission scaffold; no remote marketplace operation |
 | [`config/`](./config/README.md) | group | the `config` command group — read/write plugin-registered keyed config in `.agents/universal-plugin.json` |
 | [`config/add/`](./config/add/README.md) | behavioral | `universal-plugin config add --key <key> --entry '<json>'` — append (or replace by `name`) an entry in the array at `<key>`; idempotent, preserves other keys |
 | [`config/get/`](./config/get/README.md) | behavioral | `universal-plugin config get --key <key> [--format json]` — read the array at `<key>` (TOON default; raw array under `--format json`) |
@@ -127,6 +129,10 @@ Where a new concept lives — slot here, do not invent placement (strategy = **c
   files departs with the sync engine — see the non-goals below).
 - **a new name→document resolution op** (resolve or list governance by name across scopes) →
   `governance/`.
+- **a new repository-local marketplace metadata derivation** (discover eligible plugin roots and
+  emit vendor catalogs or an explicit Cursor submission scaffold) → `marketplace/init/`. This is
+  deterministic file generation only: publishing, registration, installation, authentication,
+  provisioning, dashboard automation, and service APIs remain outside this package.
 - **a new plugin-registered config op** (read or write a keyed array in `.agents/universal-plugin.json`
   that plugins write at install and other plugins read at runtime) → `config/` (a verb node under the
   `config` group: `config/add/` writes, `config/get/` reads). **Charter note:** a keyed config store is
@@ -156,8 +162,9 @@ Where a new concept lives — slot here, do not invent placement (strategy = **c
   artifacts, the enabled-harness record) → **not here** — that is `repobuddy/buddy-agent-harness`. It
   touches neither the canonical manifest nor this CLI's own config, so it fails the shared-object test;
   ADR-0006 withdrew it from ADR-0005.
-- **marketplace / plugin-install / lifecycle-hook op** → **not here** — that is the `cyberplace`
-  package.
+- **remote marketplace / plugin-install / lifecycle-hook op** → **not here** — that is the
+  `cyberplace` package. Repository-local marketplace metadata derivation is the narrow exception
+  placed at `marketplace/init/` above.
 - **cross-vendor sync / self-update / publish / asset-store op** → **not a capability here** — the
   shipped sync engine is a non-goal **destined to leave** `universal-plugin` (destination TBD; see
   `design/decisions/`).
@@ -180,6 +187,7 @@ scanned node).
 | `canonical-manifest` | `plugin/build/` (behavior) · `plugin/init/` (behavior) · `plugin/validate/` (behavior) |
 | `config` | `config/add/` (behavior) · `config/get/` (behavior) |
 | `governance` | `governance/` (behavior) |
+| `marketplace` | `marketplace/init/` (behavior) |
 | `release` | `plugin/bundle/` (behavior) |
 | `run` | `run/` (behavior) |
 
