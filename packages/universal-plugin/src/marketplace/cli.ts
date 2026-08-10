@@ -12,6 +12,7 @@ interface MarketplaceCliOptions extends MarketplaceInitOptions {
 	cursor?: boolean
 	root?: string
 	pluginScanDir?: string[]
+	format?: string
 }
 
 function targetsFromOptions(opts: MarketplaceCliOptions): MarketplaceTarget[] | undefined {
@@ -41,6 +42,9 @@ function initCommand(): Command {
 		.addHelpText('after', '\nExample:\n  $ universal-plugin marketplace init --root .\n')
 		.action((opts: MarketplaceCliOptions) => {
 			try {
+				if (opts.format !== undefined && opts.format !== 'toon' && opts.format !== 'json') {
+					throw new Error('error: --format must be "toon" or "json"')
+				}
 				const results = initializeMarketplace(resolveRoot(opts.root), {
 					targets: targetsFromOptions(opts),
 					scanDirs: opts.pluginScanDir,

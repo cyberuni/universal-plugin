@@ -47,3 +47,9 @@ test('selector union, JSON output, dry-run, and force are observable through the
 	expect(run('--claude').stderr).toMatch(/--force/)
 	expect(run('--claude', '--force').status).toBe(0)
 })
+
+test('rejects output formats other than toon and json', () => {
+	const result = run('--format', 'yaml')
+	expect(result.status).toBe(1)
+	expect(result.stderr).toMatch(/--format.*toon.*json/i)
+})
