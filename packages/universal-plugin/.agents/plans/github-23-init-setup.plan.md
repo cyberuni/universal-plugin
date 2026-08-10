@@ -23,9 +23,9 @@ todos:
   - content: "Spec gate for plugin/init: freeze init.feature (re-derived on the new canonical in todo #3 but left UNFROZEN; the todo-#3 rewrite broke the backfill-era freeze). Take it Draft→Approved via spec-gate before delivering its impl."
     status: completed
   - content: "Deliver `plugin init --npm` (publish half only) on the new canonical: write root plugin.json + wire package.json files[] with derived <harness>/plugin.json paths + skills/"
-    status: pending
+    status: completed
   - content: "Impl gate: pnpm verify green; plugin build derives clean; per-scenario verification"
-    status: pending
+    status: completed
   - content: "Handoff — PR referencing Closes #23 (+ split PHASE 1 into its own PR if desired), combat log, distilled summary"
     status: pending
 ---
@@ -104,38 +104,33 @@ it moves to `repobuddy/buddy-agent-harness` (ADR-0006). Concern count stays two 
   `vendors ?? Object.keys(harnesses)`; eager validation scoped to the selected targets (a non-target
   codex block no longer blocks). +3 tests, strip test strengthened.
 
-**LANDED — plugin/init spec gate (commit `22fd53f`).** `init.feature` is now `@frozen` on the ADR-0007
-canonical (24 scenarios incl. the `--npm` publish half + the `without --vendor no vendors list is
-recorded` default). Cold sdd-spec-judge ALIGNED true (R2; R1 builder gap on the no-`--vendor` default
-fixed — it pins the `vendors` **key-absent**, load-bearing for build's `vendors ?? harnesses` fallback);
-ledger gate line appended to `github-23.7a9e50.jsonl`; root `spec.md` stays `approved`. **Stopped here
-by user choice** — no `plugin init` impl written yet.
+**LANDED — the full delivery is done; only HANDOFF remains.**
+- **plugin/init spec gate** (`22fd53f`) — `init.feature` `@frozen`, 24 scenarios on the new canonical
+  (incl. `--npm` publish half + the no-`--vendor` key-absent default). Cold spec-judge ALIGNED true (R2).
+- **plugin init impl** (`7d4e905`) — `src/init/` (pure `init.ts` + `InitFs` `fs.ts` + AXI `cli.ts`),
+  registered in the plugin group; reuses build's exported `VENDOR_OUTPUT`. +18 tests.
+- **Impl gate** (ledger `impl` line) — cold sdd-impl-judge **IMPLEMENTATION_PASS true**: all 24 init
+  scenarios re-derived independently against the real binary; the two build decisions e2e-verified
+  (copilot → `.github/plugin/plugin.json`, canonical untouched; `vendors ?? harnesses` selection with
+  target-scoped validation). Clean architecture confirmed. `pnpm verify` 321/321. Self-asserted (by
+  agent); root `spec.md` stays `approved` (validate/bundle impl-deferred — no root→implemented).
 
-**Next action — deliver `plugin init --npm` impl against the frozen `init.feature`.** A NEW command
-(none ships today; `src/cli.ts` registers only build+bundle; impl-deferred). Build to the 24 frozen
-scenarios:
-1. **Scaffold half** — `src/init/` (clean-architecture: pure domain builds the canonical `plugin.json`
-   object + the resolved file list; an `InitFs` adapter writes; `cli.ts` wires AXI output). Honor
-   `--name` (else root dir name), `--vendor` (records `extensions["org.cyberuni.universal-plugin"]
-   .vendors`; **omit the key entirely when no `--vendor`** — do NOT write `vendors: []`), `--scaffold`
-   (skills/ agents/ governances/ commands/), `--force` (else fail "already exists … --force"),
-   `--yes` (compat no-op, never prompts).
-2. **Publish half (`--npm`)** — require a root `package.json` (else exit 1, name it, **write nothing** —
-   the guard fires before the manifest write); wire `files[]` with each selected vendor's derived
-   manifest path (`.claude-plugin/plugin.json`, `.cursor-plugin/plugin.json`, and note copilot-cli →
-   `.github/plugin/plugin.json`) + `skills/`; default vendor = `claude-code`; idempotent (each path
-   once); preserve existing `files` entries + other fields.
-3. **AXI output** — TOON row-per-file + `created`/`updated` aggregates; `--format json` created array;
-   next-step `→ add skills to skills/, then run universal-plugin plugin build`; fail-loud unknown flag;
-   `--help`. Register `init` in `src/cli.ts`. `pnpm verify` green.
+**Next action — HANDOFF (todo #13). Outward-facing: confirm with the user before pushing / opening the PR.**
+1. Push `github-23-init-setup`; open a PR **`Closes #23`**. Summarize: the ADR-0007 canonical migration
+   (build/validate/bundle + init frozen), the two build decisions, and the new `plugin init --npm`
+   command. Note `validate`/`bundle` remain impl-deferred (frozen contracts only).
+2. **PHASE 1 split (optional, per plan).** PHASE 1 (schema lock, source layer, repo manifest → root,
+   examples, living-docs sweep) is splittable into its own PR — offer it.
+3. Distilled summary + combat log. **Handoff to buddy-agent-harness** (record, don't build): the consume
+   half + the verified 5-row harness registry (recoverable from unit-198195 `bdc0f51`); carry-forward
+   #24 (`~/.codex/prompts/<skill>.md` no longer read by Codex ≥0.117.0).
 
-**Then:** impl gate (cold sdd-impl-judge over the frozen init scenarios; per-scenario verification;
-`plugin build` derives clean) → handoff (PR `Closes #23`; PHASE 1 splittable to its own PR).
+**Commits this branch (github-23), in order:** `b7c2ec5` spec gate build/validate/bundle · `54bc109`
+build impl · `22fd53f` init spec gate · `7d4e905` init impl · (+ interleaved `docs(plan)` checkpoints).
 
-**Tooling note (spec-gate scripts).** `check-suite.mts` / `classify-edit-class.mts` import `gherkin-cli`,
-not installed in the SDD skill dir. This session installed `gherkin-cli@0.0.2` in the scratchpad and
-symlinked it at `<spec-gate>/scripts/node_modules` for each run, removing it after. Re-do that (or
-`npm i gherkin-cli@0.0.2` beside the scripts) to run those two scripts on resume.
+**Tooling note (spec-gate scripts).** `check-suite.mts` / `classify-edit-class.mts` import `gherkin-cli`.
+gherkin-cli@0.2.0 is installed **globally** but ESM won't resolve it from the SDD skill dir; symlink the
+global into (or `npm i gherkin-cli@0.2.0` beside) `<spec-gate>/scripts/node_modules` to run those two.
 
 **`validate`/`bundle` impls remain spec-first / impl-deferred** — their frozen contracts are migrated;
 no code owes them this CR beyond what already ships.
