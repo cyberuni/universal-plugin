@@ -14,3 +14,16 @@ required producer, judge, gate, ledger, and handoff steps have been completed an
 with a prewritten implementation plan.
 
 **Category:** `architecture`
+
+## Verify the mission identifier before resuming
+
+**Pattern:** Resumed the first stale plan that looked active instead of the issue explicitly named by
+the user, #25.
+
+**Rule:** When resuming SDD work, take the user-supplied issue/CR identifier as authoritative. Confirm
+the matching plan before reading or acting on any other plan; if it is absent, scaffold that exact
+plan rather than inferring a substitute from stale todo states.
+
+**Context:** Repositories with several retained `.agents/plans/*.plan.md` files.
+
+**Category:** `workflow`
