@@ -1,6 +1,6 @@
 # Examples
 
-Canonical `.plugin/plugin.json` files showing how real plugins would look in the universal format.
+Canonical root `plugin.json` files showing how real plugins would look in the universal format.
 
 Each example represents what an author would write as the single source of truth. The `build` command would generate vendor-specific manifests from it.
 

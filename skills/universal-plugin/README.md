@@ -11,7 +11,7 @@ A skill for creating, inspecting, updating, and deleting universal AI coding age
 | Codex       | `.codex-plugin/plugin.json`  |
 | Copilot CLI | `plugin.json` at plugin root |
 
-Universal minimum (no vendor manifest needed): `skills/<name>/SKILL.md` or `.mcp.json`.
+Universal minimum (no vendor manifest needed): `skills/<name>/SKILL.md` or `.mcp.json`. The canonical source of truth is root `plugin.json`.
 
 ## Operations
 

@@ -3,7 +3,7 @@ title: CLI Overview
 description: The universal-plugin CLI — commands and output formats.
 ---
 
-The `universal-plugin` CLI transforms a canonical `.plugin/plugin.json` into vendor-specific manifests.
+The `universal-plugin` CLI transforms a canonical root `plugin.json` into vendor-specific manifests.
 
 ## Invocation
 
@@ -21,7 +21,7 @@ npx universal-plugin@$(npm view universal-plugin version) <command>
 
 | Command | Purpose |
 |---|---|
-| [`build`](/cli/build/) | Generate vendor manifests from `.plugin/plugin.json` |
+| [`build`](/cli/build/) | Generate vendor manifests from root `plugin.json` |
 | [`config`](/cli/config/) | Read/write plugin-registered config in `.agents/universal-plugin.json` |
 
 ## Fast alternative: upx

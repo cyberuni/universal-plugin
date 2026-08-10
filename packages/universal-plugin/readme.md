@@ -3,7 +3,7 @@
 [![npm version](https://img.shields.io/npm/v/universal-plugin.svg)](https://www.npmjs.com/package/universal-plugin)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Universal AI agent plugin build tool. Author one canonical plugin manifest (`.plugin/plugin.json`) and generate vendor-specific manifests for Claude Code, Cursor, Codex, and GitHub Copilot CLI.
+Universal AI agent plugin build tool. Author one canonical plugin manifest (root `plugin.json`) and generate vendor-specific manifests for Claude Code, Cursor, Codex, and GitHub Copilot CLI.
 
 ## Usage
 
@@ -40,7 +40,7 @@ where `universal-plugin` isn't installed globally.
 ### plugin — author the canonical manifest
 
 ```sh
-# Generate vendor manifests from .plugin/plugin.json
+# Generate vendor manifests from root plugin.json
 npx universal-plugin plugin build
 ```
 
@@ -61,7 +61,7 @@ npx universal-plugin sync apply <action-id>
 ### publish
 
 ```sh
-# Sync version from packagePath/package.json into .plugin/plugin.json
+# Sync version from packagePath/package.json into root plugin.json
 npx universal-plugin publish sync-version
 ```
 

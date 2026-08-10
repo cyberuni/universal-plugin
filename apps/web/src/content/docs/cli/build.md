@@ -1,9 +1,9 @@
 ---
 title: build
-description: Generate vendor manifests from .plugin/plugin.json.
+description: Generate vendor manifests from root plugin.json.
 ---
 
-Read `.plugin/plugin.json`, validate it, and write a spec-conformant vendor manifest for each vendor declared in `vendorExtensions`.
+Read root `plugin.json`, validate it, and write a spec-conformant vendor manifest for each vendor declared in `extensions["org.cyberuni.universal-plugin"].vendors`.
 
 ## Usage
 
@@ -33,10 +33,10 @@ universal-plugin build [options]
 
 ## Build steps
 
-For each vendor key in `vendorExtensions`:
+For each vendor in `extensions["org.cyberuni.universal-plugin"].vendors`:
 
-1. Start with all canonical open-plugin-spec fields from `.plugin/plugin.json`
-2. Merge `vendorExtensions.<vendor>` fields (vendor fields win on conflict)
+1. Start with all canonical fields from root `plugin.json`
+2. Merge `extensions["org.cyberuni.universal-plugin"].harnesses.<vendor>` fields (vendor fields win on conflict)
 3. Drop component fields unsupported by the vendor (emits a warning)
 4. Translate hook event names to vendor casing
 5. Translate `${PLUGIN_ROOT}` / `${PLUGIN_DATA}` env vars
@@ -49,10 +49,10 @@ The build fails (exit 1) if:
 
 - `name` is missing
 - `version` or `description` is missing when targeting `codex`
-- `.plugin/plugin.json` does not exist at the plugin root
-- `--vendor` names a vendor not in `vendorExtensions`
+- root `plugin.json` does not exist at the plugin root
+- `--vendor` names a vendor not in `extensions["org.cyberuni.universal-plugin"].vendors`
 
-Unrecognized vendor keys in `vendorExtensions` emit a warning and are skipped.
+Unrecognized vendor keys in `extensions["org.cyberuni.universal-plugin"].harnesses` emit a warning and are skipped.
 
 ## Examples
 
