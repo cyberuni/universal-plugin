@@ -1,5 +1,5 @@
 {
-	"$schema": "https://raw.githubusercontent.com/cyberuni/universal-plugin/refs/heads/main/schema/v1.json",
+	"$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
 	"name": "research-workbench",
 	"version": "1.1.0",
 	"description": "Durable research workflows and community post authoring for AI coding agents.",
@@ -8,14 +8,18 @@
 	"repository": "https://github.com/cyberuni/research-workbench",
 	"license": "MIT",
 	"keywords": ["research", "writing", "community"],
-	"skills": "./skills/",
-	"hooks": "./hooks/hooks.json",
-	"vendorExtensions": {
-		"claude-code": {
-			"governances": "./skills/deep-research/governances/",
-			"assets": "./skills/deep-research/assets/"
-		},
-		"cursor": {},
-		"codex": {}
+	"extensions": {
+		"org.cyberuni.universal-plugin": {
+			"skills": "./skills/",
+			"hooks": "./hooks/hooks.json",
+			"harnesses": {
+				"claude-code": {
+					"governances": "./skills/deep-research/governances/",
+					"assets": "./skills/deep-research/assets/"
+				},
+				"cursor": {},
+				"codex": {}
+			}
+		}
 	}
 }

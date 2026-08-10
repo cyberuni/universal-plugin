@@ -1,11 +1,15 @@
 {
-	"$schema": "https://raw.githubusercontent.com/cyberuni/universal-plugin/refs/heads/main/schema/v1.json",
+	"$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
 	"name": "feature-dev",
 	"description": "Comprehensive feature development workflow with specialized agents for codebase exploration, architecture design, and quality review.",
 	"author": { "name": "Anthropic", "email": "support@anthropic.com" },
-	"agents": "./agents/",
-	"commands": "./commands/",
-	"vendorExtensions": {
-		"claude-code": {}
+	"extensions": {
+		"org.cyberuni.universal-plugin": {
+			"agents": "./agents/",
+			"commands": "./commands/",
+			"harnesses": {
+				"claude-code": {}
+			}
+		}
 	}
 }
