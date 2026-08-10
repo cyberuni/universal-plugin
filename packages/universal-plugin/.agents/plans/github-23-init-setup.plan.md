@@ -94,3 +94,9 @@ Windsurf corrected; recoverable from unit-198195 at commit `bdc0f51`) migrate to
 **Carry-forward:** #24 (merged #21) still emits `~/.codex/prompts/<skill>.md`, which Codex ≥0.117.0 no
 longer reads (root cause of cyberplace#431). Not this CR's scope now (consume-side), but flag it for
 buddy-agent-harness.
+
+**RFC-0001 (open):** `design/rfcs/0001-distribution-under-enterprise-marketplace-lockdown.md` — `--npm`'s
+npm plugin source is unusable for org-distributed marketplaces; when enterprises allowlist marketplaces
+(lockdown), enterprise users lose the personal-add escape hatch. Options: track upstream / emit
+git-subdir/relative-path layout / fall back to `npx`/`upx` runtime invocation (reuses `run/` + `bundle`).
+Not this CR — captured for a future decision.
