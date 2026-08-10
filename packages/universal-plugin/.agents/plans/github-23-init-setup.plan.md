@@ -21,7 +21,7 @@ todos:
   - content: "Impl: apply resolved build decisions in code — build.ts VENDOR_OUTPUT['copilot-cli'] = '.github/plugin/plugin.json' + vendor-registry pluginRootSuffix; build.ts target selection = vendors ?? Object.keys(harnesses); pnpm verify green"
     status: completed
   - content: "Spec gate for plugin/init: freeze init.feature (re-derived on the new canonical in todo #3 but left UNFROZEN; the todo-#3 rewrite broke the backfill-era freeze). Take it Draft→Approved via spec-gate before delivering its impl."
-    status: pending
+    status: completed
   - content: "Deliver `plugin init --npm` (publish half only) on the new canonical: write root plugin.json + wire package.json files[] with derived <harness>/plugin.json paths + skills/"
     status: pending
   - content: "Impl gate: pnpm verify green; plugin build derives clean; per-scenario verification"
@@ -104,25 +104,38 @@ it moves to `repobuddy/buddy-agent-harness` (ADR-0006). Concern count stays two 
   `vendors ?? Object.keys(harnesses)`; eager validation scoped to the selected targets (a non-target
   codex block no longer blocks). +3 tests, strip test strengthened.
 
-**Next action — todo #10 prerequisite: SPEC-GATE `plugin/init` first (new todo, now #10).**
-`plugin/init/init.feature` was re-derived on the new canonical (todo #3) but is **UNFROZEN** — the
-todo-#3 rewrite broke its backfill-era freeze and it was never re-gated (verified: no `@frozen` tag).
-`plugin init` has **no impl** today (`src/cli.ts` registers only build+bundle). So the delivery order is:
-1. **Spec-gate `init.feature`** (Draft→Approved, freeze) — run the same spec-gate flow used for todo #8
-   (structural checks → cold sdd-spec-judge {oracle,builder,architect} → freeze + ledger gate line).
-   The suite is already clean of the old canonical (0 `.plugin/plugin.json` / `vendorExtensions` refs)
-   and carries the `--npm` scenarios. Confirm whether this is additive vs the backfill freeze (likely a
-   re-derivation → Clearance, user-ratify) before freezing.
-2. **Deliver `plugin init --npm` impl (todo #11 was #10)** — a NEW command against the frozen
-   `init.feature`: scaffold root `plugin.json` + (on `--npm`) wire `package.json` `files[]` with the
-   derived `<harness>/plugin.json` paths + `skills/`. Register it in `src/cli.ts`. Clean architecture
-   (domain/app/cli layering per package AGENTS.md).
-3. **Impl gate (todo #12)** → **Handoff (todo #13)**: PR `Closes #23`; PHASE 1 splittable to its own PR.
+**LANDED — plugin/init spec gate (commit `22fd53f`).** `init.feature` is now `@frozen` on the ADR-0007
+canonical (24 scenarios incl. the `--npm` publish half + the `without --vendor no vendors list is
+recorded` default). Cold sdd-spec-judge ALIGNED true (R2; R1 builder gap on the no-`--vendor` default
+fixed — it pins the `vendors` **key-absent**, load-bearing for build's `vendors ?? harnesses` fallback);
+ledger gate line appended to `github-23.7a9e50.jsonl`; root `spec.md` stays `approved`. **Stopped here
+by user choice** — no `plugin init` impl written yet.
+
+**Next action — deliver `plugin init --npm` impl against the frozen `init.feature`.** A NEW command
+(none ships today; `src/cli.ts` registers only build+bundle; impl-deferred). Build to the 24 frozen
+scenarios:
+1. **Scaffold half** — `src/init/` (clean-architecture: pure domain builds the canonical `plugin.json`
+   object + the resolved file list; an `InitFs` adapter writes; `cli.ts` wires AXI output). Honor
+   `--name` (else root dir name), `--vendor` (records `extensions["org.cyberuni.universal-plugin"]
+   .vendors`; **omit the key entirely when no `--vendor`** — do NOT write `vendors: []`), `--scaffold`
+   (skills/ agents/ governances/ commands/), `--force` (else fail "already exists … --force"),
+   `--yes` (compat no-op, never prompts).
+2. **Publish half (`--npm`)** — require a root `package.json` (else exit 1, name it, **write nothing** —
+   the guard fires before the manifest write); wire `files[]` with each selected vendor's derived
+   manifest path (`.claude-plugin/plugin.json`, `.cursor-plugin/plugin.json`, and note copilot-cli →
+   `.github/plugin/plugin.json`) + `skills/`; default vendor = `claude-code`; idempotent (each path
+   once); preserve existing `files` entries + other fields.
+3. **AXI output** — TOON row-per-file + `created`/`updated` aggregates; `--format json` created array;
+   next-step `→ add skills to skills/, then run universal-plugin plugin build`; fail-loud unknown flag;
+   `--help`. Register `init` in `src/cli.ts`. `pnpm verify` green.
+
+**Then:** impl gate (cold sdd-impl-judge over the frozen init scenarios; per-scenario verification;
+`plugin build` derives clean) → handoff (PR `Closes #23`; PHASE 1 splittable to its own PR).
 
 **Tooling note (spec-gate scripts).** `check-suite.mts` / `classify-edit-class.mts` import `gherkin-cli`,
-which is not installed in the SDD skill dir. This session installed `gherkin-cli@0.0.2` into the
-scratchpad and symlinked it at `<spec-gate>/scripts/node_modules` for the run, then removed the symlink.
-Re-do that (or `npm i gherkin-cli@0.0.2` beside the scripts) to run those two scripts on resume.
+not installed in the SDD skill dir. This session installed `gherkin-cli@0.0.2` in the scratchpad and
+symlinked it at `<spec-gate>/scripts/node_modules` for each run, removing it after. Re-do that (or
+`npm i gherkin-cli@0.0.2` beside the scripts) to run those two scripts on resume.
 
 **`validate`/`bundle` impls remain spec-first / impl-deferred** — their frozen contracts are migrated;
 no code owes them this CR beyond what already ships.
