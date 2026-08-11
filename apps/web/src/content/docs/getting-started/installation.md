@@ -61,4 +61,4 @@ Then use it from `package.json` scripts:
 ## Requirements
 
 - Node.js >= 22
-- A `plugin.json` at the plugin root (see [Introduction](/getting-started/introduction/))
+- A `plugin.json` at the plugin root (see [Introduction](../introduction/))
