@@ -71,6 +71,18 @@ npx universal-plugin sync apply <action-id>
 npx universal-plugin publish sync-version
 ```
 
+### marketplace
+
+```sh
+# Generate a local Codex catalog from canonical plugin manifests.
+npx universal-plugin marketplace init --codex --root .
+```
+
+Codex caches a local plugin install by its marketplace entry version. After changing packaged plugin
+files, update the canonical `plugin.json` version, regenerate the Codex catalog (use `--force` when
+replacing an existing catalog), reinstall the plugin, and start a new Codex session. This ensures the
+installed copy and its generated marketplace entry use the same version.
+
 ### governance
 
 Version-pinned agent-tool contracts, read at runtime.

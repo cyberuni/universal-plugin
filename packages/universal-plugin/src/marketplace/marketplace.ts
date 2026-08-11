@@ -55,6 +55,9 @@ function codexArtifact(metadata: MarketplaceMetadata, plugins: MarketplacePlugin
 			interface: { displayName: metadata.name },
 			plugins: plugins.map((plugin) => ({
 				name: plugin.name,
+				// Codex caches local installs by this version. Keep it derived from the
+				// canonical manifest rather than leaving a second hand-authored version.
+				version: plugin.metadata.version,
 				source: { source: 'local', path: plugin.source },
 				policy: { installation: 'AVAILABLE', authentication: 'ON_INSTALL' },
 				category: 'Productivity',

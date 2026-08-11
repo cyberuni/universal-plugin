@@ -42,6 +42,7 @@ test('generates default Claude, Codex, and Copilot catalogs from root plugin man
 			plugins: [
 				{
 					name: 'alpha',
+					version: '1.0.0',
 					source: { source: 'local', path: './plugins/alpha' },
 					policy: { installation: 'AVAILABLE', authentication: 'ON_INSTALL' },
 					category: 'Productivity',
@@ -53,6 +54,37 @@ test('generates default Claude, Codex, and Copilot catalogs from root plugin man
 			owner: 'unional',
 			plugins: [{ name: 'alpha', source: './plugins/alpha' }],
 		})
+	} finally {
+		fs.rmSync(root, { recursive: true, force: true })
+	}
+})
+
+test('derives Codex entry versions from canonical plugin manifests and refreshes them on rerun', () => {
+	const root = fixture('universal-plugin-marketplace-codex-version-')
+	try {
+		initializeMarketplace(root, { targets: ['codex'] })
+		const manifestPath = path.join(root, 'plugins', 'alpha', 'plugin.json')
+		fs.writeFileSync(manifestPath, JSON.stringify({ name: 'alpha', description: 'An alpha plugin', version: '1.1.0' }))
+
+		expect(() => initializeMarketplace(root, { targets: ['codex'] })).toThrow(/--force/)
+		expect(initializeMarketplace(root, { targets: ['codex'], force: true })[0]).toMatchObject({
+			target: 'codex',
+			status: 'generated',
+		})
+		expect(readJson(root, '.agents/plugins/marketplace.json')).toMatchObject({
+			plugins: [{ name: 'alpha', version: '1.1.0' }],
+		})
+	} finally {
+		fs.rmSync(root, { recursive: true, force: true })
+	}
+})
+
+test('requires a canonical version when generating a Codex catalog', () => {
+	const root = fixture('universal-plugin-marketplace-codex-version-required-')
+	try {
+		fs.writeFileSync(path.join(root, 'plugins', 'alpha', 'plugin.json'), JSON.stringify({ name: 'alpha' }))
+		expect(() => initializeMarketplace(root, { targets: ['codex'] })).toThrow(/requires a version/)
+		expect(initializeMarketplace(root, { targets: ['claude'] })[0]).toMatchObject({ status: 'generated' })
 	} finally {
 		fs.rmSync(root, { recursive: true, force: true })
 	}
