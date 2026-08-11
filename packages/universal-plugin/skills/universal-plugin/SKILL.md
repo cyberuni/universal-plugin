@@ -134,7 +134,7 @@ In root `plugin.json`, under `extensions["org.cyberuni.universal-plugin"]`, add 
 ```
 
 See spec §3.3 for the full list of vendor-specific fields:
-https://github.com/cyberuni/universal-plugin/blob/main/spec/universal-plugin-system.md
+https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/spec.md
 
 ### Step 6 — Audit skills
 
@@ -159,7 +159,7 @@ For each vendor in `extensions["org.cyberuni.universal-plugin"].vendors`:
 6. Write to the vendor output path (see Step 2 table)
 
 See spec §7 for full build rules:
-https://github.com/cyberuni/universal-plugin/blob/main/spec/universal-plugin-system.md
+https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/spec.md
 
 ### Step 8 — Install locally for testing
 
@@ -235,6 +235,6 @@ Delete the plugin root directory. Confirm with the user before proceeding — th
 ## References
 
 - Governance: `npx cyberplace governance show plugin-design`
-- Spec: https://github.com/cyberuni/universal-plugin/blob/main/spec/universal-plugin-system.md
+- Spec: https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/spec.md
 - Schema: https://raw.githubusercontent.com/cyberuni/universal-plugin/refs/heads/main/schema/v1.json
 - Examples: https://github.com/cyberuni/universal-plugin/tree/main/examples

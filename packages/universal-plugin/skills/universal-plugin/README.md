@@ -22,6 +22,6 @@ Universal minimum (no vendor manifest needed): `skills/<name>/SKILL.md` or `.mcp
 
 ## References
 
-- [Spec](https://github.com/cyberuni/universal-plugin/blob/main/spec/universal-plugin-system.md)
+- [Spec](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/spec.md)
 - [Schema](https://raw.githubusercontent.com/cyberuni/universal-plugin/refs/heads/main/schema/v1.json)
 - [Examples](https://github.com/cyberuni/universal-plugin/tree/main/examples)

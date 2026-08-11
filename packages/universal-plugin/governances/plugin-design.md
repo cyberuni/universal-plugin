@@ -277,4 +277,4 @@ npx universal-plugin@<version> governance show skill-repo-structure
 npx universal-plugin@<version> governance show agent-tool-output
 ```
 
-Spec: https://github.com/cyberuni/universal-plugin/blob/main/spec/universal-plugin-system.md
+Spec: https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/spec.md
