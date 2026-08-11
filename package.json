@@ -12,6 +12,7 @@
 		"release": "changeset publish",
 		"test": "turbo test",
 		"typecheck": "turbo typecheck",
+		"up": "pnpm --filter ./packages/universal-plugin",
 		"verify": "turbo verify",
 		"version": "changeset version && pnpm -C packages/universal-plugin exec tsx src/cli.ts publish sync-version --root .",
 		"web": "pnpm --filter web"
