@@ -1,5 +1,6 @@
 ---
 name: subagent-driven-development
+description: "Use this skill when committing changes in this repository, even if the user does not explicitly mention the required pre-commit checks."
 metadata:
   internal: true
 ---
