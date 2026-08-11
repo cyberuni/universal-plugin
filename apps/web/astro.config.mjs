@@ -20,6 +20,10 @@ export default defineConfig({
 					],
 				},
 				{
+					label: 'Concepts',
+					items: [{ label: 'npx and upx', slug: 'concepts/npx-and-upx' }],
+				},
+				{
 					label: 'CLI Reference',
 					items: [
 						{ label: 'Overview', slug: 'cli/overview' },
