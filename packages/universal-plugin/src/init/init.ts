@@ -52,11 +52,18 @@ export function buildManifest(name: string, vendors: string[]): Record<string, u
 	return manifest
 }
 
-/** Adds each derived manifest path plus `skills/` to `package.json` `files`, creating the array
- *  when absent and never duplicating an entry. Other fields and existing entries are preserved. */
+/** The open-standard base every published plugin ships, whatever it targets: the canonical
+ *  Agent Plugins Spec manifest and the skills directory every runtime reads. Vendor-derived
+ *  manifests layer on top of this — they never replace it. */
+const STANDARD_FILES = ['plugin.json', 'skills/'] as const
+
+/** Adds the open-standard base plus each derived manifest path to `package.json` `files`, creating
+ *  the array when absent and never duplicating an entry. Other fields and existing entries are
+ *  preserved. The base goes in regardless of `--vendor`: a package that ships only
+ *  `.claude-plugin/plugin.json` has published a Claude Code plugin, not a standard one. */
 export function wireFiles(pkg: Record<string, unknown>, manifestPaths: string[]): Record<string, unknown> {
 	const files = Array.isArray(pkg.files) ? [...(pkg.files as unknown[])] : []
-	for (const entry of [...manifestPaths, 'skills/']) {
+	for (const entry of [...STANDARD_FILES, ...manifestPaths]) {
 		if (!files.includes(entry)) files.push(entry)
 	}
 	return { ...pkg, files }

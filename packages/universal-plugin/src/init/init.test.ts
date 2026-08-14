@@ -30,14 +30,20 @@ describe('buildManifest', () => {
 })
 
 describe('wireFiles', () => {
-	it('adds the manifest paths plus skills/, creating the files array', () => {
+	// The open standard is the base layer: the canonical manifest and skills/ ship whatever the
+	// vendor targets are. Derived vendor manifests are added on top, never in place of them.
+	it('wires the standard base plus the manifest paths, creating the files array', () => {
 		const wired = wireFiles({}, ['.claude-plugin/plugin.json'])
-		expect(wired.files).toEqual(['.claude-plugin/plugin.json', 'skills/'])
+		expect(wired.files).toEqual(['plugin.json', 'skills/', '.claude-plugin/plugin.json'])
+	})
+
+	it('wires the standard base even with no vendor manifest at all', () => {
+		expect(wireFiles({}, []).files).toEqual(['plugin.json', 'skills/'])
 	})
 
 	it('preserves existing entries and other fields, never duplicating', () => {
 		const wired = wireFiles({ files: ['dist', 'skills/'], scripts: { build: 'x' } }, ['.claude-plugin/plugin.json'])
-		expect(wired.files).toEqual(['dist', 'skills/', '.claude-plugin/plugin.json'])
+		expect(wired.files).toEqual(['dist', 'skills/', 'plugin.json', '.claude-plugin/plugin.json'])
 		expect(wired.scripts).toEqual({ build: 'x' })
 	})
 })
@@ -85,10 +91,10 @@ describe('planInit scaffold half', () => {
 })
 
 describe('planInit publish half', () => {
-	it('--npm defaults to wiring only the claude-code manifest path', () => {
+	it('--npm defaults to the standard base plus the claude-code manifest path', () => {
 		const state: InitState = { manifestExists: false, packageJson: {} }
 		const plan = planInit(state, { vendors: [], scaffold: false, force: false, npm: true }, 'root', resolve)
-		expect(plan.packageJson?.files).toEqual(['.claude-plugin/plugin.json', 'skills/'])
+		expect(plan.packageJson?.files).toEqual(['plugin.json', 'skills/', '.claude-plugin/plugin.json'])
 	})
 
 	it('--npm wires each named vendor path', () => {

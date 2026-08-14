@@ -100,7 +100,8 @@ Feature: plugin init — scaffold a plugin project, and wire an npm package to s
     When I run "universal-plugin plugin init --npm --root <root>"
     Then the exit code is 0
     And "package.json" "files" contains ".claude-plugin/plugin.json"
-    And "package.json" "files" contains no other vendor manifest path
+    And "package.json" "files" contains no other derived vendor manifest path
+    # Root "plugin.json" is the canonical manifest, not a derived path — it is always present.
 
   Scenario: --npm wires each named vendor's derived manifest path
     Given a "package.json" at the project root
@@ -109,10 +110,21 @@ Feature: plugin init — scaffold a plugin project, and wire an npm package to s
     And "package.json" "files" contains ".cursor-plugin/plugin.json"
     And the exit code is 0
 
-  Scenario: --npm wires the skills directory into files
+  # The open standard is the base layer, not one target among several: the canonical manifest and
+  # skills/ ship no matter which vendors were named. Vendor manifests are added on top.
+  Scenario: --npm wires the open-standard base into files
     Given a "package.json" at the project root
     When I run "universal-plugin plugin init --npm --root <root>"
     Then "package.json" "files" contains "skills/"
+    And "package.json" "files" contains "plugin.json"
+    And the exit code is 0
+
+  Scenario: --npm wires the open-standard base even when a single vendor is named
+    Given a "package.json" at the project root
+    When I run "universal-plugin plugin init --npm --vendor cursor --root <root>"
+    Then "package.json" "files" contains "plugin.json"
+    And "package.json" "files" contains "skills/"
+    And "package.json" "files" contains ".cursor-plugin/plugin.json"
     And the exit code is 0
 
   Scenario: --npm creates the files array when it is absent

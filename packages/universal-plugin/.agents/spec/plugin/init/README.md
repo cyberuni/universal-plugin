@@ -23,7 +23,10 @@ Every command follows the AXI output contract ([../../axi/](../../axi/README.md)
   one, each at that harness's own path (e.g. `.claude-plugin/plugin.json` for Claude Code). These are
   build **outputs**, not authored here.
 - **Ship on publish** — an npm package declares which files travel in its tarball via `package.json`
-  `files`; `--npm` adds the derived vendor manifests and the skills directory to that list.
+  `files`; `--npm` adds the **open-standard base** — the canonical root `plugin.json` and the skills
+  directory — plus each selected vendor's derived manifest. The base is unconditional: the standard
+  is the layer everything else sits on, not one target among several, so a package that shipped only
+  `.claude-plugin/plugin.json` would have published a Claude Code plugin rather than a standard one.
 
 > **Distribution caveat.** Claude Code's **npm** plugin source is **not supported for
 > organization-distributed (Team / Enterprise) marketplaces** — those support only `github`, `url`,
@@ -58,9 +61,9 @@ The entry points, each a mode of the `universal-plugin plugin init` verb, given 
 - **Wire an npm package to ship the plugin** — `plugin init --npm [--vendor <id>]… [--force]`.
   - *trigger:* an author wants the built vendor manifests to travel on `npm publish`.
   - *inputs:* an existing `package.json` at the root; the `--vendor` set (default `claude-code`).
-  - *outcome:* the canonical manifest is written **and** `package.json` `files` carries each selected
-    vendor's derived manifest path plus the skills directory; existing `files` entries and other
-    fields are preserved; safe to re-run.
+  - *outcome:* the canonical manifest is written **and** `package.json` `files` carries the
+    open-standard base (root `plugin.json` + the skills directory) plus each selected vendor's
+    derived manifest path; existing `files` entries and other fields are preserved; safe to re-run.
 - **Print the command reference** — `plugin init --help`.
   - *trigger:* an author asks what the verb does.
   - *inputs:* none.
@@ -92,7 +95,7 @@ graph TD
   SC -->|yes| sc1[create skills/ agents/ governances/ commands/]
   SC -->|no| sc2[manifest only]
   W --> NP{--npm?}
-  NP -->|yes| wire[add each vendor's derived manifest path + skills/ to package.json files]
+  NP -->|yes| wire[add plugin.json + skills/ base, then each vendor's derived manifest path]
   NP -->|no| skip[package.json untouched]
   nm1 --> OUT
   nm2 --> OUT
@@ -137,7 +140,8 @@ Grouped by use case; 1:1 with [`init.feature`](./init.feature). `| Edge | Path (
 |---|---|---|
 | wire default vendor | `--npm`, package.json present, no `--vendor` | `--npm defaults to wiring the claude-code manifest path` |
 | wire each vendor | `--npm --vendor claude-code --vendor cursor` | `--npm wires each named vendor's derived manifest path` |
-| wire skills dir | `--npm` | `--npm wires the skills directory into files` |
+| wire standard base | `--npm` | `--npm wires the open-standard base into files` |
+| base with one vendor | `--npm --vendor cursor` | `--npm wires the open-standard base even when a single vendor is named` |
 | create files array | `--npm`, package.json without `files` | `--npm creates the files array when it is absent` |
 | preserve others | `--npm`, package.json with `files` and `scripts` | `--npm preserves existing files entries and other fields` |
 | idempotent re-run | `--npm --force` on already-wired package.json | `re-running --npm adds nothing new` |
