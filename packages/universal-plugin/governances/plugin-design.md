@@ -60,7 +60,7 @@ A conformant host must support at least one core component (`skills` or `mcpServ
 | `claude-code` | `.claude-plugin/plugin.json` | none |
 | `cursor` | `.cursor-plugin/plugin.json` | none |
 | `codex` | `.codex-plugin/plugin.json` | `version`, `description` |
-| `copilot-cli` | `plugin.json` (repo root) | none |
+| `copilot-cli` | `plugin.json` (repo root) — the canonical manifest itself; nothing is derived | none |
 
 Vendor-specific extension fields:
 
@@ -113,8 +113,12 @@ Generated build artifacts (gitignore or commit — author's choice):
 ├── .codex-plugin/
 │   ├── plugin.json               ← generated
 │   └── hooks/hooks.json          ← generated (PascalCase, ${PLUGIN_ROOT} native)
-└── plugin.json                   ← generated (copilot-cli root manifest)
 ```
+
+`copilot-cli` has no entry here: it reads the canonical root `plugin.json` above, so nothing is
+generated for it. Copilot CLI checks `.plugin/plugin.json` → `plugin.json` →
+`.github/plugin/plugin.json` → `.claude-plugin/plugin.json` and takes the first match, so any file
+derived to one of the lower paths would be shadowed by root and never read.
 
 ## Vendor Manifest Derivation
 

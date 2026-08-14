@@ -40,11 +40,12 @@ export function buildCommand(): Command {
 					process.stderr.write(`warn: ${warning}\n`)
 				}
 
-				const { built, skipped, failed } = result.summary
+				const { built, skipped, failed, canonical } = result.summary
 				const jsonResult = {
 					built: result.rows.filter((r) => r.status === 'built'),
 					skipped: result.rows.filter((r) => r.status === 'skipped'),
 					failed: result.rows.filter((r) => r.status === 'failed'),
+					canonical: result.rows.filter((r) => r.status === 'canonical'),
 					summary: result.summary,
 					warnings: result.warnings,
 				}
@@ -56,7 +57,8 @@ export function buildCommand(): Command {
 							{ label: 'status', get: (r: VendorRow) => r.status },
 						])
 					}
-					console.log(`built ${built}, skipped ${skipped}, failed ${failed}`)
+					const counts = `built ${built}, skipped ${skipped}, failed ${failed}`
+					console.log(canonical > 0 ? `${counts}, served by plugin.json ${canonical}` : counts)
 				})
 
 				process.stderr.write(NEXT_STEP)

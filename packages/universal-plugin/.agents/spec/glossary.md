@@ -14,8 +14,9 @@ Terms used across this spec. A flat reference doc (not a scanned node).
 - **vendor** (a.k.a. **harness**) — a target AI-agent runtime: `claude-code`, `cursor`, `codex`,
   `copilot-cli`. Each expects its manifest at a different path and shape.
 - **vendor manifest** — the per-vendor output file the build derives from the canonical manifest
-  (e.g. `.claude-plugin/plugin.json`, `.cursor-plugin/plugin.json`, `.github/plugin/plugin.json` for
-  `copilot-cli`). The canonical wrapper (`$schema`, `extensions`) and `universal-plugin`'s own
+  (e.g. `.claude-plugin/plugin.json`, `.cursor-plugin/plugin.json`). `copilot-cli` has none — it
+  reads the canonical root `plugin.json` directly, which shadows every lower-precedence path it
+  searches. The canonical wrapper (`$schema`, `extensions`) and `universal-plugin`'s own
   orchestration keys (`vendors`, `packagePath`, `harnesses`) are stripped; that vendor's own
   `harnesses.<vendor>` fields are merged over the shared metadata and component paths.
 - **harnesses** — the `harnesses` object under the extensions namespace, mapping a vendor id to the

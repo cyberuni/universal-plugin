@@ -25,12 +25,19 @@ Ask the user which runtimes to support. Each chosen vendor becomes a key in
 Add the vendor's id to `extensions["org.cyberuni.universal-plugin"].vendors` too, so `build` knows
 to generate its manifest.
 
-| Vendor ID | Output manifest path | Hook event case | Required fields beyond `name` |
-|-----------|---------------------|-----------------|-------------------------------|
-| `claude-code` | `.claude-plugin/plugin.json` | PascalCase | none |
-| `cursor` | `.cursor-plugin/plugin.json` | camelCase | none |
-| `codex` | `.codex-plugin/plugin.json` | PascalCase | `version`, `description` |
-| `copilot-cli` | `plugin.json` at plugin root | camelCase | none |
+| Vendor ID | Manifest read from | Hook event case | Required fields beyond `name` |
+|-----------|--------------------|-----------------|-------------------------------|
+| `claude-code` | `.claude-plugin/plugin.json` *(derived)* | PascalCase | none |
+| `cursor` | `.cursor-plugin/plugin.json` *(derived)* | camelCase | none |
+| `codex` | `.codex-plugin/plugin.json` *(derived)* | PascalCase | `version`, `description` |
+| `copilot-cli` | root `plugin.json` — **the canonical manifest itself** | camelCase | none |
+
+**Copilot CLI derives nothing.** It searches `.plugin/plugin.json` → `plugin.json` →
+`.github/plugin/plugin.json` → `.claude-plugin/plugin.json` and takes the *first* match, so root
+always wins; and it has read Open Plugin Spec v1 manifests since v1.0.74. `plugin build` reports it
+with status `canonical` and writes no file. A `harnesses["copilot-cli"]` override cannot be
+delivered — the canonical schema is closed to vendor-only fields — and the build warns if you set
+one.
 
 Universal minimum (no vendor manifest needed): `skills/<name>/SKILL.md` + `.mcp.json`.
 

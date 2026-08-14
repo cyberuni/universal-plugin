@@ -5,18 +5,27 @@ import { detectIndent } from '../json.js'
 
 type VendorId = 'claude-code' | 'cursor' | 'codex' | 'copilot-cli'
 
-/** Where each vendor's derived manifest lands, relative to the project root. Shared with
+/** Where each vendor reads its manifest, relative to the project root. Shared with
  *  `plugin init --npm`, which wires exactly these paths into `package.json` `files`. */
 export const VENDOR_OUTPUT: Record<VendorId, string> = {
 	'claude-code': '.claude-plugin/plugin.json',
 	cursor: '.cursor-plugin/plugin.json',
 	codex: '.codex-plugin/plugin.json',
-	// Root `plugin.json` is now the canonical manifest (ADR-0007); copilot's derived manifest moves to
-	// `.github/plugin/plugin.json`, one of the paths Copilot CLI searches, to avoid colliding with it.
-	'copilot-cli': '.github/plugin/plugin.json',
+	// Copilot CLI searches four paths and takes the FIRST match:
+	//   .plugin/plugin.json → plugin.json → .github/plugin/plugin.json → .claude-plugin/plugin.json
+	// (docs.github.com/en/copilot/reference/copilot-cli-reference/cli-plugin-reference)
+	// Root `plugin.json` — our canonical manifest (ADR-0007) — is #2, so it always shadows #3 and #4.
+	// We previously derived to `.github/plugin/plugin.json` "to avoid colliding with" root, but that
+	// path loses the collision by construction and was never read. Copilot CLI has consumed Open
+	// Plugin Spec v1 manifests since v1.0.74, so the canonical manifest already serves it directly.
+	'copilot-cli': 'plugin.json',
 }
 
 const KNOWN_VENDORS = new Set<string>(Object.keys(VENDOR_OUTPUT))
+
+/** Vendors the canonical root manifest serves as-is. The build derives no file for these — writing
+ *  one would either be shadowed by root (a lower-precedence path) or clobber root itself. */
+const CANONICAL_SERVED = new Set<VendorId>(['copilot-cli'])
 
 /** universal-plugin's own build config, nested under extensions["org.cyberuni.universal-plugin"]
  *  in the canonical Agent Plugins Spec v1.0.0 manifest (ADR-0007). */
@@ -55,7 +64,7 @@ export interface BuildOptions {
 export interface VendorRow {
 	vendor: string
 	path: string
-	status: 'built' | 'skipped' | 'failed'
+	status: 'built' | 'skipped' | 'failed' | 'canonical'
 }
 
 export interface BuildResult {
@@ -63,7 +72,7 @@ export interface BuildResult {
 	written: string[]
 	warnings: string[]
 	rows: VendorRow[]
-	summary: { built: number; skipped: number; failed: number }
+	summary: { built: number; skipped: number; failed: number; canonical: number }
 }
 
 type InvocationPolicy = 'user' | 'model' | 'both'
@@ -162,6 +171,21 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 		const outputDir = path.dirname(outputPath)
 		const vendorFields = harnesses[vendor] ?? {}
 		const vendorManifest = { ...metadata, ...componentConfig, ...vendorFields }
+
+		// The canonical manifest already is this vendor's manifest — derive nothing and never write
+		// over root. Any harness override for it has no delivery path: the canonical schema is closed
+		// (`additionalProperties: false`), so a vendor-only field cannot ride along in root.
+		if (CANONICAL_SERVED.has(vendor)) {
+			const overrides = Object.keys(vendorFields)
+			if (overrides.length > 0) {
+				warnings.push(
+					`harnesses.${vendor} sets ${overrides.join(', ')}, but ${vendor} reads the canonical plugin.json directly — these fields are not delivered`,
+				)
+			}
+			writeSkillArtifacts(root, vendor, skills, opts, written, warnings)
+			rows.push({ vendor, path: relPath, status: 'canonical' })
+			continue
+		}
 
 		if (opts.verbose) {
 			console.log(`[${vendor}] → ${outputPath}`)
@@ -290,5 +314,6 @@ function summarize(rows: VendorRow[]): BuildResult['summary'] {
 		built: rows.filter((r) => r.status === 'built').length,
 		skipped: rows.filter((r) => r.status === 'skipped').length,
 		failed: rows.filter((r) => r.status === 'failed').length,
+		canonical: rows.filter((r) => r.status === 'canonical').length,
 	}
 }

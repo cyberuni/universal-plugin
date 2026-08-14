@@ -30,11 +30,21 @@ Feature: plugin build — derive per-vendor manifests
     And ".cursor-plugin/plugin.json" is written
     And the exit code is 0
 
-  Scenario: copilot-cli derives to .github/plugin/plugin.json, not the canonical root
+  # Copilot CLI checks .plugin/plugin.json -> plugin.json -> .github/plugin/plugin.json ->
+  # .claude-plugin/plugin.json and takes the first match, so root shadows the lower two. Copilot CLI
+  # reads Open Plugin Spec v1 manifests as of v1.0.74, so the canonical manifest serves it directly.
+  Scenario: copilot-cli derives nothing — the canonical root manifest serves it
     Given the manifest declares harnesses for "copilot-cli"
     When I run "universal-plugin plugin build"
-    Then ".github/plugin/plugin.json" is written
+    Then no ".github/plugin/plugin.json" is written
     And the canonical "plugin.json" is left unchanged
+    And "copilot-cli" is reported with status "canonical"
+    And the exit code is 0
+
+  Scenario: a copilot-cli harness override warns that it cannot be delivered
+    Given the manifest declares harnesses for "copilot-cli" with category "dev"
+    When I run "universal-plugin plugin build"
+    Then a warning names "harnesses.copilot-cli" and the undelivered field "category"
     And the exit code is 0
 
   Scenario: harness-specific fields are merged into output

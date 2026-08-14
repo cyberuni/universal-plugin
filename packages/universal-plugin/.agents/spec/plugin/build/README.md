@@ -30,8 +30,13 @@ Follows the AXI output contract ([../../axi/](../../axi/README.md)).
   `extensions["org.cyberuni.universal-plugin"].vendors` list when it is present, and otherwise falls
   back to every key declared in `harnesses`. Each target writes to its own path (`claude-code` →
   `.claude-plugin/plugin.json`, `cursor` → `.cursor-plugin/plugin.json`, `codex` →
-  `.codex-plugin/plugin.json`, `copilot-cli` → `.github/plugin/plugin.json`). Copilot's output is
-  `.github/plugin/plugin.json` — **not** root `plugin.json`, which the canonical manifest now owns.
+  `.codex-plugin/plugin.json`).
+- **`copilot-cli` derives nothing** — Copilot CLI searches `.plugin/plugin.json` → `plugin.json` →
+  `.github/plugin/plugin.json` → `.claude-plugin/plugin.json` and takes the **first** match, so root
+  `plugin.json` always shadows the lower two. Since Copilot CLI has consumed Open Plugin Spec v1
+  manifests since v1.0.74, the canonical manifest serves it as-is. The build reports the vendor with
+  status `canonical` and writes no file. A `harnesses.copilot-cli` override has no delivery path —
+  the canonical manifest's schema is closed — so the build warns rather than dropping it silently.
 - **Merge then strip** — per-harness fields from `harnesses.<vendor>` are merged over the shared
   metadata and component paths; the canonical wrapper (`$schema`, `extensions`) and the orchestration
   keys (`vendors`, `packagePath`, `harnesses`) never appear in output.
@@ -46,7 +51,8 @@ Follows the AXI output contract ([../../axi/](../../axi/README.md)).
   removes an existing output file before rewriting it.
 - **TOON by default, `--format json` escape hatch** — a successful build prints a TOON result to
   stdout, one row per vendor (`vendor, path, status`), plus a pre-computed aggregate summary
-  (`built N, skipped M, failed K`); `--format json` returns the same shape as structured JSON;
+  (`built N, skipped M, failed K`, with `served by plugin.json N` appended when any vendor is
+  `canonical`); `--format json` returns the same shape as structured JSON;
   `--format toon` names the default explicitly.
 - **Definitive empty state** — no targets at all (neither `vendors` nor `harnesses`) still emits a
   TOON result on stdout (zero built rows, aggregate `built 0`) with exit 0, plus "nothing to build" on
@@ -66,7 +72,7 @@ Every scenario in [`build.feature`](./build.feature) maps to one of these behavi
 
 | Behavior | What it covers |
 |---|---|
-| **target selection (`vendors ?? harnesses`)** | builds the `vendors` list, else all `harnesses` keys; correct per-vendor output paths (copilot → `.github/plugin/plugin.json`) |
+| **target selection (`vendors ?? harnesses`)** | builds the `vendors` list, else all `harnesses` keys; correct per-vendor output paths; copilot-cli derives nothing (canonical root serves it) |
 | **merge then strip** | harness fields merged; canonical wrapper (`$schema`, `extensions`) + orchestration keys (`vendors`, `packagePath`, `harnesses`) stripped |
 | **`--vendor` filters** | filter to one vendor; a `--vendor` not among the targets fails |
 | **eager validation** | missing manifest fails; codex requires description + version |

@@ -9,7 +9,7 @@ A skill for creating, inspecting, updating, and deleting universal AI coding age
 | Claude Code | `.claude-plugin/plugin.json` |
 | Cursor      | `.cursor-plugin/plugin.json` |
 | Codex       | `.codex-plugin/plugin.json`  |
-| Copilot CLI | `plugin.json` at plugin root |
+| Copilot CLI | root `plugin.json` (the canonical manifest; nothing derived) |
 
 Universal minimum (no vendor manifest needed): `skills/<name>/SKILL.md` or `.mcp.json`. The canonical source of truth is root `plugin.json`.
 

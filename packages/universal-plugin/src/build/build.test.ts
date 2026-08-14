@@ -131,13 +131,31 @@ describe('buildPlugin', () => {
 		expect(result.vendors).toEqual(['claude-code', 'cursor'])
 	})
 
-	it('derives copilot-cli to .github/plugin/plugin.json, not the canonical root', () => {
+	// Copilot CLI checks .plugin/ → plugin.json → .github/plugin/ → .claude-plugin/ and takes the
+	// first match, so root always shadows .github/plugin/. Deriving there produced a file Copilot
+	// could never read; the canonical manifest serves Copilot directly instead.
+	it('derives no manifest for copilot-cli — the canonical root plugin.json serves it', () => {
 		writeManifest({ name: 'my-plugin', extensions: up({ harnesses: { 'copilot-cli': {} } }) })
 		const canonicalBefore = fs.readFileSync(path.join(dir, 'plugin.json'), 'utf8')
-		buildPlugin(dir)
-		expect(fs.existsSync(path.join(dir, '.github', 'plugin', 'plugin.json'))).toBe(true)
+		const result = buildPlugin(dir)
+		expect(fs.existsSync(path.join(dir, '.github', 'plugin', 'plugin.json'))).toBe(false)
 		// The canonical root plugin.json is the source, never a build output — it must be left untouched.
 		expect(fs.readFileSync(path.join(dir, 'plugin.json'), 'utf8')).toBe(canonicalBefore)
+		expect(result.rows).toEqual([{ vendor: 'copilot-cli', path: 'plugin.json', status: 'canonical' }])
+		expect(result.written).toEqual([])
+	})
+
+	it('warns that copilot-cli harness overrides have no delivery path', () => {
+		writeManifest({
+			name: 'my-plugin',
+			extensions: up({ harnesses: { 'copilot-cli': { category: 'dev', tags: ['a'] } } }),
+		})
+		const result = buildPlugin(dir)
+		// The canonical schema is closed, so a Copilot-only field cannot ride along in root — say so
+		// rather than dropping it silently.
+		expect(result.warnings).toEqual([
+			'harnesses.copilot-cli sets category, tags, but copilot-cli reads the canonical plugin.json directly — these fields are not delivered',
+		])
 	})
 
 	it('writes vendor manifests with merged fields', () => {
