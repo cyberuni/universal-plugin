@@ -15,10 +15,14 @@ Universal minimum (no vendor manifest needed): `skills/<name>/SKILL.md` or `.mcp
 
 ## Operations
 
-- **Create** — scaffold a new plugin with chosen vendors and components
-- **Inspect** — show build status for each declared vendor
-- **Update** — add/remove vendors or components
-- **Delete** — remove generated manifests or the whole plugin
+`SKILL.md` is a gateway: it routes to one operation reference and only that one gets read.
+
+| Operation | Reference | What it covers |
+| --------- | --------- | -------------- |
+| Create | [`references/create.md`](./references/create.md) | scaffold a new plugin with chosen vendors and components |
+| Inspect | [`references/inspect.md`](./references/inspect.md) | show build status for each declared vendor |
+| Update | [`references/update.md`](./references/update.md) | add/remove vendors or components |
+| Delete | [`references/delete.md`](./references/delete.md) | remove generated manifests or the whole plugin |
 
 ## References
 
