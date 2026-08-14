@@ -145,5 +145,5 @@ one; treat a rewrite tool's output as something to review rather than trust.
 
 - [Installation](/universal-plugin/getting-started/installation/) — installing the `upx` bin
 - The `adopt-upx` skill rewrites `npx <pkg>@<version>` references to `upx <pkg>@^<major>`
-- The `upgrade-universal-plugin` skill bumps pins for both runner words, preserving each reference's
+- The `upgrade-plugin` skill bumps pins for both runner words, preserving each reference's
   existing word

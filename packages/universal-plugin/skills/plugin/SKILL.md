@@ -1,5 +1,5 @@
 ---
-name: universal-plugin
+name: plugin
 description: Use this skill when creating, inspecting, updating, or deleting a universal agent plugin that targets multiple AI coding agent runtimes.
 ---
 

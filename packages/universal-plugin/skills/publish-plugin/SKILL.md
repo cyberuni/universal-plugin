@@ -1,5 +1,5 @@
 ---
-name: publish-universal-plugin
+name: publish-plugin
 description: Use this skill whenever the user wants to publish, release, submit, or share a plugin to the universal plugin marketplace so it works across Claude Code, Cursor, Codex, and GitHub Copilot CLI. Trigger on phrases like "publish my plugin", "submit to marketplace", "release plugin", "list my plugin", "share my plugin", or any mention of getting a plugin into the universal registry. The plugin should already be packaged before using this skill.
 ---
 

@@ -20,7 +20,7 @@ version (no same-major reasoning, no `--allow-major` — the workspace version i
 newest-in-range guess).
 
 Two references are deliberately left alone: a skill whose version strings are **documentation** (the
-`upgrade-universal-plugin` meta-skill uses `@<version>` / `@1.2.3` as *illustration*) is marked
+`upgrade-plugin` meta-skill uses `@<version>` / `@1.2.3` as *illustration*) is marked
 **pin-exempt** and never rewritten; a pin for an **external** package with no workspace entry
 (`gherkin-cli`, a separate repo) has no local version to resolve and is skipped. Both distinctions are
 mechanical, so a documented example can never be flattened into a concrete pin and a foreign package is

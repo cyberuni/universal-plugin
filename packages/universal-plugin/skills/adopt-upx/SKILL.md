@@ -52,7 +52,7 @@ Left alone (never rewritten):
 - **Already-`upx` references** — nothing to do
 - **Any skill marked `pin-exempt: true`** in its frontmatter — its version strings are
   documentation/illustration, not real invocations. This mirrors how `plugin bundle` treats
-  pin-exempt skills; `upgrade-universal-plugin` is a live example.
+  pin-exempt skills; `upgrade-plugin` is a live example.
 
 ## Choose scope
 
@@ -107,7 +107,7 @@ fallback logic ever gets a chance to run.
 1. Re-run the script over the same scope — it should report `0 file(s) rewritten` (idempotent).
 2. Spot-check a rewritten skill: the pin should read `upx <pkg>@^<major>` (or `upx <pkg>@^0.<minor>`
    for a 0.x package), not a concrete version.
-3. Confirm any pin-exempt skills (e.g. `upgrade-universal-plugin`) were skipped, not rewritten.
+3. Confirm any pin-exempt skills (e.g. `upgrade-plugin`) were skipped, not rewritten.
 4. If the project has a skill validator (`validate-skill` / `improve-skill`), run it over each
    touched skill to confirm the rewrite didn't break frontmatter or Markdown structure.
 

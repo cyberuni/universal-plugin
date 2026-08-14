@@ -60,19 +60,19 @@ Feature: plugin bundle — materialize the release form
   # ── Doc-example ignore ──
 
   Scenario: a skill marked as pin-exempt is never rewritten
-    Given a skill "skills/upgrade-universal-plugin/SKILL.md" is marked pin-exempt
+    Given a skill "skills/upgrade-plugin/SKILL.md" is marked pin-exempt
     And it contains "npx universal-plugin@1.2.3" and "npx universal-plugin@<old-version>"
     When I run "universal-plugin plugin bundle"
-    Then "skills/upgrade-universal-plugin/SKILL.md" contains "npx universal-plugin@1.2.3"
-    And "skills/upgrade-universal-plugin/SKILL.md" contains "npx universal-plugin@<old-version>"
+    Then "skills/upgrade-plugin/SKILL.md" contains "npx universal-plugin@1.2.3"
+    And "skills/upgrade-plugin/SKILL.md" contains "npx universal-plugin@<old-version>"
     And no pins row is emitted for a package in the pin-exempt skill
 
   Scenario: a pin-exempt skill is skipped even when its package is a workspace CLI
     Given the workspace package "universal-plugin" is at version "0.2.1"
-    And a skill "skills/upgrade-universal-plugin/SKILL.md" is marked pin-exempt
+    And a skill "skills/upgrade-plugin/SKILL.md" is marked pin-exempt
     And it contains "npx universal-plugin@<version>"
     When I run "universal-plugin plugin bundle"
-    Then "skills/upgrade-universal-plugin/SKILL.md" contains "npx universal-plugin@<version>"
+    Then "skills/upgrade-plugin/SKILL.md" contains "npx universal-plugin@<version>"
     And the exit code is 0
 
   # ── External / non-workspace pins ──

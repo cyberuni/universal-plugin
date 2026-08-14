@@ -1,4 +1,4 @@
-# upgrade-universal-plugin skill
+# upgrade-plugin skill
 
 Upgrades all pinned `universal-plugin@<version>` calls across a project to the latest or a specific version — recognizes both `npx universal-plugin@<version>` and `upx universal-plugin@<version>` (see the `adopt-upx` skill), preserving whichever runner word each reference already uses.
 
@@ -19,5 +19,5 @@ Cross-major bumps require explicit confirmation.
 ## Install
 
 ```bash
-npx skills add cyberuni/universal-plugin --skill upgrade-universal-plugin
+npx skills add cyberuni/universal-plugin --skill upgrade-plugin
 ```

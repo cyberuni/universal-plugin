@@ -100,7 +100,7 @@ describe('bundlePins — unreadable workspace entry', () => {
 // ── Doc-example ignore ──
 describe('isPinExempt', () => {
 	it('detects the metadata.pin-exempt marker in frontmatter', () => {
-		const content = '---\nname: upgrade-universal-plugin\nmetadata:\n  pin-exempt: true\n---\nbody\n'
+		const content = '---\nname: upgrade-plugin\nmetadata:\n  pin-exempt: true\n---\nbody\n'
 		expect(isPinExempt(content)).toBe(true)
 	})
 
@@ -117,29 +117,29 @@ describe('bundlePins — pin-exempt skill', () => {
 	// Scenario: a skill marked as pin-exempt is never rewritten
 	it('never rewrites a pin-exempt skill and emits no pins row for its packages', () => {
 		const fs = fakeFs({
-			'/skills/upgrade-universal-plugin/SKILL.md':
-				'---\nname: upgrade-universal-plugin\nmetadata:\n  pin-exempt: true\n---\nnpx universal-plugin@1.2.3 and npx universal-plugin@<old-version>',
+			'/skills/upgrade-plugin/SKILL.md':
+				'---\nname: upgrade-plugin\nmetadata:\n  pin-exempt: true\n---\nnpx universal-plugin@1.2.3 and npx universal-plugin@<old-version>',
 		})
 		const workspace = fakeWorkspace({ 'universal-plugin': '9.9.9' })
 
 		const result = bundlePins(fs, workspace)
 
-		expect(fs.files['/skills/upgrade-universal-plugin/SKILL.md']).toContain('npx universal-plugin@1.2.3')
-		expect(fs.files['/skills/upgrade-universal-plugin/SKILL.md']).toContain('npx universal-plugin@<old-version>')
+		expect(fs.files['/skills/upgrade-plugin/SKILL.md']).toContain('npx universal-plugin@1.2.3')
+		expect(fs.files['/skills/upgrade-plugin/SKILL.md']).toContain('npx universal-plugin@<old-version>')
 		expect(result.pins).toEqual([])
 	})
 
 	// Scenario: a pin-exempt skill is skipped even when its package is a workspace CLI
 	it('skips a pin-exempt skill even when its package resolves in the workspace', () => {
 		const fs = fakeFs({
-			'/skills/upgrade-universal-plugin/SKILL.md':
-				'---\nname: upgrade-universal-plugin\nmetadata:\n  pin-exempt: true\n---\nnpx universal-plugin@<version>',
+			'/skills/upgrade-plugin/SKILL.md':
+				'---\nname: upgrade-plugin\nmetadata:\n  pin-exempt: true\n---\nnpx universal-plugin@<version>',
 		})
 		const workspace = fakeWorkspace({ 'universal-plugin': '0.2.1' })
 
 		const result = bundlePins(fs, workspace)
 
-		expect(fs.files['/skills/upgrade-universal-plugin/SKILL.md']).toContain('npx universal-plugin@<version>')
+		expect(fs.files['/skills/upgrade-plugin/SKILL.md']).toContain('npx universal-plugin@<version>')
 		expect(result.pins).toEqual([])
 	})
 })

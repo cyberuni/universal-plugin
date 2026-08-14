@@ -1,4 +1,4 @@
-# universal-plugin skill
+# plugin skill
 
 A skill for creating, inspecting, updating, and deleting universal AI coding agent plugins that target multiple runtimes from a single source of truth.
 

@@ -79,7 +79,7 @@ upx universal-plugin@^1 \
 
 Both forms are safe to re-run on every install: the append-or-replace-by-`name` merge makes a repeat
 call an in-place update, not a duplicate. Keep the pin current with the
-[`upgrade-universal-plugin`](../../getting-started/installation/) skill, which bumps every
+[`upgrade-plugin`](../../getting-started/installation/) skill, which bumps every
 `npx`/`upx universal-plugin@<version>` reference across a project at once.
 
 > The consumer that reads a key (for example, the SDD plugin reading `sdd-plugins`) defines that

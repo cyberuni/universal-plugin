@@ -1,5 +1,5 @@
 ---
-name: migrate-universal-plugin
+name: migrate-plugin
 description: "Move a repository-root universal agent plugin into its npm package so the package distributes its manifest, vendor manifests, skills, and agents. Use this skill when packaging an existing plugin for npm, relocating a top-level plugin into a package, or fixing a package that omits plugin assets, even if the user says only 'ship this plugin through npm' or 'move the plugin into the package.'"
 ---
 
