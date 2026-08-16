@@ -231,7 +231,7 @@ test('--dry-run reports the plan and writes nothing', () => {
 test('an unknown flag fails loud', () => {
 	seedManifest()
 	const r = run('patch', '--frobnicate')
-	expect(r.status).not.toBe(0)
+	expect(r.status).toBe(1)
 	expect(r.stderr).toContain('--frobnicate')
 })
 
