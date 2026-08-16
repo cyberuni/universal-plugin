@@ -3,21 +3,21 @@ cr: github-32
 status: active
 todos:
   - content: "Spec: scaffold plugin/version/ node (README use cases -> control flow -> scenario map) + version.feature; register in root spec.md capability map + placement map"
-    status: pending
+    status: completed
   - content: "Spec gate: freeze version.feature, ledger gate line, status stays implemented on root spec"
-    status: pending
+    status: completed
   - content: "Impl: src/version/{version,fs,cli}.ts — planVersion domain + applier; wire `plugin version` into the plugin group"
-    status: pending
+    status: completed
   - content: "Impl: refactor publish/sync-version onto the shared applier (one writer, no forked code path); its observable behavior is unchanged"
-    status: pending
+    status: completed
   - content: "Tests: version.test.ts (domain guards + bump math + indent preservation) and cli.test.mts (end-to-end sync across manifest, package.json, derived vendor manifests)"
-    status: pending
+    status: completed
   - content: "Skill question: record the verdict + rationale (ADR or node README section)"
-    status: pending
+    status: completed
   - content: "Impl gate: pnpm verify green, per-scenario verification"
-    status: pending
+    status: completed
   - content: "Handoff: changeset, PR referencing Closes #32, combat log"
-    status: pending
+    status: completed
 ---
 
 # github-32 — `plugin version`: bump the canonical manifest and every version-carrying file
@@ -46,18 +46,23 @@ writer** — it never writes a derived manifest itself (that would fork a second
 — a behavioral unit node at `plugin/version/`. Object = the canonical manifest, so it passes
 ADR-0006's shared-object charter test.
 
-- `--preid <id>` for prerelease identifiers, `--no-build` to skip re-derivation, `--dry-run`.
+- `--preid <id>` for prerelease identifiers, `--force` for a non-advancing target, `--no-build` to
+  skip re-derivation, `--dry-run`.
 - Guards (fail loud, write nothing): no canonical manifest; relative bump with no current version;
   invalid version / release type; target not greater than current; `packagePath` set but its
   `package.json` missing.
 - `publish sync-version` keeps the opposite direction (changesets decides, package.json ->
-  manifest) and is refactored onto the **same applier** so the two cannot drift.
+  manifest), refactored onto the **same applier** so the two cannot drift. Behavior unchanged.
 
-## Skill question
+## Skill verdict
 
-To answer with a recorded rationale. Bar (root `spec.md`, ADR-0005 §3): a skill earns its place only
-if there is judgment an agent must exercise that the command cannot encode.
+**No companion skill.** Recorded with its rationale in the node README's `## The skill question`.
+Once the release type is named, the new version, the files to write, and the re-derivation are all
+fully determined — nothing is left for an agent to judge. The one judged step, *which* release type
+a change deserves, is changelog craft that changesets already owns and that composes with the verb
+through `publish sync-version`.
 
 ## NEXT
 
-Scaffold the `plugin/version/` spec node and its `version.feature`.
+Landed. `plugin/version/` is specced, frozen, implemented, and covered — 29 frozen scenarios, each
+with a named test against the compiled binary; package verify green at 395 tests. Nothing remains.

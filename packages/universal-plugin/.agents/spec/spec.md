@@ -8,21 +8,21 @@ approval:
     by: agent
     cause: dimension
     why:
-      floor: none — user-directed re-open rewrote the prematurely frozen marketplace suite without dropping its prior behavior; the new contract widens safety and observability coverage. Compatibility is deferred to the implementation gate; Conflict none.
-      blast: moderate — one behavioral node plus its root capability and generated concept indexes; local repository metadata only.
-      novelty: moderate — bounded top-level marketplace manifests that deliberately coexist with canonical agent-plugin manifests; per-artifact atomic writes, explicit write-error reporting, and containment guards.
-      confidence: high — two cold spec judges aligned Oracle, Builder, and Architect after re-derivation and the user-directed write-semantics re-open; 37 mapped boolean scenarios; Gherkin parse, referenced-artifact/use-case coverage, root state, and concept-index checks pass. The isolated check-suite dependency is unavailable, so gherkin-cli parse is the executable form evidence.
-      cr: github-25
+      floor: none — the CR is purely additive: one new behavioral node and its suite, no frozen scenario narrowed or rewritten anywhere in the corpus. Compatibility none — a new verb beside the existing ones. Conflict none.
+      blast: moderate — one new behavioral node under the plugin group, its root capability and placement-map entries, and the generated concept index; no existing node's contract touched.
+      novelty: low — the node applies a rule the corpus already carries (ADR-0007's derived-not-authored manifest model) to the version field, and places the verb by ADR-0006's shared-object test.
+      confidence: high — 29 boolean scenarios, scenario map 1:1 with the suite; gherkin-cli parses the suite; check-spec-structure reports zero blocking findings and does not flag the new node; concept-index regenerated clean.
+      cr: github-32
   impl:
     verdict: approve
     by: agent
     cause: dimension
     why:
-      floor: none — the user explicitly authorized the selected-write contract to weaken from cross-artifact rollback to honest best-effort error reporting; no frozen behavior was silently dropped. Compatibility none; Conflict none.
-      blast: moderate — marketplace discovery and filesystem adapter gain bounded direct-child traversal and local containment checks; no network or provisioning surface.
-      novelty: moderate — physical-path containment for all local manifest and generated-output boundaries, plus per-artifact atomic write failure semantics.
-      confidence: high — cold implementation judge passed every frozen contract dimension; full package verification passes (305 tests), Gherkin parses 37 frozen scenarios, spec-state and concept-index checks pass.
-      cr: github-25
+      floor: none — no frozen scenario weakened; publish sync-version was refactored onto the shared applier with its observable behavior unchanged and its existing suite still green.
+      blast: moderate — a new src/version domain plus its CLI registration, and a same-behavior refactor of publish/sync-version onto the shared applier.
+      novelty: low — the domain follows the package's established pure-plan/apply layering; the only structural claim is that re-derivation calls plugin build's writer rather than duplicating it.
+      confidence: high — every one of the 29 frozen scenarios has a named test exercising the compiled binary; full package verification passes (395 tests, up from 335); knip reports no new findings; the verb was dogfooded against this package's own manifest.
+      cr: github-32
 ---
 
 # universal-plugin — the cross-vendor plugin build/derivation engine (CLI)
