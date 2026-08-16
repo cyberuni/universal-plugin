@@ -1,5 +1,36 @@
 # universal-plugin
 
+## 0.3.1
+
+### Patch Changes
+
+- b0da34d: Stop deriving `.cursor/commands/*.md` mirrors of skills
+  
+  The build wrote a copy of every user-invocable skill body to
+  `<root>/.cursor/commands/<name>.md`. Cursor does not need it: a plugin's
+  `skills` path is loaded directly, and a user invokes a skill by typing `/` and
+  searching for it. Cursor also expresses explicit-only invocation natively with
+  `disable-model-invocation`, which the build already writes into SKILL.md — so the
+  mirror was a redundant second copy of the same content, dropped into the plugin's
+  own working tree.
+- 13879cc: Derive universal-plugin's own vendor manifests instead of hand-maintaining them
+  
+  The package shipped `.claude-plugin/`, `.cursor-plugin/`, and `.codex-plugin/`
+  manifests that were written by hand and never regenerated, because the canonical
+  `plugin.json` declared no `harnesses`. They had drifted to `version` `0.2.0` and
+  still carried the retired `vendors` and a `assets` path pointing at a directory
+  that does not exist — so every runtime reading a vendor manifest saw a stale
+  version. Declaring the four harnesses lets `universal-plugin plugin build`
+  produce them, and the regenerated files now track the canonical version.
+- 7c026fb: Regenerate the vendor manifests during `changeset version`
+  
+  The release chain synced the canonical `plugin.json` and stopped there —
+  `publish sync-version` writes exactly one row, so `.claude-plugin/`,
+  `.cursor-plugin/`, and `.codex-plugin/` kept whatever version they were last
+  committed with. The repo's own manifests had drifted a full minor behind as a
+  result. The root `version` script now runs `plugin:build` after the sync, so
+  every release derives the vendor manifests from the freshly synced version.
+
 ## 0.3.0
 
 ### Minor Changes
