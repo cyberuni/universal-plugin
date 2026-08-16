@@ -1,5 +1,6 @@
 import * as path from 'node:path'
-import { detectIndent } from '../json.js'
+import { applyVersionPlan } from '../version/fs.js'
+import type { VersionPlan } from '../version/version.js'
 import type { SyncVersionFs } from './fs.js'
 
 export interface SyncVersionResult {
@@ -7,6 +8,11 @@ export interface SyncVersionResult {
 	manifestPath: string
 }
 
+/** The changesets-driven direction of the version flow: the number is decided by
+ *  `changeset version` in `<packagePath>/package.json`, and this copies it into the canonical
+ *  manifest. `plugin version` is the other direction — the number decided here, flowing out to
+ *  `package.json`. The two differ **only** in where the version comes from, so they share
+ *  `applyVersionPlan` and cannot drift; `package.json` is the source here, never rewritten. */
 export function syncVersion(root: string, syncFs: SyncVersionFs): SyncVersionResult {
 	const manifestPath = path.join(root, 'plugin.json')
 	if (!syncFs.exists(manifestPath)) {
@@ -22,8 +28,7 @@ export function syncVersion(root: string, syncFs: SyncVersionFs): SyncVersionRes
 		throw new Error('packagePath is required in .agents/universal-plugin.json')
 	}
 
-	const raw = syncFs.read(manifestPath)
-	const manifest = JSON.parse(raw) as Record<string, unknown>
+	const manifest = JSON.parse(syncFs.read(manifestPath)) as Record<string, unknown>
 
 	const pkgJsonPath = path.join(root, packagePath, 'package.json')
 	if (!syncFs.exists(pkgJsonPath)) {
@@ -36,9 +41,16 @@ export function syncVersion(root: string, syncFs: SyncVersionFs): SyncVersionRes
 		throw new Error(`No version found in ${packagePath}/package.json`)
 	}
 
-	const indent = detectIndent(raw)
-	const updated = { ...manifest, version }
-	syncFs.write(manifestPath, `${JSON.stringify(updated, null, indent)}\n`)
+	const current = manifest['version']
+	const plan: VersionPlan = {
+		from: typeof current === 'string' ? current : null,
+		to: version,
+		manifest: { ...manifest, version },
+		packageJson: null,
+		rows: [{ path: 'plugin.json', action: 'updated' }],
+		summary: { updated: 1 },
+	}
+	applyVersionPlan(root, plan, syncFs)
 
 	return { version, manifestPath }
 }

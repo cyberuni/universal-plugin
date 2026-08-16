@@ -1,0 +1,3 @@
+{"seq":1,"kind":"leash","cr":"github-32","leash":"auto-all","by":"user","blast":"moderate","approach":["spec-first","inline-judge","reuse-existing-writer"]}
+{"seq":2,"kind":"gate","cr":"github-32","gate":"spec","verdict":"approve","by":"agent","cause":"dimension","frozen":["plugin/version/version.feature"]}
+{"seq":3,"kind":"gate","cr":"github-32","gate":"impl","verdict":"approve","by":"agent","cause":"dimension"}

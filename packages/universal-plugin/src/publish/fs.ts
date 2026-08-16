@@ -1,13 +1,7 @@
-import * as fs from 'node:fs'
+import { type JsonIo, realJsonIo } from '../version/fs.js'
 
-export interface SyncVersionFs {
-	exists(filePath: string): boolean
-	read(filePath: string): string
-	write(filePath: string, content: string): void
-}
+/** `sync-version` reads and writes JSON the same way `plugin version` does — same interface, same
+ *  applier — so the two directions of the version flow cannot drift. */
+export type SyncVersionFs = JsonIo
 
-export const realSyncVersionFs: SyncVersionFs = {
-	exists: (p) => fs.existsSync(p),
-	read: (p) => fs.readFileSync(p, 'utf8'),
-	write: (p, content) => fs.writeFileSync(p, content),
-}
+export const realSyncVersionFs: SyncVersionFs = realJsonIo

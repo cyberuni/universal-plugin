@@ -8,21 +8,21 @@ approval:
     by: agent
     cause: dimension
     why:
-      floor: none — user-directed re-open rewrote the prematurely frozen marketplace suite without dropping its prior behavior; the new contract widens safety and observability coverage. Compatibility is deferred to the implementation gate; Conflict none.
-      blast: moderate — one behavioral node plus its root capability and generated concept indexes; local repository metadata only.
-      novelty: moderate — bounded top-level marketplace manifests that deliberately coexist with canonical agent-plugin manifests; per-artifact atomic writes, explicit write-error reporting, and containment guards.
-      confidence: high — two cold spec judges aligned Oracle, Builder, and Architect after re-derivation and the user-directed write-semantics re-open; 37 mapped boolean scenarios; Gherkin parse, referenced-artifact/use-case coverage, root state, and concept-index checks pass. The isolated check-suite dependency is unavailable, so gherkin-cli parse is the executable form evidence.
-      cr: github-25
+      floor: none — the CR is purely additive: one new behavioral node and its suite, no frozen scenario narrowed or rewritten anywhere in the corpus. Compatibility none — a new verb beside the existing ones. Conflict none.
+      blast: moderate — one new behavioral node under the plugin group, its root capability and placement-map entries, and the generated concept index; no existing node's contract touched.
+      novelty: low — the node applies a rule the corpus already carries (ADR-0007's derived-not-authored manifest model) to the version field, and places the verb by ADR-0006's shared-object test.
+      confidence: high — 29 boolean scenarios, scenario map 1:1 with the suite; gherkin-cli parses the suite; check-spec-structure reports zero blocking findings and does not flag the new node; concept-index regenerated clean.
+      cr: github-32
   impl:
     verdict: approve
     by: agent
     cause: dimension
     why:
-      floor: none — the user explicitly authorized the selected-write contract to weaken from cross-artifact rollback to honest best-effort error reporting; no frozen behavior was silently dropped. Compatibility none; Conflict none.
-      blast: moderate — marketplace discovery and filesystem adapter gain bounded direct-child traversal and local containment checks; no network or provisioning surface.
-      novelty: moderate — physical-path containment for all local manifest and generated-output boundaries, plus per-artifact atomic write failure semantics.
-      confidence: high — cold implementation judge passed every frozen contract dimension; full package verification passes (305 tests), Gherkin parses 37 frozen scenarios, spec-state and concept-index checks pass.
-      cr: github-25
+      floor: none — no frozen scenario weakened; publish sync-version was refactored onto the shared applier with its observable behavior unchanged and its existing suite still green.
+      blast: moderate — a new src/version domain plus its CLI registration, and a same-behavior refactor of publish/sync-version onto the shared applier.
+      novelty: low — the domain follows the package's established pure-plan/apply layering; the only structural claim is that re-derivation calls plugin build's writer rather than duplicating it.
+      confidence: high — every one of the 29 frozen scenarios has a named test exercising the compiled binary; full package verification passes (395 tests, up from 335); knip reports no new findings; the verb was dogfooded against this package's own manifest.
+      cr: github-32
 ---
 
 # universal-plugin — the cross-vendor plugin build/derivation engine (CLI)
@@ -65,7 +65,13 @@ exercised by each behavioral node (ADR-0003). AXI principle #7 (session-hook set
 skill) is **half in charter**: the installable skill — one that is the interactive front-end to this
 CLI's own verb — ships with the verb (ADR-0005 §3), while **session hooks stay out** (`cyberplace`)
 and skills whose *subject* is authoring craft stay with `cyberspace`/`aced`. No verb here needs such a
-skill today — the one that did (harness selection) left with the consume half (ADR-0006 §5).
+skill for **interactivity** today — the one that did (harness selection) left with the consume half
+(ADR-0006 §5). **Reach is a second, independent question**: a verb no agent can find ships
+unreachable however non-interactive it is, and the package's answer to it is the shipped gateway
+skill's route table (`skills/plugin/`), which names one reference per verb-shaped operation. A new
+verb therefore earns a **route** on that gateway, not a new skill beside it — a competing top-level
+skill would fragment the table the gateway exists to be. `plugin version` is the worked example
+(see [`plugin/version/`](./plugin/version/README.md), *The skill question*).
 
 ## Why this is its own project
 
@@ -100,10 +106,11 @@ ADR-0006 corrects that.
 
 | Folder | Type | What |
 |---|---|---|
-| [`plugin/`](./plugin/README.md) | group | the `plugin` command group — build / bundle / validate / init |
+| [`plugin/`](./plugin/README.md) | group | the `plugin` command group — build / bundle / validate / init / version |
 | [`plugin/build/`](./plugin/build/README.md) | behavioral | `universal-plugin plugin build [--vendor] [--dry-run] [--clean]` — derive per-vendor manifests from the canonical `plugin.json` (dev-consumable form; no pins) |
 | [`plugin/bundle/`](./plugin/bundle/README.md) | behavioral | `universal-plugin plugin bundle [--dry-run] [--full] [--format] [--runner]` — materialize the release form: pin the `npx`/`upx <cli>@<version>` references in the plugin's skills to their shipping workspace versions (`--runner` selects the emitted runner word) |
 | [`plugin/validate/`](./plugin/validate/README.md) | behavioral | `universal-plugin plugin validate [--vendor] [--strict]` — check the canonical manifest against schema + vendor rules |
+| [`plugin/version/`](./plugin/version/README.md) | behavioral | `universal-plugin plugin version <major\|minor\|patch\|pre*\|x.y.z> [--preid] [--force] [--no-build] [--dry-run]` — move the plugin's version: write the two **authored** numbers (canonical `plugin.json`, and the `packagePath` `package.json` when declared), then re-derive the vendor manifests through `build`'s own writer |
 | [`plugin/init/`](./plugin/init/README.md) | behavioral | `universal-plugin plugin init [--name] [--vendor] [--scaffold] [--force] [--yes] [--npm]` — scaffold the canonical `plugin.json`; `--npm` also wires an npm package's `files` to ship the derived vendor manifests (ADR-0006). Consuming-side harness setup → `repobuddy/buddy-agent-harness` |
 | [`governance/`](./governance/README.md) | behavioral | `universal-plugin governance show <name>` / `list` — resolve governance documents by name across scopes |
 | [`marketplace/`](./marketplace/README.md) | group | the repository-local marketplace metadata command group |
@@ -120,6 +127,15 @@ Where a new concept lives — slot here, do not invent placement (strategy = **c
 
 - **a new canonical-manifest op** (derive / check / scaffold the root `plugin.json`) →
   `plugin/<verb>/` (a new unit node under the `plugin` group).
+- **a new op that _moves_ the plugin's version** (bump or set the number the plugin releases under) →
+  **`plugin/version/`**. The rule that keeps it one verb: a version lives in exactly two **authored**
+  files — the canonical `plugin.json` and, when `packagePath` is declared, that `package.json` — and
+  every other occurrence is **derived** by a command that already exists (`plugin build` for the
+  vendor manifests, `marketplace init` for the local catalogs, `plugin bundle` for the skill pins).
+  A version op therefore writes the authored pair and **calls** the existing deriver; it never writes
+  a derived file itself, which would fork a second writer beside the one that owns it. The opposite
+  direction — a changesets-decided number flowing `package.json` → manifest — stays `publish
+  sync-version`, sharing this node's applier so the two cannot drift.
 - **a new op resolving/pinning the version pins in the plugin's own skills** (the
   `npx <cli>@<version>` references a plugin's skills carry) → **`plugin/bundle/`** — pinning is a
   release-time **materialization** step (resolve each workspace CLI to the version in its local
@@ -183,12 +199,12 @@ scanned node).
 
 | Concept | Facets |
 |---|---|
-| `axi` | `axi/` (reference) · `config/add/` (behavior) · `config/get/` (behavior) · `governance/` (behavior) · `marketplace/init/` (behavior) · `plugin/build/` (behavior) · `plugin/bundle/` (behavior) · `plugin/init/` (behavior) · `plugin/validate/` (behavior) · `run/` (behavior) |
-| `canonical-manifest` | `plugin/build/` (behavior) · `plugin/init/` (behavior) · `plugin/validate/` (behavior) |
+| `axi` | `axi/` (reference) · `config/add/` (behavior) · `config/get/` (behavior) · `governance/` (behavior) · `marketplace/init/` (behavior) · `plugin/build/` (behavior) · `plugin/bundle/` (behavior) · `plugin/init/` (behavior) · `plugin/validate/` (behavior) · `plugin/version/` (behavior) · `run/` (behavior) |
+| `canonical-manifest` | `plugin/build/` (behavior) · `plugin/init/` (behavior) · `plugin/validate/` (behavior) · `plugin/version/` (behavior) |
 | `config` | `config/add/` (behavior) · `config/get/` (behavior) |
 | `governance` | `governance/` (behavior) |
 | `marketplace` | `marketplace/init/` (behavior) |
-| `release` | `plugin/bundle/` (behavior) |
+| `release` | `plugin/bundle/` (behavior) · `plugin/version/` (behavior) |
 | `run` | `run/` (behavior) |
 
 <!-- END generated: by-concept -->

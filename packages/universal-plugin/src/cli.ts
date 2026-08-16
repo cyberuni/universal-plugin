@@ -12,20 +12,22 @@ import { prepareCommand } from './prepare/cli.js'
 import { publishCommand } from './publish/cli.js'
 import { selfUpdateCommand } from './self-update/cli.js'
 import { syncCommand } from './sync/cli.js'
+import { versionCommand } from './version/cli.js'
 
 const program = new Command()
 
 program.name('universal-plugin').description('Universal AI agent plugin build tool').version('0.0.0').helpCommand(false)
 
 // The `plugin` command group: author the canonical plugin.json.
-// build, bundle, and init are implemented; validate is specced (impl-deferred).
+// build, bundle, init, and version are implemented; validate is specced (impl-deferred).
 function pluginCommand(): Command {
 	const cmd = new Command('plugin').description(
-		'Author the canonical plugin manifest (build, bundle, init; validate planned)',
+		'Author the canonical plugin manifest (build, bundle, init, version; validate planned)',
 	)
 	cmd.addCommand(buildCommand())
 	cmd.addCommand(bundleCommand())
 	cmd.addCommand(initCommand())
+	cmd.addCommand(versionCommand())
 	return cmd
 }
 

@@ -11,11 +11,13 @@ into what each vendor expects and keep it well-formed:
 - [`validate/`](./validate/README.md) — `universal-plugin plugin validate` checks the canonical
   manifest against the schema and vendor rules.
 - [`init/`](./init/README.md) — `universal-plugin plugin init` scaffolds a new plugin project.
+- [`version/`](./version/README.md) — `universal-plugin plugin version` moves the plugin's version:
+  it writes the two authored numbers and re-derives the rest through `build`'s writer.
 
 > **Name note.** This `plugin` group is the manifest **authoring** engine (build / validate / init).
 > It is **not** the old `plugin` install/registry verbs (`add` / `remove` / `update` / `find` /
 > `search` / `list` / `migrate`) — those moved to the `cyberplace` package. The name was freed by
 > that move and reused here.
 
-This is a descriptive group index (no `spec-type` marker) — the behavior lives in the three unit
+This is a descriptive group index (no `spec-type` marker) — the behavior lives in the four unit
 nodes below.
