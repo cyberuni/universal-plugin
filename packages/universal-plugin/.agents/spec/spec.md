@@ -65,7 +65,13 @@ exercised by each behavioral node (ADR-0003). AXI principle #7 (session-hook set
 skill) is **half in charter**: the installable skill — one that is the interactive front-end to this
 CLI's own verb — ships with the verb (ADR-0005 §3), while **session hooks stay out** (`cyberplace`)
 and skills whose *subject* is authoring craft stay with `cyberspace`/`aced`. No verb here needs such a
-skill today — the one that did (harness selection) left with the consume half (ADR-0006 §5).
+skill for **interactivity** today — the one that did (harness selection) left with the consume half
+(ADR-0006 §5). **Reach is a second, independent question**: a verb no agent can find ships
+unreachable however non-interactive it is, and the package's answer to it is the shipped gateway
+skill's route table (`skills/plugin/`), which names one reference per verb-shaped operation. A new
+verb therefore earns a **route** on that gateway, not a new skill beside it — a competing top-level
+skill would fragment the table the gateway exists to be. `plugin version` is the worked example
+(see [`plugin/version/`](./plugin/version/README.md), *The skill question*).
 
 ## Why this is its own project
 

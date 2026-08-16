@@ -19,3 +19,9 @@ leaves the tree untouched.
 `publish sync-version` keeps the opposite direction (a changesets-decided number flowing
 `package.json` → manifest) with its behavior unchanged, but now shares the new applier so the two
 directions cannot drift apart.
+
+The shipped `plugin` gateway skill gains a matching route — `references/version.md` — so an agent
+asked to bump a plugin's version finds the verb instead of hand-editing a `version` field. Its
+route table previously covered create / adopt / inspect / update / delete, none of which is moving
+the version. The skill description now names the version triggers explicitly, and the reference
+routes changesets repos to `publish sync-version` rather than to the new verb.

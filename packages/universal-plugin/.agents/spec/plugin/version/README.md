@@ -67,19 +67,42 @@ the whole release-number step.
 
 ## The skill question
 
-**Verdict: no companion skill.** The bar (root [`spec.md`](../../spec.md), ADR-0005 §3) is that a
-skill earns its place only when there is judgment an agent must exercise that the command cannot
-encode. Here there is none: once the release type is named, the new version, the set of files to
-write, and the re-derivation are all fully determined — `semver.inc` and the existing `build` writer
-decide everything, and the guards below reject every ambiguous input rather than guessing at one.
+A verb in this package is asked two separate questions about a companion skill, and they have
+different answers here. **Judgment: none to encode. Reach: needed, and shipped as a route on the
+existing gateway skill rather than a new one.**
 
-The one genuinely judged step — *which* release type a change deserves — is deliberately **not** this
-verb's. It is a changelog-authoring decision, and the ecosystem answer for it (changesets) is already
-in this repo and already composes with the verb through `publish sync-version`. A skill that read a
-diff and picked a bump level would be re-implementing changesets behind an agent, and would sit in a
-package whose charter is the canonical manifest, not release-note craft.
+**Judgment — nothing to encode.** ADR-0005 §3's bar is that an interactive front-end ships as a
+skill because the CLI is non-interactive by construction. This verb has no interactive step: once
+the release type is named, the new version, the set of files to write, and the re-derivation are all
+determined by `semver.inc` and the existing `build` writer, and the guards reject every ambiguous
+input rather than guessing at one. The one genuinely judged step — *which* release type a change
+deserves — is deliberately not this verb's. It is a changelog-authoring decision, the ecosystem
+answer for it (changesets) is already in this repo, and it already composes with the verb through
+`publish sync-version`.
 
-Recorded so a later reader does not re-open it: the absence is a decision, not an omission.
+**Reach — not covered before this node, and judgment is the wrong axis to settle it on.** A verb
+nobody can find ships unreachable however little judgment it needs. Measured:
+
+- `plugin init --npm` wires `package.json` `files` and nothing else — it adds no dependency, no
+  script, and no pin, so a scaffolded plugin repo does **not** have this CLI installed.
+- The package is published, so the verb is reachable with no install as
+  `npx universal-plugin plugin version <bump>` — that is the same unpinned invocation the gateway
+  skill already uses for `governance show`.
+- The gateway skill `plugin` is this package's discoverability surface for exactly this class of
+  ask, and its route table covered create / adopt / inspect / update / delete. **None of them is
+  "move the version"**, and `update.md` is scoped to what a plugin *declares* — vendors and
+  components — not to what it releases under. An agent asked to bump a plugin's version would have
+  found no route and hand-edited a `version` field, which is precisely the drift this verb exists to
+  prevent.
+
+So the reach surface is required, and it is **`skills/plugin/references/version.md`** plus its route
+row — not a new top-level skill. A separate skill would compete with the gateway for triggering on
+the same asks and fragment the route table the gateway exists to be; the gateway already claims
+"updating … a universal agent plugin" and now names the version triggers explicitly. This is still
+ADR-0005 §3's "ships with the verb", delivered as a route rather than a new skill.
+
+Recorded so a later reader does not re-open either half: the missing standalone skill is a decision,
+and the reach it would have carried is covered by the gateway route.
 
 ## Use Cases
 
