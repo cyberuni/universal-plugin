@@ -5,11 +5,15 @@ template: splash
 hero:
   tagline: One canonical plugin definition. Every vendor's manifest generated automatically.
   actions:
+    # Starlight uses hero action links as written and does not prepend `base`, unlike
+    # sidebar `slug:` entries. A relative link here resolves against the current URL, so it
+    # breaks whenever the home page is reached without its trailing slash. Keep these
+    # absolute, and keep the prefix in step with `base` in astro.config.mjs.
     - text: Get Started
-      link: getting-started/introduction/
+      link: /universal-plugin/getting-started/introduction/
       icon: right-arrow
     - text: CLI Reference
-      link: cli/overview/
+      link: /universal-plugin/cli/overview/
       icon: open-book
       variant: minimal
 ---
