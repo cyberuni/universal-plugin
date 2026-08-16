@@ -1,6 +1,6 @@
 ---
 title: CLI Overview
-description: The universal-plugin CLI — commands and output formats.
+description: The universal-plugin CLI, its command groups and output formats.
 ---
 
 The `universal-plugin` CLI transforms a canonical root `plugin.json` into vendor-specific manifests.
@@ -19,18 +19,31 @@ npx universal-plugin@$(npm view universal-plugin version) <command>
 
 ## Commands
 
+Manifest authoring lives under the `plugin` command group. The other groups sit at the top level.
+
 | Command | Purpose |
 |---|---|
-| [`build`](../build/) | Generate vendor manifests from root `plugin.json` |
-| [`config`](../config/) | Read/write plugin-registered config in `.agents/universal-plugin.json` |
+| [`plugin build`](../build/) | Generate vendor manifests from root `plugin.json` |
+| `plugin init` | Scaffold a canonical `plugin.json` |
+| `plugin version <bump>` | Move the version across every file that carries one |
+| `plugin bundle` | Pin skill `npx` references to workspace versions |
+| [`config`](../config/) | Read and write plugin-registered config in `.agents/universal-plugin.json` |
+| `prepare` / `sync` | Detect and apply cross-vendor sync actions for an installed plugin |
+| `publish sync-version` | Copy the package version into the canonical `plugin.json` |
+| `marketplace init` | Generate repository-local marketplace metadata |
+| `governance` | List and show the version-pinned agent-tool contracts |
+| `clean` | Remove the asset store |
+| `self-update` | Update the version pin in `universal-plugin` hook files |
+
+Run `--help` on any group for its flags. The
+[package readme](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/readme.md)
+carries the full list with examples.
 
 ## Fast alternative: upx
 
-Alongside the `universal-plugin` CLI, `npm i -g universal-plugin` also installs `upx` — a lean,
-local-first package runner. `upx <pkg>@^<major>` resolves the range against an already-installed
-version and spawns it directly (~10× faster than `npx`, which pays ~1s of resolve+spawn overhead
-per call even when cached), falling back to `npx` when nothing local satisfies the range. Requires
-`upx` on PATH (a global install), so it's an opt-in swap, not a drop-in replacement for `npx`.
+A global install of `universal-plugin` also puts `upx` on PATH. It runs an already-installed CLI
+directly instead of resolving one on every call. See [npx and upx](../../concepts/npx-and-upx/) for
+the measurements and the cases where `npx` is still the right runner.
 
 ## Output formats
 

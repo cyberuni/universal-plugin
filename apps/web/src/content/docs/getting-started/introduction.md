@@ -3,7 +3,7 @@ title: Introduction
 description: What universal-plugin is and why it exists.
 ---
 
-**universal-plugin** is a build tool for universal AI agent plugins. You write one canonical definition in root `plugin.json`, and `universal-plugin build` generates a spec-conformant vendor manifest for each runtime you target.
+**universal-plugin** is a build tool for universal AI agent plugins. You write one canonical definition in root `plugin.json`, and `universal-plugin plugin build` generates a spec-conformant vendor manifest for each runtime you target.
 
 ## The problem
 
@@ -11,7 +11,7 @@ Every major AI coding agent runtime — Claude Code, Cursor, Codex, GitHub Copil
 
 ## The solution
 
-A single source of truth in root `plugin.json`, following the closed [Agent Plugins Specification v1.0.0](https://agent-plugins.org) field set (`$schema`, `name`, `version`, `description`, `author`, `homepage`, `repository`, `license`, `keywords`, `extensions`). All `universal-plugin` build config — component paths, the vendor target list, and per-harness overrides — nests under `extensions["org.cyberuni.universal-plugin"]`. Running `universal-plugin build` produces each vendor's manifest as a build artifact.
+A single source of truth in root `plugin.json`, following the closed [Agent Plugins Specification v1.0.0](https://agent-plugins.org) field set (`$schema`, `name`, `version`, `description`, `author`, `homepage`, `repository`, `license`, `keywords`, `extensions`). All `universal-plugin` build config — component paths, the vendor target list, and per-harness overrides — nests under `extensions["org.cyberuni.universal-plugin"]`. Running `universal-plugin plugin build` produces each vendor's manifest as a build artifact.
 
 ```json
 {
@@ -34,7 +34,7 @@ A single source of truth in root `plugin.json`, following the closed [Agent Plug
 }
 ```
 
-Running `universal-plugin build` from the plugin root generates:
+Running `universal-plugin plugin build` from the plugin root generates:
 
 | Vendor | Output |
 |---|---|

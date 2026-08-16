@@ -27,7 +27,8 @@ export default defineConfig({
 					label: 'CLI Reference',
 					items: [
 						{ label: 'Overview', slug: 'cli/overview' },
-						{ label: 'build', slug: 'cli/build' },
+						{ label: 'plugin build', slug: 'cli/build' },
+						{ label: 'config', slug: 'cli/config' },
 					],
 				},
 			],
