@@ -1,5 +1,11 @@
 # universal-plugin
 
+[![release](https://github.com/cyberuni/universal-plugin/actions/workflows/release.yml/badge.svg)](https://github.com/cyberuni/universal-plugin/actions/workflows/release.yml)
+[![CodeQL](https://github.com/cyberuni/universal-plugin/actions/workflows/codeql.yml/badge.svg)](https://github.com/cyberuni/universal-plugin/actions/workflows/codeql.yml)
+[![npm version](https://img.shields.io/npm/v/universal-plugin.svg)](https://www.npmjs.com/package/universal-plugin)
+[![node](https://img.shields.io/node/v/universal-plugin.svg)](https://www.npmjs.com/package/universal-plugin)
+![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
+
 Research and design project for a universal AI coding agent plugin — a single plugin bundle that works across Claude Code, Cursor, Codex, GitHub Copilot CLI, and other major runtimes.
 
 ## Status
