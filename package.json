@@ -7,14 +7,14 @@
 		"cs": "changeset",
 		"dev": "pnpm --filter universal-plugin dev",
 		"format": "biome format --write .",
-		"plugin:build": "pnpm -C packages/universal-plugin exec tsx src/cli.ts plugin build --root .",
+		"plugin:build": "pnpm -C packages/universal-plugin exec tsx src/cli.ts plugin build --root . && pnpm check",
 		"prepare": "node -e \"if(!(process.env.CI||process.env.GITHUB_ACTIONS))require('child_process').execSync('husky',{stdio:'inherit'})\"",
 		"release": "changeset publish",
 		"test": "turbo test",
 		"typecheck": "turbo typecheck",
 		"up": "pnpm --filter ./packages/universal-plugin",
 		"verify": "turbo verify",
-		"version": "changeset version && pnpm -C packages/universal-plugin exec tsx src/cli.ts publish sync-version --root .",
+		"version": "changeset version && pnpm -C packages/universal-plugin exec tsx src/cli.ts publish sync-version --root . && pnpm check",
 		"web": "pnpm --filter web"
 	},
 	"devDependencies": {
