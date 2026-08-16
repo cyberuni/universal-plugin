@@ -100,10 +100,11 @@ ADR-0006 corrects that.
 
 | Folder | Type | What |
 |---|---|---|
-| [`plugin/`](./plugin/README.md) | group | the `plugin` command group — build / bundle / validate / init |
+| [`plugin/`](./plugin/README.md) | group | the `plugin` command group — build / bundle / validate / init / version |
 | [`plugin/build/`](./plugin/build/README.md) | behavioral | `universal-plugin plugin build [--vendor] [--dry-run] [--clean]` — derive per-vendor manifests from the canonical `plugin.json` (dev-consumable form; no pins) |
 | [`plugin/bundle/`](./plugin/bundle/README.md) | behavioral | `universal-plugin plugin bundle [--dry-run] [--full] [--format] [--runner]` — materialize the release form: pin the `npx`/`upx <cli>@<version>` references in the plugin's skills to their shipping workspace versions (`--runner` selects the emitted runner word) |
 | [`plugin/validate/`](./plugin/validate/README.md) | behavioral | `universal-plugin plugin validate [--vendor] [--strict]` — check the canonical manifest against schema + vendor rules |
+| [`plugin/version/`](./plugin/version/README.md) | behavioral | `universal-plugin plugin version <major\|minor\|patch\|pre*\|x.y.z> [--preid] [--force] [--no-build] [--dry-run]` — move the plugin's version: write the two **authored** numbers (canonical `plugin.json`, and the `packagePath` `package.json` when declared), then re-derive the vendor manifests through `build`'s own writer |
 | [`plugin/init/`](./plugin/init/README.md) | behavioral | `universal-plugin plugin init [--name] [--vendor] [--scaffold] [--force] [--yes] [--npm]` — scaffold the canonical `plugin.json`; `--npm` also wires an npm package's `files` to ship the derived vendor manifests (ADR-0006). Consuming-side harness setup → `repobuddy/buddy-agent-harness` |
 | [`governance/`](./governance/README.md) | behavioral | `universal-plugin governance show <name>` / `list` — resolve governance documents by name across scopes |
 | [`marketplace/`](./marketplace/README.md) | group | the repository-local marketplace metadata command group |
@@ -120,6 +121,15 @@ Where a new concept lives — slot here, do not invent placement (strategy = **c
 
 - **a new canonical-manifest op** (derive / check / scaffold the root `plugin.json`) →
   `plugin/<verb>/` (a new unit node under the `plugin` group).
+- **a new op that _moves_ the plugin's version** (bump or set the number the plugin releases under) →
+  **`plugin/version/`**. The rule that keeps it one verb: a version lives in exactly two **authored**
+  files — the canonical `plugin.json` and, when `packagePath` is declared, that `package.json` — and
+  every other occurrence is **derived** by a command that already exists (`plugin build` for the
+  vendor manifests, `marketplace init` for the local catalogs, `plugin bundle` for the skill pins).
+  A version op therefore writes the authored pair and **calls** the existing deriver; it never writes
+  a derived file itself, which would fork a second writer beside the one that owns it. The opposite
+  direction — a changesets-decided number flowing `package.json` → manifest — stays `publish
+  sync-version`, sharing this node's applier so the two cannot drift.
 - **a new op resolving/pinning the version pins in the plugin's own skills** (the
   `npx <cli>@<version>` references a plugin's skills carry) → **`plugin/bundle/`** — pinning is a
   release-time **materialization** step (resolve each workspace CLI to the version in its local
@@ -183,12 +193,12 @@ scanned node).
 
 | Concept | Facets |
 |---|---|
-| `axi` | `axi/` (reference) · `config/add/` (behavior) · `config/get/` (behavior) · `governance/` (behavior) · `marketplace/init/` (behavior) · `plugin/build/` (behavior) · `plugin/bundle/` (behavior) · `plugin/init/` (behavior) · `plugin/validate/` (behavior) · `run/` (behavior) |
-| `canonical-manifest` | `plugin/build/` (behavior) · `plugin/init/` (behavior) · `plugin/validate/` (behavior) |
+| `axi` | `axi/` (reference) · `config/add/` (behavior) · `config/get/` (behavior) · `governance/` (behavior) · `marketplace/init/` (behavior) · `plugin/build/` (behavior) · `plugin/bundle/` (behavior) · `plugin/init/` (behavior) · `plugin/validate/` (behavior) · `plugin/version/` (behavior) · `run/` (behavior) |
+| `canonical-manifest` | `plugin/build/` (behavior) · `plugin/init/` (behavior) · `plugin/validate/` (behavior) · `plugin/version/` (behavior) |
 | `config` | `config/add/` (behavior) · `config/get/` (behavior) |
 | `governance` | `governance/` (behavior) |
 | `marketplace` | `marketplace/init/` (behavior) |
-| `release` | `plugin/bundle/` (behavior) |
+| `release` | `plugin/bundle/` (behavior) · `plugin/version/` (behavior) |
 | `run` | `run/` (behavior) |
 
 <!-- END generated: by-concept -->
