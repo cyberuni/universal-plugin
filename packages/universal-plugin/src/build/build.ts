@@ -226,12 +226,14 @@ function writeSkillArtifacts(
 			continue
 		}
 
-		if (skill.invocationPolicy === 'model') continue
+		// Cursor reads SKILL.md straight from the manifest's `skills` path and lets the user invoke a
+		// skill by typing `/` and searching for it (cursor.com/docs/skills), so a mirrored
+		// .cursor/commands/*.md is a redundant second copy of the same body. Cursor also expresses
+		// explicit-only invocation natively via `disable-model-invocation`, which writeClaudeSkill
+		// already writes into the shared SKILL.md — nothing to derive here.
+		if (vendor === 'cursor') continue
 
-		if (vendor === 'cursor') {
-			writeArtifact(path.join(root, '.cursor', 'commands', `${skill.name}.md`), skill.body, opts, written)
-			continue
-		}
+		if (skill.invocationPolicy === 'model') continue
 
 		if (vendor === 'codex') {
 			try {

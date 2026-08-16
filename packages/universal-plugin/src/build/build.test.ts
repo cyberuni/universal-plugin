@@ -205,13 +205,13 @@ describe('buildPlugin', () => {
 		expect(raw).not.toContain('\t')
 	})
 
-	it('derives a Cursor command from a user-invocable skill', () => {
+	it('derives no Cursor command — Cursor loads SKILL.md from the manifest skills path', () => {
 		writeManifest({ name: 'x', extensions: up({ harnesses: { cursor: {} } }) })
 		writeSkill('deploy', '---\ninvocation-policy: user\ndescription: Deploy safely\n---\nDeploy $ARGUMENTS.')
 
 		buildPlugin(dir)
 
-		expect(fs.readFileSync(path.join(dir, '.cursor', 'commands', 'deploy.md'), 'utf8')).toBe('Deploy $ARGUMENTS.')
+		expect(fs.existsSync(path.join(dir, '.cursor'))).toBe(false)
 	})
 
 	it('derives a best-effort Codex prompt from a both-invocable skill', () => {
@@ -223,13 +223,13 @@ describe('buildPlugin', () => {
 		expect(fs.readFileSync(path.join(home, '.codex', 'prompts', 'review.md'), 'utf8')).toBe('Review the current diff.')
 	})
 
-	it('does not derive a command from a model-only skill', () => {
-		writeManifest({ name: 'x', extensions: up({ harnesses: { cursor: {} } }) })
+	it('does not derive a Codex prompt from a model-only skill', () => {
+		writeManifest({ name: 'x', version: '1.0.0', description: 'x', extensions: up({ harnesses: { codex: {} } }) })
 		writeSkill('context', '---\ninvocation-policy: model\n---\nBackground context.')
 
 		buildPlugin(dir)
 
-		expect(fs.existsSync(path.join(dir, '.cursor', 'commands', 'context.md'))).toBe(false)
+		expect(fs.existsSync(path.join(home, '.codex', 'prompts', 'context.md'))).toBe(false)
 	})
 
 	it('maps canonical invocation policies to Claude frontmatter', () => {
