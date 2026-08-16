@@ -1,7 +1,9 @@
-# ADR-0001: Name the plugin lifecycle skill `prepare`
+# 0008 — Name the plugin lifecycle skill `prepare`
 
+**Status:** accepted
 **Date:** 2026-06-02
-**Status:** Accepted
+**Note:** decided before this tree existed, in a root `adr/` directory, and renumbered on the move.
+It predates [0001](./0001-realign-to-build-engine.md).
 
 ## Context
 
