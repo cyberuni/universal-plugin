@@ -38,7 +38,7 @@ looks like on the consuming end. The split is recorded in
 | --- | --- |
 | `packages/universal-plugin` | The published CLI and its skills |
 | `.research/` | Vendor findings, each claim recorded with a source URL |
-| `.agents/spec/` | The behavior specification the CLI is built against |
+| `packages/universal-plugin/.agents/spec/` | The behavior specification the CLI is built against, with the ADRs under `design/decisions/` |
 | `apps/web` | The documentation site |
 | `examples/` | Manifest examples per runtime |
 
