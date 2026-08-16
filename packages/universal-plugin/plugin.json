@@ -12,7 +12,13 @@
 	"keywords": ["universal", "plugin", "agent", "cross-vendor"],
 	"extensions": {
 		"org.cyberuni.universal-plugin": {
-			"skills": "./skills/"
+			"skills": "./skills/",
+			"harnesses": {
+				"claude-code": {},
+				"cursor": {},
+				"codex": {},
+				"copilot-cli": {}
+			}
 		}
 	}
 }
