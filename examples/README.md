@@ -2,7 +2,7 @@
 
 Canonical root `plugin.json` files showing how real plugins would look in the universal format.
 
-Each example represents what an author would write as the single source of truth. The `build` command would generate vendor-specific manifests from it.
+Each example represents what an author would write as the single source of truth. Running `universal-plugin plugin build` against one generates the vendor-specific manifests.
 
 ## research-workbench
 
