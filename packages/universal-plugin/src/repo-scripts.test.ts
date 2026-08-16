@@ -18,9 +18,20 @@ const rootPackageJson = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.
 	scripts: Record<string, string>
 }
 
-const writingScripts = Object.entries(rootPackageJson.scripts).filter(([, command]) =>
-	WRITE_VERBS.some((verb) => command.includes(verb)),
-)
+/** Root scripts compose: `version` delegates its build-and-format tail to `plugin:build`. Inline the
+ *  referenced script so both the write verb and the format step are visible in one string — a script
+ *  that formats via a script that formats still formats. */
+function expand(command: string, seen: ReadonlySet<string> = new Set()): string {
+	return command.replace(/pnpm ([\w:]+)/g, (reference, name: string) => {
+		const referenced = rootPackageJson.scripts[name]
+		if (!referenced || seen.has(name)) return reference
+		return expand(referenced, new Set([...seen, name]))
+	})
+}
+
+const writingScripts = Object.entries(rootPackageJson.scripts)
+	.map(([name, command]) => [name, expand(command)] as const)
+	.filter(([, command]) => WRITE_VERBS.some((verb) => command.includes(verb)))
 
 it('resolves the workspace root package.json', () => {
 	expect(rootPackageJson.private).toBe(true)
