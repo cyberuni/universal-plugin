@@ -1,6 +1,6 @@
 ---
 name: plugin
-description: Use this skill when creating, inspecting, updating, or deleting a universal agent plugin that targets multiple AI coding agent runtimes — Claude Code, Cursor, Codex, GitHub Copilot CLI. Also use it to convert a vendor-specific plugin, or a project that already ships skills, onto the open Agent Plugins Specification, for asks like "make my Claude Code plugin work in Cursor", "convert this to the open plugin standard", or "turn these skills into a plugin".
+description: Use this skill when creating, inspecting, updating, versioning, or deleting a universal agent plugin that targets multiple AI coding agent runtimes — Claude Code, Cursor, Codex, GitHub Copilot CLI. Also use it to convert a vendor-specific plugin, or a project that already ships skills, onto the open Agent Plugins Specification, or to move a plugin's version — for asks like "make my Claude Code plugin work in Cursor", "convert this to the open plugin standard", "turn these skills into a plugin", "bump my plugin's version", "release a new version of this plugin", or "set the plugin version to 1.0.0".
 ---
 
 # Universal Plugin
@@ -10,8 +10,8 @@ it.
 
 ## When to use
 
-When the user wants to create, inspect, update, or delete a plugin targeting Claude Code, Cursor,
-Codex, and/or GitHub Copilot CLI from a single source of truth.
+When the user wants to create, inspect, update, version, or delete a plugin targeting Claude Code,
+Cursor, Codex, and/or GitHub Copilot CLI from a single source of truth.
 
 ## Prerequisites
 
@@ -72,7 +72,7 @@ Offer once. If the user declines, or their request is already a specific unrelat
 
 ## Route
 
-Read exactly the reference for the operation at hand — do not load all five.
+Read exactly the reference for the operation at hand — do not load all six.
 
 | The user wants to… | Reference |
 |--------------------|-----------|
@@ -80,6 +80,7 @@ Read exactly the reference for the operation at hand — do not load all five.
 | Put an existing vendor-specific plugin, or already-shipped skills, onto the open standard | [`references/adopt.md`](./references/adopt.md) |
 | See what a plugin declares and which vendor manifests are built or stale | [`references/inspect.md`](./references/inspect.md) |
 | Add or remove a vendor, or add or remove a component, on an existing plugin | [`references/update.md`](./references/update.md) |
+| Bump or set the plugin's version, or cut a release of it | [`references/version.md`](./references/version.md) |
 | Remove generated manifests, or remove the whole plugin | [`references/delete.md`](./references/delete.md) |
 
 If the request spans more than one operation (for example "add Codex and rebuild"), load each
@@ -93,7 +94,7 @@ If the operation is unclear, ask which the user means rather than guessing.
 |------|-------|
 | Move a repo-root plugin into its npm package | `migrate-plugin` |
 | Publish a packaged plugin to the marketplace | `publish-plugin` |
-| Bump pinned `universal-plugin` versions across a project | `upgrade-plugin` |
+| Bump the pinned `universal-plugin@<version>` the project *calls* (not the plugin's own version) | `upgrade-plugin` |
 | Rewrite `npx` pins to the `upx` runner | `adopt-upx` |
 
 ## References
