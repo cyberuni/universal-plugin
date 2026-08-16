@@ -53,3 +53,9 @@ Running `universal-plugin build` from the plugin root generates:
 ## Generated files are build artifacts
 
 The generated vendor manifests should be treated like compiled output — either gitignored (build on install) or committed (pre-built for distribution). The choice is yours; `universal-plugin` enforces neither.
+
+## Configuring a repository, not publishing a plugin
+
+`universal-plugin` builds a plugin you publish. It does not set up the agent configuration of the repository you work in.
+
+For that, use [`buddy-agent-harness`](https://github.com/repobuddy/buddy-agent-harness). It initializes a repository's canonical `AGENTS.md` and `.agents/` tree, then links it to each harness that needs its own path. Read its documentation to learn how the harnesses differ and what a universal agent configuration looks like.

@@ -21,6 +21,17 @@ version across every file that carries one, and syncs an installed plugin betwee
 Cross-vendor *installation* is not solved, and no vendor has agreed on a shared manifest path. The
 build generates each vendor's file instead of waiting for a standard. Read `.research/` for why.
 
+## What ships elsewhere
+
+This CLI covers the publishing side: you author a plugin, and it derives the manifests each runtime
+reads. The consuming side is a separate tool.
+
+[`buddy-agent-harness`](https://github.com/repobuddy/buddy-agent-harness) sets up a repository's own
+agent configuration, so its `AGENTS.md`, skills, and tool settings work across the harnesses your
+team uses. Read it to learn how agent harnesses differ and what a universal agent configuration
+looks like on the consuming end. The split is recorded in
+[ADR-0006](packages/universal-plugin/.agents/spec/design/decisions/0006-narrow-init-setup-to-the-publish-half.md).
+
 ## Layout
 
 | Path | Contents |

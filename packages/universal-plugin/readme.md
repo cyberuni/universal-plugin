@@ -125,6 +125,11 @@ Use a caret range on the major rather than an exact pin, so one global install s
 `upx` only works once `universal-plugin` is installed globally. `npx` ships with npm, so keep `npx`
 as the default anywhere you cannot guarantee that install.
 
+## Related
+
+This package publishes a plugin. To set up the agent configuration of a repository you work in, use
+[`buddy-agent-harness`](https://github.com/repobuddy/buddy-agent-harness).
+
 ## License
 
 [MIT](https://github.com/cyberuni/universal-plugin/blob/main/LICENSE)
