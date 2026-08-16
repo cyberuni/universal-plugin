@@ -1,87 +1,95 @@
 # universal-plugin
 
 [![npm version](https://img.shields.io/npm/v/universal-plugin.svg)](https://www.npmjs.com/package/universal-plugin)
-[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![node](https://img.shields.io/node/v/universal-plugin.svg)](https://www.npmjs.com/package/universal-plugin)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/cyberuni/universal-plugin/blob/main/LICENSE)
 
-Universal AI agent plugin build tool. Author one canonical plugin manifest (root `plugin.json`) and generate vendor-specific manifests for Claude Code, Cursor, Codex, and GitHub Copilot CLI.
-
-## Specification
-
-This package follows the [Agent Plugins Specification](https://github.com/agentplugins/agent-plugins-spec).
-Consult that repository's versioned specification and releases before changing manifest
-or component compatibility behavior; it is the canonical reference for the current standard.
+Write one canonical plugin manifest (root `plugin.json`). Generate the vendor manifests for Claude
+Code, Cursor, Codex, and GitHub Copilot CLI.
 
 ## Usage
 
-No install required — run with `npx`:
+No install required:
 
 ```sh
 npx universal-plugin <command>
 ```
 
-Or pin to an exact version for reproducible builds:
+Pin an exact version for reproducible builds:
 
 ```sh
-npx universal-plugin@0.2.0 <command>
+npx universal-plugin@0.3.1 <command>
 ```
 
-## upx — the fast package runner
+## Specification
 
-`npm i -g universal-plugin` also puts a second bin, `upx`, on PATH. `upx <pkg>@^<major>` finds an
-already-installed version satisfying the range (local `node_modules` first, then global) and runs
-it directly — about 10× faster than `npx`'s ~1s per-call resolve+spawn cost — falling back to
-`npx` when nothing installed matches:
-
-```sh
-npm i -g universal-plugin
-upx cyber-skills@^2 audit validate
-```
-
-Use a caret range on the major, not an exact pin, so one global install serves every caller. `upx`
-needs to be installed to be on PATH; `npx` always ships with npm, so `npx` remains the safe default
-where `universal-plugin` isn't installed globally.
+This package follows the [Agent Plugins Specification](https://github.com/agentplugins/agent-plugins-spec).
+That repository is the canonical reference. Consult its versioned specification and releases before
+you change manifest or component compatibility behavior.
 
 ## Commands
 
-### plugin — author the canonical manifest
+### plugin
+
+Author the canonical manifest and derive everything from it.
 
 ```sh
-# Generate vendor manifests from root plugin.json
-npx universal-plugin plugin build
+npx universal-plugin plugin init                 # scaffold plugin.json
+npx universal-plugin plugin init --npm           # also wire an npm package to ship it
+npx universal-plugin plugin build                # generate vendor manifests
+npx universal-plugin plugin version <bump>       # move the version across every file carrying one
+npx universal-plugin plugin bundle               # pin skill npx references to workspace versions
 ```
 
-`validate` and `init` are specified but implementation is deferred.
+`build` writes `.claude-plugin/plugin.json`, `.cursor-plugin/plugin.json`, and
+`.codex-plugin/plugin.json`. Copilot CLI reads the canonical root `plugin.json` directly, so no
+fourth file is derived.
 
-### sync — cross-vendor plugin sync
+Each command writes JSON with `JSON.stringify`. Your repository decides how JSON looks, so run your
+formatter after any command that writes a manifest.
+
+### sync
+
+Move an installed plugin from the runtime that installed it to the others.
 
 ```sh
-# Detect cross-vendor sync actions from a vendor's manifest
 npx universal-plugin prepare <vendor-id>              # e.g. claude-code
 npx universal-plugin prepare <vendor-id> --scope project --root <path>
-npx universal-plugin prepare <vendor-id> --dry-run    # print action count without writing state
-
-# Apply a pending sync action
+npx universal-plugin prepare <vendor-id> --dry-run    # print the action count without writing state
 npx universal-plugin sync apply <action-id>
 ```
 
 ### publish
 
 ```sh
-# Sync version from packagePath/package.json into root plugin.json
-npx universal-plugin publish sync-version
+npx universal-plugin publish sync-version             # copy packagePath/package.json version into plugin.json
 ```
+
+This writes the canonical `plugin.json` only. Run `plugin build` afterwards, or the vendor manifests
+keep their previous version.
 
 ### marketplace
 
 ```sh
-# Generate a local Codex catalog from canonical plugin manifests.
 npx universal-plugin marketplace init --codex --root .
 ```
 
-Codex caches a local plugin install by its marketplace entry version. After changing packaged plugin
-files, update the canonical `plugin.json` version, regenerate the Codex catalog (use `--force` when
-replacing an existing catalog), reinstall the plugin, and start a new Codex session. This ensures the
-installed copy and its generated marketplace entry use the same version.
+Codex caches a local plugin install by its marketplace entry version. After you change packaged
+plugin files: update the canonical `plugin.json` version, regenerate the catalog (add `--force` to
+replace an existing one), reinstall the plugin, then start a new Codex session. The installed copy
+and its marketplace entry then carry the same version.
+
+### config
+
+Read and write plugin-registered config in `.agents/universal-plugin.json`.
+
+```sh
+npx universal-plugin config get --key sdd-plugins
+npx universal-plugin config add --key sdd-plugins --entry '{"name":"aces","handles":["agent evaluation"]}'
+```
+
+`add` appends the entry, or replaces the existing entry with the same `name`. Both commands print
+TOON by default; pass `--format json` for JSON.
 
 ### governance
 
@@ -99,6 +107,24 @@ npx universal-plugin clean                            # remove the asset store
 npx universal-plugin self-update <version>            # update the version pin in hook files
 ```
 
+## upx, the fast package runner
+
+`npm i -g universal-plugin` puts a second bin, `upx`, on PATH.
+
+`upx <pkg>@^<major>` looks for an already-installed version satisfying the range, checking local
+`node_modules` first and then global. It spawns that binary directly, skipping the resolve step that
+costs `npx` roughly 1s per call. When nothing installed matches, it falls back to `npx`.
+
+```sh
+npm i -g universal-plugin
+upx cyber-skills@^2 audit validate
+```
+
+Use a caret range on the major rather than an exact pin, so one global install serves every caller.
+
+`upx` only works once `universal-plugin` is installed globally. `npx` ships with npm, so keep `npx`
+as the default anywhere you cannot guarantee that install.
+
 ## License
 
-MIT
+[MIT](https://github.com/cyberuni/universal-plugin/blob/main/LICENSE)
