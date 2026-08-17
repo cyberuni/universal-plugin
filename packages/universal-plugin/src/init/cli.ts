@@ -4,7 +4,7 @@ import { Command, Option } from 'commander'
 
 import { VENDOR_OUTPUT } from '../build/build.js'
 import { ROOT_OPTION, resolveRoot } from '../cli-options.js'
-import { output, printTable } from '../output.js'
+import { output } from '../output.js'
 import { type InitFs, realInitFs } from './fs.js'
 import { type FileRow, planInit } from './init.js'
 
@@ -64,12 +64,9 @@ export function initCommand(deps: { fs: InitFs } = { fs: realInitFs }): Command 
 					updated: plan.rows.filter((r) => r.action === 'updated').map((r) => r.path),
 					summary: plan.summary,
 				}
-				output(jsonResult, () => {
-					printTable(plan.rows, [
-						{ label: 'path', get: (r: FileRow) => r.path },
-						{ label: 'action', get: (r: FileRow) => r.action },
-					])
-					console.log(`created ${plan.summary.created}, updated ${plan.summary.updated}`)
+				output(jsonResult, {
+					files: plan.rows.map((r: FileRow) => ({ path: r.path, action: r.action })),
+					summary: `created ${plan.summary.created}, updated ${plan.summary.updated}`,
 				})
 
 				process.stderr.write(NEXT_STEP)

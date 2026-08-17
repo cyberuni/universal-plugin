@@ -1,7 +1,7 @@
 import { Command, Option } from 'commander'
 
 import { ROOT_OPTION, resolveRoot } from '../cli-options.js'
-import { output, printTable } from '../output.js'
+import { output } from '../output.js'
 import { buildPlugin, type VendorRow } from './build.js'
 
 const NEXT_STEP = '→ universal-plugin plugin validate\n'
@@ -49,16 +49,10 @@ export function buildCommand(): Command {
 					summary: result.summary,
 					warnings: result.warnings,
 				}
-				output(jsonResult, () => {
-					if (result.rows.length > 0) {
-						printTable(result.rows, [
-							{ label: 'vendor', get: (r: VendorRow) => r.vendor },
-							{ label: 'path', get: (r: VendorRow) => r.path },
-							{ label: 'status', get: (r: VendorRow) => r.status },
-						])
-					}
-					const counts = `built ${built}, skipped ${skipped}, failed ${failed}`
-					console.log(canonical > 0 ? `${counts}, served by plugin.json ${canonical}` : counts)
+				const counts = `built ${built}, skipped ${skipped}, failed ${failed}`
+				output(jsonResult, {
+					vendors: result.rows.map((r: VendorRow) => ({ vendor: r.vendor, path: r.path, status: r.status })),
+					summary: canonical > 0 ? `${counts}, served by plugin.json ${canonical}` : counts,
 				})
 
 				process.stderr.write(NEXT_STEP)

@@ -193,7 +193,7 @@ test('reads the entries registered at a key', () => {
 test('default get output is a TOON result keyed on name with an aggregate', () => {
 	seed({ 'sdd-plugins': [{ name: 'aces' }, { name: 'quill' }] })
 	const r = run('config', 'get', '--key', 'sdd-plugins')
-	expect(r.stdout).toMatch(/NAME/)
+	expect(r.stdout).toMatch(/names\[2\]: aces,quill/)
 	expect(r.stdout).toMatch(/sdd-plugins: 2 entries/)
 })
 
@@ -205,7 +205,7 @@ test('get --format json returns the raw stored array', () => {
 	expect(JSON.parse(r.stdout)).toEqual(stored)
 })
 
-test('get --format toon prints a table', () => {
+test('get --format toon names the default explicitly', () => {
 	seed({ 'sdd-plugins': [{ name: 'aces' }] })
 	const r = run('config', 'get', '--key', 'sdd-plugins', '--format', 'toon')
 	expect(r.status).toBe(0)
@@ -216,7 +216,7 @@ test('an absent key prints a definitive empty state', () => {
 	seed({ packagePath: 'packages/universal-plugin' })
 	const r = run('config', 'get', '--key', 'sdd-plugins')
 	expect(r.status).toBe(0)
-	expect(r.stdout).toMatch(/\(none\)/)
+	expect(r.stdout).toMatch(/names: \[\]/)
 	expect(r.stdout).toMatch(/0 entries/)
 })
 
@@ -224,7 +224,7 @@ test('a key present with an empty array prints a definitive empty state', () => 
 	seed({ 'sdd-plugins': [] })
 	const r = run('config', 'get', '--key', 'sdd-plugins')
 	expect(r.status).toBe(0)
-	expect(r.stdout).toMatch(/\(none\)/)
+	expect(r.stdout).toMatch(/names: \[\]/)
 	expect(r.stdout).toMatch(/0 entries/)
 })
 

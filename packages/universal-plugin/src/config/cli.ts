@@ -1,7 +1,7 @@
 import { Command } from 'commander'
 
 import { ROOT_OPTION, resolveRoot } from '../cli-options.js'
-import { output, printTable } from '../output.js'
+import { output } from '../output.js'
 import { addEntry, getEntries, isReservedKey } from './config.js'
 import { type ConfigFs, realConfigFs } from './fs.js'
 
@@ -50,17 +50,10 @@ function addCommand(fs: ConfigFs): Command {
 				fs.write(root, result.config)
 
 				const count = getEntries(result.config, opts.key).length
-				output({ key: opts.key, name: result.name, action: result.action }, () => {
-					printTable(
-						[result],
-						[
-							{ label: 'key', get: () => opts.key },
-							{ label: 'name', get: (r) => r.name },
-							{ label: 'action', get: (r) => r.action },
-						],
-					)
-					console.log(`${opts.key}: ${count} entries`)
-				})
+				output(
+					{ key: opts.key, name: result.name, action: result.action },
+					{ key: opts.key, name: result.name, action: result.action, summary: `${opts.key}: ${count} entries` },
+				)
 
 				process.stderr.write(`→ universal-plugin config get --key ${opts.key}\n`)
 			} catch (err) {
@@ -84,9 +77,9 @@ function getCommand(fs: ConfigFs): Command {
 				const root = resolveRoot(opts.root)
 				const entries = getEntries(fs.read(root), opts.key)
 
-				output(entries, () => {
-					printTable(entries as Record<string, unknown>[], [{ label: 'name', get: (e) => String(e.name ?? '') }])
-					console.log(`${opts.key}: ${entries.length} entries`)
+				output(entries, {
+					names: (entries as Record<string, unknown>[]).map((e) => String(e.name ?? '')),
+					summary: `${opts.key}: ${entries.length} entries`,
 				})
 
 				process.stderr.write(`→ universal-plugin config add --key ${opts.key} --entry <json>\n`)

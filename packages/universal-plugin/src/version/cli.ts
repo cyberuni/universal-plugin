@@ -4,7 +4,7 @@ import { Command, Option } from 'commander'
 
 import { buildPlugin } from '../build/build.js'
 import { ROOT_OPTION, resolveRoot } from '../cli-options.js'
-import { output, printFields, printTable } from '../output.js'
+import { output } from '../output.js'
 import { realVersionFs, type VersionFs } from './fs.js'
 import { planVersion, RELEASE_TYPES } from './version.js'
 
@@ -72,17 +72,13 @@ export function versionCommand(deps: { fs: VersionFs } = { fs: realVersionFs }):
 					planned: rows.filter((r) => r.action === 'planned').map((r) => r.path),
 					summary: { updated: plan.summary.updated, derived: rows.filter((r) => r.action === 'derived').length },
 				}
-				output(jsonResult, () => {
-					printFields({ from: plan.from ?? '(none)', to: plan.to })
-					printTable(rows, [
-						{ label: 'path', get: (r: ResultRow) => r.path },
-						{ label: 'action', get: (r: ResultRow) => r.action },
-					])
-					console.log(
-						dryRun
-							? `planned ${plan.summary.updated}, updated 0 (dry run)`
-							: `updated ${plan.summary.updated}, derived ${jsonResult.summary.derived}`,
-					)
+				output(jsonResult, {
+					from: plan.from ?? '(none)',
+					to: plan.to,
+					files: rows.map((r: ResultRow) => ({ path: r.path, action: r.action })),
+					summary: dryRun
+						? `planned ${plan.summary.updated}, updated 0 (dry run)`
+						: `updated ${plan.summary.updated}, derived ${jsonResult.summary.derived}`,
 				})
 
 				process.stderr.write(nextStep(dryRun, opts.build !== false))

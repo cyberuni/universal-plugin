@@ -1,26 +1,7 @@
+import { encode } from '@toon-format/toon'
+
 function printJson(data: unknown) {
 	console.log(JSON.stringify(data, null, 2))
-}
-
-export function printFields(fields: Record<string, string | null | undefined>) {
-	const entries = Object.entries(fields).filter(([, v]) => v != null) as [string, string][]
-	const width = Math.max(...entries.map(([k]) => k.length))
-	for (const [key, val] of entries) {
-		console.log(`${key.padEnd(width)}  ${val}`)
-	}
-}
-
-export function printTable<T>(items: T[], cols: { label: string; get: (item: T) => string }[]) {
-	if (items.length === 0) {
-		console.log('(none)')
-		return
-	}
-	const widths = cols.map((c) => Math.max(c.label.length, ...items.map((i) => c.get(i).length)))
-	console.log(cols.map((c, i) => c.label.toUpperCase().padEnd(widths[i]!)).join('  '))
-	console.log(widths.map((w) => '-'.repeat(w)).join('  '))
-	for (const item of items) {
-		console.log(cols.map((c, i) => c.get(item).padEnd(widths[i]!)).join('  '))
-	}
 }
 
 function getFormat(): string | undefined {
@@ -35,7 +16,19 @@ function isJsonOutput(): boolean {
 	return getFormat() === 'json'
 }
 
-export function output(data: unknown, readable: () => void) {
+/** Print the machine result on stdout: JSON when asked for, TOON otherwise (AXI #1).
+ *
+ * `view` is the default format's payload, carrying the minimal row schema and the
+ * pre-computed aggregates a reader needs (AXI #2, #4). It defaults to `data`, which
+ * suits a command whose full result is already minimal. */
+export function output(data: unknown, view?: unknown) {
 	if (isJsonOutput()) printJson(data)
-	else readable()
+	else console.log(encode(view ?? data))
+}
+
+/** Print a result whose default rendering is a document body rather than a record.
+ * `--format json` still emits the structured payload. */
+export function outputText(data: unknown, text: () => void) {
+	if (isJsonOutput()) printJson(data)
+	else text()
 }

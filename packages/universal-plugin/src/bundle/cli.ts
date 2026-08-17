@@ -2,7 +2,7 @@ import { Command } from 'commander'
 
 import { readManifest, universalPluginExtension } from '../build/build.js'
 import { ROOT_OPTION, resolveRoot } from '../cli-options.js'
-import { output, printTable } from '../output.js'
+import { output } from '../output.js'
 import { realPinFs, resolveSkillsDir } from '../pin/fs.js'
 import type { BundlePin } from './bundle.js'
 import { bundlePins } from './bundle.js'
@@ -58,23 +58,23 @@ export function bundleCommand(): Command {
 				const unchanged = result.pins.filter((p) => p.status === 'unchanged').length
 				const skipped = result.pins.filter((p) => p.status === 'skipped').length
 
-				output({ pins: result.pins }, () => {
-					const truncated = !opts.full && result.pins.length > TRUNCATE_THRESHOLD
-					const rows = truncated ? result.pins.slice(0, TRUNCATE_THRESHOLD) : result.pins
-
-					if (rows.length > 0) {
-						printTable(rows, [
-							{ label: 'package', get: (r: BundlePin) => r.package },
-							{ label: 'current', get: (r: BundlePin) => r.current },
-							{ label: 'resolved', get: (r: BundlePin) => r.resolved },
-							{ label: 'status', get: (r: BundlePin) => r.status },
-						])
-					}
-					if (truncated) {
-						console.log(`… +${result.pins.length - TRUNCATE_THRESHOLD} more — rerun with --full`)
-					}
-					console.log(`pinned ${pinned}, unchanged ${unchanged}, skipped ${skipped}`)
-				})
+				const truncated = !opts.full && result.pins.length > TRUNCATE_THRESHOLD
+				const shown = truncated ? result.pins.slice(0, TRUNCATE_THRESHOLD) : result.pins
+				output(
+					{ pins: result.pins },
+					{
+						pins: shown.map((r: BundlePin) => ({
+							package: r.package,
+							current: r.current,
+							resolved: r.resolved,
+							status: r.status,
+						})),
+						...(truncated
+							? { truncated: `… +${result.pins.length - TRUNCATE_THRESHOLD} more — rerun with --full` }
+							: {}),
+						summary: `pinned ${pinned}, unchanged ${unchanged}, skipped ${skipped}`,
+					},
+				)
 
 				if (result.pins.length === 0) {
 					process.stderr.write('nothing to bundle\n')

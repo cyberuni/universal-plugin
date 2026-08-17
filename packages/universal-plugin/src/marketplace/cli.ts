@@ -1,7 +1,7 @@
 import { Command, Option } from 'commander'
 
 import { ROOT_OPTION, resolveRoot } from '../cli-options.js'
-import { output, printTable } from '../output.js'
+import { output } from '../output.js'
 import { initializeMarketplace, type MarketplaceInitOptions } from './init.js'
 import type { MarketplaceTarget } from './marketplace.js'
 
@@ -53,14 +53,15 @@ function initCommand(): Command {
 					dryRun: opts.dryRun,
 					force: opts.force,
 				})
-				output(results, () =>
-					printTable(results, [
-						{ label: 'target', get: (row) => row.target },
-						{ label: 'status', get: (row) => row.status },
-						{ label: 'paths', get: (row) => row.paths.join(', ') || '-' },
-						{ label: 'plugins', get: (row) => row.plugins.join(', ') || '-' },
-					]),
-				)
+				output(results, {
+					targets: results.map((row) => ({
+						target: row.target,
+						status: row.status,
+						paths: row.paths.join(' ') || '-',
+						plugins: row.plugins.join(' ') || '-',
+					})),
+					summary: `${results.length} targets`,
+				})
 				process.stderr.write(
 					'Generated repository metadata only; no marketplace publication, registration, installation, authentication, or provisioning occurred.\n',
 				)
