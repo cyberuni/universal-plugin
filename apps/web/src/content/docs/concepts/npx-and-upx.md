@@ -131,10 +131,60 @@ it depends on the reference carrying an explicit `@<version>`. Bootstrap idioms 
 non-workspace packages are skipped on a separate axis. This is a heuristic boundary, not a declared
 one; treat a rewrite tool's output as something to review rather than trust.
 
+## Running a CLI your own plugin ships
+
+The fastest call is the one with no runner word at all. When the CLI belongs to the plugin shipping
+the skill, the code is already on disk next to the skill, and the skill can import it directly.
+
+Ship a launcher in the skill's own `scripts/` directory, named for the command it runs:
+
+```js
+#!/usr/bin/env node
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+// <package>/skills/<skill>/scripts/doctor.mjs: four levels up is the package root.
+const packageRoot = dirname(dirname(dirname(dirname(fileURLToPath(import.meta.url)))))
+
+process.argv.splice(2, 0, 'doctor')
+await import(join(packageRoot, 'bin', 'my-cli.mjs'))
+```
+
+The skill body names it relative to itself:
+
+```sh
+node scripts/doctor.mjs
+```
+
+Four things make this work, and each fails a different way if you skip it.
+
+**Resolve from `import.meta.url`, never the working directory.** An agent runs the script from the
+repository it is working on, so the working directory is that repository rather than the skill. That
+is what you want for the command's input. It is useless for finding the command.
+
+**Keep `node` in front.** A launcher written by a build step ships as mode `100644`, so its shebang
+never runs it, and on Windows a shebang does nothing regardless of mode.
+
+**Publish the plugin to npm if the CLI has dependencies.** An npm-sourced install brings the
+dependency tree; a git source copies the repository and leaves `node_modules` to whatever the
+checkout happened to contain. The launcher then fails on a missing transitive dependency rather than
+on anything you wrote. See the caveat in [Tradeoffs](#it-is-not-ambient-so-it-needs-a-bootstrap),
+which is the same distribution boundary from the other side.
+
+**Keep a pinned `npx` fallback in the body.** Resolving the script's path is model behavior, not a
+guarantee, and a git-sourced install has no dependency tree. One line covers both.
+
+Pin the fallback to the version that shipped the skill, and regenerate it at release. A skill states
+the flags and output of its own version, so an unpinned fallback can hand an agent a CLI its
+documentation does not describe. Generating the skill text and running that generator inside
+`changeset version`, alongside `publish sync-version`, keeps the pin from going stale behind the
+package.
+
 ## Choosing a runner
 
 | Situation | Use |
 | --- | --- |
+| The CLI ships in the same plugin as the skill | A launcher in the skill's `scripts/`, run as `node scripts/<name>.mjs` |
 | The CLI exposes a library API and you control the call site | Import in-process — no runner at all |
 | A skill shipped to unknown machines, or via a non-npm plugin source | `npx <pkg>@<exact>` |
 | A skill called many times per run, on a machine you set up | `upx <pkg>@^<major>` |
