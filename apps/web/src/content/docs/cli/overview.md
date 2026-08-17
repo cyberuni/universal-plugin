@@ -51,7 +51,23 @@ Most subcommands accept `--format`:
 
 | Value | Consumer | Output |
 |---|---|---|
-| _(default)_ | Humans | Tables, aligned fields |
-| `--format json` | Scripts / pipelines | Flat JSON |
+| _(default)_, `--format toon` | Agents | [TOON](https://toonformat.dev/), roughly 40% fewer tokens than JSON |
+| `--format json` | Scripts and pipelines | The full structured result |
+
+A TOON result carries three or four fields per row plus a `summary` line with the counts, so no
+follow-up call is needed to learn how the run went:
+
+```
+vendors[2]{vendor,path,status}:
+  claude-code,.claude-plugin/plugin.json,built
+  cursor,.cursor-plugin/plugin.json,built
+summary: "built 2, skipped 0, failed 0"
+```
+
+`--format json` returns more than the default view, including every warning. `governance show`
+prints the governance document itself, so its default stays plain text.
+
+stdout carries the result and nothing else. Next-step lines, warnings, and errors go to stderr, so
+piping stdout into a parser stays clean.
 
 `--json` is a deprecated alias for `--format json`.
