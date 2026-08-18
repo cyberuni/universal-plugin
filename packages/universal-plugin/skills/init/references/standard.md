@@ -81,7 +81,7 @@ what only that component does; `governance show plugin-design` is the authority 
 
 - **Never hand-edit a derived manifest.** `plugin build` owns `.claude-plugin/plugin.json` and its
   siblings; an edit there survives until the next build and no longer.
-- **Never hand-edit a `version` field.** See `version.md`.
+- **Never hand-edit a `version` field.** That move belongs to `/universal-plugin:version`.
 - **The canonical schema is closed.** A vendor-only field cannot be added at the top level; it goes
   under that vendor's `harnesses` entry or nowhere.
 - Root `plugin.json` is not a build artifact. It is both the source of truth and the file Copilot CLI

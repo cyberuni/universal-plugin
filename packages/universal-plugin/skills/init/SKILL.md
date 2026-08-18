@@ -1,6 +1,6 @@
 ---
 name: init
-description: Use this skill when initializing, adopting, inspecting, updating, versioning, or deleting a universal agent plugin — one canonical plugin.json that drives Claude Code, Cursor, Codex, and GitHub Copilot CLI. Also use it to scaffold a new plugin, convert a vendor-specific plugin or a project that already ships skills onto the open Agent Plugins Specification, add or remove a vendor, or move a plugin's version — for asks like "init a plugin here", "make my Claude Code plugin work in Cursor", "convert this to the open plugin standard", "turn these skills into a plugin", "add Codex support", "bump my plugin's version", or "release a new version of this plugin".
+description: Use this skill to create or change a universal agent plugin — scaffold a new one, adopt an existing vendor-specific plugin or already-shipped skills onto the open Agent Plugins Specification, or add and remove vendors and components on the canonical plugin.json that drives Claude Code, Cursor, Codex, and GitHub Copilot CLI. Trigger on "init a plugin here", "make my Claude Code plugin work in Cursor", "convert this to the open plugin standard", "turn these skills into a plugin", "add Codex support", or "add a hooks component".
 argument-hint: '[--name <name>] [--vendor <id>] [--scaffold] [--npm] [--force]'
 ---
 
@@ -100,9 +100,8 @@ adoption always crosses that line, because it turns manifests the user maintains
 Creating a missing `plugin.json`, a missing component directory, or a missing skill scaffold needs
 no approval; report those rather than asking.
 
-Two cases need asking even when nothing is overwritten: two vendor manifests that disagree on a
-shared field (a silent pick is a silent behavior change for one runtime), and a release-type choice
-in `references/version.md` (a version is a promise to consumers, not a default).
+One case needs asking even when nothing is overwritten: two vendor manifests that disagree on a
+shared field. A silent pick there is a silent behavior change for one runtime.
 
 ## 4. Apply
 
@@ -112,10 +111,11 @@ Route by what Phase 2 found. Read exactly the reference for the work at hand —
 | --- | --- | --- |
 | nothing — greenfield | scaffold a canonical manifest and its components | [`references/create.md`](./references/create.md) |
 | adoptable | carry it onto the canonical manifest, losslessly | [`references/adopt.md`](./references/adopt.md) |
-| canonical, and the user wants its state | report declared vendors and build status | [`references/inspect.md`](./references/inspect.md) |
 | canonical, and a vendor or component changes | edit `extensions`, then rebuild | [`references/update.md`](./references/update.md) |
-| canonical, and the version moves | bump or set it across every file that carries one | [`references/version.md`](./references/version.md) |
-| canonical, and manifests or the plugin go away | remove derived output, or the whole plugin | [`references/delete.md`](./references/delete.md) |
+
+Three asks leave this skill rather than routing inside it. Hand them over instead of improvising a
+route: **`doctor`** reports what is declared, built, stale, or drifting; **`version`** moves the
+number; **`remove-plugin`** deletes derived manifests or the plugin itself.
 
 Every route ends in the same two commands. Scaffold with the CLI that shipped beside this skill:
 
@@ -136,9 +136,9 @@ npx universal-plugin plugin build
 an existing vendor manifest, so shared metadata and per-vendor overrides are carried in by hand
 afterwards, per the reference you routed to.
 
-If the request spans more than one route ("add Codex and cut a release"), load each reference in
-turn as you reach that part of the work. If the route is unclear, ask which the user means rather
-than guessing.
+If the request spans more than one route ("add Codex, then cut a release"), take this skill's part
+first and hand the rest to the skill that owns it. If the route is unclear, ask which the user means
+rather than guessing.
 
 ## 5. Verify and report
 
@@ -156,7 +156,8 @@ Expect only formatting and key-order churn. Any field that disappeared is a regr
 cleanup — trace it back to the shared metadata or to that vendor's `harnesses` entry before shipping.
 
 Audit each skill the plugin ships, per [`references/create.md`](./references/create.md) Step 6.
-Report what was created, adopted, derived, and left alone.
+Report what was created, adopted, derived, and left alone. For a fuller read of the plugin's state
+than this phase gives — drift, version skew, shadowing manifests — hand off to `doctor`.
 
 This skill is not a formatter. If the project has one, run it over the written files and say so.
 
@@ -165,7 +166,7 @@ This skill is not a formatter. If the project has one, run it over the written f
 - **Edit the canonical manifest, never a derived one.** `.claude-plugin/plugin.json` and its
   siblings belong to `plugin build`; a hand-edit there is overwritten on the next build.
 - **Never hand-edit a `version` field.** Two authored files and every derived artifact fall out of
-  sync. `references/version.md` owns that move.
+  sync. The `version` skill owns that move.
 - **Adoption is lossless by contract.** Every vendor that worked before must still work after, and
   the Phase 5 diff is the check that proves it.
 - **Do not package repo-private agent configuration.** A `.claude/skills/` directory is the project's
@@ -181,6 +182,9 @@ This skill is not a formatter. If the project has one, run it over the written f
 
 | Task | Skill |
 |------|-------|
+| Diagnose a plugin — what is declared, built, stale, or drifting | `doctor` |
+| Move the plugin's version, or reconcile one that drifted | `version` |
+| Delete derived manifests, or the whole plugin | `remove-plugin` |
 | Move a repo-root plugin into its npm package | `migrate-plugin` |
 | Publish a packaged plugin to the marketplace | `publish-plugin` |
 | Bump the pinned `universal-plugin@<version>` the project *calls* (not the plugin's own version) | `upgrade-plugin` |

@@ -108,4 +108,4 @@ ln -sf "$(pwd)" ~/.cursor/plugins/local/<plugin-name>   # Cursor → Developer: 
 ## Next
 
 Shipping it on npm → `migrate-plugin`. Listing it in a marketplace → `publish-plugin`. Releasing a
-number → [`version.md`](./version.md).
+number → `/universal-plugin:version`.

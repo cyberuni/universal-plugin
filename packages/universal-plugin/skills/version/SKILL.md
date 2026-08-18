@@ -1,4 +1,9 @@
-# Move a universal plugin's version
+---
+name: version
+description: Use this skill to move a universal agent plugin's version — bump it, set an explicit one, cut a release number, or reconcile a version that drifted between the canonical plugin.json and its npm package.json. Handles both release models: a changesets repository, where the number is decided by the release and carried in with publish sync-version, and a plain repository, where plugin version does the whole move. Trigger on "bump the plugin version", "release a new version of this plugin", "set the plugin version to 1.0.0", "cut a patch release", or "the manifest and package.json versions disagree".
+---
+
+# Move a plugin's version
 
 Bump or set the version a plugin releases under, keeping every file that carries one in sync.
 
@@ -78,7 +83,7 @@ Every guard resolves before the first write, so a failed run leaves the tree unt
 
 | Message names | What it means | Do this |
 |---|---|---|
-| a missing `plugin.json` | not at a plugin root, or the plugin was never scaffolded | `cd` to the plugin root, or see [`create.md`](./create.md) |
+| a missing `plugin.json` | not at a plugin root, or the plugin was never scaffolded | `cd` to the plugin root, or run `/universal-plugin:init` |
 | no version to bump from | the manifest has never carried a `version` | pass an explicit version (`plugin version 0.1.0`) to set the first one |
 | an unknown version or release type | the argument is neither a release type nor valid semver | use one of the values in the table above |
 | a target that does not advance | the requested version is not greater than the current one | pick a higher version, or pass `--force` if the user genuinely wants to move backward |
@@ -92,6 +97,15 @@ Every guard resolves before the first write, so a failed run leaves the tree unt
 - **Run `npm version`.** It knows only `package.json` and leaves the canonical manifest — the actual
   source of truth — stale.
 
+## Related skills
+
+| Task | Skill |
+|------|-------|
+| Create, adopt, or change what the plugin declares | `init` |
+| Check whether the two authored versions agree | `doctor` |
+| Add a changeset for the change being released | `add-changeset` |
+| List the released plugin in a marketplace | `publish-plugin` |
+
 ## References
 
-- Spec: https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/plugin/version/README.md
+- Spec: [`plugin/version/`](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/plugin/version/README.md)

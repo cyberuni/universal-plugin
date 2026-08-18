@@ -67,11 +67,14 @@ CLI's own verb — ships with the verb (ADR-0005 §3), while **session hooks sta
 and skills whose *subject* is authoring craft stay with `cyberspace`/`aced`. No verb here needs such a
 skill for **interactivity** today — the one that did (harness selection) left with the consume half
 (ADR-0006 §5). **Reach is a second, independent question**: a verb no agent can find ships
-unreachable however non-interactive it is, and the package's answer to it is the shipped gateway
-skill's route table (`skills/init/`), which names one reference per verb-shaped operation. A new
-verb therefore earns a **route** on that gateway, not a new skill beside it — a competing top-level
-skill would fragment the table the gateway exists to be. `plugin version` is the worked example
-(see [`plugin/version/`](./plugin/version/README.md), *The skill question*).
+unreachable however non-interactive it is, and the package's answer to it is a set of verb-shaped
+skills under `skills/`, each named for what it does and scoped by the object it touches: `init`
+writes the manifest's declaration (create / adopt / update), `doctor` only reads, `version` moves the
+released number, `remove-plugin` deletes artifacts. A new verb earns a **route** on the skill whose
+object it shares, and a skill of its own only when its object differs — competing writers on one
+object are what fragments a surface, not skill count
+([ADR-0009](./design/decisions/0009-split-the-plugin-gateway-skill.md), which supersedes the single-gateway
+rule this paragraph previously stated).
 
 ## Why this is its own project
 

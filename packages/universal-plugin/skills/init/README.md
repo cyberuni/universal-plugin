@@ -24,7 +24,7 @@ vendor-specific fields under `harnesses.<vendor>`.
 covers what one runtime needs on top of it, and `SKILL.md` routes to them directly rather than
 loading all four.
 
-## Operations
+## Routes
 
 Phase 4 routes to exactly one reference:
 
@@ -32,10 +32,10 @@ Phase 4 routes to exactly one reference:
 | --- | --- | --- |
 | Create | [`references/create.md`](./references/create.md) | scaffold a new plugin with chosen vendors and components |
 | Adopt | [`references/adopt.md`](./references/adopt.md) | put an existing vendor-specific plugin, or already-shipped skills, onto the open standard |
-| Inspect | [`references/inspect.md`](./references/inspect.md) | what is declared, and which manifests are built or stale |
 | Update | [`references/update.md`](./references/update.md) | add or remove a vendor or a component |
-| Version | [`references/version.md`](./references/version.md) | move the version across every file that carries one |
-| Delete | [`references/delete.md`](./references/delete.md) | remove derived manifests, or the whole plugin |
+
+Three neighbours own the rest of the plugin's life, each named for what it does: `doctor` diagnoses,
+`version` moves the number, `remove-plugin` deletes. This skill is the one that writes the manifest.
 
 ## The part that needs care
 

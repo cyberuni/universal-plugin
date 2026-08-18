@@ -38,7 +38,7 @@ reproduce all of it.
 
 **If a root `plugin.json` already exists**, read it before assuming anything. It is either the
 canonical manifest (has `$schema` pointing at `agent-plugins.org` and an `extensions` object — in
-which case there is nothing to adopt; route to `update.md` or `inspect.md` instead), or a legacy
+which case there is nothing to adopt; route to `update.md`, or hand off to `doctor`, instead), or a legacy
 Copilot CLI manifest that now collides with the canonical path and must be folded in.
 
 ## Step 2 — Sort every field into shared vs vendor-specific
