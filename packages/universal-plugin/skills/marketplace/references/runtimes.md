@@ -41,11 +41,11 @@ The marketplace's own `name` becomes its registration key, and a user cannot cho
 (E-COPILOT-M1). `copilot plugin install` also accepts `OWNER/REPO`, `OWNER/REPO:PATH`, a Git URL, or
 a local path, so a plugin is installable from a repository even without a catalog (E-COPILOT-M2).
 
-## Codex — works, and reads the Claude catalog
+## Codex — works, and reads two paths
 
-Catalog: `.claude-plugin/marketplace.json`. Codex reads that path and no other tested one
-(E-CODEX-M4). A repository that already generated the Claude catalog is already installable from
-Codex.
+Catalog: `.agents/plugins/marketplace.json`, which `marketplace init --codex` writes. Codex also
+reads `.claude-plugin/marketplace.json`, so a repository that generates only the Claude catalog is
+installable from Codex too (E-CODEX-M10, E-CODEX-M11).
 
 ```
 codex plugin marketplace add <owner>/<repo>
@@ -61,22 +61,17 @@ carry one runtime's verb over to the other.
 Neither verb appears in Codex's published documentation. Both are in the shipped CLI, verified on
 codex-cli 0.147.0.
 
-The catalog must carry `owner` even though Codex does not require it, because the same file has to
-satisfy Claude Code, which rejects a catalog without one (E-CC-M5). Use string sources
-(`"source": "./plugins/demo"`); Codex also accepts an object form, Claude Code's schema is the
-stricter of the two, and one file has to pass both.
+**Discovery is by filename.** Codex looks for `marketplace.json` inside a supported directory. These
+are read: `.claude-plugin/`, `.agents/plugins/`. These are not, with the correct filename in each:
+`.codex-plugin/`, `.plugin/`, `.github/plugin/`, the repository root (E-CODEX-M10).
 
-**`marketplace init --codex` writes `.agents/plugins/<name>.json`, which Codex does not read**
-(E-CODEX-M5). The location is the problem, not the content: that same JSON is accepted when it sits
-at `.claude-plugin/marketplace.json` (E-CODEX-M9). A fixture carrying only that file is rejected with "marketplace root does not contain a
-supported manifest". To make a repository installable from Codex today, generate the Claude catalog:
+The two catalogs are not interchangeable in content. The Codex one carries `interface`, `policy`,
+`category`, and an object `source`; Codex accepts the Claude shape as well, but Claude Code rejects
+the Codex shape for its missing `owner` (E-CC-M5, E-CODEX-M9). Where a repository wants one file
+instead of two, that file is the Claude one.
 
-```bash
-node scripts/marketplace.mjs --claude
-```
-
-Say plainly that the one file serves both runtimes. Do not generate `--codex` and tell the user Codex
-will read it.
+Codex caches an install by plugin version at `~/.codex/plugins/cache/<marketplace>/<plugin>/<version>`,
+so a source edit is invisible until the plugin is reinstalled and a new session starts.
 
 ## Cursor — no repository-local marketplace
 

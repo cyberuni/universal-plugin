@@ -44,41 +44,42 @@ owner/repo[@ref], HTTPS Git URL, or SSH Git URL", with `list`, `upgrade`, and `r
 installation is `codex plugin add <plugin>@<marketplace>`. Note that Codex installs with `plugin add`
 where Copilot CLI installs with `plugin install`; the verbs are not interchangeable.
 
-Which manifest Codex reads was settled by experiment rather than by reading. Four fixture
-repositories were built, identical except for where the catalog sat:
+Which manifest Codex reads was settled by experiment, and the experiment had to be run twice.
 
-| Fixture | Result |
+The first round built four fixtures, identical except for where the catalog sat, and concluded that
+only `.claude-plugin/marketplace.json` was read. That conclusion was wrong. The fixture standing in
+for this project's Codex output was named `.agents/plugins/<name>.json`, while the command actually
+writes `.agents/plugins/marketplace.json`. The probe varied two things at once, directory and
+filename, and the filename was what failed.
+
+The second round held the filename at `marketplace.json` in every directory:
+
+| Directory | Result |
 |---|---|
-| `.claude-plugin/marketplace.json` | added |
-| `.agents/plugins/<name>.json` | "marketplace root does not contain a supported manifest" |
-| `.codex-plugin/marketplace.json` | same error |
-| root `marketplace.json` | same error |
+| `.claude-plugin/` | added |
+| `.agents/plugins/` | added |
+| `.codex-plugin/` | "marketplace root does not contain a supported manifest" |
+| `.plugin/` | same error |
+| `.github/plugin/` | same error |
+| repository root | same error |
 
-Then the accepted fixture was installed from end to end: `codex plugin add demo@probe-claude` landed
-the plugin in `~/.codex/plugins/cache/probe-claude/demo/1.0.0`, resolved through a `./`-prefixed
-relative `source`, with the plugin itself carrying `.codex-plugin/plugin.json`. The probe marketplace
-and plugin were removed afterwards.
+Discovery is therefore by filename inside a supported directory. Codex looks for `marketplace.json`
+and nothing else, which is why the first round's fixture was invisible to it.
 
-One objection deserved a second round: the fixtures varied location but held content constant, so a
-rejection might have meant "wrong schema at a supported path" rather than "path not read". Codex
-distinguishes the two clearly. A malformed catalog at a supported path names the file and the field
-(``missing field `name` at line 1 column 14``); an unsupported location names the directory
-("marketplace root does not contain a supported manifest"). Every rejection above is the second form.
+The accepted fixtures were installed end to end. `codex plugin add demo@probe-exact` landed the
+plugin in `~/.codex/plugins/cache/probe-exact/demo/1.0.0`, resolved through a `./`-prefixed relative
+source, and `codex plugin list` printed `.agents/plugins/marketplace.json` as the manifest it had
+read. Every probe marketplace and installed plugin was removed afterwards.
 
-The follow-up also answered a question the first round had not asked. Moving the `.agents/plugins`
-content verbatim to `.claude-plugin/marketplace.json` works: Codex tolerates `interface`, `policy`,
-and `category`, requires no `owner`, and resolves an object `source` of
-`{"source":"local","path":"./…"}`. So the content this project writes for Codex is valid for Codex.
-Only its location is wrong.
+So `marketplace init --codex` writes a real, working catalog, and the defect reported against it did
+not exist.
 
-That content is still not portable. Claude Code rejects it outright for the missing `owner`
-(`Invalid input: expected object, received undefined`). The Claude shape, meanwhile, is accepted by
-both. The portable catalog is therefore the stricter one: `name`, `owner`, and `plugins` with
-`./`-prefixed string sources.
-
-This overturns the first pass twice. The README's Codex commands are real, and the catalog this
-project writes for Codex is not merely unsourced, it is unread. `marketplace init --codex` emits
-`.agents/plugins/<name>.json`, which is exactly the fixture Codex rejected.
+A separate question, asked in the first round and still valid: can one file serve both runtimes? No.
+Moving the Codex content verbatim to `.claude-plugin/marketplace.json` is accepted by Codex, which
+tolerates `interface`, `policy`, and `category`, requires no `owner`, and resolves an object `source`
+of `{"source":"local","path":"./…"}`. Claude Code rejects that same content outright for the missing
+`owner`. Where a repository wants one catalog rather than two, the Claude shape is the portable one,
+because it is the stricter of the pair and Codex accepts it.
 
 **Cursor.** A clear negative, from both directions. `cursor-agent` 2026.07.01 has no plugin or
 marketplace subcommand at all. Installation runs through the Customize sidebar against the reviewed
@@ -89,13 +90,16 @@ a catalog.
 
 ## What this changed in the product
 
-`marketplace init --codex` writes an artifact no runtime reads, and that is now tracked as a defect
-rather than a documentation gap. Until it is fixed, the honest advice for a user who wants Codex
-support is to generate the Claude catalog, because Codex reads the same file.
+Nothing in the CLI. `marketplace init --codex` behaves correctly, and its version derivation matches
+how Codex caches an install, keyed by plugin version at
+`~/.codex/plugins/cache/<marketplace>/<plugin>/<version>`.
+
+What changed is the documentation around it, twice: first to warn users away from a working flag,
+then to withdraw the warning. Issue #42 was filed on the wrong finding and closed as invalid.
 
 ## Open questions
 
-- Does Codex read any manifest path outside the four probed here?
+- Does Codex read a directory outside the six probed here?
 - Where did the `.agents/plugins/` shape come from? It predates this investigation, and nothing in
   the repository records a source for it.
 - Do the Codex CLI verbs appear in a reference page not reviewed here? They are absent from the two

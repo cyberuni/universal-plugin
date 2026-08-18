@@ -92,14 +92,13 @@ the manifest GitHub Copilot CLI reads.
 
 ### Which runtimes a local marketplace reaches
 
-One file carries three runtimes. Claude Code, Codex, and Copilot CLI all read
-`.claude-plugin/marketplace.json`, so generating the Claude catalog is what makes a repository
-installable from all three.
+Three of the four runtimes install from a catalog the repository carries. Each has its own path, and
+`.claude-plugin/marketplace.json` is read by all three, so one file covers them if you want fewer.
 
 | Runtime | Catalog it reads | The user runs |
 |---|---|---|
 | Claude Code | `.claude-plugin/marketplace.json` | `/plugin marketplace add`, then `/plugin install` |
-| Codex | `.claude-plugin/marketplace.json` | `codex plugin marketplace add`, then `codex plugin add` |
+| Codex | `.agents/plugins/marketplace.json`, or the Claude path | `codex plugin marketplace add`, then `codex plugin add` |
 | GitHub Copilot CLI | `.github/plugin/marketplace.json`, or the Claude path | `copilot plugin marketplace add`, then `copilot plugin install` |
 | Cursor | none | install from Cursor's reviewed marketplace |
 
@@ -107,9 +106,9 @@ Two traps are worth knowing before you write install instructions by hand. Codex
 `plugin add` while Copilot CLI uses `plugin install`. And Codex publishes neither verb in its
 documentation, so the commands above come from the shipped CLI.
 
-The shared catalog has to satisfy the strictest reader. Claude Code rejects one without an `owner`
-field; Codex requires no `owner` and accepts extra fields. Generate the Claude shape and all three
-runtimes read it.
+A shared catalog has to satisfy the strictest reader. Claude Code rejects one without an `owner`
+field, while Codex requires no `owner` and accepts extra fields, so the Claude shape is the portable
+one. Codex also finds a catalog only when it is named `marketplace.json`.
 
 Cursor has no repository-local marketplace, so the skill produces a submission scaffold and says so
 rather than implying an install path. Every command it emits carries an evidence ID in
