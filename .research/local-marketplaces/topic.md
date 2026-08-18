@@ -59,6 +59,23 @@ the plugin in `~/.codex/plugins/cache/probe-claude/demo/1.0.0`, resolved through
 relative `source`, with the plugin itself carrying `.codex-plugin/plugin.json`. The probe marketplace
 and plugin were removed afterwards.
 
+One objection deserved a second round: the fixtures varied location but held content constant, so a
+rejection might have meant "wrong schema at a supported path" rather than "path not read". Codex
+distinguishes the two clearly. A malformed catalog at a supported path names the file and the field
+(``missing field `name` at line 1 column 14``); an unsupported location names the directory
+("marketplace root does not contain a supported manifest"). Every rejection above is the second form.
+
+The follow-up also answered a question the first round had not asked. Moving the `.agents/plugins`
+content verbatim to `.claude-plugin/marketplace.json` works: Codex tolerates `interface`, `policy`,
+and `category`, requires no `owner`, and resolves an object `source` of
+`{"source":"local","path":"./…"}`. So the content this project writes for Codex is valid for Codex.
+Only its location is wrong.
+
+That content is still not portable. Claude Code rejects it outright for the missing `owner`
+(`Invalid input: expected object, received undefined`). The Claude shape, meanwhile, is accepted by
+both. The portable catalog is therefore the stricter one: `name`, `owner`, and `plugins` with
+`./`-prefixed string sources.
+
 This overturns the first pass twice. The README's Codex commands are real, and the catalog this
 project writes for Codex is not merely unsourced, it is unread. `marketplace init --codex` emits
 `.agents/plugins/<name>.json`, which is exactly the fixture Codex rejected.

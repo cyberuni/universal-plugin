@@ -61,8 +61,14 @@ carry one runtime's verb over to the other.
 Neither verb appears in Codex's published documentation. Both are in the shipped CLI, verified on
 codex-cli 0.147.0.
 
+The catalog must carry `owner` even though Codex does not require it, because the same file has to
+satisfy Claude Code, which rejects a catalog without one (E-CC-M5). Use string sources
+(`"source": "./plugins/demo"`); Codex also accepts an object form, Claude Code's schema is the
+stricter of the two, and one file has to pass both.
+
 **`marketplace init --codex` writes `.agents/plugins/<name>.json`, which Codex does not read**
-(E-CODEX-M5). A fixture carrying only that file is rejected with "marketplace root does not contain a
+(E-CODEX-M5). The location is the problem, not the content: that same JSON is accepted when it sits
+at `.claude-plugin/marketplace.json` (E-CODEX-M9). A fixture carrying only that file is rejected with "marketplace root does not contain a
 supported manifest". To make a repository installable from Codex today, generate the Claude catalog:
 
 ```bash

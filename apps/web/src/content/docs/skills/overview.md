@@ -107,6 +107,10 @@ Two traps are worth knowing before you write install instructions by hand. Codex
 `plugin add` while Copilot CLI uses `plugin install`. And Codex publishes neither verb in its
 documentation, so the commands above come from the shipped CLI.
 
+The shared catalog has to satisfy the strictest reader. Claude Code rejects one without an `owner`
+field; Codex requires no `owner` and accepts extra fields. Generate the Claude shape and all three
+runtimes read it.
+
 Cursor has no repository-local marketplace, so the skill produces a submission scaffold and says so
 rather than implying an install path. Every command it emits carries an evidence ID in
 [the research record](https://github.com/cyberuni/universal-plugin/blob/main/.research/local-marketplaces/conclusion.md).

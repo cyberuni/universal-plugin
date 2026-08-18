@@ -25,14 +25,21 @@ Three runtimes install from a repository-hosted catalog. All three read a catalo
 One file, `.claude-plugin/marketplace.json`, is read by three of the four. The vendor-neutral name
 for it would be nicer, but the path is what ships.
 
+The shape that satisfies all three is the Claude one: `name`, `owner`, and `plugins` with
+`./`-prefixed string sources. Claude Code rejects a catalog without `owner`; Codex requires no
+`owner` and tolerates extra fields, so the stricter schema is the portable one.
+
 ## What follows for this project
 
 - **Write `.claude-plugin/marketplace.json` and three runtimes are covered.** Copilot CLI also reads
   `.github/plugin/marketplace.json`, which `marketplace init --copilot` already writes.
 - **`marketplace init --codex` writes a file nothing reads.** It emits
   `.agents/plugins/<name>.json`. A fixture carrying only that file is rejected by Codex with
-  "marketplace root does not contain a supported manifest" (E-CODEX-M4, E-CODEX-M5). The target
-  should write, or defer to, the Claude catalog instead.
+  "marketplace root does not contain a supported manifest" (E-CODEX-M4, E-CODEX-M5). The location is
+  the whole problem: move that same content to `.claude-plugin/marketplace.json` and Codex accepts it
+  and installs from it (E-CODEX-M9). The content is still not portable, because Claude Code rejects
+  it for the missing `owner` (E-CC-M5), so the target should defer to the Claude-shaped catalog
+  rather than write its own.
 - **Codex's CLI verbs are real but undocumented.** `codex plugin marketplace add` and
   `codex plugin add` ship in codex-cli 0.147.0 and appear in no vendor page reviewed here. Note the
   asymmetry: Codex installs with `plugin add`, Copilot CLI with `plugin install`.
@@ -49,8 +56,11 @@ location settled which path Codex accepts, and an end-to-end `add` proved the in
 
 ## Confidence
 
-High throughout, and the Codex rows now rest on the CLI rather than on documentation. The one
-remaining unknown is whether Codex reads any manifest path not among the four probed.
+High throughout, and the Codex rows now rest on the CLI rather than on documentation. Path support
+and content validity were separated deliberately: Codex reports a bad manifest by naming the file and
+the offending field, and an unsupported location by naming the directory (E-CODEX-M8). Every
+"unsupported manifest" result here is the second form, so those paths are never read rather than read
+and rejected. The one remaining unknown is whether Codex reads a path outside the four probed.
 
 ## Recheck triggers
 
