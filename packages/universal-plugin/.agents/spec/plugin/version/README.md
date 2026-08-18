@@ -40,9 +40,11 @@ the manifest would leave the npm tarball claiming a version the plugin inside it
 `publish sync-version` exists precisely to repair that drift after the fact. Moving both here means
 there is nothing to repair.
 
-**Non-goals** — deciding *which* number is authoritative for a repo, and whether a marketplace
-source should resolve a tag rather than a branch (that is version **policy**, tracked separately);
-warning that manifest content changed without a version bump; deriving the vendor manifests
+**Non-goals** — version **policy**: which number is authoritative for a repo, whether a marketplace
+source should resolve a tag rather than a branch, and what is done about content that changed without
+a bump. All three are settled in
+[ADR-0010](../../design/decisions/0010-version-policy.md), which leaves this verb's behavior
+unchanged and puts the drift check in `doctor`. Also out of scope: deriving the vendor manifests
 (`plugin build`); pinning skill references (`plugin bundle`); publishing to npm or to a marketplace
 (`cyberplace`).
 
