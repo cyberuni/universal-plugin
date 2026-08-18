@@ -68,7 +68,7 @@ and skills whose *subject* is authoring craft stay with `cyberspace`/`aced`. No 
 skill for **interactivity** today — the one that did (harness selection) left with the consume half
 (ADR-0006 §5). **Reach is a second, independent question**: a verb no agent can find ships
 unreachable however non-interactive it is, and the package's answer to it is the shipped gateway
-skill's route table (`skills/plugin/`), which names one reference per verb-shaped operation. A new
+skill's route table (`skills/init/`), which names one reference per verb-shaped operation. A new
 verb therefore earns a **route** on that gateway, not a new skill beside it — a competing top-level
 skill would fragment the table the gateway exists to be. `plugin version` is the worked example
 (see [`plugin/version/`](./plugin/version/README.md), *The skill question*).

@@ -16,8 +16,9 @@ is the check that proves it — do not skip it.
 
 ## Step 0 — Confirm the user wants this
 
-Adoption rewrites the project's manifest layout and turns hand-written vendor manifests into
-generated artifacts. Say that plainly and get agreement before touching files. If the user declines,
+This is the skill's Phase 3 gate, and adoption always needs it: adoption rewrites the project's
+manifest layout and turns hand-written vendor manifests into generated artifacts. Say that plainly
+and get agreement before touching files. If the user declines,
 route back to whatever they originally asked for.
 
 Also confirm the working tree is clean (`git status`). The Step 6 diff is worthless if uncommitted
@@ -58,8 +59,11 @@ rather than picking one. A silent choice here is a silent behavior change for on
 Scaffold it, naming exactly the vendors you found in Step 1:
 
 ```bash
-npx universal-plugin plugin init --name <name> --vendor claude-code --vendor cursor
+node scripts/init.mjs --name <name> --vendor claude-code --vendor cursor
 ```
+
+Resolve `scripts/init.mjs` against this skill's directory; `npx universal-plugin plugin init` is the
+fallback.
 
 > `plugin init` writes a **minimal** manifest — `$schema`, `name`, and the `vendors` list. It does
 > not read your existing vendor manifests. Carry the Step 2 buckets in by hand afterwards.

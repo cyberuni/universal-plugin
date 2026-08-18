@@ -88,14 +88,14 @@ nobody can find ships unreachable however little judgment it needs. Measured:
 - The package is published, so the verb is reachable with no install as
   `npx universal-plugin plugin version <bump>` — that is the same unpinned invocation the gateway
   skill already uses for `governance show`.
-- The gateway skill `plugin` is this package's discoverability surface for exactly this class of
-  ask, and its route table covered create / adopt / inspect / update / delete. **None of them is
-  "move the version"**, and `update.md` is scoped to what a plugin *declares* — vendors and
+- The gateway skill `init` (`skills/init/`, formerly `skills/plugin/`) is this package's
+  discoverability surface for exactly this class of ask, and its route table covered create / adopt /
+  inspect / update / delete. **None of them is "move the version"**, and `update.md` is scoped to what a plugin *declares* — vendors and
   components — not to what it releases under. An agent asked to bump a plugin's version would have
   found no route and hand-edited a `version` field, which is precisely the drift this verb exists to
   prevent.
 
-So the reach surface is required, and it is **`skills/plugin/references/version.md`** plus its route
+So the reach surface is required, and it is **`skills/init/references/version.md`** plus its route
 row — not a new top-level skill. A separate skill would compete with the gateway for triggering on
 the same asks and fragment the route table the gateway exists to be; the gateway already claims
 "updating … a universal agent plugin" and now names the version triggers explicitly. This is still

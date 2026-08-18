@@ -2,8 +2,13 @@
 
 ## Remove generated manifests only (keep source)
 
-Delete each vendor's output file. Generated manifests are build artifacts — safe to delete and
-regenerate via [`create.md`](./create.md) Step 7.
+Generated manifests are build artifacts — safe to delete and regenerate. The build does it for you:
+
+```bash
+npx universal-plugin plugin build --clean
+```
+
+To remove them without rebuilding, delete each output file:
 
 ```bash
 rm -f .claude-plugin/plugin.json
