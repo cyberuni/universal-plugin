@@ -42,8 +42,9 @@ const repoRef = slug ?? '<owner>/<repo>'
 
 const claude = readJson(path.join(root, '.claude-plugin/marketplace.json'))
 const copilot = readJson(path.join(root, '.github/plugin/marketplace.json'))
-const codexDir = path.join(root, '.agents/plugins')
-const codex = fs.existsSync(codexDir) && fs.readdirSync(codexDir).some((f) => f.endsWith('.json'))
+// Codex reads `.claude-plugin/marketplace.json` and no other tested path, so the Claude catalog is
+// what makes a repository installable from Codex. See references/runtimes.md (E-CODEX-M4).
+const codex = claude !== null
 const cursor = fs.existsSync(path.join(root, '.cursor-plugin/marketplace-submission.json'))
 
 const targets = []
@@ -68,13 +69,20 @@ if (copilot) {
 }
 
 if (codex) {
+	const names = pluginNames(claude)
+	// Codex installs with `plugin add`; Copilot CLI installs with `plugin install`. Not interchangeable.
+	const installs = (names.length > 0 ? names : ['<plugin>']).map((n) => `codex plugin add ${n}@${claude.name}`)
 	targets.push('codex')
 	sections.push(
 		[
 			'**Codex**',
 			'',
-			'Codex installs from its in-CLI browser. Run `/plugins`, add this repository as a marketplace,',
-			'then start a new session before using the plugin.',
+			'```',
+			`codex plugin marketplace add ${repoRef}`,
+			...installs,
+			'```',
+			'',
+			'Start a new session before using the plugin.',
 		].join('\n'),
 	)
 }

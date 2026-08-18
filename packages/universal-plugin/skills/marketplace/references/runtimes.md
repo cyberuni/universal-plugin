@@ -41,30 +41,42 @@ The marketplace's own `name` becomes its registration key, and a user cannot cho
 (E-COPILOT-M1). `copilot plugin install` also accepts `OWNER/REPO`, `OWNER/REPO:PATH`, a Git URL, or
 a local path, so a plugin is installable from a repository even without a catalog (E-COPILOT-M2).
 
-## Codex — no documented CLI marketplace verb
+## Codex — works, and reads the Claude catalog
 
-Codex CLI installs from a browser inside the session:
+Catalog: `.claude-plugin/marketplace.json`. Codex reads that path and no other tested one
+(E-CODEX-M4). A repository that already generated the Claude catalog is already installable from
+Codex.
 
 ```
-/plugins
+codex plugin marketplace add <owner>/<repo>
+codex plugin add <plugin>@<marketplace-name>
 ```
 
-The user adds a configured marketplace there, installs, then starts a new session (E-CODEX-M1). The
-build-plugins page describes `@plugin-creator` (`$plugin-creator` inside Codex) for adding a folder
-to a local marketplace, and documents no marketplace manifest format (E-CODEX-M2).
+`marketplace add` also accepts a local path, `owner/repo@ref`, an HTTPS Git URL, or an SSH Git URL,
+with `list`, `upgrade`, and `remove` beside it (E-CODEX-M3).
 
-**Do not publish `codex plugin marketplace add` or `codex plugin add`.** Those appear in a
-third-party README and in no vendor page reviewed here (E-CODEX-M3). If a user asks for them, say
-they are uncorroborated and let them decide.
+**Codex installs with `plugin add`, not `plugin install`.** Copilot CLI is the opposite. Do not
+carry one runtime's verb over to the other.
 
-`marketplace init --codex` writes `.agents/plugins/<name>.json`. No documentation reviewed here
-describes that path or its `interface`/`policy`/`category` schema (E-CODEX-M4). Generate it if the
-user wants it. Do not claim Codex reads it.
+Neither verb appears in Codex's published documentation. Both are in the shipped CLI, verified on
+codex-cli 0.147.0.
+
+**`marketplace init --codex` writes `.agents/plugins/<name>.json`, which Codex does not read**
+(E-CODEX-M5). A fixture carrying only that file is rejected with "marketplace root does not contain a
+supported manifest". To make a repository installable from Codex today, generate the Claude catalog:
+
+```bash
+node scripts/marketplace.mjs --claude
+```
+
+Say plainly that the one file serves both runtimes. Do not generate `--codex` and tell the user Codex
+will read it.
 
 ## Cursor — no repository-local marketplace
 
 Users install from the Customize sidebar, sourced from Cursor's reviewed marketplace,
-cursor.directory, or a team marketplace (E-CUR-M1). There is no catalog a repository can carry.
+cursor.directory, or a team marketplace (E-CUR-M1). There is no catalog a repository can carry, and
+`cursor-agent` has no plugin subcommand (E-CUR-M2).
 
 Local development uses a symlink:
 

@@ -92,19 +92,23 @@ the manifest GitHub Copilot CLI reads.
 
 ### Which runtimes a local marketplace reaches
 
-`marketplace` generates one catalog per runtime, but only two of the four runtimes turn a catalog
-into a working install:
+One file carries three runtimes. Claude Code, Codex, and Copilot CLI all read
+`.claude-plugin/marketplace.json`, so generating the Claude catalog is what makes a repository
+installable from all three.
 
-| Runtime | The repository carries | The user runs |
+| Runtime | Catalog it reads | The user runs |
 |---|---|---|
 | Claude Code | `.claude-plugin/marketplace.json` | `/plugin marketplace add`, then `/plugin install` |
-| GitHub Copilot CLI | `.github/plugin/marketplace.json` | `copilot plugin marketplace add`, then `copilot plugin install` |
-| Codex | `.agents/plugins/<name>.json` | the in-CLI `/plugins` browser |
-| Cursor | a submission scaffold | install from Cursor's reviewed marketplace |
+| Codex | `.claude-plugin/marketplace.json` | `codex plugin marketplace add`, then `codex plugin add` |
+| GitHub Copilot CLI | `.github/plugin/marketplace.json`, or the Claude path | `copilot plugin marketplace add`, then `copilot plugin install` |
+| Cursor | none | install from Cursor's reviewed marketplace |
 
-Codex publishes no marketplace CLI verb, and the catalog path this project writes for it has no
-published schema. Cursor has no repository-local marketplace at all. The skill states both limits
-rather than emitting a command that fails, and every command it does emit carries an evidence ID in
+Two traps are worth knowing before you write install instructions by hand. Codex installs with
+`plugin add` while Copilot CLI uses `plugin install`. And Codex publishes neither verb in its
+documentation, so the commands above come from the shipped CLI.
+
+Cursor has no repository-local marketplace, so the skill produces a submission scaffold and says so
+rather than implying an install path. Every command it emits carries an evidence ID in
 [the research record](https://github.com/cyberuni/universal-plugin/blob/main/.research/local-marketplaces/conclusion.md).
 
 The README section is generated from the catalogs on disk, so the marketplace name, the plugin
