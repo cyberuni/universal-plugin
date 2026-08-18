@@ -45,10 +45,25 @@ Running `universal-plugin plugin build` from the plugin root generates:
 
 ## What gets transformed
 
-- **Hook event names** — canonical PascalCase (`SessionStart`) is translated to each vendor's casing (camelCase for Cursor, PascalCase for Claude Code and Codex).
-- **Env vars** — canonical `${PLUGIN_ROOT}` is translated to vendor-native names in hook commands and MCP configs.
-- **Vendor-specific fields** — fields in `extensions["org.cyberuni.universal-plugin"].harnesses.<vendor>` are merged into the generated manifest; fields the vendor doesn't support are dropped with a warning.
-- **Required field enforcement** — Codex requires `version` and `description`; build fails with a clear error if they're missing.
+Build merges and strips. It does not rewrite the contents of the files a component path names.
+
+- **Shared metadata and component paths** are copied from the canonical top level into each vendor manifest.
+- **Vendor-specific fields** in `extensions["org.cyberuni.universal-plugin"].harnesses.<vendor>` are merged over that metadata, and the harness value wins on conflict.
+- **Orchestration keys** never reach a vendor: `$schema`, `extensions`, `vendors`, `packagePath`, and `harnesses` are stripped.
+- **Required fields** are enforced per target. Codex requires `version` and `description`, and the build fails before writing anything for any vendor when either is missing.
+- **Skill invocation policy** is projected. A skill declaring `invocation-policy` gets the matching Claude Code frontmatter flag written into its `SKILL.md`, and Codex prompts are written for skills a user can invoke.
+
+A `harnesses` entry for `copilot-cli` is the one merge that goes nowhere. That vendor reads the canonical manifest directly, and the canonical schema is closed, so the build warns instead of delivering the field.
+
+### Not translated today
+
+Hook event names diverge by case: PascalCase for Claude Code and Codex, camelCase for Cursor and Copilot CLI. The build copies the `hooks` path through as declared and does not rename events, so one hooks file cannot satisfy both casings. Environment variable references inside hook commands and MCP configs pass through unchanged for the same reason.
+
+Translation is planned, and the design question is what to do with a handler type a target cannot run. See [issue #41](https://github.com/cyberuni/universal-plugin/issues/41).
+
+## Driving it from an agent
+
+You can run every command yourself. The package also ships skills that front them, so an agent can scaffold, diagnose, version, and remove a plugin without you naming the flags. See [Skills](../../skills/overview/).
 
 ## Generated files are build artifacts
 
