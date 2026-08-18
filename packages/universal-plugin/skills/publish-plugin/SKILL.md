@@ -9,6 +9,10 @@ Guides adding an already-packaged plugin to a marketplace repo by opening a pull
 
 **Default marketplace repo:** `cyberuni/marketplace` (adjust if the user targets a different one)
 
+Listing a plugin in a shared repository is not the only way to distribute it. A repository can carry
+its own catalog and let users add it directly as a marketplace. That is the `marketplace` skill; the
+two compose, and neither replaces the other.
+
 ## Overview
 
 Publishing has three steps:

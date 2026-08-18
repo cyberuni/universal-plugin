@@ -120,4 +120,5 @@ other.
 | Create, adopt, or change what the plugin declares | `init` |
 | Move the plugin's version | `version` |
 | Remove derived manifests, or the plugin itself | `remove-plugin` |
-| Publish it to a marketplace | `publish-plugin` |
+| Generate the repository's own marketplace catalogs | `marketplace` |
+| Publish it to the shared marketplace repository | `publish-plugin` |

@@ -184,6 +184,7 @@ This skill is not a formatter. If the project has one, run it over the written f
 | Task | Skill |
 |------|-------|
 | Diagnose a plugin — what is declared, built, stale, or drifting | `doctor` |
+| Make the repository installable, and document how | `marketplace` |
 | Move the plugin's version, or reconcile one that drifted | `version` |
 | Delete derived manifests, or the whole plugin | `remove-plugin` |
 | Move a repo-root plugin into its npm package | `migrate-plugin` |

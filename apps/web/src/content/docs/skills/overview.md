@@ -3,7 +3,7 @@ title: Skills
 description: The skills universal-plugin ships, what each one owns, and which CLI verb it fronts.
 ---
 
-The npm package ships eight skills. Each one is the interactive front end to a CLI verb, or to a
+The npm package ships nine skills. Each one is the interactive front end to a CLI verb, or to a
 workflow that spans several. In Claude Code they are invoked as `/universal-plugin:<name>`; other
 runtimes match them against your request.
 
@@ -77,21 +77,42 @@ different asks, and only the last is irreversible.
 Root `plugin.json` is never deleted as cleanup. It is the canonical source of truth, and it is also
 the manifest GitHub Copilot CLI reads.
 
-## Packaging and publishing
+## Distribution
 
 | Skill | Use it to |
 |---|---|
+| `marketplace` | generate the catalogs that let users install from this repository, and write the README install section |
 | `migrate-plugin` | move a repository-root plugin into the npm package that ships it |
-| `publish-plugin` | list a packaged plugin in a marketplace |
+| `publish-plugin` | list a packaged plugin in the shared marketplace repository |
 | `upgrade-plugin` | bump the pinned `universal-plugin@<version>` a project calls |
 | `adopt-upx` | rewrite `npx` pins in your skills to the `upx` runner |
 
 `upgrade-plugin` moves the version your project *calls*. `version` moves the version your plugin
 *publishes*. They are different numbers.
 
+### Which runtimes a local marketplace reaches
+
+`marketplace` generates one catalog per runtime, but only two of the four runtimes turn a catalog
+into a working install:
+
+| Runtime | The repository carries | The user runs |
+|---|---|---|
+| Claude Code | `.claude-plugin/marketplace.json` | `/plugin marketplace add`, then `/plugin install` |
+| GitHub Copilot CLI | `.github/plugin/marketplace.json` | `copilot plugin marketplace add`, then `copilot plugin install` |
+| Codex | `.agents/plugins/<name>.json` | the in-CLI `/plugins` browser |
+| Cursor | a submission scaffold | install from Cursor's reviewed marketplace |
+
+Codex publishes no marketplace CLI verb, and the catalog path this project writes for it has no
+published schema. Cursor has no repository-local marketplace at all. The skill states both limits
+rather than emitting a command that fails, and every command it does emit carries an evidence ID in
+[the research record](https://github.com/cyberuni/universal-plugin/blob/main/.research/local-marketplaces/conclusion.md).
+
+The README section is generated from the catalogs on disk, so the marketplace name, the plugin
+names, and the repository slug come from the repository rather than from a model retyping them.
+
 ## Bundled launchers
 
-`init`, `doctor`, and `version` each ship a launcher in their own `scripts/` directory. The launcher
+`init`, `doctor`, `version`, and `marketplace` each ship a launcher in their own `scripts/` directory. The launcher
 imports the CLI that shipped beside it, so a scaffold or a diagnosis needs no network fetch and
 cannot resolve a different version than the one you installed.
 

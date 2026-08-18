@@ -1,0 +1,127 @@
+---
+name: marketplace
+description: Use this skill to let people install a plugin straight from its own repository — generate the local marketplace catalogs Claude Code and GitHub Copilot CLI read, prepare the Cursor submission scaffold, and write the README install section that tells users what to type. Trigger on "set up a local marketplace", "let users install this from my repo", "generate marketplace catalogs", "add install instructions to the README", "how do people install this plugin", or "make this repo installable".
+argument-hint: '[--claude] [--codex] [--copilot] [--cursor] [--dry-run] [--force]'
+---
+
+# Local marketplace
+
+A repository can carry its own catalog, so a user adds the repository as a marketplace and installs
+from it. No service, no submission, no account.
+
+Support is uneven, and the differences decide what you can honestly promise a user.
+
+| Runtime | What the repository carries | What the user types |
+| --- | --- | --- |
+| Claude Code | `.claude-plugin/marketplace.json` | `/plugin marketplace add`, then `/plugin install` |
+| GitHub Copilot CLI | `.github/plugin/marketplace.json` | `copilot plugin marketplace add`, then `copilot plugin install` |
+| Codex | `.agents/plugins/<name>.json` (a local convention, not a documented format) | the in-CLI `/plugins` browser |
+| Cursor | a submission scaffold, which no runtime reads | install from Cursor's reviewed marketplace |
+
+Two of the four are documented end to end. Read `references/runtimes.md` before writing any command
+into a README, and treat that file as the only source of install commands.
+
+## Workflow
+
+### 1. Find what there is to list
+
+```bash
+ls plugins/*/plugin.json 2>/dev/null
+test -f plugin.json && cat plugin.json
+```
+
+A catalog lists plugins found at `<scan-root>/<plugin-dir>/plugin.json`, which defaults to
+`plugins/`. Pass `--plugin-scan-dir <dir>` when the repository keeps them elsewhere. A repository
+whose only plugin sits at its root has nothing to discover; say so rather than generating an empty
+catalog.
+
+Discovery reads a plugin's `name` and nothing else. A missing or malformed `name` stops the command
+before any write.
+
+### 2. Choose targets with the user
+
+Name the four runtimes and what each one gets, using the table above. Default to Claude Code and
+Copilot CLI: those are the two where a catalog produces a working install.
+
+Offer Codex only with its caveat. Offer Cursor only when the user intends to submit, since the
+scaffold is a handoff document and a `CURSOR_MARKETPLACE_SUBMISSION.md` at the repository root.
+
+### 3. Generate
+
+```bash
+node scripts/marketplace.mjs --claude --copilot --dry-run
+```
+
+Resolve that path against this skill's own directory; `npx universal-plugin marketplace init` is the
+fallback. Run `--dry-run` first and show the plan. The command never prompts.
+
+Then generate for real. Selected targets compose as a union, so name every target you want each run.
+
+| Status | Means |
+| --- | --- |
+| `generated` | written |
+| `unchanged` | already correct, byte differences in key order and whitespace ignored |
+| `planned` | `--dry-run` only |
+| `empty` | nothing discovered for this target |
+| `skipped-default` | Cursor, which is never selected implicitly |
+
+A selected artifact that differs from what would be generated stops the whole run. That is the
+command protecting a hand-edited catalog. Read the difference, then re-run with `--force` only once
+you know what it discards.
+
+### 4. Offer the README section
+
+Ask before writing. A README is the user's document, and this is an edit to it, not a new file.
+
+```bash
+node scripts/install-docs.mjs
+```
+
+Stdout is one JSON object: `targets`, `repo`, and `markdown`. Insert `markdown` verbatim. It carries
+a section per generated catalog, built from the marketplace name and plugin names actually on disk.
+
+Check `repoResolved` first. When it is `false` the repository slug could not be found and the
+snippet contains `<owner>/<repo>`; ask the user for the slug and re-run with `--repo <owner>/<repo>`
+rather than leaving a placeholder in their README.
+
+If the README already has an install section, show the difference and let the user choose. Do not
+append a second one.
+
+### 5. Verify
+
+Re-run the generator and confirm every selected target reports `unchanged`. Confirm each catalog
+path exists. State plainly that nothing was published: these files sit in the repository until a
+user adds it as a marketplace.
+
+For Claude Code, check that each plugin `source` is a `./`-prefixed path that exists. Sources resolve
+against the directory containing `.claude-plugin/`, and they do not resolve at all for a user who
+adds the marketplace by direct URL to the JSON file.
+
+## Rules
+
+- **Never publish a command that is not in `references/runtimes.md`.** An install command that fails
+  is worse than no install section. Widely-copied README snippets are not sources.
+- **Do not tell a user Codex reads `.agents/plugins/`.** No vendor documentation describes that path
+  or that schema.
+- **Do not describe the Cursor scaffold as an install path.** It is a handoff for a submission.
+- **Ask before editing the README**, and before `--force` replaces a catalog the user may have
+  hand-edited.
+- This command publishes nothing and registers nothing. Say so in the report; a user who believes
+  they have published will not understand why nobody can install.
+- Listing a plugin in the shared `cyberuni/marketplace` repository is a different job: use
+  `publish-plugin`.
+
+## Related skills
+
+| Task | Skill |
+|------|-------|
+| Create or change the plugin being listed | `init` |
+| Check that the plugin's own manifests are current | `doctor` |
+| Move the version users will install | `version` |
+| Submit to the shared marketplace repository instead | `publish-plugin` |
+
+## References
+
+- `references/runtimes.md` — per-runtime install commands and their sources
+- [Research conclusion](https://github.com/cyberuni/universal-plugin/blob/main/.research/local-marketplaces/conclusion.md)
+- [`marketplace init` spec](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/marketplace/init/README.md)
