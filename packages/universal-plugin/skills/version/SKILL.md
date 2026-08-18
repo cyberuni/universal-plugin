@@ -36,8 +36,12 @@ to decide again.
 ## Step 1 — Move the version
 
 ```bash
-npx universal-plugin plugin version <bump>
+node scripts/version.mjs <bump>
 ```
+
+Resolve that path against this skill's own directory; it runs the CLI that shipped beside it, so
+nothing is downloaded. `npx universal-plugin plugin version <bump>` is the fallback. The command
+never prompts, so it is safe to run unattended once the release type is decided.
 
 `<bump>` is either a semver release type or an explicit version:
 
@@ -71,8 +75,11 @@ manifest, the `packagePath` `package.json` if one is declared, and one derived m
 harness:
 
 ```bash
-npx universal-plugin plugin version patch --format json
+node scripts/version.mjs patch --format json
 ```
+
+Default stdout is TOON, which is the machine contract this CLI documents; `--format json` is there
+for non-LLM consumers. Either way, read the reported files rather than re-deriving what moved.
 
 If the plugin declares no harnesses, only the authored files are written — that is correct, not a
 failure.

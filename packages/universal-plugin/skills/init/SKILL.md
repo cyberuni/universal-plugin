@@ -125,6 +125,7 @@ node scripts/init.mjs --name <plugin-name> --vendor claude-code --vendor cursor
 
 Resolve that path against this skill's own directory. The launcher runs the bundled CLI, so nothing
 is downloaded; fall back to `npx universal-plugin plugin init` when the path cannot be resolved.
+`plugin init` never prompts, so it is safe to run unattended (`--yes` is accepted as a no-op).
 
 Then derive the vendor manifests:
 

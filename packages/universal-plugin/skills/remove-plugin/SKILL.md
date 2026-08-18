@@ -22,13 +22,11 @@ Derived manifests are build artifacts. The build removes and rewrites them itsel
 npx universal-plugin plugin build --clean
 ```
 
-To remove them without rebuilding, delete each output path:
-
-```bash
-rm -f .claude-plugin/plugin.json
-rm -f .cursor-plugin/plugin.json
-rm -f .codex-plugin/plugin.json
-```
+`--clean` deletes exactly what the manifest declares and nothing it does not, which is why it is the
+supported route. To remove a derived manifest without rebuilding, delete that one path with the
+user's own file tooling — `.claude-plugin/plugin.json`, `.cursor-plugin/plugin.json`, or
+`.codex-plugin/plugin.json`. Name the path you are deleting before you delete it, and never widen
+the deletion to the directory.
 
 > **Never delete root `plugin.json`.** It is the canonical source of truth *and* the manifest
 > Copilot CLI reads, so removing it takes out both the source and a live target at once.

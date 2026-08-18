@@ -16,35 +16,47 @@ and that judgment belongs to the skill that owns the write.
 ## Diagnose
 
 ```bash
-test -f plugin.json && cat plugin.json
-npx universal-plugin plugin build --dry-run
-ls -l .claude-plugin/plugin.json .cursor-plugin/plugin.json .codex-plugin/plugin.json 2>/dev/null
-ls -d .github/plugin .plugin 2>/dev/null
+node scripts/doctor.mjs
 ```
 
-`--dry-run` resolves and validates without writing. Read three things from it: the per-vendor rows,
-the summary, and — most often skipped — the warnings on stderr.
+Resolve that path against this skill's own directory. It runs the CLI that shipped beside it against
+the current working directory, so nothing is downloaded; add `--root <path>` to diagnose elsewhere.
+It never prompts and never writes, so it is safe to run unattended.
 
+Stdout is one JSON object — that is the contract to read, not the CLI's own terminal output:
+
+```json
+{
+  "root": "…",
+  "manifest": { "name": "my-plugin", "version": "1.0.0" },
+  "vendors": [{ "vendor": "claude-code", "path": ".claude-plugin/plugin.json", "status": "built", "exists": true, "stale": false }],
+  "findings": [{ "code": "unbuilt", "severity": "high", "detail": "…", "repair": "…" }],
+  "ok": false
+}
 ```
-vendors[4]{vendor,path,status}:
-  claude-code,.claude-plugin/plugin.json,built
-  cursor,.cursor-plugin/plugin.json,built
-  codex,.codex-plugin/plugin.json,built
-  copilot-cli,plugin.json,canonical
-summary: "built 3, skipped 0, failed 0, served by plugin.json 1"
-```
+
+`findings` is empty and `ok` is `true` when everything resolves — say so outright rather than
+reporting an empty list. Exit status is `0` whether or not findings exist; a finding is a result, not
+a failure. Add `--verbose` for a human-readable summary on stderr.
+
+Read `vendors[].status` literally:
 
 | Status | Means |
 | --- | --- |
 | `built` | the build writes this vendor's manifest |
 | `canonical` | the vendor reads root `plugin.json`; **no file is written, and that is correct** |
 | `skipped` | an unknown vendor id — a typo in `vendors` |
-| `failed` | the write itself failed; the warning names why |
+| `failed` | the write itself failed; the finding names why |
 
-`copilot-cli` reporting `canonical` with no file on disk is a healthy plugin, not a missing build.
+`copilot-cli` reporting `canonical` with `exists: false` is a healthy plugin, not a missing build.
 Never report it as a fault.
 
+If `node` is unavailable, read `scripts/doctor.mjs` and apply the same checks by hand: it composes
+`universal-plugin plugin build --dry-run --format json` with filesystem facts that build cannot see.
+
 ## Findings and their repairs
+
+Each `code` below is what the script emits.
 
 | Finding | What it means | Repair |
 | --- | --- | --- |
@@ -60,13 +72,15 @@ Never report it as a fault.
 | `version-drift` | the `packagePath` `package.json` and the canonical manifest carry different versions | `/universal-plugin:version` |
 | `stale-github-plugin` | a leftover `.github/plugin/plugin.json` from an older build — shadowed by root and no longer generated | `/universal-plugin:remove-plugin` |
 | `shadowing-manifest` | a `.plugin/plugin.json` exists — it outranks root in Copilot CLI's search order and silently shadows the canonical manifest | `/universal-plugin:remove-plugin` |
-
-When everything resolves, say so outright rather than reporting an empty list.
+| `no-vendors` | no vendor is declared, so the build writes nothing and no runtime reads the plugin | `/universal-plugin:init`, update route |
+| `package-path-missing` | `packagePath` names a directory with no readable `package.json` | fix `packagePath`, or create the package |
+| `unparsable-manifest` | root `plugin.json` is not valid JSON | fix the syntax error |
 
 ## Checking staleness properly
 
-An mtime comparison catches the common case and nothing more. The definitive check is to rebuild on
-a clean tree and read the diff:
+The `stale` finding is an mtime comparison, which catches the common case and nothing more. It cannot
+see a hand-edit made after the last build. The definitive check is to rebuild on a clean tree and read
+the diff:
 
 ```bash
 git status --short          # must be clean first, or the diff proves nothing
@@ -83,15 +97,12 @@ user can run, or ask before running it yourself.
 ## Version drift
 
 Two files carry an authored version: the canonical `plugin.json`, and the `package.json` at
-`extensions["org.cyberuni.universal-plugin"].packagePath` when one is declared.
+`extensions["org.cyberuni.universal-plugin"].packagePath` when one is declared. The script compares
+them and emits `version-drift`.
 
-```bash
-node -e "console.log(require('./plugin.json').version)"
-```
-
-Compare it against that `package.json`. They diverge when someone ran `npm version`, or when
-changesets released a number that never flowed back. Both are `/universal-plugin:version`'s to fix —
-never patch one file by hand to match the other.
+They diverge when someone ran `npm version`, or when changesets released a number that never flowed
+back. Both are `/universal-plugin:version`'s to fix — never patch one file by hand to match the
+other.
 
 ## Rules
 

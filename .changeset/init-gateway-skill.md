@@ -15,7 +15,9 @@ Each skill is now scoped by the object it touches, which is also what keeps them
 
 Also in this change:
 
-- `scripts/init.mjs` runs `plugin init` from the CLI shipped beside the skill, so a scaffold needs no network fetch.
+- `scripts/init.mjs` and `scripts/version.mjs` run their CLI verb from the copy shipped beside the skill, so neither a scaffold nor a release number needs a network fetch.
+- `doctor` ships `scripts/doctor.mjs`: it composes `plugin build --dry-run --format json` with the filesystem facts build cannot see — missing and stale derived manifests, a shadowing `.plugin/plugin.json`, version drift between the two authored numbers — and emits one JSON object. It stays a thin composition so it folds into `plugin validate` when that command lands, rather than competing with it.
+- Each skill carries a README.
 - One reference per vendor, read only when that vendor is enabled, replacing the vendor columns the create reference carried inline.
 - A frontmatter reference documenting `invocation-policy`, including the part that surprises people: the build rewrites the authored `SKILL.md` to carry the derived flags.
 - The create reference no longer claims `plugin build` is unavailable — it has shipped, and the reference now names its flags and the warnings worth reading.
