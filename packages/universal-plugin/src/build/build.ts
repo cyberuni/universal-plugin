@@ -197,7 +197,7 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 					`harnesses.${vendor} sets ${overrides.join(', ')}, but ${vendor} reads the canonical plugin.json directly — these fields are not delivered`,
 				)
 			}
-			writeSkillArtifacts(root, vendor, skills, opts, written, warnings)
+			writeSkillArtifacts(vendor, skills, opts, written, warnings)
 			rows.push({ vendor, path: relPath, status: 'canonical' })
 			continue
 		}
@@ -241,7 +241,7 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 					fs.unlinkSync(derivedHooksPath)
 				}
 			}
-			writeSkillArtifacts(root, vendor, skills, opts, written, warnings)
+			writeSkillArtifacts(vendor, skills, opts, written, warnings)
 			rows.push({ vendor, path: relPath, status: 'built' })
 		} catch (err) {
 			warnings.push(`Failed to write "${vendor}" → ${relPath}: ${err instanceof Error ? err.message : String(err)}`)
@@ -253,7 +253,6 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 }
 
 function writeSkillArtifacts(
-	root: string,
 	vendor: VendorId,
 	skills: Skill[],
 	opts: BuildOptions,

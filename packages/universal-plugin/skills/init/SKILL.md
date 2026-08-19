@@ -133,6 +133,11 @@ Then derive the vendor manifests:
 npx universal-plugin plugin build
 ```
 
+To try the result before publishing, `npx universal-plugin plugin install` puts the working copy
+into every runtime the manifest declares and names the reload each one needs. Never hand-write a
+symlink for this — `references/create.md` records why the recipe that circulated for it does not
+work.
+
 `plugin init` writes a **minimal** manifest — `$schema`, `name`, and the vendor list. It never reads
 an existing vendor manifest, so shared metadata and per-vendor overrides are carried in by hand
 afterwards, per the reference you routed to.

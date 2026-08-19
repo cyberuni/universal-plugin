@@ -81,12 +81,11 @@ of `{"source":"local","path":"./…"}`. Claude Code rejects that same content ou
 `owner`. Where a repository wants one catalog rather than two, the Claude shape is the portable one,
 because it is the stricter of the pair and Codex accepts it.
 
-**Cursor.** A clear negative, from both directions. `cursor-agent` 2026.07.01 has no plugin or
-marketplace subcommand at all. Installation runs through the Customize sidebar against the reviewed
-marketplace, cursor.directory, or a team marketplace. Local development is a symlink into
-`~/.cursor/plugins/local/<name>`. There is no repository-local marketplace file, which is why the
-`--cursor` output of `marketplace init` is a submission scaffold and a handoff document rather than
-a catalog.
+**Cursor.** A clear negative from the CLI's surface: `cursor-agent` 2026.07.01 has no plugin or
+marketplace subcommand at all, and installation runs through the Customize sidebar against the
+reviewed marketplace, cursor.directory, or a team marketplace. The stronger claim drawn from that —
+that there is no repository-local marketplace file — was wrong, and the August round below retracts
+it.
 
 ## What this changed in the product
 
@@ -97,6 +96,42 @@ how Codex caches an install, keyed by plugin version at
 What changed is the documentation around it, twice: first to warn users away from a working flag,
 then to withdraw the warning. Issue #42 was filed on the wrong finding and closed as invalid.
 
+## Second round, August 2026 — installing a plugin under development
+
+The first round answered how a **user** installs a published plugin. `plugin install` (issue #33)
+needed the other half: how an **author** gets a working copy into each runtime before publishing
+anything. The recipe the project had been publishing named two directories, and neither survived
+contact with a shipped build.
+
+**Claude Code.** `~/.claude/plugins/local/` does not exist. The string `plugins/local` appears
+nowhere in the 2.1.235 executable, and the plugins directory holds only a cache, a data directory,
+marketplace checkouts, and two JSON records. What does work is the **skills** directory: Claude Code
+adopts each entry under `~/.claude/skills/` (and a project's `.claude/skills/`) as a plugin under a
+synthetic marketplace named `skills-dir`. `claude plugin init <name>` scaffolds a plugin into exactly
+that place, so it is the vendor's own local-development path rather than a workaround. Probed by
+pointing `CLAUDE_CONFIG_DIR` at a sandbox, symlinking this package into its `skills/`, and running
+`claude plugin list`: the plugin was reported loaded, under the **manifest's** name rather than the
+directory's.
+
+**Cursor.** `~/.cursor/plugins/local/` is real — the bundle's `loadUserLocalPlugins` scans it and
+accepts directories and symlinks alike. But for a symlink it resolves the target and then checks
+that the result is still inside the scanned directory, skipping the entry with `symlink target …
+is outside …` when it is not. A symlink to a working copy elsewhere on disk is exactly the case that
+check rejects. A plain directory is never checked, so a copy loads. This was read out of the bundle
+and not run: the CLI offers no way to list what it loaded, and Cursor's IDE loads plugins through a
+different program that was not inspected.
+
+Reading that loader also settled the retraction above: the same bundle carries
+`[".cursor-plugin/marketplace.json", ".claude-plugin/marketplace.json"]` as the catalog manifests it
+looks for, and resolves marketplace checkouts under `~/.cursor/plugins/marketplaces`.
+
+**Codex and Copilot CLI.** Neither scans a local plugin directory. Codex's binary carries a plugin
+*cache* and no local equivalent, and its `plugin` verbs all read from a configured marketplace
+snapshot. For both, the local-development path is the local marketplace the first round established.
+
+That asymmetry is what `plugin install` had to absorb: two runtimes take a directory, two take a
+marketplace, and of the two that take a directory only one follows a symlink out of the tree.
+
 ## Open questions
 
 - Does Codex read a directory outside the six probed here?
@@ -104,3 +139,7 @@ then to withdraw the warning. Issue #42 was filed on the wrong finding and close
   the repository records a source for it.
 - Do the Codex CLI verbs appear in a reference page not reviewed here? They are absent from the two
   plugin pages that do exist.
+- Does Cursor's IDE apply the same out-of-tree symlink rejection as `cursor-agent`, or is the check
+  the CLI loader's alone?
+- Does Claude Code's `skills-dir` adoption place any constraint on a plugin's contents that a
+  marketplace install does not?

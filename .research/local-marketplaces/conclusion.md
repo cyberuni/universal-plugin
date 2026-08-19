@@ -10,6 +10,9 @@ A repository can carry its own marketplace catalog so users install the plugin s
 Claude Code, Cursor, Codex, and GitHub Copilot CLI: what does each runtime read, what does a user
 type to add the marketplace and install from it, and which of those commands can be stated as fact?
 
+A second question, added August 2026 for `plugin install`: before any of that, how does an author put
+the plugin they are **developing** into each runtime?
+
 ## Verdict
 
 Three runtimes install from a repository-hosted catalog. All three read a catalog named
@@ -20,7 +23,7 @@ Three runtimes install from a repository-hosted catalog. All three read a catalo
 | Claude Code | `.claude-plugin/marketplace.json` | `/plugin marketplace add <owner>/<repo>` | `/plugin install <plugin>@<marketplace>` | High |
 | Codex | `.claude-plugin/marketplace.json` or `.agents/plugins/marketplace.json` | `codex plugin marketplace add <source>` | `codex plugin add <plugin>@<marketplace>` | High |
 | GitHub Copilot CLI | `marketplace.json` in root, `.plugin/`, `.github/plugin/`, or `.claude-plugin/` | `copilot plugin marketplace add <spec>` | `copilot plugin install <plugin>@<marketplace>` | High |
-| Cursor | none | not applicable | Customize sidebar, from a reviewed marketplace | High |
+| Cursor | `.cursor-plugin/marketplace.json` or `.claude-plugin/marketplace.json` | Customize sidebar | Customize sidebar, or the local plugin directory below | Medium-high |
 
 One file, `.claude-plugin/marketplace.json`, is read by three of the four, so a repository that
 generates only the Claude catalog is installable from Claude Code, Codex, and Copilot CLI.
@@ -32,6 +35,24 @@ a catalog named anything else is not found, whatever directory it sits in.
 Where one file has to serve two runtimes, the Claude shape is the portable one: `name`, `owner`, and
 `plugins` with `./`-prefixed string sources. Claude Code rejects a catalog without `owner`; Codex
 requires no `owner` and tolerates extra fields, so the stricter schema wins.
+
+### Installing a plugin under development
+
+Two runtimes scan a directory for locally developed plugins. The other two have none, and go through
+a local marketplace instead.
+
+| Runtime | Local plugin directory | Symlink out of the tree | Then |
+|---|---|---|---|
+| Claude Code | `~/.claude/skills/<dir>` (user), `.claude/skills/<dir>` (project) | followed | restart; it loads as `<name>@skills-dir` |
+| Cursor | `~/.cursor/plugins/local/<dir>` | **rejected** — copy instead | Developer: Reload Window |
+| Codex | none | — | `codex plugin marketplace add <path>`, then `codex plugin add` |
+| GitHub Copilot CLI | none | — | `copilot plugin marketplace add <path>`, then `copilot plugin install` |
+
+Claude Code's directory is its **skills** directory, not `~/.claude/plugins/`: `~/.claude/plugins/local/`
+does not exist and never did in the version examined (E-CC-M6). Cursor's directory is real, but its
+scan resolves each symlink and refuses one that points outside the directory (E-CUR-M4), so the
+`ln -s "$(pwd)"` recipe that circulated for both runtimes installs nothing in either. A copy loads in
+both.
 
 ## What follows for this project
 
@@ -48,9 +69,14 @@ requires no `owner` and tolerates extra fields, so the stricter schema wins.
 - **Codex's CLI verbs are real but undocumented.** `codex plugin marketplace add` and
   `codex plugin add` ship in codex-cli 0.147.0 and appear in no vendor page reviewed here. Note the
   asymmetry: Codex installs with `plugin add`, Copilot CLI with `plugin install`.
-- **Cursor has no local marketplace.** Distribution is the reviewed marketplace or a team
-  marketplace; local development is a symlink into `~/.cursor/plugins/local/<name>`. `cursor-agent`
-  has no plugin subcommand at all. The `--cursor` scaffold is a submission handoff, not a catalog.
+- **Cursor does have a local marketplace**, retracting this topic's earlier verdict. The shipped CLI
+  reads `.cursor-plugin/marketplace.json` and `.claude-plugin/marketplace.json` (E-CUR-M5), so the
+  Claude catalog covers Cursor too. `cursor-agent` still exposes no plugin subcommand, so nothing is
+  installed from a terminal.
+- **The symlink recipe was wrong for both runtimes it named.** `plugin install` replaces it: it reads
+  each vendor's local plugin directory from the vendor registry, links where the vendor follows an
+  out-of-tree symlink and copies where it does not, and names the reload step. When a vendor moves
+  its directory, the registry is the one place that changes.
 
 ## How this was established
 
@@ -73,9 +99,17 @@ the offending field, and an unsupported location by naming the directory (E-CODE
 
 Six directories were probed with the correct filename. Codex may read a seventh.
 
+The August local-install rows are weaker than the catalog rows and are marked so. Claude Code's was
+run end to end against a sandbox config directory. Cursor's two were **read from the shipped bundle
+and not executed**: `cursor-agent` exposes no way to list what it loaded, and Cursor's IDE loader is
+a separate program that was not inspected at all. Treat the Cursor symlink rejection as the safe
+assumption it is — copying satisfies both a runtime that rejects symlinks and one that does not.
+
 ## Recheck triggers
 
+- Cursor's local plugin scan starts following an out-of-tree symlink, or its containment check moves.
+- Claude Code moves the skills directory it adopts plugins from, or renames the `skills-dir` marketplace.
+- Codex or Copilot CLI gains a local plugin directory.
 - Codex publishes a plugin CLI reference, or adds support for a vendor-neutral catalog path.
-- Cursor ships a repository-local marketplace.
 - Claude Code changes the `.claude-plugin/marketplace.json` path or the `plugin@marketplace` grammar.
 - A Codex release changes `plugin add` to `plugin install`, or moves the supported manifest path.

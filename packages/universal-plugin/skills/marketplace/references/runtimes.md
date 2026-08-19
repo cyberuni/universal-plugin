@@ -73,20 +73,21 @@ instead of two, that file is the Claude one.
 Codex caches an install by plugin version at `~/.codex/plugins/cache/<marketplace>/<plugin>/<version>`,
 so a source edit is invisible until the plugin is reinstalled and a new session starts.
 
-## Cursor — no repository-local marketplace
+## Cursor — a catalog it reads, but no command to install from one
 
 Users install from the Customize sidebar, sourced from Cursor's reviewed marketplace,
-cursor.directory, or a team marketplace (E-CUR-M1). There is no catalog a repository can carry, and
-`cursor-agent` has no plugin subcommand (E-CUR-M2).
+cursor.directory, or a team marketplace (E-CUR-M1); `cursor-agent` has no plugin subcommand
+(E-CUR-M2). Cursor does read a repository-local catalog — `.cursor-plugin/marketplace.json` or
+`.claude-plugin/marketplace.json` (E-CUR-M5) — so the Claude catalog covers it, but nothing on the
+command line consumes one.
 
-Local development uses a symlink:
+For local development, `universal-plugin plugin install` copies the plugin into
+`~/.cursor/plugins/local/<name>`; reload the window afterwards. It copies rather than symlinks
+because Cursor's scan resolves each symlink and rejects a target outside that directory (E-CUR-M4),
+which is what the `ln -sfn "$(pwd)"` recipe that used to sit here ran into.
 
-```sh
-ln -sfn "$(pwd)" ~/.cursor/plugins/local/<plugin-name>
-```
-
-Then reload the window. `marketplace init --cursor` writes `.cursor-plugin/marketplace-submission.json`
-and a `CURSOR_MARKETPLACE_SUBMISSION.md` handoff. Both are inputs to a human submission.
+`marketplace init --cursor` writes `.cursor-plugin/marketplace-submission.json` and a
+`CURSOR_MARKETPLACE_SUBMISSION.md` handoff. Both are inputs to a human submission.
 
 ## When these decay
 

@@ -101,9 +101,20 @@ write all surface there rather than as errors.
 ## Step 8 — Install locally to test
 
 ```bash
-ln -sf "$(pwd)" ~/.claude/plugins/local/<plugin-name>   # Claude Code
-ln -sf "$(pwd)" ~/.cursor/plugins/local/<plugin-name>   # Cursor → Developer: Reload Window
+npx universal-plugin plugin install
 ```
+
+It installs into every runtime the manifest declares, linking where the runtime follows a symlink
+out of the tree and copying where it does not, and it prints the reload each one now needs — a
+restart for Claude Code, **Developer: Reload Window** for Cursor. `--list` shows where it would go
+without writing; `--vendor <id>` narrows it; `plugin uninstall` removes it again.
+
+Codex and Copilot CLI scan no local plugin directory, so they report as `unsupported`. Reach those
+through a repository-local marketplace — `publish-plugin`.
+
+Do not hand-write a symlink for this. The recipe that circulated for it named
+`~/.claude/plugins/local/`, which does not exist, and a symlink into Cursor's local directory is
+rejected by Cursor's own scan.
 
 ## Next
 
