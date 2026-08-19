@@ -1,5 +1,42 @@
 # universal-plugin
 
+## 0.6.0
+
+### Minor Changes
+
+- 4c15a40: New `universal-plugin marketplace validate` — check the catalogs a repository carries against the
+  schema each runtime loads.
+  
+  A catalog is read at install time, in someone else's terminal, so a broken one is silent here and
+  loud there. `validate` moves the refusal to the repository: per target it reports `valid`, `invalid`,
+  or `missing` (`--required` makes missing a failure), exits 1 when any selected catalog is invalid, and
+  names the key at fault plus the value to write instead — `owner must be an object with a name, not
+  string`. The rules are the official Claude Code marketplace schema for Claude Code, Cursor, and
+  Copilot CLI, and Codex's own document shape for Codex; a `./` source is also checked for existing on
+  disk. Nothing is repaired or written.
+  
+  The same rules now run wherever a catalog is produced: `marketplace init` validates every planned
+  artifact and fails before any write, while `plugin init` and `plugin build` — which fold one entry
+  into a file they did not author — report the issues as notes and warnings.
+  
+  The `marketplace` skill gained the validation step and now refuses to hand-author a catalog.
+
+### Patch Changes
+
+- 4c15a40: Catalog entries now carry manifest metadata in the shape the catalog schema states.
+  
+  A `plugin.json` written from a `package.json` carries `repository` as `{ type, url }`, and every
+  generated entry copied that object through. Claude Code refuses such a catalog —
+  `plugins[0].repository: expected string` — so a repository could generate a catalog nobody could
+  install from. An npm-shaped `repository` now becomes its URL, with any `git+` prefix removed, and a
+  manifest field that cannot be reduced to the type the schema states is omitted rather than written.
+- 4c15a40: `doctor` now reports a marketplace catalog its runtime would refuse.
+  
+  The catalogs sit at the repository root, above the plugin in a monorepo, and each is read at install
+  time — so a broken one is silent in diagnosis and loud in a user's terminal. The new `invalid-catalog`
+  finding names the key at fault and hands the repair to `/universal-plugin:marketplace`. A missing
+  catalog is still not a fault.
+
 ## 0.5.0
 
 ### Minor Changes
