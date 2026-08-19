@@ -122,6 +122,18 @@ These fields mean the same thing across all four Tier 1 vendors:
 | HTTP hook type | No | No | No | Yes |
 | JSON Schema URL | `https://json.schemastore.org/claude-code-plugin-manifest.json` | `https://raw.githubusercontent.com/cursor/plugins/main/schemas/plugin.schema.json` | not published | not published |
 
+#### `dependencies`, re-verified August 2026
+
+Claude Code is still the only runtime that reads one, and it reads a full resolver's worth of it:
+an **array** whose entries are a plugin name — optionally `@marketplace`-qualified — or an object
+`{name, marketplace?, version?, sha?}`. An npm-style object map is rejected. A range written as an
+`@^…` tail on the string form is accepted and then discarded; only the object form's `version` is
+checked, with `semver.satisfies`, and only for a marketplace-qualified dependency. Claude Code
+auto-installs a missing dependency, enables it with its dependent, prunes it when orphaned, and
+refuses a cross-marketplace dependency the root marketplace has not allowed. Codex's runtime ignores
+the field, but the ingestion-contract validator it ships rejects it as an unaccepted key. Cursor
+strips it. Copilot CLI documents none. Evidence: E22, E23, E24.
+
 ### Tier 2 — Config-based or file-based extensibility
 
 #### Windsurf (Codeium)
