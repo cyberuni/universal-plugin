@@ -104,6 +104,64 @@ function cursorArtifact(metadata: MarketplaceMetadata, plugins: MarketplacePlugi
 	}
 }
 
+/** The marketplace target each `--vendor` id catalogs into. Every vendor documents a
+ *  repository-local catalog (`.research/local-marketplaces`). */
+export const VENDOR_TARGETS: Record<string, MarketplaceTarget> = {
+	'claude-code': 'claude',
+	cursor: 'cursor',
+	codex: 'codex',
+	'copilot-cli': 'copilot',
+}
+
+/** Folds one plugin's entry into a catalog that may already exist, and returns the artifact to
+ *  write. An existing catalog keeps its own top-level fields — its name, its owner, a description
+ *  someone wrote — and every entry it lists for other plugins, in place. Only this plugin's entry is
+ *  re-derived.
+ *
+ *  `version` is derived, never authored (ADR-0010 §3): the entry carries whatever the canonical
+ *  manifest carries, and a version left behind on an entry whose manifest declares none is removed
+ *  rather than kept. */
+export function mergeCatalogEntry(
+	target: MarketplaceTarget,
+	metadata: MarketplaceMetadata,
+	plugin: MarketplacePlugin,
+	existing: string | undefined,
+): MarketplaceArtifact {
+	const artifact = serializeTarget(target, metadata, [plugin])[0] as MarketplaceArtifact
+	if (existing === undefined) return artifact
+
+	const previous = parseCatalog(existing, artifact.path)
+	const generated = JSON.parse(artifact.content) as Record<string, unknown>
+	const entry = (generated.plugins as Record<string, unknown>[])[0] as Record<string, unknown>
+	return { path: artifact.path, content: json({ ...generated, ...previous, plugins: mergeEntries(previous, entry) }) }
+}
+
+function parseCatalog(content: string, path: string): Record<string, unknown> {
+	let parsed: unknown
+	try {
+		parsed = JSON.parse(content)
+	} catch {
+		throw new Error(`error: existing catalog "${path}" is not valid JSON`)
+	}
+	if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+		throw new Error(`error: existing catalog "${path}" is not a JSON object`)
+	}
+	return parsed as Record<string, unknown>
+}
+
+function mergeEntries(previous: Record<string, unknown>, entry: Record<string, unknown>): Record<string, unknown>[] {
+	const entries = Array.isArray(previous.plugins) ? [...(previous.plugins as unknown[])] : []
+	const index = entries.findIndex(
+		(candidate) =>
+			typeof candidate === 'object' && candidate !== null && (candidate as Record<string, unknown>).name === entry.name,
+	)
+	if (index === -1) return [...entries, entry] as Record<string, unknown>[]
+	const merged = { ...(entries[index] as Record<string, unknown>), ...entry }
+	if (!('version' in entry)) delete merged.version
+	entries[index] = merged
+	return entries as Record<string, unknown>[]
+}
+
 export function serializeTarget(
 	target: MarketplaceTarget,
 	metadata: MarketplaceMetadata,

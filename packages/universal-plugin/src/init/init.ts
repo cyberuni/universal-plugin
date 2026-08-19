@@ -1,5 +1,5 @@
-/** Pure domain for `plugin init` — scaffolding the canonical manifest and (with `--npm`)
- *  wiring an npm package to ship it.
+/** Pure domain for `plugin init` — scaffolding the canonical manifest, registering the plugin in the
+ *  repository's local marketplace catalogs, and (with `--npm`) wiring an npm package to ship it.
  *
  *  No I/O: the caller gathers the current filesystem state, calls `planInit`, and applies the
  *  returned plan. `planInit` owns the rules — the guard order, the closed manifest shape, the
@@ -7,6 +7,13 @@
  *  `vendors ?? harnesses`-keys fallback engages only on an absent key), and the `--npm`
  *  files-wiring default (`claude-code`). The vendor→derived-manifest-path map is injected so the
  *  domain stays free of the build/registry layer. */
+
+import {
+	type MarketplaceMetadata,
+	type MarketplaceOwner,
+	mergeCatalogEntry,
+	VENDOR_TARGETS,
+} from '../marketplace/marketplace.js'
 
 const SCHEMA_URL = 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json'
 const UP_NAMESPACE = 'org.cyberuni.universal-plugin'
@@ -19,17 +26,41 @@ export interface InitOptions {
 	scaffold: boolean
 	force: boolean
 	npm: boolean
+	/** `--no-marketplace` opts out of the local catalogs; the default is to write them. */
+	marketplace?: boolean
+}
+
+/** Where the plugin sits in its repository, and what catalogs that repository already carries.
+ *  Absent when the plugin root is not inside a repository, which is the one case with nowhere to
+ *  put a catalog. */
+export interface RepoState {
+	/** POSIX path from the repository root to the plugin root; empty when they are the same. */
+	pluginPath: string
+	/** The repository root's directory name. */
+	dirName: string
+	/** `owner/repo` from the git remote, when there is one. */
+	slug?: { owner: string; repo: string }
+	/** Existing catalog text, keyed by repository-root-relative path. */
+	catalogs: Record<string, string>
 }
 
 export interface InitState {
 	manifestExists: boolean
 	/** The parsed root `package.json`, or `null` when absent. */
 	packageJson: Record<string, unknown> | null
+	repo?: RepoState
 }
 
 export interface FileRow {
 	path: string
-	action: 'created' | 'updated'
+	action: 'created' | 'updated' | 'unchanged'
+}
+
+/** A catalog to write, at a path relative to the plugin root — so a plugin below the repository
+ *  root reaches its catalogs through `../`. */
+export interface CatalogArtifact {
+	path: string
+	content: string
 }
 
 export interface InitPlan {
@@ -38,8 +69,11 @@ export interface InitPlan {
 	dirs: string[]
 	/** The rewritten `package.json` to write, or `null` when `--npm` was not passed. */
 	packageJson: Record<string, unknown> | null
+	catalogs: CatalogArtifact[]
 	rows: FileRow[]
-	summary: { created: number; updated: number }
+	/** What was skipped and why — the caller reports these; none of them is a failure. */
+	notes: string[]
+	summary: { created: number; updated: number; unchanged: number }
 }
 
 /** The closed canonical manifest init writes: `$schema` + `name`, plus the extensions namespace
@@ -69,6 +103,109 @@ export function wireFiles(pkg: Record<string, unknown>, manifestPaths: string[])
 	return { ...pkg, files }
 }
 
+/** The local marketplace a repository carries is named after the repository, not after the plugin:
+ *  the catalog sits at the repository root and lists every plugin the repository develops. `-local`
+ *  separates it from a published marketplace of the same plugins. */
+function marketplaceName(repo: RepoState): string {
+	const base = repo.slug ? `${repo.slug.owner}-${repo.slug.repo}` : repo.dirName
+	return `${base}-local`
+}
+
+/** An npm `author` — `"Bea <bea@example.com> (https://example.com)"` or the object form — read as a
+ *  catalog owner. */
+function readAuthor(author: unknown): MarketplaceOwner | undefined {
+	if (typeof author === 'string') {
+		const name = author.replace(/[<(].*$/, '').trim()
+		return name === '' ? undefined : { name }
+	}
+	if (typeof author !== 'object' || author === null) return undefined
+	const record = author as Record<string, unknown>
+	if (typeof record.name !== 'string' || record.name.trim() === '') return undefined
+	const owner: MarketplaceOwner = { name: record.name }
+	if (typeof record.email === 'string') owner.email = record.email
+	if (typeof record.url === 'string') owner.url = record.url
+	return owner
+}
+
+/** Who the catalog says maintains the marketplace. The canonical manifest first, then the package
+ *  that ships it, then the account the repository lives under. Every runtime requires this, so a
+ *  repository with none of the three gets no catalog rather than an invented owner. */
+function catalogOwner(
+	state: InitState,
+	repo: RepoState,
+	manifest: Record<string, unknown>,
+): MarketplaceOwner | undefined {
+	return (
+		readAuthor(manifest.author) ??
+		readAuthor(state.packageJson?.author) ??
+		(repo.slug ? { name: repo.slug.owner } : undefined)
+	)
+}
+
+/** The plugin's own entry in every selected vendor's catalog, folded into whatever the repository
+ *  already carries. Nothing here authors a version: the entry carries the canonical manifest's, and
+ *  the manifest `init` writes carries none (ADR-0010). */
+function planCatalogs(
+	state: InitState,
+	opts: InitOptions,
+	manifest: Record<string, unknown>,
+	notes: string[],
+): CatalogArtifact[] {
+	if (opts.marketplace === false || opts.vendors.length === 0) return []
+	const repo = state.repo
+	if (!repo) {
+		notes.push('no local marketplace catalog: the plugin root is not inside a repository')
+		return []
+	}
+	const owner = catalogOwner(state, repo, manifest)
+	if (!owner) {
+		notes.push('no local marketplace catalog: no owner to name — add an author to plugin.json')
+		return []
+	}
+
+	const metadata: MarketplaceMetadata = { name: marketplaceName(repo), owner }
+	const source = repo.pluginPath === '' ? './' : `./${repo.pluginPath}`
+	const plugin = { name: manifest.name as string, source, metadata: manifest }
+	const toPluginRoot =
+		repo.pluginPath === ''
+			? ''
+			: `${repo.pluginPath
+					.split('/')
+					.map(() => '..')
+					.join('/')}/`
+
+	const catalogs: CatalogArtifact[] = []
+	for (const vendor of opts.vendors) {
+		const target = VENDOR_TARGETS[vendor]
+		if (!target) continue
+		// Codex keys its install cache by the entry's version, so an entry without one is not
+		// installable. The manifest `init` writes declares no version; `marketplace init` fills the
+		// catalog in once the plugin has one.
+		if (target === 'codex' && typeof manifest.version !== 'string') {
+			notes.push('no Codex catalog: its entry needs a version, and plugin.json declares none')
+			continue
+		}
+		const artifact = mergeCatalogEntry(target, metadata, plugin, repo.catalogs[artifactPath(target)])
+		catalogs.push({ path: `${toPluginRoot}${artifact.path}`, content: artifact.content })
+	}
+	return catalogs
+}
+
+/** The repository-root-relative path each target's catalog occupies, which is how `RepoState`
+ *  keys the catalogs already on disk. */
+function artifactPath(target: string): string {
+	switch (target) {
+		case 'claude':
+			return '.claude-plugin/marketplace.json'
+		case 'cursor':
+			return '.cursor-plugin/marketplace.json'
+		case 'codex':
+			return '.agents/plugins/marketplace.json'
+		default:
+			return '.github/plugin/marketplace.json'
+	}
+}
+
 /** Plans the init run. Throws on a guard failure (an existing manifest without `--force`; `--npm`
  *  with no `package.json`) before returning any plan, so the caller writes nothing on a guard trip. */
 export function planInit(
@@ -89,6 +226,16 @@ export function planInit(
 	const manifest = buildManifest(name, opts.vendors)
 	const dirs = opts.scaffold ? [...SCAFFOLD_DIRS] : []
 	const rows: FileRow[] = [{ path: 'plugin.json', action: 'created' }]
+	const notes: string[] = []
+	const catalogs = planCatalogs(state, opts, manifest, notes)
+	const existing = state.repo?.catalogs ?? {}
+	for (const catalog of catalogs) {
+		const previous = existing[catalog.path.replace(/^(\.\.\/)+/, '')]
+		rows.push({
+			path: catalog.path,
+			action: previous === undefined ? 'created' : previous === catalog.content ? 'unchanged' : 'updated',
+		})
+	}
 
 	let packageJson: Record<string, unknown> | null = null
 	if (opts.npm) {
@@ -101,5 +248,6 @@ export function planInit(
 
 	const created = rows.filter((r) => r.action === 'created').length
 	const updated = rows.filter((r) => r.action === 'updated').length
-	return { manifest, dirs, packageJson, rows, summary: { created, updated } }
+	const unchanged = rows.filter((r) => r.action === 'unchanged').length
+	return { manifest, dirs, packageJson, catalogs, rows, notes, summary: { created, updated, unchanged } }
 }

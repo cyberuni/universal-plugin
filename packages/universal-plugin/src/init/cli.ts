@@ -17,6 +17,7 @@ interface InitCliOptions {
 	force?: boolean
 	yes?: boolean
 	npm?: boolean
+	marketplace?: boolean
 	root?: string
 }
 
@@ -36,6 +37,7 @@ export function initCommand(deps: { fs: InitFs } = { fs: realInitFs }): Command 
 		.option('--force', 'Overwrite an existing plugin.json')
 		.option('--yes', 'Non-interactive (compatibility no-op; init never prompts)')
 		.option('--npm', "Wire package.json 'files' to ship the derived vendor manifests")
+		.option('--no-marketplace', "Skip the repository's local marketplace catalogs")
 		.option('--format <format>', 'Output format: json or toon (default: toon)')
 		.addOption(new Option('--json').hideHelp())
 		.addOption(ROOT_OPTION)
@@ -52,6 +54,7 @@ export function initCommand(deps: { fs: InitFs } = { fs: realInitFs }): Command 
 						scaffold: Boolean(opts.scaffold),
 						force: Boolean(opts.force),
 						npm: Boolean(opts.npm),
+						marketplace: opts.marketplace !== false,
 					},
 					path.basename(root),
 					(vendor) => VENDOR_OUTPUT[vendor as keyof typeof VENDOR_OUTPUT],
@@ -66,9 +69,10 @@ export function initCommand(deps: { fs: InitFs } = { fs: realInitFs }): Command 
 				}
 				output(jsonResult, {
 					files: plan.rows.map((r: FileRow) => ({ path: r.path, action: r.action })),
-					summary: `created ${plan.summary.created}, updated ${plan.summary.updated}`,
+					summary: `created ${plan.summary.created}, updated ${plan.summary.updated}, unchanged ${plan.summary.unchanged}`,
 				})
 
+				for (const note of plan.notes) process.stderr.write(`${note}\n`)
 				process.stderr.write(NEXT_STEP)
 			} catch (err) {
 				process.stderr.write(`${err instanceof Error ? err.message : String(err)}\n`)

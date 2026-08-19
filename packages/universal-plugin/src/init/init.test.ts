@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
@@ -5,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { VENDOR_OUTPUT } from '../build/build.js'
 import { realInitFs } from './fs.js'
-import { buildManifest, type InitState, planInit, wireFiles } from './init.js'
+import { buildManifest, type InitOptions, type InitState, planInit, wireFiles } from './init.js'
 
 const resolve = (v: string) => VENDOR_OUTPUT[v as keyof typeof VENDOR_OUTPUT]
 const empty: InitState = { manifestExists: false, packageJson: null }
@@ -126,7 +127,126 @@ describe('planInit publish half', () => {
 			{ path: 'plugin.json', action: 'created' },
 			{ path: 'package.json', action: 'updated' },
 		])
-		expect(plan.summary).toEqual({ created: 1, updated: 1 })
+		expect(plan.summary).toEqual({ created: 1, updated: 1, unchanged: 0 })
+	})
+})
+
+describe('planInit marketplace half', () => {
+	// A repository the plugin sits two levels down in, with a remote and no catalogs yet.
+	const repo = (over: Partial<NonNullable<InitState['repo']>> = {}): InitState => ({
+		manifestExists: false,
+		packageJson: null,
+		repo: {
+			pluginPath: 'packages/my-plugin',
+			dirName: 'uip-pods',
+			slug: { owner: 'pan', repo: 'uip-pods' },
+			catalogs: {},
+			...over,
+		},
+	})
+
+	const plan = (state: InitState, vendors: string[], over: Partial<InitOptions> = {}) =>
+		planInit(state, { vendors, scaffold: false, force: false, npm: false, ...over }, 'my-plugin', resolve)
+
+	const catalog = (result: ReturnType<typeof planInit>, path: string) => {
+		const artifact = result.catalogs.find((entry) => entry.path.endsWith(path))
+		if (!artifact) throw new Error(`no catalog planned at ${path}`)
+		return JSON.parse(artifact.content)
+	}
+
+	it('writes a catalog per selected vendor, at the repository root', () => {
+		const result = plan(repo(), ['claude-code', 'cursor'])
+		expect(result.catalogs.map((entry) => entry.path)).toEqual([
+			'../../.claude-plugin/marketplace.json',
+			'../../.cursor-plugin/marketplace.json',
+		])
+		expect(result.rows).toContainEqual({ path: '../../.claude-plugin/marketplace.json', action: 'created' })
+	})
+
+	it('sources the entry at the plugin package, relative to the repository root', () => {
+		expect(catalog(plan(repo(), ['claude-code']), '.claude-plugin/marketplace.json')).toMatchObject({
+			plugins: [{ name: 'my-plugin', source: './packages/my-plugin' }],
+		})
+	})
+
+	it('sources a repository-root plugin at the marketplace root', () => {
+		expect(catalog(plan(repo({ pluginPath: '' }), ['claude-code']), '.claude-plugin/marketplace.json')).toMatchObject({
+			plugins: [{ source: './' }],
+		})
+		expect(plan(repo({ pluginPath: '' }), ['claude-code']).catalogs[0]?.path).toBe('.claude-plugin/marketplace.json')
+	})
+
+	it('names the marketplace after the repository slug, marked local', () => {
+		expect(catalog(plan(repo(), ['claude-code']), 'marketplace.json')).toMatchObject({
+			name: 'pan-uip-pods-local',
+			owner: { name: 'pan' },
+		})
+	})
+
+	it('falls back to the repository directory name, and to the package author, without a remote', () => {
+		const state = { ...repo({ slug: undefined }), packageJson: { author: 'Bea <bea@example.com>' } }
+		expect(catalog(plan(state, ['claude-code']), 'marketplace.json')).toMatchObject({
+			name: 'uip-pods-local',
+			owner: { name: 'Bea' },
+		})
+	})
+
+	it('keeps the name, the owner, and every other plugin of a catalog that already exists', () => {
+		const existing = JSON.stringify({
+			$schema: 'https://json.schemastore.org/claude-code-marketplace.json',
+			name: 'hand-named',
+			owner: { name: 'Bea', email: 'bea@example.com' },
+			description: 'Ours',
+			plugins: [
+				{ name: 'other', source: './packages/other' },
+				{ name: 'my-plugin', source: './old/path', tags: ['keep'], version: '9.9.9' },
+			],
+		})
+		const result = catalog(
+			plan(repo({ catalogs: { '.claude-plugin/marketplace.json': existing } }), ['claude-code']),
+			'marketplace.json',
+		)
+		expect(result).toMatchObject({
+			name: 'hand-named',
+			owner: { name: 'Bea', email: 'bea@example.com' },
+			description: 'Ours',
+		})
+		expect(result.plugins[0]).toMatchObject({ name: 'other', source: './packages/other' })
+		// The entry is re-derived in place: its source moves, hand-added fields stay, and the
+		// hand-authored version goes, because the canonical manifest declares none (ADR-0010 §3).
+		expect(result.plugins[1]).toEqual({ name: 'my-plugin', source: './packages/my-plugin', tags: ['keep'] })
+	})
+
+	it('reports an existing identical catalog as unchanged', () => {
+		const first = plan(repo(), ['claude-code'])
+		const second = plan(repo({ catalogs: { '.claude-plugin/marketplace.json': first.catalogs[0]?.content ?? '' } }), [
+			'claude-code',
+		])
+		expect(second.rows).toContainEqual({ path: '../../.claude-plugin/marketplace.json', action: 'unchanged' })
+		expect(second.summary).toMatchObject({ unchanged: 1 })
+	})
+
+	it('plans no catalog without --vendor, or with --no-marketplace', () => {
+		expect(plan(repo(), []).catalogs).toEqual([])
+		expect(plan(repo(), ['claude-code'], { marketplace: false }).catalogs).toEqual([])
+	})
+
+	it('skips the catalogs, with a note, when no owner can be derived', () => {
+		const result = plan(repo({ slug: undefined }), ['claude-code'])
+		expect(result.catalogs).toEqual([])
+		expect(result.notes.join(' ')).toMatch(/owner/)
+	})
+
+	it('skips the catalogs, with a note, outside a repository', () => {
+		const result = plan({ manifestExists: false, packageJson: null }, ['claude-code'])
+		expect(result.catalogs).toEqual([])
+		expect(result.notes.join(' ')).toMatch(/repository/)
+	})
+
+	it('skips only Codex, with a note, because its entry needs a version the manifest has none of', () => {
+		const result = plan(repo(), ['codex', 'claude-code'])
+		expect(result.catalogs.map((entry) => entry.path)).toEqual(['../../.claude-plugin/marketplace.json'])
+		expect(result.notes.join(' ')).toMatch(/Codex.*version/)
 	})
 })
 
@@ -163,6 +283,38 @@ describe('realInitFs integration', () => {
 		expect(pkg.files).toContain('dist')
 		expect(pkg.files).toContain('.claude-plugin/plugin.json')
 		expect(pkg.files).toContain('skills/')
+	})
+
+	it('registers the plugin in the repository-root catalogs, then converges', () => {
+		execFileSync('git', ['-C', dir, 'init', '-q'])
+		execFileSync('git', ['-C', dir, 'remote', 'add', 'origin', 'git@github.com:pan/uip-pods.git'])
+		const pluginRoot = path.join(dir, 'packages', 'my-plugin')
+		fs.mkdirSync(pluginRoot, { recursive: true })
+
+		const run = () => {
+			const state = realInitFs.gather(pluginRoot)
+			const plan = planInit(
+				state,
+				{ vendors: ['claude-code', 'cursor'], scaffold: false, force: true, npm: false },
+				'my-plugin',
+				resolve,
+			)
+			realInitFs.apply(pluginRoot, plan)
+			return plan
+		}
+
+		const first = run()
+		expect(first.rows.map((row) => row.action)).toEqual(['created', 'created', 'created'])
+		const catalog = JSON.parse(fs.readFileSync(path.join(dir, '.claude-plugin', 'marketplace.json'), 'utf8'))
+		expect(catalog).toMatchObject({
+			name: 'pan-uip-pods-local',
+			owner: { name: 'pan' },
+			plugins: [{ name: 'my-plugin', source: './packages/my-plugin' }],
+		})
+		expect(fs.existsSync(path.join(dir, '.cursor-plugin', 'marketplace.json'))).toBe(true)
+
+		// Re-running init over the catalogs it wrote changes nothing.
+		expect(run().rows.map((row) => row.action)).toEqual(['created', 'unchanged', 'unchanged'])
 	})
 
 	it('--npm with no package.json writes nothing (guard before manifest write)', () => {
