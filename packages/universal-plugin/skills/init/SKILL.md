@@ -1,7 +1,7 @@
 ---
 name: init
 description: Use this skill to create or change a universal agent plugin — scaffold a new one, adopt an existing vendor-specific plugin or already-shipped skills onto the open Agent Plugins Specification, or add and remove vendors and components on the canonical plugin.json that drives Claude Code, Cursor, Codex, and GitHub Copilot CLI. Trigger on "init a plugin here", "make my Claude Code plugin work in Cursor", "convert this to the open plugin standard", "turn these skills into a plugin", "add Codex support", or "add a hooks component".
-argument-hint: '[--name <name>] [--vendor <id>] [--scaffold] [--npm] [--force]'
+argument-hint: '[--name <name>] [--vendor <id>] [--scaffold] [--npm] [--no-marketplace] [--force]'
 ---
 
 # Plugin Init
@@ -137,6 +137,18 @@ To try the result before publishing, `npx universal-plugin plugin install` puts 
 into every runtime the manifest declares and names the reload each one needs. Never hand-write a
 symlink for this — `references/create.md` records why the recipe that circulated for it does not
 work.
+
+With `--vendor`, `plugin init` also registers the plugin in the repository's local marketplace: it
+writes each selected vendor's catalog at the **repository** root and folds an entry for this plugin
+into it, so users can add the repository as a marketplace and install from it. Say what it wrote,
+and read back any line it printed on stderr — a repository with no author, no package author, and no
+remote gets no catalog, because every runtime requires an owner. `--no-marketplace` skips the step.
+
+The catalog is named after the repository, `<owner>-<repo>-local`, not after the plugin: it lists
+every plugin the repository develops. Re-running `init` folds the entry back in and leaves the
+marketplace name, the owner, and every other entry alone, so it is safe over a catalog someone
+edited. Generating catalogs for a repository that already holds several plugins, and writing the
+README install section, is the `marketplace` skill's job.
 
 `plugin init` writes a **minimal** manifest — `$schema`, `name`, and the vendor list. It never reads
 an existing vendor manifest, so shared metadata and per-vendor overrides are carried in by hand

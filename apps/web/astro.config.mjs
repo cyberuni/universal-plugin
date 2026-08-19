@@ -33,6 +33,7 @@ export default defineConfig({
 						{ label: 'Overview', slug: 'cli/overview' },
 						{ label: 'plugin build', slug: 'cli/build' },
 						{ label: 'plugin install', slug: 'cli/install' },
+						{ label: 'Local marketplace', slug: 'cli/marketplace' },
 						{ label: 'config', slug: 'cli/config' },
 					],
 				},

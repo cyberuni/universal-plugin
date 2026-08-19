@@ -32,6 +32,11 @@ ls plugins/*/plugin.json 2>/dev/null
 test -f plugin.json && cat plugin.json
 ```
 
+`plugin init --vendor <id>` already registers the plugin it scaffolds in these catalogs, so a
+repository that has run it carries an entry before this skill starts. Read what is there first: this
+command regenerates a catalog from what it discovers, which is the whole repository rather than one
+plugin.
+
 A catalog lists plugins found at `<scan-root>/<plugin-dir>/plugin.json`, which defaults to
 `plugins/`. Pass `--plugin-scan-dir <dir>` when the repository keeps them elsewhere. A repository
 whose only plugin sits at its root has nothing to discover; say so rather than generating an empty
