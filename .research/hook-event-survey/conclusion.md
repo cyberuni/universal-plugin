@@ -2,7 +2,8 @@
 
 ## Last updated
 
-June 2026
+August 2026 — event casing, handler types, and plugin-manifest wiring re-verified against vendor
+docs. Everything else still dates from June 2026.
 
 ## Question
 
@@ -18,10 +19,15 @@ All four vendors have a session-start hook. Event names diverge in casing:
 |---|---|---|---|
 | Claude Code | `SessionStart` | Yes (source field: `startup`, `resume`, `compact`, `clear`) | command + mcp_tool only |
 | Cursor | `sessionStart` | Unclear — fires "per new composer conversation"; no documented resume concept | command (shell) only |
-| GitHub Copilot CLI | `sessionStart` | Yes ("new or resumed session") | shell command + HTTP + prompt |
+| GitHub Copilot CLI | `sessionStart` or `SessionStart` | Yes ("new or resumed session") | shell command + HTTP + prompt |
 | Codex | `SessionStart` | Yes (startup, resume, clear, compact) | command only |
 
-Casing summary: Claude Code and Codex use **PascalCase**. Cursor and Copilot CLI use **camelCase**. This is consistent with prior research (E-CC-01, E-CUR-01, E-COPILOT-01, E-CODEX-01).
+Casing summary: Claude Code and Codex use **PascalCase**. Cursor uses **camelCase**. Copilot CLI
+accepts **both**, and the casing chosen is what selects the payload format: a camelCase event name
+gets Copilot's native payload, a PascalCase one gets the "VS Code compatible format" and, for
+`PreToolUse`, Claude's matcher semantics rather than Copilot's native regex rule (E-COPILOT-04). The
+June record read the two casings on that page as a documentation inconsistency; they are a deliberate
+dual format, so a PascalCase hooks file reaches Copilot CLI unchanged.
 
 ### Post-install / post-update hooks
 
@@ -50,11 +56,30 @@ Neither `Setup` (Claude Code) nor `workspaceOpen` (Cursor) is triggered by plugi
 | Vendor | Supported models | Notes |
 |---|---|---|
 | Claude Code | command, http, mcp_tool, prompt, agent | SessionStart and Setup: command + mcp_tool only |
-| Cursor | command (shell) only | JSON over stdio; no HTTP or prompt hooks |
-| GitHub Copilot CLI | command (shell), HTTP POST | Tutorial also shows prompt for sessionStart |
+| Cursor | command (shell), prompt | JSON over stdio; no HTTP, agent, or mcp_tool. Cloud agents run command hooks only (E-CUR-04) |
+| GitHub Copilot CLI | command (shell), HTTP POST, prompt | prompt is CLI-only and fires on `sessionStart` (E-COPILOT-04) |
 | Codex | command only | prompt and agent types parsed but skipped (not yet implemented) |
 
-Claude Code has the most complete invocation model. Codex lags behind — only shell commands work despite the schema supporting more.
+Claude Code has the most complete invocation model. Codex lags behind — only shell commands work
+despite the schema supporting more. Cursor gained `type: "prompt"` since the June survey, which
+recorded it as command-only (E-CUR-04).
+
+### Plugin-manifest hook wiring
+
+All four vendors wire hooks the same way at the manifest level and diverge in the file the manifest
+points at.
+
+| Vendor | Manifest field | Accepts | Default location | Hooks file shape |
+|---|---|---|---|---|
+| Claude Code | `hooks` | path, array of paths, or inline object | `hooks/hooks.json` | `{ "hooks": { Event: [ { matcher?, hooks: [handler] } ] } }` (E-CC-05) |
+| Codex | `hooks` | path, array of paths, inline object, or array of inline objects | `hooks/hooks.json` | same three-level nesting as Claude Code; no `version` field (E-CODEX-03) |
+| Cursor | `hooks` | path or inline object | `hooks/hooks.json` | `{ "version": 1, "hooks": { event: [handler] } }` — handlers are flat, each carrying its own `matcher`; there is no matcher-group level (E-CUR-04) |
+| GitHub Copilot CLI | `hooks` | path or inline object | `hooks.json` or `hooks/hooks.json` | `{ "version": 1, "hooks": { event: [handler] } }` (E-COPILOT-05) |
+
+Two consequences for a build that derives one hooks file per vendor. Claude Code and Codex share the
+canonical shape, so a hooks file authored for Claude Code reaches Codex unchanged apart from handler
+types Codex cannot run. Cursor's shape differs structurally, not just in casing: a matcher group
+holding three handlers becomes three flat entries each repeating the matcher.
 
 ### Frequency and throttling controls
 
@@ -69,9 +94,11 @@ No vendor provides a "once per day" or "once per version" frequency control. The
 
 ## Confidence
 
-High for session-start event names and invocation models (backed by official docs for all four vendors).
+High for session-start event names, invocation models, and plugin-manifest wiring (backed by official
+docs for all four vendors, re-verified August 2026).
 High for "no post-install hook exists" on all four vendors (absence is confirmed by docs + feature request).
-Medium for exact Copilot CLI casing (mixed PascalCase/camelCase in reference page; camelCase used in tutorial).
+High for Copilot CLI casing — both casings are accepted and the page says what each selects (E-COPILOT-04);
+this supersedes the June "medium, likely a typo" reading.
 Medium for Cursor sessionStart resume behavior (not explicitly documented).
 
 ## Strongest support
@@ -82,7 +109,8 @@ Medium for Cursor sessionStart resume behavior (not explicitly documented).
 
 ## Strongest counterevidence
 
-- Copilot CLI reference page inconsistently shows both `sessionStart` and `SessionStart` (E-COPILOT-03) — minor; tutorial pages are consistent
+- The June reading of the Copilot CLI reference page as internally inconsistent (E-COPILOT-03) is
+  withdrawn — the page documents both casings on purpose (E-COPILOT-04)
 - Claude Code `Setup` hook could be used as a post-install workaround if the install process calls `claude --init-only` — but this is a manual integration, not an automatic lifecycle event
 
 ## Not supported
@@ -102,4 +130,5 @@ Medium for Cursor sessionStart resume behavior (not explicitly documented).
 - When Claude Code ships a PostInstall or plugin lifecycle hook (watch issue tracker)
 - When Cursor 1.8+ is released (hooks are beta in 1.7; API may change)
 - When Codex enables `prompt` and `agent` handler types
-- If GitHub Copilot CLI hooks reference is updated to resolve the camelCase/PascalCase inconsistency
+- If GitHub Copilot CLI stops accepting PascalCase event names, or changes what that casing selects
+- If Cursor's hooks schema version moves past `1`, or its flat handler shape gains a matcher-group level

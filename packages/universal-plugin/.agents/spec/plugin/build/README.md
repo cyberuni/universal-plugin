@@ -37,6 +37,20 @@ Follows the AXI output contract ([../../axi/](../../axi/README.md)).
   manifests since v1.0.74, the canonical manifest serves it as-is. The build reports the vendor with
   status `canonical` and writes no file. A `harnesses.copilot-cli` override has no delivery path —
   the canonical manifest's schema is closed — so the build warns rather than dropping it silently.
+- **Hooks are translated, not copied** — the canonical `hooks` declaration (a path, a path list, or
+  an inline block) is read and derived per vendor. Claude Code and Codex read the canonical
+  PascalCase event names and matcher-group shape; Cursor reads camelCase events, a top-level
+  `version: 1`, and a flat handler list where each handler carries its own matcher; Copilot CLI
+  accepts the canonical PascalCase as its Claude-compatible payload format. A vendor whose form
+  matches the canonical file keeps pointing at it and gets no derived file; a vendor whose form
+  differs gets `<vendor-dir>/hooks.json` beside its manifest, and its `hooks` field points there.
+- **A handler the vendor cannot run is dropped with a warning** ([ADR-0011](../../design/decisions/0011-warn-and-drop-unrepresentable-hook-handlers.md))
+  — Claude Code runs all four canonical handler types, Codex runs `command` only, Cursor runs
+  `command` and `prompt`, Copilot CLI runs `command`, `http`, and `prompt`. Each drop warns, naming
+  the vendor, the event, and the type; the build stays green. An emptied matcher group, event, or
+  file is omitted rather than written empty, and a vendor left with no hooks at all carries no
+  `hooks` field. Copilot CLI, which reads the canonical manifest directly, is warned about rather
+  than derived for — its unsupported handlers are reported as ignored at runtime.
 - **Merge then strip** — per-harness fields from `harnesses.<vendor>` are merged over the shared
   metadata and component paths; the canonical wrapper (`$schema`, `extensions`) and the orchestration
   keys (`vendors`, `packagePath`, `harnesses`) never appear in output.
@@ -74,6 +88,8 @@ Every scenario in [`build.feature`](./build.feature) maps to one of these behavi
 |---|---|
 | **target selection (`vendors ?? harnesses`)** | builds the `vendors` list, else all `harnesses` keys; correct per-vendor output paths; copilot-cli derives nothing (canonical root serves it) |
 | **merge then strip** | harness fields merged; canonical wrapper (`$schema`, `extensions`) + orchestration keys (`vendors`, `packagePath`, `harnesses`) stripped |
+| **hook translation** | canonical PascalCase kept for claude-code and codex; camelCase, `version: 1`, and flattened matcher groups for cursor; derived file written beside the vendor manifest and pointed at; inline hooks translated; `--dry-run` derives nothing |
+| **unrepresentable handlers (ADR-0011)** | per-drop warning naming vendor, event, and type; emptied event omitted; emptied file not written and the `hooks` field dropped; copilot-cli warned rather than derived for |
 | **`--vendor` filters** | filter to one vendor; a `--vendor` not among the targets fails |
 | **eager validation** | missing manifest fails; codex requires description + version |
 | **unknown vendors warn** | unknown vendor key in `harnesses` skipped with warning |

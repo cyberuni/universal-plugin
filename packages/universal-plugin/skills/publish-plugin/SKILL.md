@@ -55,12 +55,10 @@ See `references/vendor-requirements.md` for required fields and hook casing rule
 
 ### 1c. Hook casing check
 
-If the plugin has hooks, verify each vendor manifest uses the correct event name casing:
-
-- Claude Code and Codex: **PascalCase** (`SessionStart`, `PreToolCall`)
-- Cursor and GitHub Copilot CLI: **camelCase** (`sessionStart`, `preToolCall`)
-
-Mixed casing causes silent hook failures at runtime.
+`plugin build` owns hook casing: the canonical file is authored in PascalCase, and Cursor's
+`.cursor-plugin/hooks.json` is derived from it. Verify the build ran rather than hand-checking the
+casing, and read its warnings — a handler type the vendor cannot run is dropped, so a hook can be
+absent from a vendor's file by design.
 
 ### 1d. Skills check (if present)
 
@@ -221,7 +219,7 @@ gh pr create \
 ## Checklist
 
 - [ ] All targeted vendor manifests present and valid
-- [ ] Hook event casing correct per vendor
+- [ ] `plugin build` ran, and its dropped-handler warnings were read
 - [ ] Semver version string
 - [ ] SPDX license identifier
 - [ ] Entry appended to each detected marketplace file
@@ -237,7 +235,7 @@ Return the PR URL to the user when done.
 
 | Problem | Fix |
 |---|---|
-| Hook events silently don't fire | Check casing: Claude Code/Codex need PascalCase, Cursor/Copilot CLI need camelCase |
+| Hook events silently don't fire | Re-run `plugin build`; check its warnings for a handler type that vendor cannot run |
 | Codex rejects manifest | `version` and `description` are required by Codex |
 | PR rejected: missing source link | Add `homepage` or `repository` to plugin.json |
 | Name conflict in marketplace | Check existing entries in each marketplace file first |

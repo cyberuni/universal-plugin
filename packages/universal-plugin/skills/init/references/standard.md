@@ -68,7 +68,7 @@ directories. Create the rest only when the plugin has content for them.
 | MCP servers | `mcpServers` | `.mcp.json` | every vendor |
 | Commands | `commands` | `commands/<name>.md` | Claude Code, Cursor, Copilot CLI |
 | Agents | `agents` | `agents/<name>.md` | Claude Code, Cursor, Copilot CLI |
-| Hooks | `hooks` | `hooks/hooks.json` | partial — event names differ by case, and the build does not translate them |
+| Hooks | `hooks` | `hooks/hooks.json` | every vendor — authored PascalCase, translated per vendor by the build; handler types vary |
 | LSP servers | `lspServers` | `.lsp.json` | Claude Code, Cursor |
 | Rules | `rules` | `rules/<name>.mdc` | Cursor only |
 | Output styles | `outputStyles` | `output-styles/` | Claude Code only |

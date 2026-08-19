@@ -172,9 +172,10 @@ This skill is not a formatter. If the project has one, run it over the written f
   the Phase 5 diff is the check that proves it.
 - **Do not package repo-private agent configuration.** A `.claude/skills/` directory is the project's
   own tooling; offering to publish it is wrong.
-- **Do not convert vendor settings without a documented mapping.** Hook event names diverge by case
-  across runtimes and the build does not translate them today — see
-  `references/vendors/claude-code.md`. Unmapped settings stay where they are, reported.
+- **Do not convert vendor settings without a documented mapping.** Hooks have one: author them in
+  canonical PascalCase and `plugin build` derives each vendor's form, dropping handler types a vendor
+  cannot run — see `references/vendors/claude-code.md`. Unmapped settings stay where they are,
+  reported.
 - **Offer adoption once.** If the user declines, or asked for something unrelated, drop it and do
   what they asked.
 - Plugin authoring only. Do not change CI workflows, repository settings, or unrelated project files.

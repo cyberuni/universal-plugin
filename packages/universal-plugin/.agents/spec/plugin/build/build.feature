@@ -65,6 +65,93 @@ Feature: plugin build — derive per-vendor manifests
     And the output file does not contain "vendors"
     And the output file does not contain "packagePath"
 
+  # ── Hook translation (ADR-0011) ──
+
+  # Claude Code and Codex read PascalCase and the canonical matcher-group shape; Cursor reads
+  # camelCase and a flat handler list; Copilot CLI accepts PascalCase as its Claude-compatible
+  # payload format. Handler support: Claude Code all four canonical types, Codex command only,
+  # Cursor command and prompt, Copilot CLI command, http, and prompt.
+  # (.research/hook-event-survey/conclusion.md, re-verified August 2026)
+  Scenario: claude-code keeps the canonical hooks file when nothing needs translating
+    Given the manifest declares hooks "./hooks/hooks.json" with a "SessionStart" command handler
+    And the manifest declares harnesses for "claude-code"
+    When I run "universal-plugin plugin build"
+    Then no hooks file is derived for "claude-code"
+    And ".claude-plugin/plugin.json" contains hooks "./hooks/hooks.json"
+    And the exit code is 0
+
+  Scenario: cursor gets a derived hooks file with camelCase event names
+    Given the manifest declares hooks "./hooks/hooks.json" with a "SessionStart" command handler
+    And the manifest declares harnesses for "cursor"
+    When I run "universal-plugin plugin build"
+    Then ".cursor-plugin/hooks.json" is written
+    And it contains the event name "sessionStart"
+    And it does not contain the event name "SessionStart"
+    And ".cursor-plugin/plugin.json" contains hooks "./.cursor-plugin/hooks.json"
+    And the authored "hooks/hooks.json" is left unchanged
+
+  Scenario: a cursor hooks file carries the schema version and flattens matcher groups
+    Given the authored hooks declare one matcher group with matcher "Write" and two command handlers
+    And the manifest declares harnesses for "cursor"
+    When I run "universal-plugin plugin build"
+    Then ".cursor-plugin/hooks.json" contains "version" 1
+    And the event holds two flat handler entries
+    And each entry carries the matcher "Write"
+
+  Scenario: codex drops a handler type it cannot run, and warns
+    Given the authored hooks declare one command handler and one prompt handler on "SessionStart"
+    And the manifest declares harnesses for "codex"
+    When I run "universal-plugin plugin build"
+    Then a warning names "codex", "SessionStart", and the dropped type "prompt"
+    And ".codex-plugin/hooks.json" holds only the command handler
+    And the exit code is 0
+
+  Scenario: cursor drops an http handler, and warns
+    Given the authored hooks declare one http handler on "SessionStart"
+    And the manifest declares harnesses for "cursor"
+    When I run "universal-plugin plugin build"
+    Then a warning names "cursor", "SessionStart", and the dropped type "http"
+    And the exit code is 0
+
+  # Copilot CLI reads the canonical root manifest and its hooks file directly, so there is no derived
+  # manifest to repoint and no derived hooks file to deliver — the warning is the whole remedy.
+  Scenario: copilot-cli warns that an unsupported handler is ignored at runtime
+    Given the authored hooks declare one agent handler on "SessionStart"
+    And the manifest declares harnesses for "copilot-cli"
+    When I run "universal-plugin plugin build"
+    Then a warning names "copilot-cli", "SessionStart", and the type "agent"
+    And no hooks file is derived for "copilot-cli"
+    And the exit code is 0
+
+  Scenario: an event left with no runnable handler is omitted from the derived file
+    Given the authored hooks declare a prompt handler on "SessionStart" and a command handler on "Stop"
+    And the manifest declares harnesses for "codex"
+    When I run "universal-plugin plugin build"
+    Then ".codex-plugin/hooks.json" does not contain "SessionStart"
+    And ".codex-plugin/hooks.json" contains "Stop"
+
+  Scenario: a hooks file with nothing left is not written and the hooks field is omitted
+    Given the authored hooks declare only an http handler on "SessionStart"
+    And the manifest declares harnesses for "codex"
+    When I run "universal-plugin plugin build"
+    Then no hooks file is derived for "codex"
+    And ".codex-plugin/plugin.json" has no "hooks" field
+    And the exit code is 0
+
+  Scenario: inline hooks in the manifest are translated too
+    Given the manifest declares hooks inline with a "SessionStart" command handler
+    And the manifest declares harnesses for "cursor"
+    When I run "universal-plugin plugin build"
+    Then ".cursor-plugin/hooks.json" is written
+    And ".cursor-plugin/plugin.json" contains hooks "./.cursor-plugin/hooks.json"
+
+  Scenario: --dry-run derives no hooks file
+    Given the manifest declares hooks "./hooks/hooks.json" with a "SessionStart" command handler
+    And the manifest declares harnesses for "cursor"
+    When I run "universal-plugin plugin build --dry-run"
+    Then ".cursor-plugin/hooks.json" is NOT written
+    And the exit code is 0
+
   # ── Vendor filtering ──
 
   Scenario: --vendor filters to a single vendor

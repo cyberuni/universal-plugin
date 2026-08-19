@@ -202,3 +202,106 @@ Notes:
 - Plugin hooks receive PLUGIN_ROOT and PLUGIN_DATA env vars
 - Installing/enabling a plugin does NOT auto-trust hooks; user must review and trust explicitly
 - No PostInstall event in plugin manifest
+
+## Claim E-CC-05
+
+Date: 2026-08-18
+Status: supports
+Confidence: high
+
+Source:
+- Label: Claude Code plugins reference (official)
+- URL: https://code.claude.com/docs/en/plugins-reference.md
+- Type: official docs
+
+Notes:
+- Manifest field is `hooks`, typed `string|array|object`: a path, an array of paths, or an inline object
+- "Location: `hooks/hooks.json` in plugin root, or inline in plugin.json"
+- Hooks file shape is three-level: event name → matcher group (`matcher`, `hooks`) → handler (`type`)
+- Handler types re-confirmed: command, http, mcp_tool, prompt, agent
+- Event names re-confirmed PascalCase; the reference lists 32 events including `SessionStart`
+
+## Claim E-CUR-04
+
+Date: 2026-08-18
+Status: refutes
+Confidence: high
+
+Source:
+- Label: Cursor hooks reference (official)
+- URL: https://cursor.com/docs/hooks
+- Type: official docs
+
+Notes:
+- Refutes the June finding that Cursor supports command handlers only: `"type": "prompt"` now exists —
+  "Prompt hooks use an LLM to evaluate a natural language condition."
+- `type` defaults to `command`; no http, agent, or mcp_tool handler exists
+- "Cloud agents run command-based hooks only. Prompt-based hooks require authentication wiring between
+  the hook and the agent loop, which isn't available in the cloud execution environment."
+- Hooks file carries a top-level `"version": 1` alongside `"hooks"`
+- Handler entries are flat under the event name and carry their own `matcher`; there is no matcher-group level
+- Event names re-confirmed camelCase (`sessionStart`, `preToolUse`, `afterFileEdit`, `workspaceOpen`)
+- Plugin manifest field is `hooks`, "Path to hooks config file, or inline hook config", default `hooks/hooks.json`
+  (https://cursor.com/docs/plugins/building)
+
+## Claim E-CODEX-03
+
+Date: 2026-08-18
+Status: supports
+Confidence: high
+
+Source:
+- Label: Codex hooks reference (official)
+- URL: https://learn.chatgpt.com/docs/hooks
+- Type: official docs
+
+Notes:
+- The June URL (https://developers.openai.com/codex/hooks) now 308-redirects here
+- Handler types unchanged: "Only `type: \"command\"` handlers run today. `prompt` and `agent` handlers
+  are parsed but skipped."
+- Three-level structure re-confirmed: event → matcher group → handlers; no top-level `version` field
+- Event names re-confirmed PascalCase (`SessionStart`, `PreToolUse`, `PostToolUse`, `Stop`, …)
+- Plugin manifest field is `hooks`; it accepts a single path, an array of paths, an inline hooks object,
+  or an array of inline hooks objects, and defaults to `hooks/hooks.json`
+  (https://developers.openai.com/codex/plugins/build)
+
+## Claim E-COPILOT-04
+
+Date: 2026-08-18
+Status: refutes
+Confidence: high
+
+Source:
+- Label: GitHub Copilot hooks reference (official)
+- URL: https://docs.github.com/en/copilot/reference/hooks-configuration
+- Type: official docs
+
+Notes:
+- Refutes E-COPILOT-03's reading of the two casings as a documentation inconsistency. The page states:
+  "Two payload formats are supported, selected by the event name used in the hook configuration:
+  camelCase format… VS Code compatible format—Configure the event name in PascalCase (for example,
+  `SessionStart`)."
+- The casing also selects matcher semantics: "Hooks configured with the PascalCase event name
+  `PreToolUse`—as used in Claude Code plugins and the Open Plugins format—apply Claude's matcher
+  semantics instead of the native regex rule"
+- Handler types: command (shell), HTTP POST, and prompt; prompt is CLI-only and fires on `sessionStart`
+- Hook sources load in order: policy, user, project, then plugins — "Hooks contributed by installed
+  plugins — declared by each plugin in its own `hooks.json` (or under `hooks/hooks.json`) inside the
+  plugin's installation directory."
+
+## Claim E-COPILOT-05
+
+Date: 2026-08-18
+Status: supports
+Confidence: high
+
+Source:
+- Label: GitHub Copilot CLI plugin reference (official)
+- URL: https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-plugin-reference
+- Type: official docs
+
+Notes:
+- Plugin manifest field is `hooks`, typed `string | object` — a path or an inline hooks object
+- Expected locations inside a plugin: `hooks.json` or `hooks/hooks.json`
+- Manifest search order re-confirmed: `.plugin/plugin.json` → `plugin.json` → `.github/plugin/plugin.json`
+  → `.claude-plugin/plugin.json`
