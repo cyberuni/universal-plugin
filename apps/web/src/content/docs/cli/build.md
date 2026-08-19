@@ -43,6 +43,12 @@ For each vendor in `extensions["org.cyberuni.universal-plugin"].vendors`:
 6. Enforce required fields (fails build on missing)
 7. Write to the vendor output path
 
+Then, once per build: each repository-local marketplace catalog the repository **already carries**
+has this plugin's entry re-derived, for the vendors just built, so a catalog entry's version follows
+the canonical manifest instead of drifting. No catalog is created — that stays with
+[`plugin init --vendor` and `marketplace init`](../marketplace/) — and nothing else in the file
+changes. `--dry-run` reports the refresh as planned and writes nothing.
+
 ## Validation
 
 The build fails (exit 1) if:
