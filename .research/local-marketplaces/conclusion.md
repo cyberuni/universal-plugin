@@ -58,6 +58,32 @@ scan resolves each symlink and refuses one that points outside the directory (E-
 `ln -s "$(pwd)"` recipe that circulated for both runtimes installs nothing in either. A copy loads in
 both.
 
+## What a local Codex install actually does
+
+`codex plugin add <plugin>@<marketplace>` **copies** the plugin into
+`<CODEX_HOME>/plugins/cache/<marketplace>/<plugin>/<version>/`, and the version in that path is read
+from the plugin's own manifest — `.codex-plugin/plugin.json` when it exists, the canonical root
+`plugin.json` otherwise (E-CODEX-M13, E-CODEX-M18). Three consequences for an author developing
+against a local marketplace:
+
+- **An edit to the source is invisible until the plugin is installed again**, because the installed
+  copy is a copy (E-CODEX-M13). The reinstall is `codex plugin add` on its own: re-running it at the
+  same version overwrites the cached copy with the current source. Neither `codex plugin remove` nor
+  a version bump is needed, and `codex plugin marketplace upgrade` does nothing for a local
+  marketplace (E-CODEX-M14).
+- **The catalog entry's `version` is not what Codex installs by.** With the entry at `1.2.0` and the
+  plugin manifest at `1.0.0`, the install landed in `…/demo/1.0.0` (E-CODEX-M15). An entry that
+  declares no version installs normally; a plugin manifest with no version installs into a directory
+  literally named `local` (E-CODEX-M16). So Codex requires no version on a catalog entry — keeping
+  the entry's version equal to the manifest's is this project's policy
+  ([ADR-0010](../../packages/universal-plugin/.agents/spec/design/decisions/0010-version-policy.md)
+  §3), not Codex's requirement.
+- **Installing a new version replaces the cached old one** rather than accumulating beside it
+  (E-CODEX-M17).
+
+Codex's own page says to "start a new session" after installing (E-CODEX-M1); that is the vendor's
+instruction, and the reload behavior of a running session was not probed here.
+
 ## What follows for this project
 
 - **Write `.claude-plugin/marketplace.json` and three runtimes are covered.** Copilot CLI also reads
@@ -70,6 +96,10 @@ both.
   `source` are accepted by Codex anywhere it looks, but Claude Code rejects that content for the
   missing `owner` (E-CC-M5, E-CODEX-M9). That is an argument for keeping the two artifacts separate,
   which is what the command already does.
+- **Nothing needs to require a version on a Codex entry.** The generator derives the entry's version
+  from the canonical manifest and omits it when the manifest declares none, which is ADR-0010 §3 and
+  is also what Codex accepts (E-CODEX-M16). A generator that *refused* to write a Codex catalog
+  without a version was refusing something Codex installs.
 - **Codex's CLI verbs are real but undocumented.** `codex plugin marketplace add` and
   `codex plugin add` ship in codex-cli 0.147.0 and appear in no vendor page reviewed here. Note the
   asymmetry: Codex installs with `plugin add`, Copilot CLI with `plugin install`.
@@ -131,3 +161,5 @@ assumption it is — copying satisfies both a runtime that rejects symlinks and 
 - Codex publishes a plugin CLI reference, or adds support for a vendor-neutral catalog path.
 - Claude Code changes the `.claude-plugin/marketplace.json` path or the `plugin@marketplace` grammar.
 - A Codex release changes `plugin add` to `plugin install`, or moves the supported manifest path.
+- Codex starts reading the catalog entry's `version`, stops re-copying on a same-version
+  `plugin add`, or changes the `plugins/cache/<marketplace>/<plugin>/<version>` layout.

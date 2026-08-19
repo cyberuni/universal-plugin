@@ -53,3 +53,23 @@ on the reference page rather than the install page it was read from.
 project generated had been carrying. It also accepts an entry whose source directory holds only a
 canonical root `plugin.json` (E-CC-M9), which is what lets `plugin init` register a plugin that has
 no vendor manifest yet.
+
+## 2026-08-18 — the local Codex install cache, probed rather than assumed
+
+Opened for issue #29 (local Codex marketplace metadata), whose premise was that Codex caches a plugin
+by version and that a source edit therefore needs an explicit reinstall. Half of that held and half
+did not.
+
+It holds that the install is a copy under `plugins/cache/<marketplace>/<plugin>/<version>`, so an
+edit to the source reaches nothing until the plugin is installed again (E-CODEX-M13). What does not
+hold is the version part: the version in that path is read from the plugin's manifest, never from the
+catalog entry, and re-running `codex plugin add` at the same version overwrites the cached copy with
+the current source (E-CODEX-M14, E-CODEX-M15). A catalog entry with no version installs perfectly
+well (E-CODEX-M16).
+
+That reverses one rule this project had shipped. `marketplace init --codex` refused to write a
+catalog when a plugin manifest carried no version, and `plugin init --vendor codex` skipped the
+catalog for the same reason — both stated as Codex's requirement. Codex has no such requirement. The
+entry's version stays derived from the canonical manifest because ADR-0010 §3 says a catalog entry
+never authors one, and it is now simply omitted when there is none to derive.
+
