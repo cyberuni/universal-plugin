@@ -5,6 +5,14 @@ export interface VendorConfig {
 	hookGlob: string | null
 	globalPluginDir: string | null
 	pluginRootSuffix: string | null
+	/** Directory a runtime scans for locally developed plugins, one entry per plugin, or `null` when
+	 *  it has none. `plugin install` writes into it. */
+	localPluginDir: string | null
+	/** Whether that directory's scan follows a symlink whose target sits outside it. When false,
+	 *  `plugin install` has to copy. */
+	localPluginLink: boolean
+	/** What the author has to do for the runtime to pick a fresh install up. */
+	localReload: string | null
 	installCommand: string | null
 	removeCommand: string | null
 	updateCommand: string | null

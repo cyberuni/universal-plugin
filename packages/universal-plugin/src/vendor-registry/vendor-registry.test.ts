@@ -1,3 +1,4 @@
+import * as fs from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import type { VendorConfig, VendorRegistry } from './vendor-registry.js'
 import { lookupVendor, mergeRegistries } from './vendor-registry.js'
@@ -9,6 +10,9 @@ const claudeCode: VendorConfig = {
 	hookGlob: '~/.claude/plugins/universal-plugin/hooks/hooks.json',
 	globalPluginDir: '~/.claude/plugins/',
 	pluginRootSuffix: '.claude-plugin/plugin.json',
+	localPluginDir: '~/.claude/skills/',
+	localPluginLink: true,
+	localReload: 'restart Claude Code',
 	installCommand: 'claude plugin install {name}',
 	removeCommand: 'claude plugin remove {name}',
 	updateCommand: 'claude plugin update {name}@{version}',
@@ -50,5 +54,32 @@ describe('mergeRegistries', () => {
 
 	it('base is unchanged when override is empty', () => {
 		expect(mergeRegistries(base, {})).toEqual(base)
+	})
+})
+
+describe('the shipped local-install facts', () => {
+	const shipped = JSON.parse(fs.readFileSync(new URL('./data/vendors.json', import.meta.url), 'utf8')) as VendorRegistry
+
+	// Verified against the shipped runtimes in August 2026; see
+	// `.research/local-marketplaces/evidence.md`.
+	it('Claude Code scans ~/.claude/skills and follows an out-of-tree symlink', () => {
+		expect(shipped['claude-code']?.localPluginDir).toBe('~/.claude/skills/')
+		expect(shipped['claude-code']?.localPluginLink).toBe(true)
+	})
+
+	it('Cursor scans ~/.cursor/plugins/local but rejects an out-of-tree symlink', () => {
+		expect(shipped['cursor']?.localPluginDir).toBe('~/.cursor/plugins/local/')
+		expect(shipped['cursor']?.localPluginLink).toBe(false)
+	})
+
+	it('Codex and Copilot CLI scan no local plugin directory', () => {
+		expect(shipped['codex']?.localPluginDir).toBeNull()
+		expect(shipped['copilot-cli']?.localPluginDir).toBeNull()
+	})
+
+	it('every vendor with a local plugin directory names its reload step', () => {
+		for (const config of Object.values(shipped)) {
+			if (config.localPluginDir) expect(config.localReload).toBeTruthy()
+		}
 	})
 })
