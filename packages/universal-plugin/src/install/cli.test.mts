@@ -145,6 +145,27 @@ test('a vendor the manifest does not declare fails', () => {
 	expect(r.stderr).toMatch(/not declared/)
 })
 
+test('--copy snapshots even where a symlink would load', () => {
+	const r = run('plugin', 'install', '--vendor', 'claude-code', '--copy')
+	expect(r.status).toBe(0)
+	expect(fs.lstatSync(claudeDest()).isSymbolicLink()).toBe(false)
+	expect(fs.existsSync(path.join(claudeDest(), 'plugin.json'))).toBe(true)
+})
+
+test('an earlier install of this plugin is replaced, not stacked', () => {
+	run('plugin', 'install', '--vendor', 'claude-code', '--copy')
+	fs.writeFileSync(path.join(claudeDest(), 'stale.txt'), 'from the last install')
+	const r = run('plugin', 'install', '--vendor', 'claude-code', '--copy')
+	expect(r.status).toBe(0)
+	expect(fs.existsSync(path.join(claudeDest(), 'stale.txt'))).toBe(false)
+})
+
+test('a successful run prints a TOON row per vendor plus the aggregate', () => {
+	const r = run('plugin', 'install', '--vendor', 'claude-code')
+	expect(r.stdout).toMatch(/vendors\[1\]\{vendor,path,action\}/)
+	expect(r.stdout).toMatch(/summary: .*installed 1/)
+})
+
 test('the run names the reload step each vendor now needs', () => {
 	const r = run('plugin', 'install', '--vendor', 'claude-code')
 	expect(r.stderr).toMatch(/claude-code:/)
@@ -156,6 +177,36 @@ test('uninstall removes what install put there', () => {
 	expect(r.status).toBe(0)
 	expect(fs.existsSync(claudeDest())).toBe(false)
 	expect(fs.existsSync(cursorDest())).toBe(false)
+})
+
+test('uninstall removes a copied install', () => {
+	run('plugin', 'install', '--vendor', 'cursor')
+	const r = run('plugin', 'uninstall', '--vendor', 'cursor')
+	expect(r.status).toBe(0)
+	expect(fs.existsSync(cursorDest())).toBe(false)
+})
+
+test('uninstall does not require a derived manifest', () => {
+	run('plugin', 'install', '--vendor', 'claude-code')
+	fs.rmSync(path.join(plugin, '.claude-plugin'), { recursive: true, force: true })
+	const r = run('plugin', 'uninstall', '--vendor', 'claude-code')
+	expect(r.status).toBe(0)
+	expect(fs.existsSync(claudeDest())).toBe(false)
+})
+
+test('--force removes a destination this plugin does not own', () => {
+	fs.mkdirSync(claudeDest(), { recursive: true })
+	fs.writeFileSync(path.join(claudeDest(), 'plugin.json'), JSON.stringify({ name: 'someone-else' }))
+	const r = run('plugin', 'uninstall', '--vendor', 'claude-code', '--force')
+	expect(r.status).toBe(0)
+	expect(fs.existsSync(claudeDest())).toBe(false)
+})
+
+test('--help prints a concise reference', () => {
+	const r = run('plugin', 'install', '--help')
+	expect(r.status).toBe(0)
+	expect(r.stdout).toContain('--vendor')
+	expect(r.stdout).toContain('Example:')
 })
 
 test('uninstalling twice reports the destination as missing rather than failing', () => {
