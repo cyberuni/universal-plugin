@@ -45,3 +45,8 @@ Cursor hook events are **camelCase** (`sessionStart`), and Cursor's hooks file d
 well as casing. The build derives `.cursor-plugin/hooks.json` from the canonical file — never author
 it by hand. Cursor runs `command` and `prompt` handlers; an `http` or `agent` handler is dropped with
 a warning. See [`claude-code.md`](./claude-code.md).
+
+## Dependencies
+
+Cursor reads no plugin dependency. A declaration is left out of `.cursor-plugin/plugin.json` with a
+build warning. See [`claude-code.md`](./claude-code.md).

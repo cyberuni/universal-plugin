@@ -466,3 +466,104 @@ describe('buildPlugin — hooks (ADR-0011)', () => {
 		expect(readJson('.cursor-plugin/plugin.json').hooks).toBe('./hooks/hooks.json')
 	})
 })
+
+describe('buildPlugin — dependencies', () => {
+	function readJson(relPath: string) {
+		return JSON.parse(fs.readFileSync(path.join(dir, relPath), 'utf8'))
+	}
+
+	it('delivers the declaration to the claude-code manifest as a top-level field', () => {
+		writeManifest({
+			name: 'my-plugin',
+			extensions: up({ dependencies: ['cyber-asana'], harnesses: { 'claude-code': {} } }),
+		})
+		const result = buildPlugin(dir)
+		expect(readJson('.claude-plugin/plugin.json').dependencies).toEqual(['cyber-asana'])
+		expect(result.warnings).toEqual([])
+	})
+
+	it('delivers the object form unchanged, constraint and all', () => {
+		const declared = [{ name: 'cyber-asana', marketplace: 'cyberuni', version: '^0.9.0' }]
+		writeManifest({ name: 'my-plugin', extensions: up({ dependencies: declared, harnesses: { 'claude-code': {} } }) })
+		buildPlugin(dir)
+		expect(readJson('.claude-plugin/plugin.json').dependencies).toEqual(declared)
+	})
+
+	it('drops the declaration from the cursor manifest and warns', () => {
+		writeManifest({ name: 'my-plugin', extensions: up({ dependencies: ['cyber-asana'], harnesses: { cursor: {} } }) })
+		const result = buildPlugin(dir)
+		expect(readJson('.cursor-plugin/plugin.json').dependencies).toBeUndefined()
+		expect(result.warnings).toEqual([
+			'cursor does not read plugin dependencies — "cyber-asana" is dropped from the derived manifest',
+		])
+	})
+
+	it('drops the declaration from the codex manifest and warns', () => {
+		writeManifest({
+			name: 'my-plugin',
+			version: '1.0.0',
+			description: 'd',
+			extensions: up({ dependencies: ['cyber-asana'], harnesses: { codex: {} } }),
+		})
+		const result = buildPlugin(dir)
+		expect(readJson('.codex-plugin/plugin.json').dependencies).toBeUndefined()
+		expect(result.warnings).toEqual([
+			'codex does not read plugin dependencies — "cyber-asana" is dropped from the derived manifest',
+		])
+	})
+
+	it('warns that copilot-cli ignores the declaration it reads in the canonical manifest', () => {
+		writeManifest({
+			name: 'my-plugin',
+			extensions: up({ dependencies: ['cyber-asana'], harnesses: { 'copilot-cli': {} } }),
+		})
+		const result = buildPlugin(dir)
+		expect(result.warnings).toEqual([
+			'copilot-cli does not read plugin dependencies — "cyber-asana" is ignored at runtime',
+		])
+	})
+
+	it('stays green: every vendor is still built when a declaration cannot be delivered', () => {
+		writeManifest({
+			name: 'my-plugin',
+			version: '1.0.0',
+			description: 'd',
+			extensions: up({ dependencies: ['cyber-asana'], harnesses: { 'claude-code': {}, cursor: {}, codex: {} } }),
+		})
+		const result = buildPlugin(dir)
+		expect(result.summary).toMatchObject({ built: 3, failed: 0 })
+		expect(result.warnings).toHaveLength(2)
+	})
+
+	it('warns once, not per vendor, about a range the runtime discards', () => {
+		writeManifest({
+			name: 'my-plugin',
+			extensions: up({ dependencies: ['cyber-asana@^0.9.0'], harnesses: { 'claude-code': {}, cursor: {} } }),
+		})
+		const result = buildPlugin(dir)
+		expect(result.warnings.filter((w) => w.includes('discards'))).toHaveLength(1)
+	})
+
+	it('fails the build on a declaration the runtime would reject', () => {
+		writeManifest({
+			name: 'my-plugin',
+			extensions: up({ dependencies: { 'cyber-asana': '^0.9.0' }, harnesses: { 'claude-code': {} } }),
+		})
+		expect(() => buildPlugin(dir)).toThrow('dependencies must be an array')
+	})
+
+	it('leaves a manifest without a declaration without the field', () => {
+		writeManifest({ name: 'my-plugin', extensions: up({ harnesses: { 'claude-code': {} } }) })
+		buildPlugin(dir)
+		expect('dependencies' in readJson('.claude-plugin/plugin.json')).toBe(false)
+	})
+
+	it('lets a harnesses override still set dependencies for the vendor that reads them', () => {
+		writeManifest({
+			name: 'my-plugin',
+			extensions: up({ harnesses: { 'claude-code': { dependencies: ['hand-written'] } } }),
+		})
+		buildPlugin(dir)
+		expect(readJson('.claude-plugin/plugin.json').dependencies).toEqual(['hand-written'])
+	})
+})

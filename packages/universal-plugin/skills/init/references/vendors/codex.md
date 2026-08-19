@@ -47,3 +47,10 @@ so it is not part of the plugin's tracked output and does not travel with a clon
 Codex hook events are **PascalCase**, like Claude Code's, so the canonical file reaches Codex as
 authored. Codex runs `command` handlers only — an `http`, `prompt`, or `agent` handler is dropped
 from `.codex-plugin/hooks.json` with a warning. See [`claude-code.md`](./claude-code.md).
+
+## Dependencies
+
+Codex reads no plugin dependency. A declaration is left out of `.codex-plugin/plugin.json` with a
+build warning — deliberately, because the validator Codex ships for its plugin ingestion contract
+rejects any field outside its allowlist, and one unaccepted key fails the whole manifest. See
+[`claude-code.md`](./claude-code.md).

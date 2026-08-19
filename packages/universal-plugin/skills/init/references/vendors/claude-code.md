@@ -46,6 +46,30 @@ dropped from a derived file.
 Source: `.research/hook-event-survey/conclusion.md` (re-verified August 2026) — re-verify against
 vendor docs before relying on it.
 
+## Dependencies
+
+Claude Code is the only runtime that reads a plugin dependency, and it acts on one: it installs a
+missing dependency, enables it alongside the plugin that needs it, prunes it once nothing needs it,
+and refuses to load a plugin whose declared range the installed version does not satisfy. Declare it
+once, canonically, under `extensions["org.cyberuni.universal-plugin"].dependencies` — not under
+`harnesses["claude-code"]` (ADR-0013):
+
+```json
+"dependencies": ["cyber-asana", { "name": "cyber-notion", "marketplace": "cyberuni", "version": "^0.9.0" }]
+```
+
+A bare name resolves against the declaring plugin's own marketplace; `marketplace` picks another one,
+which the root marketplace must have allowed. Put a range in the object form — a range written as
+`"cyber-asana@^0.9.0"` is accepted and then discarded by the runtime, and the build warns and names
+the object to write instead.
+
+Cursor, Codex, and Copilot CLI read no such field. The build leaves it out of their manifests and
+warns; the build stays green. A plugin that loads there without its dependency is worth a line in
+your README.
+
+Source: `.research/plugin-schema/` (re-verified August 2026 against Claude Code 2.1.235) — re-verify
+against vendor docs before relying on it.
+
 ## Leave alone
 
 Output styles are Claude Code-only, and hook blocks in `.claude/settings.json` are settings, not

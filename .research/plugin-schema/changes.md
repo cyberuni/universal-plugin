@@ -32,3 +32,11 @@
   - Documented Codex manifest path discrepancy (OIAP uses `plugin.json`; our prior research uses `.codex-plugin/plugin.json`) — flagged as needing verification
 - **Evidence added**: E22 (OIAP project overview), E23 (new runtimes), E24 (Codex path discrepancy), E25 (OIAP's 8 snake_case hook events), E26 (OIAP capability model), E27 (Gemini CLI distinction)
 - **Triggered by**: User pointing to https://github.com/fboldo/oiap.
+
+## 2026-08-18 — Re-verified `dependencies` against the shipped CLIs
+
+- **What changed**: The `dependencies` row was carried from June as a bare yes/no per vendor. Re-verified against Claude Code 2.1.235, Codex 0.147.0, Cursor 2026.07.01, and the current Copilot CLI docs, and the *shape* and *semantics* of Claude Code's field are now recorded.
+- **Why**: [Issue #44](https://github.com/cyberuni/universal-plugin/issues/44) asked whether `dependencies` should be promoted to a canonical field. The answer needed what each runtime actually does with one, not which runtimes list it.
+- **Conclusion changes**: The per-vendor verdict is unchanged — Claude Code only. Three things the June record did not carry: Claude Code takes an **array**, not an npm-style object map (the issue proposed the map, and `claude plugin validate` rejects it); a range written as an `@^…` tail on the string form is accepted and then discarded, so only the object form's `version` is enforced; and Claude Code's support is a full resolver — auto-install, auto-enable, semver check, orphan prune, cross-marketplace policy — rather than a recorded field. Codex additionally ships an ingestion-contract validator that rejects `dependencies` as an unaccepted field, which is why the build drops it rather than emitting it.
+- **Evidence added**: E22 (Claude Code shape), E23 (Claude Code resolver semantics), E24 (the three runtimes that read none, and Codex's validator).
+- **Triggered by**: Issue #44, landed as ADR-0013.

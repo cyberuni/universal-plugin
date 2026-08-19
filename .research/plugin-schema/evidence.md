@@ -349,3 +349,42 @@
 - **source.url**: https://modelcontextprotocol.io
 - **source.type**: Official docs (multiple vendors)
 - **notes**: Every active runtime surveyed (Claude Code, Cursor, Codex, GitHub Copilot CLI, Windsurf, Gemini Code Assist, Zed, Continue.dev, Cline) supports or is adopting MCP server integration. MCP is the de-facto cross-vendor extensibility layer even where no plugin manifest system exists. The `.mcp.json` file format is broadly shared. This makes MCP server support the strongest single cross-vendor integration target beyond SKILL.md.
+
+---
+
+## E22 — Claude Code reads `dependencies` as an array, and discards a range written into the string form
+
+- **claim_id**: E22
+- **date**: 2026-08-18
+- **status**: Confirmed
+- **confidence**: High
+- **source.label**: Claude Code 2.1.235 — `claude plugin validate` and the shipped manifest schema
+- **source.url**: https://code.claude.com/docs/en/plugins-reference
+- **source.type**: Shipped CLI (probed locally)
+- **notes**: `dependencies` is an array. Each entry is a string matching `^[A-Za-z0-9][-A-Za-z0-9._]*(@[A-Za-z0-9][-A-Za-z0-9._]*)?(@\^[^@]*)?$` — a plugin name, an optional `@marketplace`, and an optional `@^…` range tail — or an object `{name, marketplace?, version?, sha?}` parsed loosely. Probed with `claude plugin validate`: `{"cyber-asana": "^0.9.0"}` fails with *"expected array, received object"*, `"dep@>=1.0.0"` fails with *"dependencies.0: Invalid input"*, and `{"name":"dep","marketplace":"mkt","version":"^1.0.0","sha":"abc123"}` passes. In the shipped bundle the string parser strips the `@^…` tail before resolving, and the constraint map is built only from object entries, so a range in the string form is accepted and then ignored. Ranges are checked with `semver.satisfies` against the installed version, and only for marketplace-qualified dependencies.
+
+---
+
+## E23 — Claude Code resolves dependencies: installs, enables, version-checks, and prunes
+
+- **claim_id**: E23
+- **date**: 2026-08-18
+- **status**: Confirmed
+- **confidence**: High
+- **source.label**: Claude Code 2.1.235 — shipped resolver strings
+- **source.url**: https://code.claude.com/docs/en/plugins-reference
+- **source.type**: Shipped CLI (probed locally)
+- **notes**: The field is not a marker. A missing dependency is auto-installed (*"resolved N missing plugin dependencies"*), a plugin required by an enabled dependent is enabled regardless of its own `defaultEnabled`, an auto-installed plugin is flagged `auto` and swept by `claude plugin prune` when nothing depends on it, and a plugin whose dependency is unsatisfied is demoted at load with `dependency-unsatisfied` or `dependency-version-unsatisfied`. A bare name resolves against the declaring plugin's own marketplace; a cross-marketplace dependency is refused unless the root marketplace lists that marketplace under `allowCrossMarketplaceDependenciesOn`. Enterprise policy can block a dependency or its whole marketplace, failing the install of the dependent.
+
+---
+
+## E24 — Codex, Cursor, and Copilot CLI read no `dependencies` field, and Codex's ingestion validator rejects one
+
+- **claim_id**: E24
+- **date**: 2026-08-18
+- **status**: Confirmed
+- **confidence**: High
+- **source.label**: Codex 0.147.0 and Cursor 2026.07.01 shipped CLIs; GitHub Copilot CLI plugin reference
+- **source.url**: https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-plugin-reference
+- **source.type**: Shipped CLIs (probed locally) + official docs
+- **notes**: Cursor's plugin manifest schema in the shipped bundle lists `name`, `displayName`, `description`, `version`, `author`, `publisher`, `homepage`, `repository`, `license`, `logo`, `keywords`, `capabilities`, `commands`, `agents`, `skills`, `rules`, `hooks`, `variables`, `mcpServers` — no `dependencies`; unknown keys are stripped, not rejected. Codex's plugin manifest struct has no such field either. A local-marketplace probe (`codex plugin marketplace add` then `codex plugin add`) installed a plugin whose `plugin.json` carried `dependencies` without complaint — but the same probe accepted a nonsense field, so it shows only that the Codex **runtime** ignores unknown keys. Codex separately ships `plugin-creator/scripts/validate_plugin.py`, a validator for the plugin ingestion contract, whose `.codex-plugin/plugin.json` allowlist is exactly `{id, name, version, description, skills, apps, mcpServers, interface, author, homepage, repository, license, keywords}`; anything else is reported as *"field `X` is not accepted by plugin validation"*. Copilot CLI's plugin reference documents no `dependencies` field.
