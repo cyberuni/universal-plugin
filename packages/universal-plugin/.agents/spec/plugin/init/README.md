@@ -22,6 +22,12 @@ Every command follows the AXI output contract ([../../axi/](../../axi/README.md)
 - **Derived vendor manifest** — a per-harness manifest `plugin build` generates from the canonical
   one, each at that harness's own path (e.g. `.claude-plugin/plugin.json` for Claude Code). These are
   build **outputs**, not authored here.
+- **Local marketplace catalog** — the `marketplace.json` a repository carries so its plugins can be
+  installed from the repository itself. It sits at the **repository** root, not the project root, and
+  lists every plugin the repository develops, so it is named after the repository —
+  `<owner>-<repo>-local` — and not after any one plugin. `marketplace init` owns generating one from
+  the repository's plugins; `init` folds a single plugin's entry into it. Entry `version` is derived
+  from the canonical manifest and never authored (ADR-0010 §3).
 - **Ship on publish** — an npm package declares which files travel in its tarball via `package.json`
   `files`; `--npm` adds the **open-standard base** — the canonical root `plugin.json` and the skills
   directory — plus each selected vendor's derived manifest. The base is unconditional: the standard
@@ -64,6 +70,16 @@ The entry points, each a mode of the `universal-plugin plugin init` verb, given 
   - *outcome:* the canonical manifest is written **and** `package.json` `files` carries the
     open-standard base (root `plugin.json` + the skills directory) plus each selected vendor's
     derived manifest path; existing `files` entries and other fields are preserved; safe to re-run.
+- **Register the plugin in the repository's local marketplace** — `plugin init --vendor <id>…
+  [--no-marketplace]`.
+  - *trigger:* an author wants to install and test the plugin before publishing it.
+  - *inputs:* the `--vendor` set; the repository the project root sits in.
+  - *outcome:* each selected vendor's catalog at the **repository** root — `.claude-plugin/
+    marketplace.json`, `.cursor-plugin/marketplace.json`, and the rest — carries an entry for this
+    plugin, sourced at the path from the repository root to the project root. Catalogs already there
+    keep their marketplace name, their owner, and every other plugin's entry; only this plugin's
+    entry is re-derived. `--no-marketplace` skips the whole step, and so does an invocation with no
+    `--vendor`.
 - **Print the command reference** — `plugin init --help`.
   - *trigger:* an author asks what the verb does.
   - *inputs:* none.
@@ -97,6 +113,14 @@ graph TD
   W --> NP{--npm?}
   NP -->|yes| wire[add plugin.json + skills/ base, then each vendor's derived manifest path]
   NP -->|no| skip[package.json untouched]
+  W --> MP{--vendor given and not --no-marketplace?}
+  MP -->|no| mp0[no catalog written]
+  MP -->|yes| REPO{inside a repository with an owner to name?}
+  REPO -->|no| mp1[skip catalogs · note why · exit 0]
+  REPO -->|yes| mp2[fold this plugin's entry into each selected vendor's catalog at the repository root]
+  mp0 --> OUT
+  mp1 --> OUT
+  mp2 --> OUT
   nm1 --> OUT
   nm2 --> OUT
   vn1 --> OUT
@@ -149,6 +173,22 @@ Grouped by use case; 1:1 with [`init.feature`](./init.feature). `| Edge | Path (
 | barred: no --npm | package.json present, no `--npm` | `without --npm the package.json is untouched` |
 | npm reports updated | `--npm` success | `--npm reports package.json as updated in the result` |
 
+### Register the plugin in the repository's local marketplace
+
+| Edge | Path (Given) | Scenario |
+|---|---|---|
+| catalog per vendor | `--vendor claude-code --vendor cursor` inside a repository | `--vendor writes each selected vendor's catalog at the repository root` |
+| entry source | the project root is `packages/my-plugin` | `the catalog entry sources the plugin where it sits in the repository` |
+| marketplace name | the repository has an `owner/repo` remote | `the marketplace is named after the repository and marked local` |
+| existing catalog | a catalog at the repository root lists another plugin | `an existing catalog keeps its name, owner, and other plugins` |
+| derived version | an existing entry carries a version the manifest does not | `an entry version the canonical manifest does not carry is removed` |
+| converged re-run | the catalogs already carry this entry | `re-running init reports the catalogs unchanged` |
+| barred: no vendor | no `--vendor` | `without --vendor no catalog is written` |
+| opt out | `--no-marketplace --vendor claude-code` | `--no-marketplace writes no catalog` |
+| no repository | the project root is not inside a repository | `outside a repository the catalogs are skipped with a note` |
+| no owner | no author, no package author, no remote | `with no owner to name the catalogs are skipped with a note` |
+| Codex needs a version | `--vendor codex` on a manifest with no version | `the Codex catalog is skipped with a note until the manifest carries a version` |
+
 ### Print the command reference
 
 | Edge | Path (Given) | Scenario |
@@ -159,6 +199,11 @@ Grouped by use case; 1:1 with [`init.feature`](./init.feature). `| Edge | Path (
 
 - Agent Plugins Specification v1.0.0 (`agent-plugins.org`) — backs the closed `plugin.json` field set
   and the `extensions` reverse-domain namespace this node scaffolds. Adoption recorded in ADR-0007.
+- ADR-0010 (this project) — backs the derived entry version: a catalog entry's version is copied
+  from the manifest its `source` resolves to, never authored (§3), and repository-local catalogs are
+  a derived artifact (§1).
+- [Research: local marketplaces](../../../../../../.research/local-marketplaces/conclusion.md) —
+  backs which catalog each runtime reads, and that `owner` is an object.
 - ADR-0006 (this project) — backs the scope: `plugin init --npm` (the publish half) stays; the
   consume half moves to `repobuddy/buddy-agent-harness`.
 - [Claude Code — Create and distribute a plugin marketplace](https://code.claude.com/docs/en/plugin-marketplaces)
