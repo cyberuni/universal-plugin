@@ -11,11 +11,20 @@
       "name": "universal-plugin",
       "source": "./packages/universal-plugin",
       "description": "Research and design toolkit for building universal AI coding agent plugins that work across Claude Code, Cursor, Codex, and GitHub Copilot CLI.",
-      "author": { "name": "unional" },
+      "author": {
+        "name": "unional"
+      },
       "homepage": "https://github.com/cyberuni/universal-plugin",
       "repository": "https://github.com/cyberuni/universal-plugin",
       "license": "MIT",
-      "category": "plugin-authoring"
+      "category": "plugin-authoring",
+      "version": "0.4.0",
+      "keywords": [
+        "universal",
+        "plugin",
+        "agent",
+        "cross-vendor"
+      ]
     }
   ]
 }

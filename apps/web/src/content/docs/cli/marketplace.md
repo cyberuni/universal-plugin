@@ -56,8 +56,7 @@ from the repository root to the plugin.
 
 `owner` comes from the canonical manifest's author, else the `package.json` that ships it, else the
 account the repository lives under. Every runtime requires it, so a repository offering none of the
-three gets no catalog and a line on stderr saying why. The same happens outside a repository, and
-for Codex until the manifest carries a `version`, which is what its install cache is keyed by.
+three gets no catalog and a line on stderr saying why. The same happens outside a repository.
 
 Pass `--no-marketplace` to skip the step. An `init` with no `--vendor` writes no catalog either.
 
@@ -85,6 +84,36 @@ version left behind on an entry is removed the next time the entry is derived.
 
 Move the version with `plugin version <bump>`, or with `publish sync-version` where changesets owns
 it. See [ADR-0010](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/design/decisions/0010-version-policy.md).
+
+`plugin build` keeps it that way. Every build re-derives this plugin's entry in each catalog the
+repository already carries, for the vendors it is building, so a version move reaches the catalogs
+without a second command — `plugin version` re-derives through `plugin build`, and so does the
+`changeset version → publish sync-version → plugin build` release script. The build creates no
+catalog: it refreshes the ones the repository chose to carry and leaves everything else in them
+alone. See [ADR-0014](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/design/decisions/0014-build-refreshes-catalogs.md).
+
+## Developing against Codex
+
+Codex installs a **copy** of the plugin, at
+`~/.codex/plugins/cache/<marketplace>/<plugin>/<version>`. Editing the plugin's files does not reach
+that copy, so a change to anything packaged — a skill, a hook, the manifest — needs two steps:
+
+```bash
+codex plugin add <plugin>@<marketplace>   # re-copies the current source
+```
+
+Then start a new Codex session. The running one keeps the copy it loaded at startup.
+
+That one `add` is the whole reinstall. Re-running it at the same version overwrites the cached copy,
+so neither `codex plugin remove` nor a version bump is required first, and
+`codex plugin marketplace upgrade` does nothing for a local marketplace.
+
+The version in that cache path is the one the **plugin's** manifest carries, not the catalog entry's:
+Codex installs an entry that declares no version just as happily. Keeping the entry's version equal
+to the manifest's is this project's rule rather than Codex's — it stops the catalog from advertising
+a version the plugin does not have. Verified against codex-cli 0.147.0; the probes are in
+[`.research/local-marketplaces/`](https://github.com/cyberuni/universal-plugin/tree/main/.research/local-marketplaces)
+(E-CODEX-M13 to E-CODEX-M17).
 
 ## Nothing here is published
 

@@ -85,12 +85,18 @@ test('derives Codex entry versions from canonical plugin manifests and refreshes
 	}
 })
 
-test('requires a canonical version when generating a Codex catalog', () => {
-	const root = fixture('universal-plugin-marketplace-codex-version-required-')
+// Codex installs a local plugin under the version its *manifest* carries, and installs an entry that
+// declares none just as happily (`.research/local-marketplaces`, E-CODEX-M15, E-CODEX-M16). The entry
+// therefore carries a version when there is one to derive and carries none when there is not
+// (ADR-0010 §3) — it never requires one.
+test('omits the Codex entry version when the canonical manifest declares none', () => {
+	const root = fixture('universal-plugin-marketplace-codex-no-version-')
 	try {
 		fs.writeFileSync(path.join(root, 'plugins', 'alpha', 'plugin.json'), JSON.stringify({ name: 'alpha' }))
-		expect(() => initializeMarketplace(root, { targets: ['codex'] })).toThrow(/requires a version/)
-		expect(initializeMarketplace(root, { targets: ['claude'] })[0]).toMatchObject({ status: 'generated' })
+		expect(initializeMarketplace(root, { targets: ['codex'] })[0]).toMatchObject({ status: 'generated' })
+		const catalog = readJson(root, '.agents/plugins/marketplace.json') as { plugins: Record<string, unknown>[] }
+		expect(catalog.plugins[0]).toMatchObject({ name: 'alpha', source: { source: 'local', path: './plugins/alpha' } })
+		expect(catalog.plugins[0]).not.toHaveProperty('version')
 	} finally {
 		fs.rmSync(root, { recursive: true, force: true })
 	}

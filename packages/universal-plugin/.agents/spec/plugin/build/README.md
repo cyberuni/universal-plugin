@@ -63,6 +63,14 @@ Follows the AXI output contract ([../../axi/](../../axi/README.md)).
   skipped; no targets at all is a definitive empty state — exit 0, zero built rows.
 - **`--dry-run` / `--clean`** — `--dry-run` resolves and validates but writes nothing; `--clean`
   removes an existing output file before rewriting it.
+- **Repository catalog entries are refreshed, never created** — a catalog entry's `version` is copied
+  from the canonical manifest and never authored ([ADR-0010](../../design/decisions/0010-version-policy.md) §3),
+  so the build that derives the manifests also re-derives this plugin's entry in each
+  repository-local marketplace catalog the repository **already carries**, for the vendors being
+  built. Every other field of that catalog and every other plugin's entry stay as they are, and a
+  catalog the repository does not carry is not created — that choice belongs to `plugin init --vendor`
+  and `marketplace init`. Outside a repository there is nothing to refresh. `--dry-run` reports the
+  refresh as planned and writes nothing.
 - **TOON by default, `--format json` escape hatch** — a successful build prints a TOON result to
   stdout, one row per vendor (`vendor, path, status`), plus a pre-computed aggregate summary
   (`built N, skipped M, failed K`, with `served by plugin.json N` appended when any vendor is
@@ -94,6 +102,7 @@ Every scenario in [`build.feature`](./build.feature) maps to one of these behavi
 | **eager validation** | missing manifest fails; codex requires description + version |
 | **unknown vendors warn** | unknown vendor key in `harnesses` skipped with warning |
 | **`--dry-run` / `--clean`** | dry-run writes nothing; clean removes stale output before rewrite |
+| **catalog refresh (ADR-0010 §3)** | this plugin's entry re-derived in each existing repository catalog for the vendors built; other entries and top-level fields untouched; no catalog created; unchanged reported as unchanged; `--dry-run` plans only |
 | **TOON default + aggregate (#1,#2,#4)** | stdout TOON, one row per vendor (`vendor, path, status`), pre-computed `built/skipped/failed` summary |
 | **`--format json` / `--format toon`** | JSON escape hatch with `built` array + counts; `--format toon` names the default |
 | **definitive empty state (#5)** | no targets → exit 0, TOON zero built rows + aggregate `built 0`, stderr "nothing to build" |

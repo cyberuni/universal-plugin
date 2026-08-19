@@ -7,9 +7,10 @@
  *
  *  A version lives in five places, but only two are authored: the canonical `plugin.json` and, when
  *  the project declares a `packagePath`, that `package.json`. The per-vendor manifests
- *  (`plugin build`), the local marketplace catalogs (`marketplace init`), and the `npx`/`upx`
- *  pins in `skills/**` (`plugin bundle`) are all **derived** — re-derived by calling the command
- *  that owns them, never written a second time here. */
+ *  (`plugin build`), the local marketplace catalog entries (`plugin build` refreshes the catalogs the
+ *  repository carries, ADR-0014), and the `npx`/`upx` pins in `skills/**` (`plugin bundle`) are all
+ *  **derived** — re-derived by calling the command that owns them, never written a second time
+ *  here. */
 
 import * as semver from 'semver'
 

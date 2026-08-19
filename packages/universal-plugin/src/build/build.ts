@@ -8,6 +8,13 @@ import {
 } from '../dependencies/dependencies.js'
 import { type CanonicalHooksFile, type HookDrop, translateHooks } from '../hooks/hooks.js'
 import { detectIndent } from '../json.js'
+import { gatherCatalogRepo } from '../marketplace/fs.js'
+import {
+	refreshCatalogEntry,
+	sameCatalogContent,
+	TARGET_CATALOG_PATHS,
+	VENDOR_TARGETS,
+} from '../marketplace/marketplace.js'
 
 type VendorId = 'claude-code' | 'cursor' | 'codex' | 'copilot-cli'
 
@@ -80,11 +87,19 @@ export interface VendorRow {
 	status: 'built' | 'skipped' | 'failed' | 'canonical'
 }
 
+export interface CatalogRow {
+	/** Repository-relative path of the catalog. */
+	path: string
+	status: 'updated' | 'unchanged' | 'planned'
+}
+
 export interface BuildResult {
 	vendors: VendorId[]
 	written: string[]
 	warnings: string[]
 	rows: VendorRow[]
+	/** Repository-local marketplace catalogs whose entry for this plugin was re-derived. */
+	catalogs: CatalogRow[]
 	summary: { built: number; skipped: number; failed: number; canonical: number }
 }
 
@@ -164,7 +179,7 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 
 	if (vendors.length === 0) {
 		warnings.push('No vendors declared in harnesses — nothing to build')
-		return { vendors: [], written: [], warnings, rows, summary: summarize(rows) }
+		return { vendors: [], written: [], warnings, rows, catalogs: [], summary: summarize(rows) }
 	}
 
 	// Eager validation, scoped to the vendors actually being built — a codex block that is not a
@@ -272,7 +287,66 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 		}
 	}
 
-	return { vendors, written, warnings, rows, summary: summarize(rows) }
+	const catalogs = refreshCatalogs(root, manifest, vendors, opts, written, warnings)
+
+	return { vendors, written, warnings, rows, catalogs, summary: summarize(rows) }
+}
+
+/** Keeps the repository's marketplace catalogs true to the manifest just built. A catalog entry's
+ *  version is copied from the canonical manifest and never authored (ADR-0010 §3), so the build that
+ *  moves the manifest is what re-derives it — otherwise the entry keeps whatever version it was
+ *  written with while the plugin moves on.
+ *
+ *  Only a catalog the repository already carries is touched, and only this plugin's entry inside it.
+ *  Creating one is a choice `plugin init --vendor` and `marketplace init` own; a build makes no new
+ *  files at the repository root. */
+function refreshCatalogs(
+	root: string,
+	manifest: PluginManifest,
+	vendors: VendorId[],
+	opts: BuildOptions,
+	written: string[],
+	warnings: string[],
+): CatalogRow[] {
+	const repo = gatherCatalogRepo(root)
+	if (!repo) return []
+
+	const source = repo.pluginPath === '' ? './' : `./${repo.pluginPath}`
+	const plugin = { name: manifest.name, source, metadata: manifest as Record<string, unknown> }
+	const rows: CatalogRow[] = []
+	const seen = new Set<string>()
+
+	for (const vendor of vendors) {
+		const target = VENDOR_TARGETS[vendor]
+		if (!target) continue
+		const relative = TARGET_CATALOG_PATHS[target]
+		if (seen.has(relative)) continue
+		seen.add(relative)
+		const existing = repo.catalogs[relative]
+		if (existing === undefined) continue
+
+		try {
+			const artifact = refreshCatalogEntry(target, plugin, existing)
+			if (sameCatalogContent(artifact.content, existing)) {
+				rows.push({ path: relative, status: 'unchanged' })
+				continue
+			}
+			if (opts.dryRun) {
+				rows.push({ path: relative, status: 'planned' })
+				continue
+			}
+			const file = path.join(repo.root, relative)
+			// The catalog keeps the indentation it was written with, so a refresh does not fight the
+			// repository's own formatter.
+			const content = `${JSON.stringify(JSON.parse(artifact.content), null, detectIndent(existing))}\n`
+			fs.writeFileSync(file, content)
+			written.push(file)
+			rows.push({ path: relative, status: 'updated' })
+		} catch (err) {
+			warnings.push(`Failed to refresh "${relative}": ${err instanceof Error ? err.message : String(err)}`)
+		}
+	}
+	return rows
 }
 
 function writeSkillArtifacts(

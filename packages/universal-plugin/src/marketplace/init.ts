@@ -132,14 +132,6 @@ function discoverPlugins(root: string, fs: MarketplaceFs, scanDirs?: string[]): 
 	return plugins.sort((a, b) => a.name.localeCompare(b.name))
 }
 
-function assertCodexPluginVersions(plugins: MarketplacePlugin[]): void {
-	for (const plugin of plugins) {
-		if (typeof plugin.metadata.version !== 'string' || plugin.metadata.version.trim() === '') {
-			throw new Error(`error: canonical plugin manifest for Codex entry "${plugin.name}" requires a version`)
-		}
-	}
-}
-
 function writeArtifacts(fs: MarketplaceFs, artifacts: { path: string; content: string }[], root: string): void {
 	const changed = artifacts.filter((artifact) => !sameArtifact(fs, path.join(root, artifact.path), artifact.content))
 	for (const artifact of changed) fs.writeAtomically(path.join(root, artifact.path), artifact.content)
@@ -181,7 +173,6 @@ export function initializeMarketplace(
 	const metadata = deriveMetadata(root, fs, opts)
 	const plugins = discoverPlugins(root, fs, opts.scanDirs)
 	const targets = selectedTargets(opts.targets)
-	if (targets.includes('codex')) assertCodexPluginVersions(plugins)
 	const planned = targets.map((target) => ({ target, artifacts: serializeTarget(target, metadata, plugins) }))
 	for (const { artifacts } of planned) {
 		for (const artifact of artifacts) assertContained(root, path.join(root, artifact.path), fs, 'selected artifact')

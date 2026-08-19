@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
@@ -565,5 +566,186 @@ describe('buildPlugin — dependencies', () => {
 		})
 		buildPlugin(dir)
 		expect(readJson('.claude-plugin/plugin.json').dependencies).toEqual(['hand-written'])
+	})
+})
+
+/** A build keeps the repository's marketplace catalogs true: the entry for the plugin being built is
+ *  re-derived from the canonical manifest, so its version follows a bump instead of drifting
+ *  (ADR-0010 §3). Only catalogs the repository already carries are touched — creating one is
+ *  `plugin init --vendor` / `marketplace init`. */
+describe('buildPlugin — repository-local catalogs', () => {
+	let repoRoot: string
+	let pluginRoot: string
+
+	beforeEach(() => {
+		repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-catalog-repo-'))
+		execFileSync('git', ['-C', repoRoot, 'init', '-q'])
+		pluginRoot = path.join(repoRoot, 'packages', 'my-plugin')
+		fs.mkdirSync(pluginRoot, { recursive: true })
+	})
+
+	afterEach(() => fs.rmSync(repoRoot, { recursive: true, force: true }))
+
+	function writePluginManifest(version: string) {
+		fs.writeFileSync(
+			path.join(pluginRoot, 'plugin.json'),
+			JSON.stringify({
+				name: 'my-plugin',
+				version,
+				description: 'A plugin',
+				extensions: up({ harnesses: { codex: {}, 'claude-code': {} } }),
+			}),
+		)
+	}
+
+	function writeCatalog(relative: string, content: unknown) {
+		const file = path.join(repoRoot, relative)
+		fs.mkdirSync(path.dirname(file), { recursive: true })
+		fs.writeFileSync(file, `${JSON.stringify(content, null, 2)}\n`)
+	}
+
+	function readCatalog(relative: string): Record<string, unknown> {
+		return JSON.parse(fs.readFileSync(path.join(repoRoot, relative), 'utf8'))
+	}
+
+	function entries(relative: string): Record<string, unknown>[] {
+		return readCatalog(relative).plugins as Record<string, unknown>[]
+	}
+
+	it('re-derives this plugin entry version, keeping the rest of the catalog', () => {
+		writeCatalog('.agents/plugins/marketplace.json', {
+			name: 'pan-repo-local',
+			interface: { displayName: 'pan-repo-local' },
+			plugins: [
+				{ name: 'other', version: '3.0.0', source: { source: 'local', path: './packages/other' } },
+				{
+					name: 'my-plugin',
+					version: '0.9.0',
+					source: { source: 'local', path: './packages/my-plugin' },
+					category: 'Productivity',
+				},
+			],
+		})
+		writePluginManifest('1.2.0')
+
+		const result = buildPlugin(pluginRoot, {})
+		const catalog = readCatalog('.agents/plugins/marketplace.json')
+		expect(catalog.name).toBe('pan-repo-local')
+		expect(entries('.agents/plugins/marketplace.json')[0]).toMatchObject({ name: 'other', version: '3.0.0' })
+		expect(entries('.agents/plugins/marketplace.json')[1]).toMatchObject({
+			name: 'my-plugin',
+			version: '1.2.0',
+			source: { source: 'local', path: './packages/my-plugin' },
+			category: 'Productivity',
+		})
+		expect(result.catalogs).toEqual([{ path: '.agents/plugins/marketplace.json', status: 'updated' }])
+		expect(result.written).toContain(path.join(repoRoot, '.agents', 'plugins', 'marketplace.json'))
+	})
+
+	it('reports an already-current catalog as unchanged and rewrites nothing', () => {
+		writeCatalog('.agents/plugins/marketplace.json', {
+			name: 'pan-repo-local',
+			plugins: [{ name: 'my-plugin', version: '1.2.0', source: { source: 'local', path: './packages/my-plugin' } }],
+		})
+		writePluginManifest('1.2.0')
+		buildPlugin(pluginRoot, {})
+		const before = fs.readFileSync(path.join(repoRoot, '.agents', 'plugins', 'marketplace.json'), 'utf8')
+
+		const result = buildPlugin(pluginRoot, {})
+		expect(result.catalogs).toEqual([{ path: '.agents/plugins/marketplace.json', status: 'unchanged' }])
+		expect(fs.readFileSync(path.join(repoRoot, '.agents', 'plugins', 'marketplace.json'), 'utf8')).toBe(before)
+	})
+
+	it('creates no catalog the repository does not already carry', () => {
+		writePluginManifest('1.2.0')
+		const result = buildPlugin(pluginRoot, {})
+		expect(result.catalogs).toEqual([])
+		expect(fs.existsSync(path.join(repoRoot, '.agents', 'plugins', 'marketplace.json'))).toBe(false)
+	})
+
+	it('refreshes only the vendors being built, and writes nothing on --dry-run', () => {
+		writeCatalog('.agents/plugins/marketplace.json', {
+			name: 'pan-repo-local',
+			plugins: [{ name: 'my-plugin', version: '0.9.0', source: { source: 'local', path: './packages/my-plugin' } }],
+		})
+		writeCatalog('.claude-plugin/marketplace.json', {
+			name: 'pan-repo-local',
+			owner: { name: 'pan' },
+			plugins: [{ name: 'my-plugin', source: './packages/my-plugin', version: '0.9.0' }],
+		})
+		writePluginManifest('1.2.0')
+
+		const dry = buildPlugin(pluginRoot, { dryRun: true })
+		expect(dry.catalogs.map((row) => row.status)).toEqual(['planned', 'planned'])
+		expect(entries('.agents/plugins/marketplace.json')[0]).toMatchObject({ version: '0.9.0' })
+
+		buildPlugin(pluginRoot, { vendor: 'codex' })
+		expect(entries('.agents/plugins/marketplace.json')[0]).toMatchObject({ version: '1.2.0' })
+		expect(entries('.claude-plugin/marketplace.json')[0]).toMatchObject({ version: '0.9.0' })
+	})
+})
+
+/** The repository formats its JSON with its own tools, so a refresh compares meaning rather than
+ *  bytes and writes with the indentation the catalog already uses. Otherwise every build would
+ *  rewrite a file whose content it agrees with. */
+describe('buildPlugin — catalog formatting', () => {
+	let repoRoot: string
+	let pluginRoot: string
+
+	beforeEach(() => {
+		repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-catalog-fmt-'))
+		execFileSync('git', ['-C', repoRoot, 'init', '-q'])
+		pluginRoot = path.join(repoRoot, 'packages', 'my-plugin')
+		fs.mkdirSync(pluginRoot, { recursive: true })
+		fs.writeFileSync(
+			path.join(pluginRoot, 'plugin.json'),
+			JSON.stringify({
+				name: 'my-plugin',
+				version: '1.2.0',
+				description: 'A plugin',
+				keywords: ['a', 'b'],
+				extensions: up({ harnesses: { 'claude-code': {} } }),
+			}),
+		)
+	})
+
+	afterEach(() => fs.rmSync(repoRoot, { recursive: true, force: true }))
+
+	const catalogFile = () => path.join(repoRoot, '.claude-plugin', 'marketplace.json')
+
+	function writeCatalog(content: string) {
+		fs.mkdirSync(path.dirname(catalogFile()), { recursive: true })
+		fs.writeFileSync(catalogFile(), content)
+	}
+
+	it('leaves a catalog whose content already agrees, whatever its formatting', () => {
+		writeCatalog(
+			'{"name":"pan-repo-local","owner":{"name":"pan"},"plugins":[{"name":"my-plugin",' +
+				'"source":"./packages/my-plugin","description":"A plugin","version":"1.2.0","keywords":["a","b"]}]}\n',
+		)
+		const before = fs.readFileSync(catalogFile(), 'utf8')
+		const result = buildPlugin(pluginRoot, {})
+		expect(result.catalogs).toEqual([{ path: '.claude-plugin/marketplace.json', status: 'unchanged' }])
+		expect(fs.readFileSync(catalogFile(), 'utf8')).toBe(before)
+	})
+
+	it('writes with the indentation the catalog already uses, and keeps its key order', () => {
+		writeCatalog(
+			`${JSON.stringify(
+				{
+					name: 'pan-repo-local',
+					owner: { name: 'pan' },
+					description: 'the repository catalog',
+					plugins: [{ name: 'my-plugin', source: './packages/my-plugin' }],
+				},
+				null,
+				'\t',
+			)}\n`,
+		)
+		buildPlugin(pluginRoot, {})
+		const written = fs.readFileSync(catalogFile(), 'utf8')
+		expect(written).toContain('\n\t"name"')
+		expect(written).not.toContain('\n  "name"')
+		expect(Object.keys(JSON.parse(written))).toEqual(['name', 'owner', 'description', 'plugins'])
 	})
 })

@@ -243,10 +243,22 @@ describe('planInit marketplace half', () => {
 		expect(result.notes.join(' ')).toMatch(/repository/)
 	})
 
-	it('skips only Codex, with a note, because its entry needs a version the manifest has none of', () => {
+	// Codex installs a versionless catalog entry without complaint — the version it caches by comes
+	// from the plugin manifest (`.research/local-marketplaces`, E-CODEX-M15, E-CODEX-M16). The entry
+	// the scaffold writes therefore exists and simply carries no version yet.
+	it('writes the Codex catalog for a manifest with no version, and gives the entry none', () => {
 		const result = plan(repo(), ['codex', 'claude-code'])
-		expect(result.catalogs.map((entry) => entry.path)).toEqual(['../../.claude-plugin/marketplace.json'])
-		expect(result.notes.join(' ')).toMatch(/Codex.*version/)
+		expect(result.catalogs.map((entry) => entry.path)).toEqual([
+			'../../.agents/plugins/marketplace.json',
+			'../../.claude-plugin/marketplace.json',
+		])
+		const codex = JSON.parse(result.catalogs[0]?.content ?? '{}')
+		expect(codex.plugins[0]).toMatchObject({
+			name: 'my-plugin',
+			source: { source: 'local', path: './packages/my-plugin' },
+		})
+		expect(codex.plugins[0]).not.toHaveProperty('version')
+		expect(result.notes).toEqual([])
 	})
 })
 

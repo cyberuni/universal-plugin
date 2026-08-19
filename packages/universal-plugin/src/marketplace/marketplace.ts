@@ -77,8 +77,10 @@ function codexArtifact(metadata: MarketplaceMetadata, plugins: MarketplacePlugin
 			interface: { displayName: metadata.name },
 			plugins: plugins.map((plugin) => ({
 				name: plugin.name,
-				// Codex caches local installs by this version. Keep it derived from the
-				// canonical manifest rather than leaving a second hand-authored version.
+				// Codex caches a local install under the version its *manifest* carries, not this one,
+				// and installs an entry that declares none (`.research/local-marketplaces`,
+				// E-CODEX-M15, E-CODEX-M16). This is derived from the canonical manifest so the two
+				// agree (ADR-0010 §3), and is absent when the manifest declares no version.
 				version: plugin.metadata.version,
 				source: { source: 'local', path: plugin.source },
 				policy: { installation: 'AVAILABLE', authentication: 'ON_INSTALL' },
@@ -144,7 +146,14 @@ export function mergeCatalogEntry(
 	const previous = parseCatalog(existing, artifact.path)
 	const generated = JSON.parse(artifact.content) as Record<string, unknown>
 	const entry = (generated.plugins as Record<string, unknown>[])[0] as Record<string, unknown>
-	return { path: artifact.path, content: json({ ...generated, ...previous, plugins: mergeEntries(previous, entry) }) }
+	// The existing file's key order is kept — a refresh that reshuffles a catalog reads as a rewrite
+	// in review. Only a key the catalog lacks is appended.
+	const merged: Record<string, unknown> = { ...previous }
+	for (const [key, value] of Object.entries(generated)) {
+		if (!(key in merged)) merged[key] = value
+	}
+	merged.plugins = mergeEntries(previous, entry)
+	return { path: artifact.path, content: json(merged) }
 }
 
 function parseCatalog(content: string, path: string): Record<string, unknown> {
@@ -171,6 +180,55 @@ function mergeEntries(previous: Record<string, unknown>, entry: Record<string, u
 	if (!('version' in entry)) delete merged.version
 	entries[index] = merged
 	return entries as Record<string, unknown>[]
+}
+
+/** The catalog's own top-level identity, read back from the file the repository already carries, so
+ *  a refresh re-derives one entry without proposing a name or an owner of its own. */
+function existingMetadata(previous: Record<string, unknown>): MarketplaceMetadata {
+	const name = typeof previous.name === 'string' ? previous.name : ''
+	const owner = previous.owner
+	if (typeof owner === 'object' && owner !== null && typeof (owner as MarketplaceOwner).name === 'string') {
+		return { name, owner: owner as MarketplaceOwner }
+	}
+	return { name, owner: { name } }
+}
+
+/** Re-derives one plugin's entry inside a catalog the repository already carries. Update only, in two
+ *  senses: it never creates a catalog — `plugin init --vendor` and `marketplace init` own that — and
+ *  it adds nothing to the catalog's top level, not even a `$schema` the file happens to lack. Only
+ *  the entry changes, so a build can run it unconditionally (ADR-0014). */
+export function refreshCatalogEntry(
+	target: MarketplaceTarget,
+	plugin: MarketplacePlugin,
+	existing: string,
+): MarketplaceArtifact {
+	const catalogPath = TARGET_CATALOG_PATHS[target]
+	const previous = parseCatalog(existing, catalogPath)
+	const generated = JSON.parse(serializeTarget(target, existingMetadata(previous), [plugin])[0]?.content ?? '{}')
+	const entry = (generated.plugins as Record<string, unknown>[])[0] as Record<string, unknown>
+	return { path: catalogPath, content: json({ ...previous, plugins: mergeEntries(previous, entry) }) }
+}
+
+/** Whether two catalogs say the same thing. Key order and whitespace do not change a catalog's
+ *  meaning — the repository formats its own JSON — so a refresh compares this rather than bytes and
+ *  leaves a file it agrees with alone. Array order does count. */
+export function sameCatalogContent(a: string, b: string): boolean {
+	try {
+		return JSON.stringify(canonicalJson(JSON.parse(a))) === JSON.stringify(canonicalJson(JSON.parse(b)))
+	} catch {
+		return false
+	}
+}
+
+function canonicalJson(value: unknown): unknown {
+	if (Array.isArray(value)) return value.map(canonicalJson)
+	if (typeof value !== 'object' || value === null) return value
+	const record = value as Record<string, unknown>
+	return Object.fromEntries(
+		Object.keys(record)
+			.sort()
+			.map((key) => [key, canonicalJson(record[key])]),
+	)
 }
 
 export function serializeTarget(

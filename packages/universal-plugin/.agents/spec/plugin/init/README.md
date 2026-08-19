@@ -187,7 +187,7 @@ Grouped by use case; 1:1 with [`init.feature`](./init.feature). `| Edge | Path (
 | opt out | `--no-marketplace --vendor claude-code` | `--no-marketplace writes no catalog` |
 | no repository | the project root is not inside a repository | `outside a repository the catalogs are skipped with a note` |
 | no owner | no author, no package author, no remote | `with no owner to name the catalogs are skipped with a note` |
-| Codex needs a version | `--vendor codex` on a manifest with no version | `the Codex catalog is skipped with a note until the manifest carries a version` |
+| versionless Codex entry | `--vendor codex` on a manifest with no version | `the Codex catalog is written and its entry carries no version` |
 
 ### Print the command reference
 

@@ -70,8 +70,12 @@ The two catalogs are not interchangeable in content. The Codex one carries `inte
 the Codex shape for its missing `owner` (E-CC-M5, E-CODEX-M9). Where a repository wants one file
 instead of two, that file is the Claude one.
 
-Codex caches an install by plugin version at `~/.codex/plugins/cache/<marketplace>/<plugin>/<version>`,
-so a source edit is invisible until the plugin is reinstalled and a new session starts.
+Codex copies an install to `~/.codex/plugins/cache/<marketplace>/<plugin>/<version>`, keyed by the
+version the **plugin's own manifest** carries rather than the catalog entry's (E-CODEX-M13,
+E-CODEX-M15). A source edit is invisible until the plugin is installed again and a new session
+starts; `codex plugin add` on its own is the reinstall, because re-running it at the same version
+overwrites the cached copy (E-CODEX-M14). A catalog entry that declares no version installs normally
+(E-CODEX-M16).
 
 ## Cursor — a catalog it reads, but no command to install from one
 

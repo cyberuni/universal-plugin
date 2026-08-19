@@ -3,7 +3,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 
 import { detectIndent } from '../json.js'
-import { TARGET_CATALOG_PATHS } from '../marketplace/marketplace.js'
+import { gatherCatalogRepo } from '../marketplace/fs.js'
 import type { InitPlan, InitState, RepoState } from './init.js'
 
 /** Gathers the filesystem state `planInit` needs and applies the plan it returns. The manifest is
@@ -22,26 +22,19 @@ function git(root: string, args: string[]): string | null {
 }
 
 /** Where the plugin sits in its repository, and the catalogs that repository already carries.
- *  `null` outside a repository, which is the one case with nowhere to put a catalog. */
+ *  `undefined` outside a repository, which is the one case with nowhere to put a catalog. The
+ *  repository-and-catalogs half is shared with `plugin build`, which refreshes the same files. */
 function gatherRepo(root: string): RepoState | undefined {
-	const top = git(root, ['rev-parse', '--show-toplevel'])
-	if (!top) return undefined
-	const repoRoot = path.resolve(top)
-	const relative = path.relative(repoRoot, root)
-	if (relative.startsWith('..') || path.isAbsolute(relative)) return undefined
+	const repo = gatherCatalogRepo(root)
+	if (!repo) return undefined
 
 	const remote = git(root, ['remote', 'get-url', 'origin'])
 	const match = remote?.match(/[/:]([^/:]+)\/([^/]+?)(?:\.git)?$/)
-	const catalogs: Record<string, string> = {}
-	for (const catalog of Object.values(TARGET_CATALOG_PATHS)) {
-		const file = path.join(repoRoot, catalog)
-		if (fs.existsSync(file)) catalogs[catalog] = fs.readFileSync(file, 'utf8')
-	}
 	return {
-		pluginPath: relative.split(path.sep).join('/'),
-		dirName: path.basename(repoRoot),
+		pluginPath: repo.pluginPath,
+		dirName: path.basename(repo.root),
 		slug: match ? { owner: match[1] as string, repo: match[2] as string } : undefined,
-		catalogs,
+		catalogs: repo.catalogs,
 	}
 }
 
