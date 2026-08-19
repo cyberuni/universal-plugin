@@ -44,5 +44,6 @@ so it is not part of the plugin's tracked output and does not travel with a clon
 
 ## Hooks
 
-Codex hook events are **PascalCase**, like Claude Code's. The build does not translate event names —
-see [`claude-code.md`](./claude-code.md).
+Codex hook events are **PascalCase**, like Claude Code's, so the canonical file reaches Codex as
+authored. Codex runs `command` handlers only — an `http`, `prompt`, or `agent` handler is dropped
+from `.codex-plugin/hooks.json` with a warning. See [`claude-code.md`](./claude-code.md).

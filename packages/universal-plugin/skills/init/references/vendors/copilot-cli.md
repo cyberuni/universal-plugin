@@ -41,5 +41,7 @@ derived manifest, or it does not ship. Do not invent a path for it.
 
 ## Hooks
 
-Copilot CLI hook events are **camelCase**. The build does not translate event names — see
-[`claude-code.md`](./claude-code.md).
+Copilot CLI accepts **either casing**, and the casing selects the payload format: PascalCase gets the
+Claude-compatible format, so the canonical file reaches Copilot CLI unchanged. Because Copilot CLI
+reads that file directly, the build derives nothing for it — an `agent` handler is reported as ignored
+at runtime rather than dropped. See [`claude-code.md`](./claude-code.md).

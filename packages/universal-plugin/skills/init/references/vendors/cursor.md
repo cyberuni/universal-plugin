@@ -41,5 +41,7 @@ never generate rules from a skill or a skill from a rule.
 
 ## Hooks
 
-Cursor hook events are **camelCase** (`sessionStart`). The build does not translate event names — see
-[`claude-code.md`](./claude-code.md).
+Cursor hook events are **camelCase** (`sessionStart`), and Cursor's hooks file differs in shape as
+well as casing. The build derives `.cursor-plugin/hooks.json` from the canonical file — never author
+it by hand. Cursor runs `command` and `prompt` handlers; an `http` or `agent` handler is dropped with
+a warning. See [`claude-code.md`](./claude-code.md).

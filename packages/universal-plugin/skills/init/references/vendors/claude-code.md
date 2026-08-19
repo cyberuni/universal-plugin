@@ -27,16 +27,24 @@ true` for `user`, `user-invocable: false` for `model`. See [`../frontmatter.md`]
 
 ## Hooks
 
-Claude Code hook events are **PascalCase** (`SessionStart`, `PreToolUse`, `PostToolUse`, `Stop`,
-`UserPromptSubmit`). Cursor and Copilot CLI use camelCase; Codex is PascalCase like Claude Code.
+Author hooks once, in canonical form: **PascalCase** event names (`SessionStart`, `PreToolUse`,
+`PostToolUse`, `Stop`, `UserPromptSubmit`) over Claude Code's matcher-group shape. That is what the
+canonical schema admits, and `plugin build` derives the rest (ADR-0011).
 
-**The build does not translate event names.** It copies the `hooks` path through to every derived
-manifest as declared, so one `hooks/hooks.json` cannot currently satisfy both casings. Author hooks
-for the runtimes that share a casing, and say plainly which runtimes a hooks block does not reach
-rather than implying portability the build does not deliver.
+Claude Code and Codex read that form as authored. Copilot CLI accepts it too — PascalCase selects its
+Claude-compatible payload format. Cursor is the one vendor translated: it gets
+`.cursor-plugin/hooks.json` with camelCase events, `"version": 1`, and each matcher group flattened
+into one entry per handler, and its derived manifest points there.
 
-Source: `.research/hook-event-survey/conclusion.md` (June 2026) — re-verify against vendor docs
-before relying on it.
+**A handler type the vendor cannot run is dropped, and the build warns.** Claude Code runs `command`,
+`http`, `prompt`, and `agent`; Codex runs `command` only; Cursor runs `command` and `prompt`; Copilot
+CLI runs `command`, `http`, and `prompt`. Read the warnings — a plugin whose only `SessionStart`
+handler is `http` reaches Claude Code and Copilot CLI and nothing else. Copilot CLI reads the
+canonical file directly, so its unsupported handlers are reported as ignored at runtime rather than
+dropped from a derived file.
+
+Source: `.research/hook-event-survey/conclusion.md` (re-verified August 2026) — re-verify against
+vendor docs before relying on it.
 
 ## Leave alone
 
