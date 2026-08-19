@@ -57,6 +57,11 @@ One check stays out of the script. Comparing a derived manifest against what the
 today requires rebuilding on a clean tree, and that writes. `doctor` reports it as a repair for you
 to run.
 
+One check reads git rather than the filesystem. A runtime keys its plugin cache on the version, so
+content committed after the commit that set the current version never reaches anyone who already
+installed the plugin. `doctor` reports that as `unreleased-content`. It stays quiet in a changesets
+repository, where the release moves the number, and on a tree with no history.
+
 ### version
 
 Moves the number a plugin releases under. Its first question is whether the repository uses

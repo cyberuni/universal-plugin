@@ -168,7 +168,70 @@ if (ext?.packagePath) {
 	}
 }
 
+// Content shipped since the version last moved (ADR-0010 §6). A runtime keys its plugin cache on the
+// version, so anything committed after the commit that set the current one is invisible to a consumer
+// who already installed the plugin. Read-only: the comparison is git's, and it is skipped wherever
+// git cannot answer.
+//
+// Not run where changesets owns the number. There the release moves it (ADR-0010 §2), so content
+// sitting on the branch ahead of the last released version is the normal state, not a defect.
+if (manifest.version !== undefined && !fs.existsSync(path.join(root, '.changeset'))) {
+	const introduced = commitThatSetVersion(manifest.version)
+	if (introduced !== null) {
+		const changed = git('diff', '--name-only', `${introduced}..HEAD`, '--', ...shippedPaths())
+		const files = (changed ?? '').split('\n').filter(Boolean)
+		if (files.length > 0) {
+			const sample = files.slice(0, 3).join(', ')
+			add(
+				'unreleased-content',
+				'medium',
+				`${files.length} shipped file(s) changed since ${manifest.version} was set (${sample}${files.length > 3 ? ', …' : ''}) — a consumer keyed on that version never re-extracts them`,
+				'/universal-plugin:version',
+			)
+		}
+	}
+}
+
 report({ vendors })
+
+/** Runs git inside `root`, returning its stdout or `null` — a non-zero status, a missing git, and a
+ *  directory outside any repository are all the same answer here: no history to read. */
+function git(...args) {
+	const result = spawnSync('git', ['-C', root, ...args], { encoding: 'utf8' })
+	return result.status === 0 ? result.stdout.trim() : null
+}
+
+/** The commit that introduced the version the manifest carries now, walking `plugin.json`'s history
+ *  newest-first until the version changes. `null` when there is no history, or when the newest
+ *  committed manifest already disagrees — that version is uncommitted, so nothing shipped under it. */
+function commitThatSetVersion(current) {
+	const log = git('log', '--format=%H', '-100', '--', 'plugin.json')
+	if (log === null || log === '') return null
+
+	let introduced = null
+	for (const sha of log.split('\n').filter(Boolean)) {
+		const blob = git('show', `${sha}:./plugin.json`)
+		if (blob === null) break
+		let version
+		try {
+			version = JSON.parse(blob).version
+		} catch {
+			break
+		}
+		if (version !== current) break
+		introduced = sha
+	}
+	return introduced
+}
+
+/** What a consumer installs, as pathspecs. The derived vendor manifests are deliberately absent —
+ *  they only ever change because the canonical manifest did, and counting both would report one
+ *  change twice. */
+function shippedPaths() {
+	const skills = typeof ext?.skills === 'string' ? ext.skills : './skills/'
+	const paths = ['plugin.json', skills, 'agents', 'governances', 'mcp.json']
+	return paths.filter((rel) => fs.existsSync(path.join(root, rel)))
+}
 
 function readJson_stdout(stdout) {
 	if (!stdout) return null
