@@ -45,3 +45,9 @@ Copilot CLI accepts **either casing**, and the casing selects the payload format
 Claude-compatible format, so the canonical file reaches Copilot CLI unchanged. Because Copilot CLI
 reads that file directly, the build derives nothing for it — an `agent` handler is reported as ignored
 at runtime rather than dropped. See [`claude-code.md`](./claude-code.md).
+
+## Dependencies
+
+Copilot CLI reads no plugin dependency. Because it reads the canonical manifest directly, there is no
+derived file to leave the declaration out of — it sits under `extensions`, which Copilot CLI ignores,
+and the build reports it as ignored at runtime. See [`claude-code.md`](./claude-code.md).

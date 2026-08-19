@@ -37,7 +37,7 @@ For each vendor in `extensions["org.cyberuni.universal-plugin"].vendors`:
 
 1. Start with all canonical fields from root `plugin.json`
 2. Merge `extensions["org.cyberuni.universal-plugin"].harnesses.<vendor>` fields (vendor fields win on conflict)
-3. Drop component fields unsupported by the vendor (emits a warning)
+3. Drop component fields and dependencies unsupported by the vendor (emits a warning)
 4. Translate hook event names to vendor casing
 5. Translate `${PLUGIN_ROOT}` / `${PLUGIN_DATA}` env vars
 6. Enforce required fields (fails build on missing)
@@ -51,8 +51,51 @@ The build fails (exit 1) if:
 - `version` or `description` is missing when targeting `codex`
 - root `plugin.json` does not exist at the plugin root
 - `--vendor` names a vendor not in `extensions["org.cyberuni.universal-plugin"].vendors`
+- `dependencies` is not an array, names a plugin the runtime cannot parse, or carries a `version` that is not a semver range
 
 Unrecognized vendor keys in `extensions["org.cyberuni.universal-plugin"].harnesses` emit a warning and are skipped.
+
+## Plugin dependencies
+
+Declare the plugins your plugin needs once, under
+`extensions["org.cyberuni.universal-plugin"].dependencies`:
+
+```json
+{
+  "extensions": {
+    "org.cyberuni.universal-plugin": {
+      "dependencies": [
+        "cyber-asana",
+        { "name": "cyber-notion", "marketplace": "cyberuni", "version": "^0.9.0" }
+      ]
+    }
+  }
+}
+```
+
+An entry is a plugin name, optionally `@marketplace`-qualified, or an object carrying that name with a
+constraint beside it:
+
+| Key | Notes |
+|---|---|
+| `name` | Required. |
+| `marketplace` | Which marketplace to resolve `name` in. A bare name resolves against the declaring plugin's own marketplace. |
+| `version` | Semver range, checked against the installed plugin's version. |
+| `sha` | Commit sha to pin a git-sourced dependency to. |
+
+Claude Code is the only runtime that reads a dependency, and it acts on one: it installs a missing
+dependency, enables it alongside the plugin that needs it, and refuses to load a plugin whose declared
+range the installed version does not satisfy. Cursor, Codex, and Copilot CLI read no such field, so the
+build leaves it out of their manifests and warns once per vendor, naming what did not reach it. The
+build still succeeds — targeting a runtime that ignores dependencies is not an error, but a plugin that
+loads there without its dependency is worth saying in your README.
+
+Write a range in the object form. `"cyber-asana@^0.9.0"` is accepted by the runtime, which then
+discards the range, so the build warns and names the object to write instead. `"cyber-asana@>=1.0.0"`
+is not a legal name and fails the build, as does an npm-style `{"cyber-asana": "^0.9.0"}` map.
+
+The build checks the shape of a declaration, not whether the plugin it names exists. Resolving,
+fetching, and installing a dependency is the runtime's job.
 
 ## Examples
 

@@ -53,6 +53,8 @@ Build merges and strips. It does not rewrite the contents of the files a compone
 - **Required fields** are enforced per target. Codex requires `version` and `description`, and the build fails before writing anything for any vendor when either is missing.
 - **Skill invocation policy** is projected. A skill declaring `invocation-policy` gets the matching Claude Code frontmatter flag written into its `SKILL.md`, and Codex prompts are written for skills a user can invoke.
 
+- **Plugin dependencies** declared under `extensions["org.cyberuni.universal-plugin"].dependencies` reach Claude Code, the only runtime that reads one. Every other vendor's manifest is built without them, and the build says which ones it dropped. See [build](../../cli/build/#plugin-dependencies).
+
 A `harnesses` entry for `copilot-cli` is the one merge that goes nowhere. That vendor reads the canonical manifest directly, and the canonical schema is closed, so the build warns instead of delivering the field.
 
 ### Not translated today

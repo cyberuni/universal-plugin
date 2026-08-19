@@ -49,6 +49,9 @@ All component paths and build config live under `extensions["org.cyberuni.univer
 | `lspServers` | `.lsp.json` path | Extended | Claude Code only |
 | `outputStyles` | Output style resources directory | Extended | Claude Code only |
 
+One field under this namespace is not a component path: `dependencies`. See
+[Plugin Dependencies](#plugin-dependencies).
+
 A conformant host must support at least one core component (`skills` or `mcpServers`). Extended types are silently ignored on non-supporting hosts — do not rely on them for core plugin functionality.
 
 ### `extensions["org.cyberuni.universal-plugin"]` — `vendors` and `harnesses`
@@ -70,7 +73,7 @@ Vendor-specific extension fields:
 | `defaultEnabled` | ✓ (bool) | — | — | — |
 | `userConfig` | ✓ (prompted at enable) | — | — | — |
 | `channels` | ✓ | — | — | — |
-| `dependencies` | ✓ (inter-plugin) | — | — | — |
+| `dependencies` | ✓ (inter-plugin — declared canonically, see [Plugin Dependencies](#plugin-dependencies)) | — | — | — |
 | `themes` | ✓ | — | — | — |
 | `monitors` | ✓ | — | — | — |
 | `logo` | — | ✓ | — | — |
@@ -145,6 +148,44 @@ Build reads root `plugin.json`, applies the rules below, writes each vendor's ou
 | `hooks` | adapt → PascalCase, `${CLAUDE_PLUGIN_ROOT}` | adapt → camelCase, pass-through env | ✓ → PascalCase, `${PLUGIN_ROOT}` native | adapt → camelCase, pass-through env |
 | `lspServers` | ✓ | **omit** | **omit** | **omit** |
 | `outputStyles` | ✓ | **omit** | **omit** | **omit** |
+| `dependencies` | ✓ | **drop + warn** | **drop + warn** | **drop + warn** |
+
+## Plugin Dependencies
+
+A plugin declares the plugins it needs under
+`extensions["org.cyberuni.universal-plugin"].dependencies`, once, whatever it targets. Claude Code is
+the only runtime that reads a dependency; build drops the declaration for the rest and warns
+(ADR-0013). The build stays green.
+
+```json
+{
+  "extensions": {
+    "org.cyberuni.universal-plugin": {
+      "dependencies": [
+        "cyber-asana",
+        { "name": "cyber-notion", "marketplace": "cyberuni", "version": "^0.9.0" }
+      ]
+    }
+  }
+}
+```
+
+An entry is a plugin name, optionally `@marketplace`-qualified, or an object carrying that name plus a
+constraint:
+
+| Key | Type | Notes |
+| --- | --- | --- |
+| `name` | string | Required. |
+| `marketplace` | string | Which marketplace to resolve `name` in. A bare name resolves against the declaring plugin's own marketplace. |
+| `version` | string | Semver range, checked against the installed plugin's version. |
+| `sha` | string | Commit sha to pin a git-sourced dependency to. |
+
+Write a range in the object form. `"cyber-asana@^0.9.0"` validates and the runtime then discards the
+range, so build warns and names the object to write instead. `"cyber-asana@>=1.0.0"` is not a legal
+name at all and fails the build, as does an npm-style object map.
+
+Build validates shape only. Whether a declared plugin exists is a question for a resolver, and
+resolving, fetching, and installing dependencies is out of scope (ADR-0013).
 
 ## Hook Event Name Mapping
 
