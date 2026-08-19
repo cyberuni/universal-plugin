@@ -114,13 +114,10 @@ export function installCommand(): Command {
 				}
 
 				const { installed, unchanged, blocked, unsupported } = plan.summary
-				output(
-					{ ...plan, summary: plan.summary },
-					{
-						vendors: plan.rows.map((r) => ({ vendor: r.vendor, path: r.path, action: r.action })),
-						summary: `installed ${installed}, unchanged ${unchanged}, blocked ${blocked}, unsupported ${unsupported}`,
-					},
-				)
+				output(plan, {
+					vendors: plan.rows.map((r) => ({ vendor: r.vendor, path: r.path, action: r.action })),
+					summary: `installed ${installed}, unchanged ${unchanged}, blocked ${blocked}, unsupported ${unsupported}`,
+				})
 
 				for (const row of plan.rows) {
 					if (row.reason) process.stderr.write(`warn: ${row.vendor}: ${row.reason}\n`)
@@ -159,13 +156,10 @@ export function uninstallCommand(): Command {
 				}
 
 				const { removed, missing, blocked, unsupported } = plan.summary
-				output(
-					{ ...plan, summary: plan.summary },
-					{
-						vendors: plan.rows.map((r) => ({ vendor: r.vendor, path: r.path, action: r.action })),
-						summary: `removed ${removed}, missing ${missing}, blocked ${blocked}, unsupported ${unsupported}`,
-					},
-				)
+				output(plan, {
+					vendors: plan.rows.map((r) => ({ vendor: r.vendor, path: r.path, action: r.action })),
+					summary: `removed ${removed}, missing ${missing}, blocked ${blocked}, unsupported ${unsupported}`,
+				})
 
 				for (const row of plan.rows) {
 					if (row.reason) process.stderr.write(`warn: ${row.vendor}: ${row.reason}\n`)
