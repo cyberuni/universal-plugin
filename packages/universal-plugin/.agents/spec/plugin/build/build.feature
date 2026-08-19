@@ -254,6 +254,36 @@ Feature: plugin build — derive per-vendor manifests
     Then the exit code is 1
     And stderr contains "--frobnicate"
 
+  # ── Refresh the repository-local catalogs (ADR-0010 §3) ──
+
+  Scenario: the entry for this plugin is re-derived in an existing repository catalog
+    Given the project root is inside a repository that carries ".agents/plugins/marketplace.json"
+    And that catalog lists this plugin with an older version and another plugin
+    And the manifest declares harnesses for "codex"
+    When I run "universal-plugin plugin build"
+    Then the catalog entry for this plugin carries the canonical manifest version
+    And the other plugin's entry and the catalog's own fields are unchanged
+    And the exit code is 0
+
+  Scenario: a catalog the repository does not carry is not created
+    Given the project root is inside a repository that carries no marketplace catalog
+    And the manifest declares harnesses for "codex"
+    When I run "universal-plugin plugin build"
+    Then no marketplace catalog is written
+    And the exit code is 0
+
+  Scenario: only the vendors being built are refreshed
+    Given the repository carries both the Claude and the Codex catalog
+    When I run "universal-plugin plugin build --vendor codex"
+    Then ".agents/plugins/marketplace.json" is refreshed
+    And ".claude-plugin/marketplace.json" is unchanged
+
+  Scenario: --dry-run plans the refresh and writes nothing
+    Given the repository carries a catalog whose entry for this plugin is out of date
+    When I run "universal-plugin plugin build --dry-run"
+    Then the catalog is reported as planned
+    And the catalog file is unchanged
+
   Scenario: --help prints a concise reference
     When I run "universal-plugin plugin build --help"
     Then the exit code is 0

@@ -253,7 +253,10 @@ describe('planInit marketplace half', () => {
 			'../../.claude-plugin/marketplace.json',
 		])
 		const codex = JSON.parse(result.catalogs[0]?.content ?? '{}')
-		expect(codex.plugins[0]).toMatchObject({ name: 'my-plugin', source: { source: 'local', path: './packages/my-plugin' } })
+		expect(codex.plugins[0]).toMatchObject({
+			name: 'my-plugin',
+			source: { source: 'local', path: './packages/my-plugin' },
+		})
 		expect(codex.plugins[0]).not.toHaveProperty('version')
 		expect(result.notes).toEqual([])
 	})

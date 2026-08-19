@@ -74,3 +74,29 @@ test('reports the absolute directory it searched when the manifest is missing', 
 	expect(r.status).toBe(1)
 	expect(r.stderr).toContain(`No plugin.json found at ${empty}`)
 })
+
+// A build re-derives this plugin's entry in the repository catalogs the repository already carries,
+// so the entry version follows the manifest instead of drifting (ADR-0010 §3).
+test('refreshes the repository catalog entry and reports it', () => {
+	spawnSync('git', ['-C', repo, 'init', '-q'])
+	fs.mkdirSync(path.join(repo, '.claude-plugin'), { recursive: true })
+	fs.writeFileSync(
+		path.join(repo, '.claude-plugin', 'marketplace.json'),
+		`${JSON.stringify(
+			{
+				name: 'pan-repo-local',
+				owner: { name: 'pan' },
+				plugins: [{ name: 'pods', source: './packages/pods', version: '0.1.0' }],
+			},
+			null,
+			2,
+		)}\n`,
+	)
+
+	const r = build('--json')
+	expect(r.status).toBe(0)
+	expect(JSON.parse(r.stdout).catalogs).toEqual([{ path: '.claude-plugin/marketplace.json', status: 'updated' }])
+	const catalog = JSON.parse(fs.readFileSync(path.join(repo, '.claude-plugin', 'marketplace.json'), 'utf8'))
+	expect(catalog.plugins[0]).toMatchObject({ name: 'pods', source: './packages/pods', version: '1.0.0' })
+	expect(catalog.owner).toEqual({ name: 'pan' })
+})

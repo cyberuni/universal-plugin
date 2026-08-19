@@ -46,13 +46,16 @@ export function buildCommand(): Command {
 					skipped: result.rows.filter((r) => r.status === 'skipped'),
 					failed: result.rows.filter((r) => r.status === 'failed'),
 					canonical: result.rows.filter((r) => r.status === 'canonical'),
+					catalogs: result.catalogs,
 					summary: result.summary,
 					warnings: result.warnings,
 				}
 				const counts = `built ${built}, skipped ${skipped}, failed ${failed}`
+				const catalogSummary = result.catalogs.length > 0 ? `, catalogs ${result.catalogs.length}` : ''
 				output(jsonResult, {
 					vendors: result.rows.map((r: VendorRow) => ({ vendor: r.vendor, path: r.path, status: r.status })),
-					summary: canonical > 0 ? `${counts}, served by plugin.json ${canonical}` : counts,
+					catalogs: result.catalogs.map((r) => ({ path: r.path, status: r.status })),
+					summary: (canonical > 0 ? `${counts}, served by plugin.json ${canonical}` : counts) + catalogSummary,
 				})
 
 				process.stderr.write(NEXT_STEP)
