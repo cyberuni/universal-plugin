@@ -95,6 +95,10 @@
 					"$ref": "#/$defs/harnesses",
 					"description": "Per-harness fields copied verbatim into that harness's derived manifest during 'plugin build'. Keyed by vendor id."
 				},
+				"dependencies": {
+					"$ref": "#/$defs/dependencies",
+					"description": "Plugins this plugin needs. Delivered to the harnesses that read a dependency and dropped with a build warning for the rest — only Claude Code reads one (ADR-0013)."
+				},
 				"packagePath": {
 					"type": "string",
 					"description": "Relative path (from repo root) to the npm package folder whose version this plugin tracks."
@@ -131,6 +135,33 @@
 					"$ref": "#/$defs/pathValue",
 					"description": "Output style resources. Default: ./output-styles/."
 				}
+			}
+		},
+
+		"dependencies": {
+			"type": "array",
+			"description": "Each entry names a plugin, optionally qualified with @marketplace. Use the object form to carry a constraint: a range in the string form parses and is then discarded by the runtime.",
+			"items": {
+				"oneOf": [
+					{
+						"type": "string",
+						"pattern": "^[A-Za-z0-9][-A-Za-z0-9._]*(@[A-Za-z0-9][-A-Za-z0-9._]*)?(@\\^[^@]*)?$"
+					},
+					{
+						"type": "object",
+						"required": ["name"],
+						"description": "Claude Code parses this form loosely, so an unknown key is carried rather than rejected.",
+						"properties": {
+							"name": { "type": "string", "pattern": "^[A-Za-z0-9][-A-Za-z0-9._]*$" },
+							"marketplace": { "type": "string", "pattern": "^[A-Za-z0-9][-A-Za-z0-9._]*$" },
+							"version": {
+								"type": "string",
+								"description": "Semver range, checked against the installed plugin's version."
+							},
+							"sha": { "type": "string", "description": "Commit sha to pin a git-sourced dependency to." }
+						}
+					}
+				]
 			}
 		},
 
