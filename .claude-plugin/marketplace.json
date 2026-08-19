@@ -1,30 +1,25 @@
 {
-  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
-  "name": "cyberuni-universal-plugin-local",
-  "owner": {
-    "name": "unional",
-    "email": "homawong@gmail.com"
-  },
-  "description": "Local marketplace for developing and testing the universal-plugin toolkit from this repository.",
-  "plugins": [
-    {
-      "name": "universal-plugin",
-      "source": "./packages/universal-plugin",
-      "description": "Research and design toolkit for building universal AI coding agent plugins that work across Claude Code, Cursor, Codex, and GitHub Copilot CLI.",
-      "author": {
-        "name": "unional"
-      },
-      "homepage": "https://github.com/cyberuni/universal-plugin",
-      "repository": "https://github.com/cyberuni/universal-plugin",
-      "license": "MIT",
-      "category": "plugin-authoring",
-      "version": "0.4.0",
-      "keywords": [
-        "universal",
-        "plugin",
-        "agent",
-        "cross-vendor"
-      ]
-    }
-  ]
+	"$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+	"name": "cyberuni-universal-plugin-local",
+	"owner": {
+		"name": "unional",
+		"email": "homawong@gmail.com"
+	},
+	"description": "Local marketplace for developing and testing the universal-plugin toolkit from this repository.",
+	"plugins": [
+		{
+			"name": "universal-plugin",
+			"source": "./packages/universal-plugin",
+			"description": "Research and design toolkit for building universal AI coding agent plugins that work across Claude Code, Cursor, Codex, and GitHub Copilot CLI.",
+			"author": {
+				"name": "unional"
+			},
+			"homepage": "https://github.com/cyberuni/universal-plugin",
+			"repository": "https://github.com/cyberuni/universal-plugin",
+			"license": "MIT",
+			"category": "plugin-authoring",
+			"version": "0.5.0",
+			"keywords": ["universal", "plugin", "agent", "cross-vendor"]
+		}
+	]
 }
