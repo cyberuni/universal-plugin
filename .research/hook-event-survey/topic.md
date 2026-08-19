@@ -125,6 +125,27 @@ Note: The reference page shows both `sessionStart` and `SessionStart` casing —
 **Full event list (10 events as of June 2026):**
 SessionStart, SubagentStart, PreToolUse, PermissionRequest, PostToolUse, PreCompact, PostCompact, UserPromptSubmit, SubagentStop, Stop
 
+## Re-verification, August 2026
+
+Commissioned by issue #41, which needed the manifest-level wiring the June pass did not cover and a
+verdict on the medium-confidence Copilot casing claim. Three June findings changed.
+
+- **Copilot CLI accepts both casings on purpose.** The reference page says the event name selects the
+  payload format — camelCase gets Copilot's native payload, PascalCase the "VS Code compatible format"
+  used by Claude Code plugins and the Open Plugins format, which also applies Claude's matcher
+  semantics to `PreToolUse`. The June reading of this as a docs typo is withdrawn (E-COPILOT-04).
+- **Cursor supports `type: "prompt"`.** June recorded command handlers only; the reference now
+  documents prompt hooks that evaluate a natural-language condition with a fast model, with command
+  handlers remaining the only kind cloud agents run (E-CUR-04).
+- **Codex hook docs moved** from `developers.openai.com/codex/hooks` to `learn.chatgpt.com/docs/hooks`
+  (308). Handler support is unchanged — command only, prompt and agent parsed and skipped (E-CODEX-03).
+
+Manifest wiring, new in this pass: every vendor names the field `hooks` and accepts a path or an inline
+object, and every vendor defaults to `hooks/hooks.json`. The files differ. Claude Code and Codex nest
+event → matcher group → handlers with no schema version. Cursor and Copilot CLI carry a top-level
+`"version": 1`, and Cursor's handlers sit flat under the event name, each carrying its own `matcher`.
+The per-vendor table is in [`conclusion.md`](./conclusion.md).
+
 ## Contradictions
 
 - GitHub Copilot CLI reference page shows both `sessionStart` and `SessionStart` casing in the same document. Likely a docs inconsistency; tutorial pages use camelCase consistently. (E-COPILOT-03)
@@ -150,5 +171,6 @@ SessionStart, SubagentStart, PreToolUse, PermissionRequest, PostToolUse, PreComp
 - GitHub Copilot hooks reference: https://docs.github.com/en/copilot/reference/hooks-configuration
 - GitHub Copilot hooks how-to: https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/use-hooks
 - GitHub Copilot hooks tutorial: https://docs.github.com/en/copilot/tutorials/copilot-cli-hooks
-- Codex hooks reference: https://developers.openai.com/codex/hooks
+- GitHub Copilot CLI plugin reference: https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-plugin-reference
+- Codex hooks reference: https://learn.chatgpt.com/docs/hooks (was https://developers.openai.com/codex/hooks)
 - Codex build plugins guide: https://developers.openai.com/codex/plugins/build
