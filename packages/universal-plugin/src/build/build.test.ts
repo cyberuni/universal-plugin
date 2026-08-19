@@ -258,3 +258,197 @@ describe('buildPlugin', () => {
 		expect(() => buildPlugin(dir)).toThrow('expected user, model, or both')
 	})
 })
+
+describe('buildPlugin — hooks (ADR-0011)', () => {
+	function writeHooks(relPath: string, hooks: object) {
+		const target = path.join(dir, relPath)
+		fs.mkdirSync(path.dirname(target), { recursive: true })
+		fs.writeFileSync(target, JSON.stringify({ hooks }, null, '\t'))
+	}
+
+	function readJson(relPath: string) {
+		return JSON.parse(fs.readFileSync(path.join(dir, relPath), 'utf8'))
+	}
+
+	const commandRule = { hooks: [{ type: 'command', command: './scripts/start.sh' }] }
+
+	it('leaves the canonical hooks declaration alone for claude-code', () => {
+		writeHooks('hooks/hooks.json', { SessionStart: [commandRule] })
+		writeManifest({
+			name: 'my-plugin',
+			extensions: up({ hooks: './hooks/hooks.json', harnesses: { 'claude-code': {} } }),
+		})
+		const result = buildPlugin(dir)
+		expect(readJson('.claude-plugin/plugin.json').hooks).toBe('./hooks/hooks.json')
+		expect(fs.existsSync(path.join(dir, '.claude-plugin', 'hooks.json'))).toBe(false)
+		expect(result.warnings).toEqual([])
+	})
+
+	it('derives a camelCase hooks file for cursor and points the manifest at it', () => {
+		writeHooks('hooks/hooks.json', { SessionStart: [commandRule] })
+		writeManifest({ name: 'my-plugin', extensions: up({ hooks: './hooks/hooks.json', harnesses: { cursor: {} } }) })
+		const result = buildPlugin(dir)
+
+		const derived = readJson('.cursor-plugin/hooks.json')
+		expect(derived).toEqual({
+			version: 1,
+			hooks: { sessionStart: [{ type: 'command', command: './scripts/start.sh' }] },
+		})
+		expect(readJson('.cursor-plugin/plugin.json').hooks).toBe('./.cursor-plugin/hooks.json')
+		expect(result.written).toContain(path.join(dir, '.cursor-plugin', 'hooks.json'))
+		// The authored file is an input, never an output.
+		expect(readJson('hooks/hooks.json')).toEqual({ hooks: { SessionStart: [commandRule] } })
+	})
+
+	it('repeats a matcher on each handler when it flattens a group for cursor', () => {
+		writeHooks('hooks/hooks.json', {
+			PreToolUse: [
+				{
+					matcher: 'Write|Edit',
+					hooks: [
+						{ type: 'command', command: './a.sh' },
+						{ type: 'command', command: './b.sh' },
+					],
+				},
+			],
+		})
+		writeManifest({ name: 'my-plugin', extensions: up({ hooks: './hooks/hooks.json', harnesses: { cursor: {} } }) })
+		buildPlugin(dir)
+		expect(readJson('.cursor-plugin/hooks.json').hooks.preToolUse).toEqual([
+			{ type: 'command', command: './a.sh', matcher: 'Write|Edit' },
+			{ type: 'command', command: './b.sh', matcher: 'Write|Edit' },
+		])
+	})
+
+	it('drops a handler codex cannot run, warns, and keeps the rest', () => {
+		writeHooks('hooks/hooks.json', {
+			SessionStart: [
+				{
+					hooks: [
+						{ type: 'command', command: './a.sh' },
+						{ type: 'prompt', prompt: 'check' },
+					],
+				},
+			],
+		})
+		writeManifest({
+			name: 'my-plugin',
+			version: '1.0.0',
+			description: 'x',
+			extensions: up({ hooks: './hooks/hooks.json', harnesses: { codex: {} } }),
+		})
+		const result = buildPlugin(dir)
+
+		expect(result.warnings).toEqual([
+			'codex cannot run the "prompt" hook handler on SessionStart — dropped from the derived hooks file',
+		])
+		expect(readJson('.codex-plugin/hooks.json').hooks.SessionStart).toEqual([
+			{ hooks: [{ type: 'command', command: './a.sh' }] },
+		])
+		expect(readJson('.codex-plugin/plugin.json').hooks).toBe('./.codex-plugin/hooks.json')
+		expect(result.rows).toEqual([{ vendor: 'codex', path: '.codex-plugin/plugin.json', status: 'built' }])
+	})
+
+	it('warns once per event and handler type, not once per handler', () => {
+		writeHooks('hooks/hooks.json', {
+			SessionStart: [
+				{
+					hooks: [
+						{ type: 'prompt', prompt: 'one' },
+						{ type: 'prompt', prompt: 'two' },
+					],
+				},
+			],
+		})
+		writeManifest({
+			name: 'my-plugin',
+			version: '1.0.0',
+			description: 'x',
+			extensions: up({ hooks: './hooks/hooks.json', harnesses: { codex: {} } }),
+		})
+		expect(buildPlugin(dir).warnings).toHaveLength(1)
+	})
+
+	it('writes no hooks file and omits the hooks field when nothing survives', () => {
+		writeHooks('hooks/hooks.json', { SessionStart: [{ hooks: [{ type: 'http', url: 'https://example.test/h' }] }] })
+		writeManifest({
+			name: 'my-plugin',
+			version: '1.0.0',
+			description: 'x',
+			extensions: up({ hooks: './hooks/hooks.json', harnesses: { codex: {} } }),
+		})
+		const result = buildPlugin(dir)
+		expect(fs.existsSync(path.join(dir, '.codex-plugin', 'hooks.json'))).toBe(false)
+		expect(readJson('.codex-plugin/plugin.json').hooks).toBeUndefined()
+		expect(result.warnings[0]).toMatch(/codex cannot run the "http" hook handler/)
+	})
+
+	// Copilot CLI reads the canonical manifest and its hooks file directly, so there is no derived
+	// file to deliver — the warning is the whole remedy available.
+	it('warns that copilot-cli ignores an unsupported handler at runtime, and derives nothing', () => {
+		writeHooks('hooks/hooks.json', { SessionStart: [{ hooks: [{ type: 'agent', prompt: 'verify' }] }] })
+		writeManifest({
+			name: 'my-plugin',
+			extensions: up({ hooks: './hooks/hooks.json', harnesses: { 'copilot-cli': {} } }),
+		})
+		const result = buildPlugin(dir)
+		expect(result.warnings).toEqual([
+			'copilot-cli cannot run the "agent" hook handler on SessionStart — it is ignored at runtime',
+		])
+		expect(result.written).toEqual([])
+	})
+
+	it('translates hooks declared inline in the manifest', () => {
+		writeManifest({
+			name: 'my-plugin',
+			extensions: up({ hooks: { hooks: { SessionStart: [commandRule] } }, harnesses: { cursor: {} } }),
+		})
+		buildPlugin(dir)
+		expect(readJson('.cursor-plugin/hooks.json').hooks.sessionStart).toHaveLength(1)
+		expect(readJson('.cursor-plugin/plugin.json').hooks).toBe('./.cursor-plugin/hooks.json')
+	})
+
+	it('merges a declared list of hooks paths into one derived file', () => {
+		writeHooks('hooks/session.json', { SessionStart: [commandRule] })
+		writeHooks('hooks/tools.json', { PreToolUse: [commandRule] })
+		writeManifest({
+			name: 'my-plugin',
+			extensions: up({ hooks: { paths: ['./hooks/session.json', './hooks/tools.json'] }, harnesses: { cursor: {} } }),
+		})
+		buildPlugin(dir)
+		expect(Object.keys(readJson('.cursor-plugin/hooks.json').hooks)).toEqual(['sessionStart', 'preToolUse'])
+	})
+
+	// The default location is what every vendor auto-discovers, so a plugin that never declares
+	// `hooks` still ships them — and Cursor still needs the translated form.
+	it('translates the default hooks path when the manifest declares none', () => {
+		writeHooks('hooks/hooks.json', { SessionStart: [commandRule] })
+		writeManifest({ name: 'my-plugin', extensions: up({ harnesses: { cursor: {} } }) })
+		buildPlugin(dir)
+		expect(readJson('.cursor-plugin/hooks.json').hooks.sessionStart).toHaveLength(1)
+		expect(readJson('.cursor-plugin/plugin.json').hooks).toBe('./.cursor-plugin/hooks.json')
+	})
+
+	it('derives no hooks file under --dry-run', () => {
+		writeHooks('hooks/hooks.json', { SessionStart: [commandRule] })
+		writeManifest({ name: 'my-plugin', extensions: up({ hooks: './hooks/hooks.json', harnesses: { cursor: {} } }) })
+		buildPlugin(dir, { dryRun: true })
+		expect(fs.existsSync(path.join(dir, '.cursor-plugin', 'hooks.json'))).toBe(false)
+	})
+
+	it('warns and passes the declaration through when the hooks file is missing', () => {
+		writeManifest({ name: 'my-plugin', extensions: up({ hooks: './hooks/hooks.json', harnesses: { cursor: {} } }) })
+		const result = buildPlugin(dir)
+		expect(result.warnings[0]).toMatch(/hooks file "\.\/hooks\/hooks\.json" not found/)
+		expect(readJson('.cursor-plugin/plugin.json').hooks).toBe('./hooks/hooks.json')
+	})
+
+	it('warns and passes the declaration through when the hooks file is unreadable JSON', () => {
+		fs.mkdirSync(path.join(dir, 'hooks'), { recursive: true })
+		fs.writeFileSync(path.join(dir, 'hooks', 'hooks.json'), '{ not json')
+		writeManifest({ name: 'my-plugin', extensions: up({ hooks: './hooks/hooks.json', harnesses: { cursor: {} } }) })
+		const result = buildPlugin(dir)
+		expect(result.warnings[0]).toMatch(/could not be read/)
+		expect(readJson('.cursor-plugin/plugin.json').hooks).toBe('./hooks/hooks.json')
+	})
+})
