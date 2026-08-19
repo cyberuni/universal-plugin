@@ -11,8 +11,6 @@ beforeEach(() => {
 	root = fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-marketplace-cli-'))
 	fs.writeFileSync(path.join(root, 'plugin.json'), JSON.stringify({ author: 'unional' }))
 	fs.mkdirSync(path.join(root, 'plugins', 'alpha'), { recursive: true })
-	// `version` is required for the Codex catalog, and the default target set includes codex — see
-	// `requires a canonical version when generating a Codex catalog` in marketplace.test.ts.
 	fs.writeFileSync(
 		path.join(root, 'plugins', 'alpha', 'plugin.json'),
 		JSON.stringify({ name: 'alpha', version: '1.0.0' }),

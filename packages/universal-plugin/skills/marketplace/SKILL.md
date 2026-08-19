@@ -119,19 +119,24 @@ Codex config. Remove what you added.
 
 ## Local development against Codex
 
-Codex installs a cached copy keyed by plugin version, at
-`~/.codex/plugins/cache/<marketplace>/<plugin>/<version>`. Editing the plugin's files does not reach
-that copy.
+Codex installs a **copy** of the plugin at
+`~/.codex/plugins/cache/<marketplace>/<plugin>/<version>`, where the version is the one the plugin's
+own manifest carries. Editing the plugin's files does not reach that copy.
 
-After changing packaged files, reinstall and start a new session:
+After changing packaged files, install again and start a new session:
 
 ```bash
-codex plugin remove <plugin>@<marketplace>
 codex plugin add <plugin>@<marketplace>
 ```
 
-The catalog's plugin version is derived from the canonical manifest, so a version move updates both;
-`/universal-plugin:version` owns that.
+That one command is the whole refresh: re-running it at the same version overwrites the cached copy
+with the current source, so neither `codex plugin remove` nor a version bump is needed. Codex reads
+the cache when a session starts, so the session you are in keeps the old copy — start a new one.
+
+The catalog entry's version is derived from the canonical manifest, so a version move updates both
+(`/universal-plugin:version` owns that). Codex itself does
+not read the entry's version; keeping it true is this project's policy, so the catalog never states
+a version the plugin does not have.
 
 ## Rules
 

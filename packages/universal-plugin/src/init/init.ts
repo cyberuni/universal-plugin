@@ -178,13 +178,6 @@ function planCatalogs(
 	for (const vendor of opts.vendors) {
 		const target = VENDOR_TARGETS[vendor]
 		if (!target) continue
-		// Codex keys its install cache by the entry's version, so an entry without one is not
-		// installable. The manifest `init` writes declares no version; `marketplace init` fills the
-		// catalog in once the plugin has one.
-		if (target === 'codex' && typeof manifest.version !== 'string') {
-			notes.push('no Codex catalog: its entry needs a version, and plugin.json declares none')
-			continue
-		}
 		const artifact = mergeCatalogEntry(target, metadata, plugin, (path) => repo.catalogs[path])
 		catalogs.push({ path: `${toPluginRoot}${artifact.path}`, content: artifact.content })
 	}

@@ -66,6 +66,9 @@ proving a discovered plugin will install successfully in every vendor runtime.
   the same `{ name, source }` plugin entries. Every source is a `./`-prefixed repository-relative
   string, and `owner` is an object, which is what Claude Code's schema requires.
 - Codex writes its catalog in .agents/plugins as `{ name, interface: { displayName }, plugins }`.
+  An entry's `version` is copied from that plugin's canonical manifest (ADR-0010 §3) and is absent
+  when the manifest declares none. Codex requires neither: it caches a local install under the
+  version the plugin's own manifest carries (`.research/local-marketplaces`, E-CODEX-M15).
   Each plugin is `{ name, source, policy, category }`, where
   `source` is `{ source: "local", path: "./…" }`, `policy` is
   `{ installation: "AVAILABLE", authentication: "ON_INSTALL" }`, and `category` is

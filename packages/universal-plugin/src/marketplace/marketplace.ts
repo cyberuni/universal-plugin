@@ -77,8 +77,10 @@ function codexArtifact(metadata: MarketplaceMetadata, plugins: MarketplacePlugin
 			interface: { displayName: metadata.name },
 			plugins: plugins.map((plugin) => ({
 				name: plugin.name,
-				// Codex caches local installs by this version. Keep it derived from the
-				// canonical manifest rather than leaving a second hand-authored version.
+				// Codex caches a local install under the version its *manifest* carries, not this one,
+				// and installs an entry that declares none (`.research/local-marketplaces`,
+				// E-CODEX-M15, E-CODEX-M16). This is derived from the canonical manifest so the two
+				// agree (ADR-0010 §3), and is absent when the manifest declares no version.
 				version: plugin.metadata.version,
 				source: { source: 'local', path: plugin.source },
 				policy: { installation: 'AVAILABLE', authentication: 'ON_INSTALL' },
