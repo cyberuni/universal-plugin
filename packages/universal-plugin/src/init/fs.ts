@@ -3,16 +3,8 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 
 import { detectIndent } from '../json.js'
+import { TARGET_CATALOG_PATHS } from '../marketplace/marketplace.js'
 import type { InitPlan, InitState, RepoState } from './init.js'
-
-/** Every repository-root-relative catalog path a vendor reads, so an `init` run folds its entry
- *  into whichever ones already exist. */
-const CATALOG_PATHS = [
-	'.claude-plugin/marketplace.json',
-	'.cursor-plugin/marketplace.json',
-	'.agents/plugins/marketplace.json',
-	'.github/plugin/marketplace.json',
-]
 
 /** Gathers the filesystem state `planInit` needs and applies the plan it returns. The manifest is
  *  written tab-indented (the repo default); `package.json` keeps its own indentation. */
@@ -41,7 +33,7 @@ function gatherRepo(root: string): RepoState | undefined {
 	const remote = git(root, ['remote', 'get-url', 'origin'])
 	const match = remote?.match(/[/:]([^/:]+)\/([^/]+?)(?:\.git)?$/)
 	const catalogs: Record<string, string> = {}
-	for (const catalog of CATALOG_PATHS) {
+	for (const catalog of Object.values(TARGET_CATALOG_PATHS)) {
 		const file = path.join(repoRoot, catalog)
 		if (fs.existsSync(file)) catalogs[catalog] = fs.readFileSync(file, 'utf8')
 	}

@@ -185,25 +185,10 @@ function planCatalogs(
 			notes.push('no Codex catalog: its entry needs a version, and plugin.json declares none')
 			continue
 		}
-		const artifact = mergeCatalogEntry(target, metadata, plugin, repo.catalogs[artifactPath(target)])
+		const artifact = mergeCatalogEntry(target, metadata, plugin, (path) => repo.catalogs[path])
 		catalogs.push({ path: `${toPluginRoot}${artifact.path}`, content: artifact.content })
 	}
 	return catalogs
-}
-
-/** The repository-root-relative path each target's catalog occupies, which is how `RepoState`
- *  keys the catalogs already on disk. */
-function artifactPath(target: string): string {
-	switch (target) {
-		case 'claude':
-			return '.claude-plugin/marketplace.json'
-		case 'cursor':
-			return '.cursor-plugin/marketplace.json'
-		case 'codex':
-			return '.agents/plugins/marketplace.json'
-		default:
-			return '.github/plugin/marketplace.json'
-	}
 }
 
 /** Plans the init run. Throws on a guard failure (an existing manifest without `--force`; `--npm`

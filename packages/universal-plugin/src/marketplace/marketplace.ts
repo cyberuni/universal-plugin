@@ -29,6 +29,15 @@ export interface MarketplaceArtifact {
  *  `claude plugin validate`. Cursor documents no schema key, so only Claude's catalog carries one. */
 const CLAUDE_SCHEMA = 'https://json.schemastore.org/claude-code-marketplace.json'
 
+/** Where each target's catalog sits, relative to the repository root. One place, because the
+ *  generator writes these paths and `plugin init` reads the same ones to fold its entry in. */
+export const TARGET_CATALOG_PATHS: Record<MarketplaceTarget, string> = {
+	claude: '.claude-plugin/marketplace.json',
+	cursor: '.cursor-plugin/marketplace.json',
+	codex: '.agents/plugins/marketplace.json',
+	copilot: '.github/plugin/marketplace.json',
+}
+
 const COMMON_METADATA = ['description', 'version', 'homepage', 'repository', 'license', 'keywords']
 
 export function assertMarketplaceName(value: string, label: string): void {
@@ -51,7 +60,7 @@ function json(value: unknown): string {
 
 function claudeArtifact(metadata: MarketplaceMetadata, plugins: MarketplacePlugin[]): MarketplaceArtifact {
 	return {
-		path: '.claude-plugin/marketplace.json',
+		path: TARGET_CATALOG_PATHS.claude,
 		content: json({
 			$schema: CLAUDE_SCHEMA,
 			...metadata,
@@ -62,7 +71,7 @@ function claudeArtifact(metadata: MarketplaceMetadata, plugins: MarketplacePlugi
 
 function codexArtifact(metadata: MarketplaceMetadata, plugins: MarketplacePlugin[]): MarketplaceArtifact {
 	return {
-		path: '.agents/plugins/marketplace.json',
+		path: TARGET_CATALOG_PATHS.codex,
 		content: json({
 			name: metadata.name,
 			interface: { displayName: metadata.name },
@@ -81,7 +90,7 @@ function codexArtifact(metadata: MarketplaceMetadata, plugins: MarketplacePlugin
 
 function copilotArtifact(metadata: MarketplaceMetadata, plugins: MarketplacePlugin[]): MarketplaceArtifact {
 	return {
-		path: '.github/plugin/marketplace.json',
+		path: TARGET_CATALOG_PATHS.copilot,
 		content: json({
 			...metadata,
 			metadata: { displayName: metadata.name },
@@ -96,7 +105,7 @@ function copilotArtifact(metadata: MarketplaceMetadata, plugins: MarketplacePlug
  *  repository as a team marketplace (`.research/local-marketplaces`, E-CUR-M3, E-CUR-M4). */
 function cursorArtifact(metadata: MarketplaceMetadata, plugins: MarketplacePlugin[]): MarketplaceArtifact {
 	return {
-		path: '.cursor-plugin/marketplace.json',
+		path: TARGET_CATALOG_PATHS.cursor,
 		content: json({
 			...metadata,
 			plugins: plugins.map((plugin) => ({ name: plugin.name, source: plugin.source, ...commonMetadata(plugin) })),
@@ -125,9 +134,11 @@ export function mergeCatalogEntry(
 	target: MarketplaceTarget,
 	metadata: MarketplaceMetadata,
 	plugin: MarketplacePlugin,
-	existing: string | undefined,
+	/** Reads the catalog already at that target's path, keyed the way the artifact names it. */
+	readExisting: (path: string) => string | undefined,
 ): MarketplaceArtifact {
 	const artifact = serializeTarget(target, metadata, [plugin])[0] as MarketplaceArtifact
+	const existing = readExisting(artifact.path)
 	if (existing === undefined) return artifact
 
 	const previous = parseCatalog(existing, artifact.path)
