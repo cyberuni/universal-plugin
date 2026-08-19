@@ -59,8 +59,8 @@ to run.
 
 One check reads git rather than the filesystem. A runtime keys its plugin cache on the version, so
 content committed after the commit that set the current version never reaches anyone who already
-installed the plugin. `doctor` reports that as `unreleased-content`. It stays quiet in a changesets
-repository, where the release moves the number, and on a tree with no history.
+installed the plugin. `doctor` reports that as `unreleased-content`. It stays quiet for a plugin that
+declares `packagePath`, where the release moves the number, and on a tree with no history.
 
 ### version
 

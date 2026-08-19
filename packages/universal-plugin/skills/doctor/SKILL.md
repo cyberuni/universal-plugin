@@ -117,9 +117,9 @@ The script compares the shipped paths — the canonical manifest, the skills dir
 emits `unreleased-content` for anything committed since. Uncommitted work is not reported; it has not
 shipped.
 
-Two cases are deliberately silent. A repository with a `.changeset/` directory is skipped, because
-there the release moves the number and content waiting ahead of the last released version is the
-normal state. A tree with no git history is skipped rather than guessed at.
+Two cases are deliberately silent. A plugin that declares `packagePath` is skipped, because there the
+release picks the number (ADR-0010 §2) and content waiting ahead of the last released version is the
+normal state of a branch. A tree with no git history is skipped rather than guessed at.
 
 The repair is the bump, and it belongs to `/universal-plugin:version`. Judge first whether the change
 is meant to ship — content that is still being worked on is not a finding to act on.

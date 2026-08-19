@@ -113,13 +113,24 @@ test('uncommitted work is not reported — nothing has shipped yet', () => {
 	expect(findings()).not.toContain('unreleased-content')
 })
 
-test('a changesets repository is left alone — the release moves the number there', () => {
+test('a plugin that ships to npm is left alone — the release moves the number there', () => {
 	seedRelease()
-	write('.changeset/config.json', '{}\n')
+	write('.agents/universal-plugin.json', '{ "packagePath": "." }\n')
+	write('package.json', '{ "name": "demo", "version": "1.0.0" }\n')
 	writeSkill('a body the released version does not carry')
 	commit('add to the skill')
 
 	expect(findings()).not.toContain('unreleased-content')
+})
+
+test('packagePath is read from .agents/universal-plugin.json, where the CLI writes it', () => {
+	seedRelease()
+	write('.agents/universal-plugin.json', '{ "packagePath": "." }\n')
+	write('package.json', '{ "name": "demo", "version": "2.0.0" }\n')
+	commit('declare the package')
+
+	expect(findings()).toContain('version-drift')
+	expect(detail('version-drift')).toContain('2.0.0')
 })
 
 test('a plugin outside any git repository is skipped rather than guessed at', () => {

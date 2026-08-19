@@ -51,6 +51,12 @@ if (manifest === null) {
 }
 
 const ext = manifest.extensions?.[UP_NAMESPACE] ?? null
+
+// `packagePath` is the CLI's own config, and the CLI reads it from `.agents/universal-plugin.json`
+// (src/version/fs.ts). It is read here from the same file, so a plugin the CLI treats as npm-shipping
+// is one this script treats the same way. The manifest extension is accepted as a fallback for a
+// repository that put it there.
+const packagePath = readPackagePath()
 if (!manifest.$schema?.includes('agent-plugins.org') || ext === null) {
 	add(
 		'legacy-manifest',
@@ -148,21 +154,21 @@ if (build === null) {
 }
 
 // Version drift between the two authored numbers.
-if (ext?.packagePath) {
-	const pkgPath = path.join(root, ext.packagePath, 'package.json')
+if (packagePath !== null) {
+	const pkgPath = path.join(root, packagePath, 'package.json')
 	const pkg = readJson(pkgPath)
 	if (pkg === null) {
 		add(
 			'package-path-missing',
 			'medium',
-			`packagePath names ${ext.packagePath}, which holds no readable package.json`,
+			`packagePath names ${packagePath}, which holds no readable package.json`,
 			'fix packagePath, or create the package',
 		)
 	} else if (manifest.version !== undefined && pkg.version !== manifest.version) {
 		add(
 			'version-drift',
 			'high',
-			`plugin.json is ${manifest.version}, ${ext.packagePath}/package.json is ${pkg.version}`,
+			`plugin.json is ${manifest.version}, ${packagePath}/package.json is ${pkg.version}`,
 			'/universal-plugin:version',
 		)
 	}
@@ -173,9 +179,10 @@ if (ext?.packagePath) {
 // who already installed the plugin. Read-only: the comparison is git's, and it is skipped wherever
 // git cannot answer.
 //
-// Not run where changesets owns the number. There the release moves it (ADR-0010 §2), so content
-// sitting on the branch ahead of the last released version is the normal state, not a defect.
-if (manifest.version !== undefined && !fs.existsSync(path.join(root, '.changeset'))) {
+// Not run where the release picks the number. ADR-0010 §2 makes `packagePath` the switch: a plugin
+// that ships to npm gets its version from the release, so content sitting ahead of the last released
+// one is the normal state there, not a defect. Only the author-picks model can forget the bump.
+if (manifest.version !== undefined && packagePath === null) {
 	const introduced = commitThatSetVersion(manifest.version)
 	if (introduced !== null) {
 		const changed = git('diff', '--name-only', `${introduced}..HEAD`, '--', ...shippedPaths())
@@ -256,4 +263,11 @@ function report({ vendors }) {
 		for (const f of findings) process.stderr.write(`  [${f.severity}] ${f.code}: ${f.detail}\n`)
 	}
 	process.exit(0)
+}
+
+/** Where the npm package that ships this plugin lives, or `null` when the plugin ships to no
+ *  package. `null` is the author-picks release model of ADR-0010 §2. */
+function readPackagePath() {
+	const declared = readJson(path.join(root, '.agents', 'universal-plugin.json'))?.packagePath ?? ext?.packagePath
+	return typeof declared === 'string' && declared.length > 0 ? declared : null
 }

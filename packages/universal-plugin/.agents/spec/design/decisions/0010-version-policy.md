@@ -131,7 +131,10 @@ from) and which is advisory by construction — it exits 0 whether or not it fin
 safe on a session-start hook. `doctor` gains a finding that reports shipped content changed since the
 commit that set the current version, naming the bump as the repair.
 
-The check reads git, so it is skipped rather than guessed at where git history is unavailable.
+The finding applies to one of §2's two release models. Where `packagePath` is declared the release
+picks the number, so content sitting ahead of the last released version is the normal state of a
+branch, not a defect — only the author-picks model can forget the bump, and only there does the
+check run. It reads git, so it is skipped rather than guessed at where history is unavailable.
 
 ## Alternatives considered
 
