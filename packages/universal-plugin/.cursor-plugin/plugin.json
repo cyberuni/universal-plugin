@@ -1,6 +1,6 @@
 {
 	"name": "universal-plugin",
-	"version": "0.5.0",
+	"version": "0.6.0",
 	"description": "Research and design toolkit for building universal AI coding agent plugins that work across Claude Code, Cursor, Codex, and GitHub Copilot CLI.",
 	"author": {
 		"name": "unional"
