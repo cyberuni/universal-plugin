@@ -383,6 +383,20 @@ describe('buildPlugin — hooks (ADR-0011)', () => {
 		expect(result.warnings[0]).toMatch(/codex cannot run the "http" hook handler/)
 	})
 
+	it('removes a derived hooks file left by an earlier build when nothing survives', () => {
+		writeHooks('hooks/hooks.json', { SessionStart: [commandRule] })
+		writeManifest({
+			name: 'my-plugin',
+			version: '1.0.0',
+			description: 'x',
+			extensions: up({ hooks: './hooks/hooks.json', harnesses: { codex: {} } }),
+		})
+		buildPlugin(dir)
+		writeHooks('hooks/hooks.json', { SessionStart: [{ hooks: [{ type: 'agent', prompt: 'verify' }] }] })
+		buildPlugin(dir)
+		expect(fs.existsSync(path.join(dir, '.codex-plugin', 'hooks.json'))).toBe(false)
+	})
+
 	// Copilot CLI reads the canonical manifest and its hooks file directly, so there is no derived
 	// file to deliver — the warning is the whole remedy available.
 	it('warns that copilot-cli ignores an unsupported handler at runtime, and derives nothing', () => {

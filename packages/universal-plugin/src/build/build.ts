@@ -233,8 +233,13 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 				fs.writeFileSync(outputPath, `${JSON.stringify(vendorManifest, null, indent)}\n`)
 			}
 			written.push(outputPath)
-			if (hooks?.changed && hooks.hooks) {
-				writeArtifact(derivedHooksPath, `${JSON.stringify(hooks.hooks, null, indent)}\n`, opts, written)
+			if (hooks?.changed) {
+				if (hooks.hooks) {
+					writeArtifact(derivedHooksPath, `${JSON.stringify(hooks.hooks, null, indent)}\n`, opts, written)
+				} else if (!opts.dryRun && fs.existsSync(derivedHooksPath)) {
+					// Nothing runnable is left this time; an earlier build's file would linger unreferenced.
+					fs.unlinkSync(derivedHooksPath)
+				}
 			}
 			writeSkillArtifacts(root, vendor, skills, opts, written, warnings)
 			rows.push({ vendor, path: relPath, status: 'built' })
