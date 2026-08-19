@@ -76,6 +76,17 @@ Each `code` below is what the script emits.
 | `no-vendors` | no vendor is declared, so the build writes nothing and no runtime reads the plugin | `/universal-plugin:init`, update route |
 | `package-path-missing` | `packagePath` names a directory with no readable `package.json` | fix `packagePath`, or create the package |
 | `unparsable-manifest` | root `plugin.json` is not valid JSON | fix the syntax error |
+| `invalid-catalog` | a marketplace catalog at the repository root is not a shape its runtime loads — it is found, read, and refused at install time, in the user's terminal | `/universal-plugin:marketplace` |
+
+## Catalogs are checked at the repository root
+
+The marketplace catalogs sit above the plugin in a monorepo, so the catalog check runs against the
+repository root rather than `--root`. It reports only a catalog that would be **refused**: a missing
+one is not a fault, and nothing here has an opinion on which catalogs a repository ought to carry.
+
+The detail names the key at fault, so hand it to `/universal-plugin:marketplace` as it stands. An
+entry's fields are derived from the plugin's `plugin.json`, and the catalog's own `name` and `owner`
+are authored in the catalog — which half is at fault decides where the repair goes.
 
 ## Checking staleness properly
 

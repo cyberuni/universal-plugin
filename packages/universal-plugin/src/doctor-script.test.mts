@@ -139,3 +139,28 @@ test('a plugin outside any git repository is skipped rather than guessed at', ()
 
 	expect(findings()).not.toContain('unreleased-content')
 })
+
+// The catalogs a user installs from sit at the repository root, and each is refused at install time
+// rather than here. `owner` as a string is the shape that reaches a repository unnoticed.
+test('a catalog its runtime would refuse is reported, with the key at fault', () => {
+	seedRelease()
+	write(
+		'.claude-plugin/marketplace.json',
+		`${JSON.stringify({ name: 'demo', owner: 'Ari Vance', plugins: [{ name: 'demo', source: './' }] }, null, 2)}\n`,
+	)
+	expect(findings()).toContain('invalid-catalog')
+	expect(detail('invalid-catalog')).toMatch(/owner must be an object with a name/)
+})
+
+test('a repository whose catalogs load reports nothing about them', () => {
+	seedRelease()
+	write(
+		'.claude-plugin/marketplace.json',
+		`${JSON.stringify(
+			{ name: 'demo', owner: { name: 'Ari Vance' }, plugins: [{ name: 'demo', source: './' }] },
+			null,
+			2,
+		)}\n`,
+	)
+	expect(findings()).not.toContain('invalid-catalog')
+})

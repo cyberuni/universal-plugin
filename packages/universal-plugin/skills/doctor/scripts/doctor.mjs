@@ -199,7 +199,35 @@ if (manifest.version !== undefined && packagePath === null) {
 	}
 }
 
+// The marketplace catalogs a user installs from. They sit at the *repository* root, above a plugin in
+// a monorepo, and each is read by its runtime at install time — a catalog whose shape that runtime
+// refuses fails in the user's terminal, not here. The shipped CLI owns the rules; this only asks.
+for (const row of invalidCatalogs()) {
+	add(
+		'invalid-catalog',
+		'high',
+		`${row.path} is not a shape its runtime loads: ${row.issues.map((issue) => `${issue.path} ${issue.message}`).join('; ')}`,
+		'/universal-plugin:marketplace',
+	)
+}
+
 report({ vendors })
+
+/** Every catalog the repository carries that its runtime would refuse. Empty when there is nothing to
+ *  read, when the CLI is too old to answer, or when every catalog is fine — a missing catalog is not a
+ *  fault, and this reports no opinion on which ones a repository ought to carry. */
+function invalidCatalogs() {
+	const catalogRoot = git('rev-parse', '--show-toplevel') ?? root
+	const result = fs.existsSync(bin)
+		? spawnSync(process.execPath, [bin, 'marketplace', 'validate', '--format', 'json', '--root', catalogRoot], {
+				encoding: 'utf8',
+			})
+		: spawnSync('npx', ['universal-plugin', 'marketplace', 'validate', '--format', 'json', '--root', catalogRoot], {
+				encoding: 'utf8',
+			})
+	const rows = readJson_stdout(result.stdout)
+	return Array.isArray(rows) ? rows.filter((row) => row.status === 'invalid') : []
+}
 
 /** Runs git inside `root`, returning its stdout or `null` — a non-zero status, a missing git, and a
  *  directory outside any repository are all the same answer here: no history to read. */

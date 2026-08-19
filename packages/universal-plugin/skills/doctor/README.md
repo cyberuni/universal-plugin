@@ -8,7 +8,9 @@ disk still matches it for Claude Code, Cursor, Codex, and GitHub Copilot CLI.
 `scripts/doctor.mjs` composes the shipped CLI's `plugin build --dry-run --format json` with the
 filesystem facts that build cannot see — whether each derived manifest exists, whether it predates
 the canonical manifest, whether a stale or shadowing manifest is lying around, whether the two
-authored version numbers still agree, and whether shipped content has moved since the version did. It emits one JSON object: `vendors`, `findings`, `ok`.
+authored version numbers still agree, whether shipped content has moved since the version did, and
+whether every marketplace catalog at the repository root is a shape its runtime loads. It emits one
+JSON object: `vendors`, `findings`, `ok`.
 
 The skill supplies the judgment around it: which finding matters, and which skill owns its repair.
 
