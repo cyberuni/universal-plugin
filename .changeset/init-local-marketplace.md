@@ -16,5 +16,5 @@ because every runtime requires it.
 Re-running `init` folds the entry into the catalogs already on disk: the marketplace name, the
 owner, and every other plugin's entry stay as they are. The entry's `version` is derived from the
 canonical manifest, never authored, and a version left on an entry whose manifest declares none is
-removed (ADR-0010 §3). Codex is skipped with a note until the manifest carries a version, which is
-what its install cache is keyed by.
+removed (ADR-0010 §3). A Codex entry is written whether or not there is a version to derive:
+Codex caches a local install under the version the plugin's own manifest carries, never the entry's.
