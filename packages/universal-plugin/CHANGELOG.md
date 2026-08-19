@@ -1,5 +1,121 @@
 # universal-plugin
 
+## 0.5.0
+
+### Minor Changes
+
+- f3e6979: `plugin build` now keeps the repository's local marketplace catalogs true. Each build re-derives this
+  plugin's entry in every catalog the repository already carries, for the vendors it is building, so a
+  catalog entry's version follows the canonical manifest instead of drifting from it (ADR-0010 §3,
+  ADR-0014). A version move reaches the catalogs in both release models with no extra command, since
+  `plugin version` and `changeset version → publish sync-version` both end in `plugin build`.
+  
+  The refresh creates nothing: a catalog the repository does not carry is not written, and inside one
+  it carries, only this plugin's entry changes — the catalog's own fields, its formatting, its
+  indentation, and every other plugin's entry stay as they are. `--dry-run` reports the refresh as
+  planned. The build output and its JSON gain a `catalogs` list.
+  
+  Neither generator requires a version on a Codex entry any more. `marketplace init --codex` used to
+  fail and `plugin init --vendor codex` used to skip the catalog, both on the belief that Codex keys
+  its install cache by the entry's version. It does not: the version comes from the plugin's own
+  manifest, and an entry that declares none installs normally (verified against codex-cli 0.147.0,
+  `.research/local-marketplaces`, E-CODEX-M15, E-CODEX-M16). The entry still carries the canonical
+  manifest's version when there is one, because that is this project's policy.
+- d73685a: `marketplace init` now writes Cursor the catalog it actually reads, and every catalog an `owner`
+  object.
+  
+  Cursor's plugins reference documents `.cursor-plugin/marketplace.json` at the repository root, close
+  to Claude Code's shape. This project's research had recorded the opposite, so `--cursor` produced a
+  `.cursor-plugin/marketplace-submission.json` and a `CURSOR_MARKETPLACE_SUBMISSION.md` handoff. Both
+  are gone, replaced by the catalog. Cursor also joins the default target set, and the
+  `skipped-default` status it carried no longer exists.
+  
+  `owner` was emitted as a string, which Claude Code rejects: `claude plugin validate` reports
+  `owner: Invalid input: expected object, received string`. It is now an object carrying `name`, plus
+  `email` and `url` when the canonical manifest's `author` supplies them. The Claude catalog also
+  carries a `$schema` key for editor completion and validation.
+- 620f2d0: `plugin build` now translates hooks per vendor instead of copying the canonical declaration through
+  unchanged. Cursor gets a derived `hooks.json` beside its manifest with camelCase event names, the
+  schema version it expects, and matcher groups flattened into its handler list; Claude Code, Codex,
+  and Copilot CLI read the canonical PascalCase file as authored.
+  
+  A handler the target vendor cannot run — `http` on Cursor, anything but `command` on Codex, `agent`
+  on Copilot CLI — is dropped from that vendor's file and warned about, one warning per event and
+  handler type, and the build stays green (ADR-0011). A vendor left with no runnable hook at all gets
+  no derived file and no `hooks` field.
+- d73685a: `plugin init --vendor <id>` now registers the plugin in the repository's local marketplace, writing
+  each selected vendor's catalog at the repository root — `.claude-plugin/marketplace.json`,
+  `.cursor-plugin/marketplace.json`, and the rest — so the plugin can be installed and tested before
+  it is published. `--no-marketplace` opts out.
+  
+  The marketplace is named after the repository rather than the plugin, `<owner>-<repo>-local`, since
+  the catalog sits at the repository root and lists every plugin the repository develops. The entry's
+  `source` is the path from there to the plugin. Owner comes from the canonical manifest's author, the
+  package that ships it, or the account the repository lives under; without one there is no catalog,
+  because every runtime requires it.
+  
+  Re-running `init` folds the entry into the catalogs already on disk: the marketplace name, the
+  owner, and every other plugin's entry stay as they are. The entry's `version` is derived from the
+  canonical manifest, never authored, and a version left on an entry whose manifest declares none is
+  removed (ADR-0010 §3). A Codex entry is written whether or not there is a version to derive:
+  Codex caches a local install under the version the plugin's own manifest carries, never the entry's.
+- 37ae40f: Add a `marketplace` skill: generate the repository's own marketplace catalogs, then write the README install section.
+  
+  `marketplace init` has shipped for a while with no skill in front of it, so nothing surfaced it to an agent. The skill picks targets with the user, runs the generation, verifies it, and offers the install documentation that goes with it.
+  
+  The install commands were verified by running the CLIs, because the documentation is incomplete and a third-party README was the alternative source:
+  
+  - **Claude Code, Codex, and Copilot CLI each install from a catalog the repository carries.** Each reads its own path, and all three read `.claude-plugin/marketplace.json`, so one file covers them when a repository wants fewer.
+  - **Codex's marketplace verbs exist but are undocumented.** `codex plugin marketplace add` and `codex plugin add` ship in codex-cli 0.147.0 and appear in no vendor page. Codex installs with `plugin add` where Copilot CLI uses `plugin install`.
+  - **Codex discovers a catalog by the filename `marketplace.json`** inside a supported directory. `.claude-plugin/` and `.agents/plugins/` are read; `.codex-plugin/`, `.plugin/`, `.github/plugin/`, and the repository root are not.
+  - **A shared catalog must carry `owner`.** Claude Code rejects one without it; Codex does not require it and tolerates extra fields, so the Claude shape is the portable one.
+  - **Cursor has no repository-local marketplace.** The `--cursor` output is a submission handoff, and `cursor-agent` has no plugin subcommand.
+  
+  `references/runtimes.md` is the only source of install commands, and every entry carries an evidence ID from `.research/local-marketplaces/`. The skill also documents the Codex local-development loop, where an install is cached by plugin version and a source edit needs a reinstall and a new session.
+  
+  `scripts/install-docs.mjs` derives the README section from the catalogs on disk, so the marketplace name, plugin names, and repository slug come from the repository. It emits JSON and writes nothing; the skill asks before editing the README.
+- aad26dd: Declare plugin dependencies once, and let the build deliver them per vendor. A plugin says what it
+  needs under `extensions["org.cyberuni.universal-plugin"].dependencies` — an array of plugin names,
+  each optionally `@marketplace`-qualified or given as an object with a semver range or a commit sha.
+  Claude Code is the only runtime that reads a dependency, so its manifest carries the declaration and
+  the others are built without it, each drop named in a warning. The build stays green. A range written
+  into the string form is accepted by the runtime and then discarded, so the build warns once and names
+  the object form that is enforced (ADR-0013).
+- f6bf784: Add `plugin install` and `plugin uninstall` — put the plugin under development into a runtime, instead of hand-writing a symlink.
+  
+  Getting a working copy into a runtime meant a symlink per vendor, copy-pasted into every plugin repository's readme. Re-verifying that recipe against the shipped runtimes found both halves wrong: `~/.claude/plugins/local/` does not exist in Claude Code — the path that works is its skills directory, which adopts a plugin and loads it as `<name>@skills-dir` — and Cursor's `~/.cursor/plugins/local/` resolves each symlink and refuses a target outside itself. An author following those two lines got silence from both runtimes and no way to tell why.
+  
+  `plugin install` installs into every vendor the canonical manifest already declares, `--vendor <id>` narrows it, and `--list` shows the resolved destinations without writing. Each vendor's local plugin directory now lives in the vendor registry alongside every other vendor path this tool knows, so a vendor moving its directory is one line here rather than a stale command in every downstream readme — and a machine with a runtime configured elsewhere can override it in `~/.agents/universal-plugin-vendors.json`.
+  
+  The mode resolves per vendor, because a single default cannot serve both runtimes: it links where the vendor follows an out-of-tree symlink and copies where it does not, and the result row names the mode each vendor got. `--copy` forces a snapshot everywhere; `--link` forces a link and fails a vendor that will not load one, rather than quietly copying when a live link was asked for. Codex and Copilot CLI scan no local directory at all and report as `unsupported`, with their marketplace route named.
+  
+  Re-running replaces this plugin's own earlier install rather than stacking; a destination another plugin owns is refused until `--force`. `plugin uninstall` applies the same ownership test, and reports a destination that was never installed rather than failing. Both refuse to run against a vendor whose derived manifest was never built, pointing at `plugin build`.
+  
+  Recorded as ADR-0012, with the verified per-runtime facts and their confidence in `.research/local-marketplaces/`.
+- 50a9c82: Record the version policy as ADR-0010, and give `doctor` the check it obliges.
+  
+  The canonical `plugin.json` owns a plugin's version; every other version-carrying artifact — the per-vendor manifests, the repository-local marketplace catalogs, the `npx`/`upx` pins in `skills/**` — derives from it and is never authored by hand. Who picks the next value splits on `packagePath`: without one the author picks, through `plugin version <bump>`; with one the release picks, and `publish sync-version` carries the number from `package.json` into the manifest.
+  
+  A marketplace entry's version is copied from the canonical manifest of the plugin its `source` resolves to. Where a runtime lets both the entry and the manifest carry one, the manifest wins — Claude Code documents that it overrides the entry silently — so a generated entry is never the number that decides anything, and never a number a human edits.
+  
+  `doctor` gains `unreleased-content`. A runtime keys its plugin cache on the version, so content committed after the commit that set the current one never reaches a consumer who already installed the plugin, and neither side is told: the author sees a successful push, the consumer sees "already at the latest version". The check compares the shipped paths against that commit. It stays quiet on uncommitted work, on a plugin that declares `packagePath` — there the release picks the number — and on a tree with no git history. Alongside it, `doctor` now reads `packagePath` from `.agents/universal-plugin.json`, where the CLI reads it, so `version-drift` fires for the repositories that actually declare one.
+
+### Patch Changes
+
+- d998e13: Resolve `--root` to an absolute directory, and stop re-joining a workspace-relative root onto a cwd already inside it
+  
+  In a pnpm monorepo a package is named by its workspace-relative path, so `--root packages/pods`
+  run from inside `packages/pods` resolved to `<repo>/packages/pods/packages/pods` — a directory
+  that does not exist — and `plugin build` reported `No plugin.json found` against that doubled
+  path (#43). Every command taking `--root` now resolves it against the cwd and, when the re-joined
+  path is missing while the cwd already ends with the given path, uses the cwd — the package that
+  was named.
+  
+  `--root` also resolves to an absolute path in every case now. A relative root previously flowed
+  through unresolved, so `No plugin.json found at ../empty` named a fragment rather than the
+  directory searched, and `plugin init --root .` derived the plugin name from `path.basename('.')`
+  instead of the directory's own name.
+
 ## 0.4.0
 
 ### Minor Changes
