@@ -1,6 +1,11 @@
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
+import {
+	type DependencyDeclaration,
+	translateDependencies,
+	validateDependencies,
+} from '../dependencies/dependencies.js'
 import { type CanonicalHooksFile, type HookDrop, translateHooks } from '../hooks/hooks.js'
 import { detectIndent } from '../json.js'
 
@@ -39,6 +44,9 @@ export interface UniversalPluginExtension {
 	packagePath?: string
 	/** Per-harness manifest overrides, keyed by vendor id (was top-level `vendorExtensions`). */
 	harnesses?: Record<string, Record<string, unknown>>
+	/** Plugins this plugin needs. Canonical here because the runtimes that read one disagree on
+	 *  whether they read one at all — the build delivers it per vendor (ADR-0013). */
+	dependencies?: DependencyDeclaration[]
 	skills?: unknown
 	[key: string]: unknown
 }
@@ -115,6 +123,9 @@ export function validateManifest(manifest: PluginManifest, targets?: string[]): 
 	if (codexTargeted && !manifest.version) {
 		errors.push('version is required when targeting codex')
 	}
+	// Dependency shape is a canonical rule, not a vendor one: a malformed declaration is rejected by
+	// the runtime that reads it whichever vendors this build targets.
+	errors.push(...validateDependencies(uext.dependencies).errors)
 	return errors
 }
 
@@ -167,7 +178,16 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 	// (`vendors`, `packagePath`, `harnesses`) and the spec wrapper (`$schema`, `extensions`) are ours —
 	// they never belong in a harness manifest.
 	const { $schema: _schema, extensions: _extensions, ...metadata } = manifest
-	const { vendors: _vendors, packagePath: _packagePath, harnesses: _harnesses, ...componentConfig } = uext
+	const {
+		vendors: _vendors,
+		packagePath: _packagePath,
+		harnesses: _harnesses,
+		dependencies: declaredDependencies,
+		...componentConfig
+	} = uext
+	// A declaration the runtime accepts and then discards is an invisible loss, and it is one loss to
+	// fix however many vendors are targeted.
+	warnings.push(...validateDependencies(declaredDependencies).warnings)
 	const skills = readSkills(root, manifest)
 	const canonicalHooks = readCanonicalHooks(root, componentConfig['hooks'], warnings)
 
@@ -178,6 +198,9 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 		const vendorFields = harnesses[vendor] ?? {}
 		const vendorManifest: Record<string, unknown> = { ...metadata, ...componentConfig, ...vendorFields }
 		const hooks = canonicalHooks ? translateHooks(canonicalHooks, vendor) : null
+		const dependencies = translateDependencies(declaredDependencies ?? [], vendor)
+		warnings.push(...dependencies.warnings)
+		if (dependencies.dependencies) vendorManifest['dependencies'] = dependencies.dependencies
 
 		// The canonical manifest already is this vendor's manifest — derive nothing and never write
 		// over root. Any harness override for it has no delivery path: the canonical schema is closed
