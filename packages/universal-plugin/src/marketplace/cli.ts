@@ -4,6 +4,8 @@ import { ROOT_OPTION, resolveRoot } from '../cli-options.js'
 import { output } from '../output.js'
 import { initializeMarketplace, type MarketplaceInitOptions } from './init.js'
 import type { MarketplaceTarget } from './marketplace.js'
+import { validateMarketplace } from './validate.js'
+import { formatCatalogIssues } from './validation.js'
 
 interface MarketplaceCliOptions extends MarketplaceInitOptions {
 	claude?: boolean
@@ -72,8 +74,51 @@ function initCommand(): Command {
 		})
 }
 
+function validateCommand(): Command {
+	return new Command('validate')
+		.description('Check the repository-local marketplace catalogs against the schema each runtime loads')
+		.option('--claude', 'Validate the Claude marketplace catalog')
+		.option('--codex', 'Validate the Codex marketplace catalog')
+		.option('--copilot', 'Validate the Copilot marketplace catalog')
+		.option('--cursor', 'Validate the Cursor marketplace catalog')
+		.option('--required', 'Treat a selected target with no catalog as a failure')
+		.option('--format <format>', 'Output format: toon or json (default: toon)')
+		.addOption(ROOT_OPTION)
+		.addHelpText('after', '\nExample:\n  $ universal-plugin marketplace validate --claude\n')
+		.action((opts: MarketplaceCliOptions & { required?: boolean }) => {
+			try {
+				if (opts.format !== undefined && opts.format !== 'toon' && opts.format !== 'json') {
+					throw new Error('error: --format must be "toon" or "json"')
+				}
+				const results = validateMarketplace(resolveRoot(opts.root), {
+					targets: targetsFromOptions(opts),
+					required: opts.required,
+				})
+				output(results, {
+					targets: results.map((row) => ({
+						target: row.target,
+						status: row.status,
+						path: row.path,
+						issues: row.issues.length,
+					})),
+					summary: `${results.filter((row) => row.status === 'invalid').length} invalid of ${results.length}`,
+				})
+				// Every issue on stderr, one line each, so a failure names the key to fix rather than a count.
+				for (const row of results.filter((row) => row.status === 'invalid')) {
+					process.stderr.write(formatCatalogIssues(row.path, row.issues))
+					process.stderr.write('\n')
+				}
+				if (results.some((row) => row.status === 'invalid')) process.exitCode = 1
+			} catch (err) {
+				process.stderr.write(`${err instanceof Error ? err.message : String(err)}\n`)
+				process.exitCode = 1
+			}
+		})
+}
+
 export function marketplaceCommand(): Command {
 	return new Command('marketplace')
 		.description('Generate repository-local marketplace metadata')
 		.addCommand(initCommand())
+		.addCommand(validateCommand())
 }

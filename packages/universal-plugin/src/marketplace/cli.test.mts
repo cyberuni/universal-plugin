@@ -56,3 +56,32 @@ test('rejects output formats other than toon and json', () => {
 	expect(result.status).toBe(1)
 	expect(result.stderr).toMatch(/--format.*toon.*json/i)
 })
+
+function runValidate(...args: string[]) {
+	return spawnSync('node', [bin, 'marketplace', 'validate', ...args, '--root', root], {
+		encoding: 'utf8',
+		env: { ...process.env, NODE_NO_WARNINGS: '1' },
+	})
+}
+
+test('validate reports generated catalogs as valid and names the key in a broken one', () => {
+	run('--claude')
+	const ok = runValidate('--claude', '--format', 'json')
+	expect(ok.status).toBe(0)
+	expect(JSON.parse(ok.stdout)).toMatchObject([{ target: 'claude', status: 'valid', issues: [] }])
+
+	const catalog = path.join(root, '.claude-plugin/marketplace.json')
+	const broken = JSON.parse(fs.readFileSync(catalog, 'utf8'))
+	broken.owner = 'Ari Vance'
+	fs.writeFileSync(catalog, JSON.stringify(broken, null, 2))
+
+	const failed = runValidate('--claude')
+	expect(failed.status).toBe(1)
+	expect(failed.stderr).toMatch(/owner must be an object with a name/)
+})
+
+test('validate treats an absent catalog as missing, or as a failure under --required', () => {
+	expect(runValidate('--cursor').status).toBe(0)
+	expect(runValidate('--cursor').stdout).toMatch(/missing/)
+	expect(runValidate('--cursor', '--required').status).toBe(1)
+})

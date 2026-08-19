@@ -9,7 +9,9 @@ you install the plugin the way a user eventually will.
 
 Two commands write these catalogs. [`plugin init`](#plugin-init-registers-one-plugin) registers the
 plugin it scaffolds, and `marketplace init` derives a catalog for every plugin a repository holds.
-Both write the same files; neither publishes anything.
+Both write the same files; neither publishes anything. A third,
+[`marketplace validate`](#marketplace-validate-checks-what-the-repository-carries), checks that what
+they wrote is what each runtime will load.
 
 For the shorter loop that skips the catalog entirely — the working copy dropped straight into a
 runtime's local plugin directory — see [`plugin install`](../install/).
@@ -74,6 +76,36 @@ This one discovers plugins instead of registering a single one: every `<scan-roo
 below `plugins/`, or below each `--plugin-scan-dir` you name. With no target flags it writes all
 four catalogs. `--dry-run` prints the plan, and a catalog that differs from what would be generated
 stops the run until you pass `--force`, so a hand-edited file is never replaced silently.
+
+## `marketplace validate` checks what the repository carries
+
+```bash
+universal-plugin marketplace validate
+```
+
+A catalog is read at **install** time, in someone else's terminal. This command moves the refusal to
+the repository: it reads each catalog and checks it against the schema its runtime loads — the
+[official Claude Code marketplace schema](https://json.schemastore.org/claude-code-marketplace.json)
+for Claude Code, Cursor, and Copilot CLI, and Codex's own shape for Codex.
+
+Each target is reported `valid`, `invalid`, or `missing`; `--required` makes a missing catalog a
+failure. The exit status is 1 when any selected catalog is invalid, and every issue names the key and
+the value to write instead:
+
+```
+error: catalog ".claude-plugin/marketplace.json" does not match the marketplace schema:
+  owner must be an object with a name, not string — write { "name": "Ari Vance" }
+  plugins[0].repository must be a string, not object — write "https://github.com/o/r.git"
+```
+
+Those two are the shapes that reach a repository unnoticed, because both are what `package.json`
+carries: an `owner` string where every runtime requires an object, and an npm `repository` object
+where the catalog requires the URL. Generation reduces what it can — an npm `repository` becomes its
+URL, and a field it cannot reduce is omitted rather than written — and refuses to write a catalog that
+would still be invalid. Validation is what catches the rest: a file edited by hand, or a `./` source
+pointing at a directory that is no longer there.
+
+Nothing is repaired. A catalog you edited is yours to correct.
 
 ## The version is derived, never written
 

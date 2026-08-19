@@ -77,6 +77,9 @@ proving a discovered plugin will install successfully in every vendor runtime.
   manifest writes as npm does, `{ type, url }`, becomes that URL with any `git+` prefix removed; a
   value that cannot be reduced to the stated type is omitted rather than written, because an entry
   missing an optional field still installs and an entry with the wrong type installs nowhere.
+- Every planned artifact is checked against the schema its runtime loads before anything is written
+  (see [`validate/`](../validate/README.md)). A planned catalog that would be refused stops the whole
+  command; generation never emits one.
 - Catalog sources are `./`-prefixed paths relative to `--root`.
 - Generation is deterministic: candidates sort by plugin name and equivalent existing JSON is
   `unchanged` regardless of object-key order or whitespace.
