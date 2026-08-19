@@ -271,3 +271,51 @@ test('reports a later selected-artifact write failure', () => {
 		fs.rmSync(root, { recursive: true, force: true })
 	}
 })
+
+// A manifest written from a package.json carries `repository` as `{ type, url }` and may carry
+// keywords that are not an array of strings. Every catalog wants the URL alone: Claude Code refuses
+// an entry whose `repository` is an object, so the entry carries the reducible value or nothing.
+test('carries npm-shaped manifest metadata into entries in the shape the catalog schema states', () => {
+	const root = fixture('universal-plugin-marketplace-npm-metadata-')
+	try {
+		fs.writeFileSync(
+			path.join(root, 'plugins', 'alpha', 'plugin.json'),
+			JSON.stringify({
+				name: 'alpha',
+				version: '1.3.2',
+				repository: { type: 'git', url: 'git+https://github.com/repobuddy/repobuddy.git' },
+				keywords: 'cli',
+				license: 'MIT',
+			}),
+		)
+		initializeMarketplace(root, { targets: ['claude'], force: true })
+		const catalog = readJson(root, '.claude-plugin/marketplace.json') as {
+			plugins: Record<string, unknown>[]
+		}
+		expect(catalog.plugins[0]).toMatchObject({
+			repository: 'https://github.com/repobuddy/repobuddy.git',
+			license: 'MIT',
+		})
+		expect(catalog.plugins[0]).not.toHaveProperty('keywords')
+	} finally {
+		fs.rmSync(root, { recursive: true, force: true })
+	}
+})
+
+test('drops manifest metadata it cannot reduce to the catalog shape', () => {
+	const root = fixture('universal-plugin-marketplace-npm-shaped-metadata-')
+	try {
+		fs.writeFileSync(
+			path.join(root, 'plugins', 'alpha', 'plugin.json'),
+			JSON.stringify({ name: 'alpha', homepage: { url: 'https://example.com' } }),
+		)
+		initializeMarketplace(root, { targets: ['claude'], force: true })
+		// A homepage that is not a string is dropped rather than written, so the catalog stays loadable.
+		expect(readJson(root, '.claude-plugin/marketplace.json')).toMatchObject({
+			plugins: [{ name: 'alpha', source: './plugins/alpha' }],
+		})
+		expect(readJson(root, '.claude-plugin/marketplace.json')).not.toHaveProperty('plugins[0].homepage')
+	} finally {
+		fs.rmSync(root, { recursive: true, force: true })
+	}
+})
