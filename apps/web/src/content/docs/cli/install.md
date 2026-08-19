@@ -34,8 +34,8 @@ universal-plugin plugin uninstall [options]
 ## Where each runtime looks
 
 Two runtimes scan a directory for plugins under development. The other two do not, and are reported
-as `unsupported` rather than failed — reach them through a repository-local marketplace
-(`marketplace init`).
+as `unsupported` rather than failed — reach them through a
+[repository-local marketplace](../marketplace/).
 
 | Vendor | Destination | Symlink | After installing |
 |---|---|---|---|

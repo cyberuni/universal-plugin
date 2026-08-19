@@ -29,11 +29,12 @@ test('generates default Claude, Codex, and Copilot catalogs from root plugin man
 			['claude', 'generated'],
 			['codex', 'generated'],
 			['copilot', 'generated'],
-			['cursor', 'skipped-default'],
+			['cursor', 'generated'],
 		])
 		expect(readJson(root, '.claude-plugin/marketplace.json')).toMatchObject({
+			$schema: 'https://json.schemastore.org/claude-code-marketplace.json',
 			name: path.basename(root),
-			owner: 'unional',
+			owner: { name: 'unional' },
 			plugins: [{ name: 'alpha', source: './plugins/alpha', description: 'An alpha plugin' }],
 		})
 		expect(readJson(root, '.agents/plugins/marketplace.json')).toMatchObject({
@@ -51,8 +52,13 @@ test('generates default Claude, Codex, and Copilot catalogs from root plugin man
 		})
 		expect(readJson(root, '.github/plugin/marketplace.json')).toMatchObject({
 			name: path.basename(root),
-			owner: 'unional',
+			owner: { name: 'unional' },
 			plugins: [{ name: 'alpha', source: './plugins/alpha' }],
+		})
+		expect(readJson(root, '.cursor-plugin/marketplace.json')).toMatchObject({
+			name: path.basename(root),
+			owner: { name: 'unional' },
+			plugins: [{ name: 'alpha', source: './plugins/alpha', description: 'An alpha plugin' }],
 		})
 	} finally {
 		fs.rmSync(root, { recursive: true, force: true })
@@ -90,20 +96,37 @@ test('requires a canonical version when generating a Codex catalog', () => {
 	}
 })
 
-test('selects only requested targets and creates the Cursor non-provisioning scaffold', () => {
+test('selects only requested targets and writes Cursor the catalog it documents', () => {
 	const root = fixture('universal-plugin-marketplace-cursor-')
 	try {
 		const result = initializeMarketplace(root, { targets: ['cursor'] })
 		expect(result).toMatchObject([{ target: 'cursor', status: 'generated' }])
 		expect(fs.existsSync(path.join(root, '.claude-plugin/marketplace.json'))).toBe(false)
-		expect(readJson(root, '.cursor-plugin/marketplace-submission.json')).toMatchObject({
+		// The submission scaffold this command used to write rested on Cursor having no
+		// repository-local catalog (.research/local-marketplaces). It has one.
+		expect(fs.existsSync(path.join(root, '.cursor-plugin/marketplace-submission.json'))).toBe(false)
+		expect(fs.existsSync(path.join(root, 'CURSOR_MARKETPLACE_SUBMISSION.md'))).toBe(false)
+		expect(readJson(root, '.cursor-plugin/marketplace.json')).toMatchObject({
 			name: path.basename(root),
-			owner: 'unional',
+			owner: { name: 'unional' },
 			plugins: [{ name: 'alpha', source: './plugins/alpha' }],
 		})
-		expect(fs.readFileSync(path.join(root, 'CURSOR_MARKETPLACE_SUBMISSION.md'), 'utf8')).toMatch(
-			/no publication or provisioning occurred/i,
+	} finally {
+		fs.rmSync(root, { recursive: true, force: true })
+	}
+})
+
+test('carries an object author through to the catalog owner', () => {
+	const root = fixture('universal-plugin-marketplace-owner-')
+	try {
+		fs.writeFileSync(
+			path.join(root, 'plugin.json'),
+			JSON.stringify({ author: { name: 'Bea', email: 'bea@example.com', url: 'https://example.com' } }),
 		)
+		initializeMarketplace(root, { targets: ['claude'] })
+		expect(readJson(root, '.claude-plugin/marketplace.json')).toMatchObject({
+			owner: { name: 'Bea', email: 'bea@example.com', url: 'https://example.com' },
+		})
 	} finally {
 		fs.rmSync(root, { recursive: true, force: true })
 	}
@@ -132,7 +155,7 @@ test('supports dry runs, unchanged reruns, force conflicts, empty defaults, and 
 		const catalog = readJson(root, '.claude-plugin/marketplace.json') as Record<string, unknown>
 		fs.writeFileSync(
 			path.join(root, '.claude-plugin/marketplace.json'),
-			JSON.stringify({ plugins: catalog.plugins, owner: catalog.owner, name: catalog.name }),
+			JSON.stringify({ plugins: catalog.plugins, owner: catalog.owner, name: catalog.name, $schema: catalog.$schema }),
 		)
 		expect(initializeMarketplace(root)[0]).toMatchObject({ status: 'unchanged' })
 		fs.writeFileSync(path.join(root, '.claude-plugin/marketplace.json'), '{"different":true}\n')
@@ -149,12 +172,7 @@ test('supports dry runs, unchanged reruns, force conflicts, empty defaults, and 
 	const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-marketplace-empty-'))
 	try {
 		fs.writeFileSync(path.join(empty, 'plugin.json'), JSON.stringify({ author: 'unional' }))
-		expect(initializeMarketplace(empty).map((row) => row.status)).toEqual([
-			'empty',
-			'empty',
-			'empty',
-			'skipped-default',
-		])
+		expect(initializeMarketplace(empty).map((row) => row.status)).toEqual(['empty', 'empty', 'empty', 'empty'])
 	} finally {
 		fs.rmSync(empty, { recursive: true, force: true })
 	}

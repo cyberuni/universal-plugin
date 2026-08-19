@@ -13,8 +13,9 @@ to prepare local catalogs without handing any repository content to a marketplac
 
 The command is a **local derivation**: it reads only the repository selected by `--root` and writes
 only its generated metadata. A **catalog** is a vendor's local JSON list of plugins and their
-repository-relative sources. A **submission scaffold** is local JSON plus a handoff document; it is
-not a submission.
+repository-relative sources. Generating a catalog is not publishing one: three runtimes install from
+a repository catalog directly, and Cursor's reaches users when an admin imports the repository as a
+team marketplace.
 
 A **marketplace manifest** is a top-level plugin.json used only by this command for marketplace
 metadata. It is independent of the canonical .plugin/plugin.json agent-plugin manifest: a repository
@@ -28,8 +29,8 @@ proving a discovered plugin will install successfully in every vendor runtime.
 
 | Entry point | Trigger | Inputs | Outcome |
 |---|---|---|---|
-| `marketplace init` | A maintainer prepares the normal local catalogs. | `--root`, optionally `--name` and `--owner`. | Claude, Codex, and Copilot catalogs are derived; Cursor is reported as not selected by default. |
-| `marketplace init --claude --codex --copilot --cursor` | A maintainer prepares a selected target set. | One or more target flags. | Exactly the selected targets are planned or generated; Cursor receives a local submission scaffold only when selected. |
+| `marketplace init` | A maintainer prepares the normal local catalogs. | `--root`, optionally `--name` and `--owner`. | Every vendor catalog is derived. |
+| `marketplace init --claude --codex --copilot --cursor` | A maintainer prepares a selected target set. | One or more target flags. | Exactly the selected targets are planned or generated. |
 | `marketplace init --plugin-scan-dir <dir>` | A repository keeps plugins outside the default scan directory. | One or more root-relative scan directories. | Only eligible root-level manifests under those directories are discovered; an invalid requested directory stops before writes. |
 | `marketplace init --dry-run` | A maintainer reviews a proposed generation. | Any target, discovery, and metadata options plus `--dry-run`. | The complete write plan is reported and no generated artifact changes. |
 | `marketplace init --force` | A maintainer intentionally replaces differing selected metadata. | A selected target whose generated artifact differs, plus `--force`. | Only the selected differing artifacts are replaced after preflight succeeds. |
@@ -37,8 +38,7 @@ proving a discovered plugin will install successfully in every vendor runtime.
 
 ### Target and discovery decisions
 
-- With no target flags, the target set is Claude, Codex, and Copilot. Cursor is reported as
-  `skipped-default`, because it requires an explicit submission handoff.
+- With no target flags, the target set is every vendor: Claude, Codex, Copilot, and Cursor.
 - Target flags compose as a union. A target is never generated merely because a different target was
   selected.
 - The default discovery root is the root's plugins directory. Its absence is a successful empty discovery.
@@ -52,24 +52,24 @@ proving a discovered plugin will install successfully in every vendor runtime.
 - Every candidate manifest must be a JSON object with a required `name` string matching
   `^[A-Za-z0-9][A-Za-z0-9._-]*$`. That name is the plugin identity and the `name` emitted in catalog
   entries; names must be unique across all selected scan roots. Marketplace name defaults to the root
-  directory name and follows the same grammar. Owner defaults to the root plugin.json `author` string
-  (or its `author.name`); `--name` and `--owner` override those defaults, and a missing or blank owner
-  stops before writes.
+  directory name and follows the same grammar. Owner is an object carrying `name`, and defaults to the
+  root plugin.json `author`: a string becomes `{ name }`, and an object contributes its `name` plus
+  `email` and `url` when present. `--name` and `--owner` override those defaults, `--owner` supplying
+  the name, and a missing or blank owner stops before writes.
 
 ### Generation and safety decisions
 
-- Claude writes its marketplace.json in .claude-plugin as `{ name, owner, plugins }`, where every
-  plugin is `{ name, source }`. Copilot writes its marketplace.json in .github/plugin as
-  `{ name, owner, metadata: { displayName }, plugins }`, with the same `{ name, source }` plugin
-  entries. Every source is a `./`-prefixed repository-relative string.
+- Claude writes its marketplace.json in .claude-plugin as `{ $schema, name, owner, plugins }`, where
+  every plugin is `{ name, source }`. Cursor writes the same shape without `$schema` to
+  .cursor-plugin, which is the catalog its plugins reference documents. Copilot writes its
+  marketplace.json in .github/plugin as `{ name, owner, metadata: { displayName }, plugins }`, with
+  the same `{ name, source }` plugin entries. Every source is a `./`-prefixed repository-relative
+  string, and `owner` is an object, which is what Claude Code's schema requires.
 - Codex writes its catalog in .agents/plugins as `{ name, interface: { displayName }, plugins }`.
   Each plugin is `{ name, source, policy, category }`, where
   `source` is `{ source: "local", path: "./…" }`, `policy` is
   `{ installation: "AVAILABLE", authentication: "ON_INSTALL" }`, and `category` is
   `"Productivity"`.
-- Cursor writes a marketplace-submission.json file in .cursor-plugin as
-  `{ name, owner, dashboard: "https://cursor.com/dashboard", plugins }`, with `{ name, source }`
-  plugin entries. It also writes a CURSOR_MARKETPLACE_SUBMISSION.md handoff at the repository root.
 - Catalog sources are `./`-prefixed paths relative to `--root`.
 - Generation is deterministic: candidates sort by plugin name and equivalent existing JSON is
   `unchanged` regardless of object-key order or whitespace.
@@ -81,7 +81,7 @@ proving a discovered plugin will install successfully in every vendor runtime.
 - A selected artifact path and every existing parent segment are resolved through symbolic links
   before staging. A link resolving outside `--root` fails before an artifact is staged or written.
 - Every result row contains `target`, `status`, `paths`, and `plugins`, with an optional `reason`.
-  Status is one of `generated`, `unchanged`, `planned`, `empty`, or `skipped-default`.
+  Status is one of `generated`, `unchanged`, `planned`, or `empty`.
 - Default output is a compact TOON table on stdout. `--format json` returns the same rows as JSON.
   stderr contains errors and a clear reminder that no remote marketplace action occurred.
 
@@ -116,10 +116,9 @@ flowchart TD
   O --> P{Did a selected write fail?}
   P -- yes --> E1
   P -- no --> P2[Report generated or unchanged artifacts]
-  I --> Q[Add skipped-default Cursor row when no target flags]
-  N --> Q
-  P2 --> Q
-  Q --> R[Render TOON or JSON on stdout; local-only notice on stderr]
+  I --> R[Render TOON or JSON on stdout; local-only notice on stderr]
+  N --> R
+  P2 --> R
 ```
 
 ## Scenario map
@@ -128,13 +127,12 @@ flowchart TD
 
 | Edge | Path (Given) | Scenario |
 |---|---|---|
-| default targets | no target flags; eligible plugins exist | `default initialization generates the three catalog targets` |
+| default targets | no target flags; eligible plugins exist | `default initialization generates every vendor catalog` |
 | Claude shape | Claude is selected; eligible plugins exist | `the Claude catalog records marketplace ownership and local plugin sources` |
 | Codex shape | Codex is selected; eligible plugins exist | `the Codex catalog records its display name and local availability policy` |
 | Copilot shape | Copilot is selected; eligible plugins exist | `the Copilot catalog records marketplace display metadata and local plugin sources` |
 | explicit target union | Claude and Copilot flags selected | `explicit selectors generate exactly their union` |
-| Cursor opt-in | Cursor flag selected; eligible plugins exist | `explicit Cursor selection creates only a local submission scaffold` |
-| Cursor shape | Cursor is selected; eligible plugins exist | `the Cursor submission JSON identifies the marketplace and dashboard` |
+| Cursor shape | Cursor is selected; eligible plugins exist | `the Cursor catalog records marketplace ownership and local plugin sources` |
 | default discovery empty | default plugins directory absent | `a missing default scan directory is an empty success` |
 | explicit root guard | requested scan directory escapes `--root` | `an out-of-root explicit scan directory fails before writes` |
 | explicit root existence | requested in-root scan directory is absent | `a missing explicit scan directory fails before writes` |
@@ -144,6 +142,7 @@ flowchart TD
 | explicit scan union | two explicit scan roots each contain an eligible plugin | `repeated scan roots contribute their plugin union` |
 | metadata defaults | root name and author are available | `marketplace metadata uses the root name and author by default` |
 | object-author default | root author is an object with `name` | `an object-form root author supplies the default owner` |
+| owner contact fields | root author object carries `email` and `url` | `an object-form root author carries its contact fields into the owner` |
 | metadata override | explicit name and owner are supplied | `explicit marketplace metadata overrides the defaults` |
 | owner guard | no root author and no `--owner` | `a missing marketplace owner fails before writes` |
 | derived-name guard | the root directory name violates the allowed grammar | `an invalid derived marketplace name fails before writes` |

@@ -32,7 +32,7 @@ test('default command reports selected targets in TOON and local-only diagnostic
 	const result = run()
 	expect(result.status).toBe(0)
 	expect(result.stdout).toMatch(/claude/)
-	expect(result.stdout).toMatch(/skipped-default/)
+	expect(result.stdout).toMatch(/cursor/)
 	expect(result.stderr).toMatch(/no marketplace publication/i)
 })
 

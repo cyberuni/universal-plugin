@@ -26,7 +26,7 @@ function initCommand(): Command {
 		.option('--claude', 'Generate the Claude marketplace catalog')
 		.option('--codex', 'Generate the Codex marketplace catalog')
 		.option('--copilot', 'Generate the Copilot marketplace catalog')
-		.option('--cursor', 'Generate the Cursor submission scaffold')
+		.option('--cursor', 'Generate the Cursor marketplace catalog')
 		.option(
 			'--plugin-scan-dir <dir>',
 			'Directory beneath --root to scan for root-level plugin.json files (repeatable)',

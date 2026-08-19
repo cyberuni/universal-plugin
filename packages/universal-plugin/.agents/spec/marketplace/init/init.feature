@@ -6,19 +6,19 @@ Feature: marketplace init — derive local marketplace metadata
 
   # ── Target selection and discovery ──
 
-  Scenario: default initialization generates the three catalog targets
+  Scenario: default initialization generates every vendor catalog
     Given the root plugin.json has author "Ari"
     And its plugins directory contains eligible plugins "alpha" and "beta"
     When I run "universal-plugin marketplace init --root <root>"
-    Then Claude Codex and Copilot catalog files exist
-    And the result has a Cursor row with status "skipped-default"
+    Then Claude Codex Copilot and Cursor catalog files exist
     And the exit code is 0
 
   Scenario: the Claude catalog records marketplace ownership and local plugin sources
     Given the root plugin.json has author "Ari"
     And its plugins directory contains eligible plugins "alpha" and "beta"
     When I run "universal-plugin marketplace init --claude --root <root>"
-    Then the Claude catalog has the root name and owner "Ari"
+    Then the Claude catalog has the root name and owner object with name "Ari"
+    And the Claude catalog carries the Claude Code marketplace schema URL
     And each Claude catalog plugin is an object with name and "./"-prefixed source fields
     And the exit code is 0
 
@@ -36,7 +36,7 @@ Feature: marketplace init — derive local marketplace metadata
     Given the root plugin.json has author "Ari"
     And its plugins directory contains eligible plugins "alpha" and "beta"
     When I run "universal-plugin marketplace init --copilot --root <root>"
-    Then the Copilot catalog has the root name owner "Ari" and matching display metadata
+    Then the Copilot catalog has the root name owner object with name "Ari" and matching display metadata
     And each Copilot catalog plugin is an object with name and "./"-prefixed source fields
     And the exit code is 0
 
@@ -46,25 +46,17 @@ Feature: marketplace init — derive local marketplace metadata
     When I run "universal-plugin marketplace init --claude --copilot --root <root>"
     Then Claude and Copilot catalog files exist
     And the Codex catalog file does not exist
-    And the Cursor submission files do not exist
+    And the Cursor catalog file does not exist
     And the exit code is 0
 
-  Scenario: explicit Cursor selection creates only a local submission scaffold
+  Scenario: the Cursor catalog records marketplace ownership and local plugin sources
     Given the root plugin.json has author "Ari"
     And its plugins directory contains eligible plugins "alpha" and "beta"
     When I run "universal-plugin marketplace init --cursor --root <root>"
-    Then the Cursor submission JSON and Markdown files exist
-    And the Markdown links the Cursor dashboard
-    And the output states that no publication or provisioning occurred
+    Then the Cursor catalog has the root name and owner object with name "Ari"
+    And each Cursor catalog plugin is an object with name and "./"-prefixed source fields
+    And no Cursor submission scaffold file exists
     And the Claude Codex and Copilot catalog files do not exist
-    And the exit code is 0
-
-  Scenario: the Cursor submission JSON identifies the marketplace and dashboard
-    Given the root plugin.json has author "Ari"
-    And its plugins directory contains eligible plugins "alpha" and "beta"
-    When I run "universal-plugin marketplace init --cursor --root <root>"
-    Then the Cursor submission JSON has the root name owner "Ari" and dashboard "https://cursor.com/dashboard"
-    And each Cursor submission plugin is an object with name and "./"-prefixed source fields
     And the exit code is 0
 
   Scenario: a missing default scan directory is an empty success
@@ -125,20 +117,27 @@ Feature: marketplace init — derive local marketplace metadata
     Given the root plugin.json has author "Ari"
     And its plugins directory contains eligible plugins "alpha" and "beta"
     When I run "universal-plugin marketplace init --claude --root <root>"
-    Then the Claude catalog names the root directory and owner "Ari"
+    Then the Claude catalog names the root directory and owner name "Ari"
     And the exit code is 0
 
   Scenario: an object-form root author supplies the default owner
     Given the root plugin.json author object has name "Bea"
     And its plugins directory contains eligible plugins "alpha" and "beta"
     When I run "universal-plugin marketplace init --claude --root <root>"
-    Then the Claude catalog owner is "Bea"
+    Then the Claude catalog owner name is "Bea"
+    And the exit code is 0
+
+  Scenario: an object-form root author carries its contact fields into the owner
+    Given the root plugin.json author object has name "Bea" email "bea@example.com" and url "https://example.com"
+    And its plugins directory contains eligible plugins "alpha" and "beta"
+    When I run "universal-plugin marketplace init --claude --root <root>"
+    Then the Claude catalog owner has name "Bea" email "bea@example.com" and url "https://example.com"
     And the exit code is 0
 
   Scenario: explicit marketplace metadata overrides the defaults
     Given its plugins directory contains eligible plugins "alpha" and "beta"
     When I run "universal-plugin marketplace init --claude --name team-catalog --owner Bea --root <root>"
-    Then the Claude catalog names "team-catalog" and owner "Bea"
+    Then the Claude catalog names "team-catalog" and owner name "Bea"
     And the exit code is 0
 
   Scenario: a missing marketplace owner fails before writes

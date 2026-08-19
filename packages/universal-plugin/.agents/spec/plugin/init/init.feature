@@ -93,6 +93,77 @@ Feature: plugin init — scaffold a plugin project, and wire an npm package to s
     Then the exit code is 1
     And stderr contains "--frobnicate"
 
+  # ── Register the plugin in the repository's local marketplace ──
+
+  Scenario: --vendor writes each selected vendor's catalog at the repository root
+    Given the project root is "packages/my-plugin" in a repository with remote "pan/uip-pods"
+    When I run "universal-plugin plugin init --vendor claude-code --vendor cursor --yes --root <root>"
+    Then the exit code is 0
+    And ".claude-plugin/marketplace.json" is written at the repository root
+    And ".cursor-plugin/marketplace.json" is written at the repository root
+
+  Scenario: the catalog entry sources the plugin where it sits in the repository
+    Given the project root is "packages/my-plugin" in a repository with remote "pan/uip-pods"
+    When I run "universal-plugin plugin init --vendor claude-code --yes --root <root>"
+    Then the Claude catalog lists this plugin with source "./packages/my-plugin"
+
+  Scenario: the marketplace is named after the repository and marked local
+    Given the project root is "packages/my-plugin" in a repository with remote "pan/uip-pods"
+    When I run "universal-plugin plugin init --vendor claude-code --yes --root <root>"
+    Then the Claude catalog is named "pan-uip-pods-local"
+    And the Claude catalog owner is an object with name "pan"
+
+  Scenario: an existing catalog keeps its name, owner, and other plugins
+    Given the repository root carries a Claude catalog named "hand-named" listing plugin "other"
+    When I run "universal-plugin plugin init --vendor claude-code --yes --root <root>"
+    Then the Claude catalog is named "hand-named"
+    And the Claude catalog still lists "other" with its own source
+    And the Claude catalog also lists this plugin
+
+  Scenario: an entry version the canonical manifest does not carry is removed
+    Given the repository root carries a Claude catalog whose entry for this plugin has version "9.9.9"
+    And the canonical manifest declares no version
+    When I run "universal-plugin plugin init --vendor claude-code --force --yes --root <root>"
+    Then this plugin's catalog entry declares no version
+
+  Scenario: re-running init reports the catalogs unchanged
+    Given a previous run wrote the Claude catalog
+    When I run "universal-plugin plugin init --vendor claude-code --force --yes --root <root>"
+    Then the Claude catalog row reports "unchanged"
+    And the exit code is 0
+
+  Scenario: without --vendor no catalog is written
+    When I run "universal-plugin plugin init --yes --root <root>"
+    Then no marketplace catalog is written
+    And the exit code is 0
+
+  Scenario: --no-marketplace writes no catalog
+    When I run "universal-plugin plugin init --vendor claude-code --no-marketplace --yes --root <root>"
+    Then no marketplace catalog is written
+    And the exit code is 0
+
+  Scenario: outside a repository the catalogs are skipped with a note
+    Given the project root is not inside a repository
+    When I run "universal-plugin plugin init --vendor claude-code --yes --root <root>"
+    Then no marketplace catalog is written
+    And stderr names "repository"
+    And the exit code is 0
+
+  Scenario: with no owner to name the catalogs are skipped with a note
+    Given the repository has no remote and the package declares no author
+    When I run "universal-plugin plugin init --vendor claude-code --yes --root <root>"
+    Then no marketplace catalog is written
+    And stderr names "owner"
+    And the exit code is 0
+
+  Scenario: the Codex catalog is skipped with a note until the manifest carries a version
+    Given the project root is "packages/my-plugin" in a repository with remote "pan/uip-pods"
+    When I run "universal-plugin plugin init --vendor codex --vendor claude-code --yes --root <root>"
+    Then ".agents/plugins/marketplace.json" is not written
+    And ".claude-plugin/marketplace.json" is written at the repository root
+    And stderr names "version"
+    And the exit code is 0
+
   # ── Wire an npm package to ship the plugin ──
 
   Scenario: --npm defaults to wiring the claude-code manifest path

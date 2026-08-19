@@ -17,8 +17,8 @@ Nothing is published. The catalogs sit in the repository until someone adds it a
 | --- | --- |
 | Claude Code | a catalog plus two documented commands; works end to end |
 | GitHub Copilot CLI | same, with `copilot plugin marketplace add` |
-| Codex | installs through an in-CLI browser; no documented marketplace verb, and the catalog path this project writes has no published schema |
-| Cursor | no repository-local marketplace exists; the output is a submission handoff |
+| Codex | a catalog plus `codex plugin marketplace add` and `codex plugin add`, both shipped and undocumented; works end to end |
+| Cursor | a catalog Cursor reads, but no command that adds it locally; users get it through a team marketplace an admin imports |
 
 `references/runtimes.md` is the only source of install commands, and every command in it carries an
 evidence ID. That constraint exists because the obvious way to write an install section is to copy
