@@ -118,7 +118,7 @@ ADR-0006 corrects that.
 | [`plugin/install/`](./plugin/install/README.md) | behavioral | `universal-plugin plugin install [--vendor] [--link\|--copy] [--force] [--list]` and `plugin uninstall` — put the working copy into the local plugin directory of each runtime the manifest declares, and take it back out. Local development only; a marketplace or registry install stays the runtime's own job (ADR-0012) |
 | [`governance/`](./governance/README.md) | behavioral | `universal-plugin governance show <name>` / `list` — resolve governance documents by name across scopes |
 | [`marketplace/`](./marketplace/README.md) | group | the repository-local marketplace metadata command group |
-| [`marketplace/init/`](./marketplace/init/README.md) | behavioral | `universal-plugin marketplace init [--claude] [--codex] [--copilot] [--cursor]` — generate local vendor catalogs or a Cursor submission scaffold; no remote marketplace operation |
+| [`marketplace/init/`](./marketplace/init/README.md) | behavioral | `universal-plugin marketplace init [--claude] [--codex] [--copilot] [--cursor]` — generate each vendor's local marketplace catalog; no remote marketplace operation |
 | [`config/`](./config/README.md) | group | the `config` command group — read/write plugin-registered keyed config in `.agents/universal-plugin.json` |
 | [`config/add/`](./config/add/README.md) | behavioral | `universal-plugin config add --key <key> --entry '<json>'` — append (or replace by `name`) an entry in the array at `<key>`; idempotent, preserves other keys |
 | [`config/get/`](./config/get/README.md) | behavioral | `universal-plugin config get --key <key> [--format json]` — read the array at `<key>` (TOON default; raw array under `--format json`) |
@@ -150,7 +150,7 @@ Where a new concept lives — slot here, do not invent placement (strategy = **c
 - **a new name→document resolution op** (resolve or list governance by name across scopes) →
   `governance/`.
 - **a new repository-local marketplace metadata derivation** (discover eligible plugin roots and
-  emit vendor catalogs or an explicit Cursor submission scaffold) → `marketplace/init/`. This is
+  emit each vendor's catalog) → `marketplace/init/`. This is
   deterministic file generation only: publishing, registration, installation, authentication,
   provisioning, dashboard automation, and service APIs remain outside this package.
 - **a new plugin-registered config op** (read or write a keyed array in `.agents/universal-plugin.json`

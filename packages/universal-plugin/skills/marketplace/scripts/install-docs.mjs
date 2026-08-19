@@ -46,7 +46,7 @@ const copilot = readJson(path.join(root, '.github/plugin/marketplace.json'))
 // prefer its own when both exist. See references/runtimes.md (E-CODEX-M10).
 const codexOwn = readJson(path.join(root, '.agents/plugins/marketplace.json'))
 const codex = codexOwn ?? claude
-const cursor = fs.existsSync(path.join(root, '.cursor-plugin/marketplace-submission.json'))
+const cursor = readJson(path.join(root, '.cursor-plugin/marketplace.json'))
 
 const targets = []
 const sections = []
@@ -94,9 +94,10 @@ if (cursor) {
 		[
 			'**Cursor**',
 			'',
-			'Cursor has no command-line install, so this repository carries a submission scaffold for its',
-			'reviewed marketplace. To try the plugin before it is listed, run',
-			'`npx universal-plugin plugin install --vendor cursor` in a clone, then reload the window.',
+			'This repository carries a Cursor catalog, but Cursor has no command that adds it from a',
+			'local path: a team admin imports the repository from the Cursor dashboard. To try the plugin',
+			'before then, run `npx universal-plugin plugin install --vendor cursor` in a clone, then',
+			'reload the window.',
 		].join('\n'),
 	)
 }

@@ -5,6 +5,6 @@ marketplace workflows. It does not publish, register, install, authenticate, pro
 remote service API. Those operations remain outside this package's charter.
 
 - [`init/`](./init/README.md) — discover eligible root-level `plugin.json` manifests below approved
-  scan roots and generate marketplace catalogs or a Cursor submission scaffold.
+  scan roots and generate each vendor's marketplace catalog.
 
 This is a descriptive group index (no `spec-type` marker); behavior lives in the unit node below.

@@ -75,19 +75,23 @@ so a source edit is invisible until the plugin is reinstalled and a new session 
 
 ## Cursor — a catalog it reads, but no command to install from one
 
-Users install from the Customize sidebar, sourced from Cursor's reviewed marketplace,
-cursor.directory, or a team marketplace (E-CUR-M1); `cursor-agent` has no plugin subcommand
-(E-CUR-M2). Cursor does read a repository-local catalog — `.cursor-plugin/marketplace.json` or
-`.claude-plugin/marketplace.json` (E-CUR-M5) — so the Claude catalog covers it, but nothing on the
-command line consumes one.
+Cursor reads a repository-local catalog: `.cursor-plugin/marketplace.json` or
+`.claude-plugin/marketplace.json` (E-CUR-M5), so the Claude catalog covers it. The documented shape
+is close to Claude Code's — `name`, an object `owner` carrying `name` and an optional `email`, and
+`plugins` whose `source` is a path inside the repository (E-CUR-M6). `marketplace init --cursor`
+writes it.
+
+Nothing on the command line consumes one. `cursor-agent` has no plugin subcommand (E-CUR-M2), and
+users install from the Customize sidebar, sourced from Cursor's reviewed marketplace,
+cursor.directory, or a team marketplace (E-CUR-M1). A repository catalog reaches users when an admin
+imports it: Dashboard → Plugins → Team Marketplaces → Add Marketplace → Import from Repo, after
+which Auto Refresh tracks the branch the marketplace is configured against (E-CUR-M7). So generate
+the file and write no Cursor install command.
 
 For local development, `universal-plugin plugin install` copies the plugin into
 `~/.cursor/plugins/local/<name>`; reload the window afterwards. It copies rather than symlinks
 because Cursor's scan resolves each symlink and rejects a target outside that directory (E-CUR-M4),
 which is what the `ln -sfn "$(pwd)"` recipe that used to sit here ran into.
-
-`marketplace init --cursor` writes `.cursor-plugin/marketplace-submission.json` and a
-`CURSOR_MARKETPLACE_SUBMISSION.md` handoff. Both are inputs to a human submission.
 
 ## When these decay
 

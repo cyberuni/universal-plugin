@@ -3,6 +3,7 @@ import * as path from 'node:path'
 import { type MarketplaceFs, realMarketplaceFs } from './fs.js'
 import {
 	assertMarketplaceName,
+	type MarketplaceOwner,
 	type MarketplacePlugin,
 	type MarketplaceStatus,
 	type MarketplaceTarget,
@@ -28,7 +29,7 @@ export interface MarketplaceResult {
 
 interface RootMetadata {
 	name: string
-	owner: string
+	owner: MarketplaceOwner
 }
 
 function isInside(root: string, candidate: string): boolean {
@@ -63,11 +64,17 @@ function parseManifest(fs: MarketplaceFs, file: string): Record<string, unknown>
 	}
 }
 
-function manifestOwner(manifest: Record<string, unknown>): string | undefined {
-	if (typeof manifest.author === 'string') return manifest.author
+/** The canonical manifest's `author` — a string or an `{ name, email?, url? }` object — read as the
+ *  catalog owner every runtime requires as an object. */
+function manifestOwner(manifest: Record<string, unknown>): MarketplaceOwner | undefined {
+	if (typeof manifest.author === 'string') return { name: manifest.author }
 	if (typeof manifest.author === 'object' && manifest.author !== null) {
 		const author = manifest.author as Record<string, unknown>
-		if (typeof author.name === 'string') return author.name
+		if (typeof author.name !== 'string') return undefined
+		const owner: MarketplaceOwner = { name: author.name }
+		if (typeof author.email === 'string') owner.email = author.email
+		if (typeof author.url === 'string') owner.url = author.url
+		return owner
 	}
 	return undefined
 }
@@ -77,9 +84,9 @@ function deriveMetadata(root: string, fs: MarketplaceFs, opts: MarketplaceInitOp
 	if (fs.exists(rootManifest)) assertContained(root, rootManifest, fs, 'root plugin.json')
 	const manifest = fs.exists(rootManifest) ? parseManifest(fs, rootManifest) : {}
 	const name = opts.name ?? path.basename(root)
-	const owner = opts.owner ?? manifestOwner(manifest)
+	const owner = opts.owner !== undefined ? { name: opts.owner } : manifestOwner(manifest)
 	assertMarketplaceName(name, 'marketplace name')
-	if (!owner || owner.trim() === '')
+	if (!owner || owner.name.trim() === '')
 		throw new Error('error: marketplace owner is required; set --owner or root plugin.json author')
 	return { name, owner }
 }
@@ -139,7 +146,7 @@ function writeArtifacts(fs: MarketplaceFs, artifacts: { path: string; content: s
 }
 
 function selectedTargets(targets?: MarketplaceTarget[]): MarketplaceTarget[] {
-	return targets && targets.length > 0 ? [...new Set(targets)] : ['claude', 'codex', 'copilot']
+	return targets && targets.length > 0 ? [...new Set(targets)] : ['claude', 'codex', 'copilot', 'cursor']
 }
 
 function sameArtifact(fs: MarketplaceFs, file: string, content: string): boolean {
@@ -210,16 +217,6 @@ export function initializeMarketplace(
 			planned.flatMap((entry) => entry.artifacts),
 			root,
 		)
-	}
-
-	if (!opts.targets || opts.targets.length === 0) {
-		results.push({
-			target: 'cursor',
-			status: 'skipped-default',
-			paths: [],
-			plugins: [],
-			reason: 'Cursor requires an explicit submission scaffold',
-		})
 	}
 	return results
 }

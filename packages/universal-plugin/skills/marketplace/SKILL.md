@@ -1,6 +1,6 @@
 ---
 name: marketplace
-description: Use this skill to let people install a plugin straight from its own repository — generate the local marketplace catalogs Claude Code, Codex, and GitHub Copilot CLI read, prepare the Cursor submission scaffold, and write the README install section that tells users what to type. Trigger on "set up a local marketplace", "let users install this from my repo", "generate marketplace catalogs", "add install instructions to the README", "how do people install this plugin", or "make this repo installable".
+description: Use this skill to let people install a plugin straight from its own repository — generate the local marketplace catalogs Claude Code, Codex, GitHub Copilot CLI, and Cursor read, and write the README install section that tells users what to type. Trigger on "set up a local marketplace", "let users install this from my repo", "generate marketplace catalogs", "add install instructions to the README", "how do people install this plugin", or "make this repo installable".
 argument-hint: '[--claude] [--codex] [--copilot] [--cursor] [--dry-run] [--force]'
 ---
 
@@ -9,14 +9,15 @@ argument-hint: '[--claude] [--codex] [--copilot] [--cursor] [--dry-run] [--force
 A repository can carry its own catalog, so a user adds the repository as a marketplace and installs
 from it. No service, no submission, no account.
 
-Three of the four runtimes install this way. Cursor does not.
+All four runtimes read such a catalog. Three of them let a user add it; Cursor's reaches users when
+an admin imports the repository as a team marketplace.
 
 | Runtime | Catalog it reads | What the user types |
 | --- | --- | --- |
 | Claude Code | `.claude-plugin/marketplace.json` | `/plugin marketplace add`, then `/plugin install` |
 | Codex | `.agents/plugins/marketplace.json`, or the Claude path | `codex plugin marketplace add`, then `codex plugin add` |
 | GitHub Copilot CLI | `.github/plugin/marketplace.json`, or the Claude path | `copilot plugin marketplace add`, then `copilot plugin install` |
-| Cursor | none; it installs from its own reviewed marketplace | submission, not a repository catalog |
+| Cursor | `.cursor-plugin/marketplace.json` | nothing; an admin imports the repository as a team marketplace |
 
 Read `references/runtimes.md` before writing any command into a README, and treat that file as the
 only source of install commands. The trap that lives there: Codex installs with `plugin add` where
@@ -41,16 +42,13 @@ before any write.
 
 ### 2. Choose targets with the user
 
-Name the runtimes and what each one gets, using the table above. Default to
-`--claude --codex --copilot`, which is what the command selects with no target flags.
+Name the runtimes and what each one gets, using the table above. With no target flags the command
+selects all four.
 
 One catalog can serve two runtimes when the user wants fewer files: Codex reads the Claude catalog
 too, so `--claude` alone covers both. The reverse does not hold, because Claude Code rejects the
 Codex catalog for its missing `owner`. Generating both is the default, so each is idiomatic for its
 runtime.
-
-Offer Cursor only when the user intends to submit, since the scaffold is a handoff document and a
-`CURSOR_MARKETPLACE_SUBMISSION.md` at the repository root.
 
 ### 3. Generate
 
@@ -69,7 +67,6 @@ Then generate for real. Selected targets compose as a union, so name every targe
 | `unchanged` | already correct, byte differences in key order and whitespace ignored |
 | `planned` | `--dry-run` only |
 | `empty` | nothing discovered for this target |
-| `skipped-default` | Cursor, which is never selected implicitly |
 
 A selected artifact that differs from what would be generated stops the whole run. That is the
 command protecting a hand-edited catalog. Read the difference, then re-run with `--force` only once
@@ -137,7 +134,9 @@ The catalog's plugin version is derived from the canonical manifest, so a versio
   is worse than no install section. Widely-copied README snippets are not sources.
 - **Name every catalog `marketplace.json`.** Codex discovers a catalog by that filename inside a
   supported directory. A file named anything else is invisible to it, whatever directory holds it.
-- **Do not describe the Cursor scaffold as an install path.** It is a handoff for a submission.
+- **Do not write a Cursor install command.** Cursor has no command that adds a repository catalog;
+  a developer tests through `~/.cursor/plugins/local/<name>` and users get the plugin through a team
+  marketplace an admin imports.
 - **Ask before editing the README**, and before `--force` replaces a catalog the user may have
   hand-edited.
 - This command publishes nothing and registers nothing. Say so in the report; a user who believes
