@@ -51,6 +51,12 @@ if (manifest === null) {
 }
 
 const ext = manifest.extensions?.[UP_NAMESPACE] ?? null
+
+// `packagePath` is the CLI's own config, and the CLI reads it from `.agents/universal-plugin.json`
+// (src/version/fs.ts). It is read here from the same file, so a plugin the CLI treats as npm-shipping
+// is one this script treats the same way. The manifest extension is accepted as a fallback for a
+// repository that put it there.
+const packagePath = readPackagePath()
 if (!manifest.$schema?.includes('agent-plugins.org') || ext === null) {
 	add(
 		'legacy-manifest',
@@ -148,27 +154,91 @@ if (build === null) {
 }
 
 // Version drift between the two authored numbers.
-if (ext?.packagePath) {
-	const pkgPath = path.join(root, ext.packagePath, 'package.json')
+if (packagePath !== null) {
+	const pkgPath = path.join(root, packagePath, 'package.json')
 	const pkg = readJson(pkgPath)
 	if (pkg === null) {
 		add(
 			'package-path-missing',
 			'medium',
-			`packagePath names ${ext.packagePath}, which holds no readable package.json`,
+			`packagePath names ${packagePath}, which holds no readable package.json`,
 			'fix packagePath, or create the package',
 		)
 	} else if (manifest.version !== undefined && pkg.version !== manifest.version) {
 		add(
 			'version-drift',
 			'high',
-			`plugin.json is ${manifest.version}, ${ext.packagePath}/package.json is ${pkg.version}`,
+			`plugin.json is ${manifest.version}, ${packagePath}/package.json is ${pkg.version}`,
 			'/universal-plugin:version',
 		)
 	}
 }
 
+// Content shipped since the version last moved (ADR-0010 §6). A runtime keys its plugin cache on the
+// version, so anything committed after the commit that set the current one is invisible to a consumer
+// who already installed the plugin. Read-only: the comparison is git's, and it is skipped wherever
+// git cannot answer.
+//
+// Not run where the release picks the number. ADR-0010 §2 makes `packagePath` the switch: a plugin
+// that ships to npm gets its version from the release, so content sitting ahead of the last released
+// one is the normal state there, not a defect. Only the author-picks model can forget the bump.
+if (manifest.version !== undefined && packagePath === null) {
+	const introduced = commitThatSetVersion(manifest.version)
+	if (introduced !== null) {
+		const changed = git('diff', '--name-only', `${introduced}..HEAD`, '--', ...shippedPaths())
+		const files = (changed ?? '').split('\n').filter(Boolean)
+		if (files.length > 0) {
+			const sample = files.slice(0, 3).join(', ')
+			add(
+				'unreleased-content',
+				'medium',
+				`${files.length} shipped file(s) changed since ${manifest.version} was set (${sample}${files.length > 3 ? ', …' : ''}) — a consumer keyed on that version never re-extracts them`,
+				'/universal-plugin:version',
+			)
+		}
+	}
+}
+
 report({ vendors })
+
+/** Runs git inside `root`, returning its stdout or `null` — a non-zero status, a missing git, and a
+ *  directory outside any repository are all the same answer here: no history to read. */
+function git(...args) {
+	const result = spawnSync('git', ['-C', root, ...args], { encoding: 'utf8' })
+	return result.status === 0 ? result.stdout.trim() : null
+}
+
+/** The commit that introduced the version the manifest carries now, walking `plugin.json`'s history
+ *  newest-first until the version changes. `null` when there is no history, or when the newest
+ *  committed manifest already disagrees — that version is uncommitted, so nothing shipped under it. */
+function commitThatSetVersion(current) {
+	const log = git('log', '--format=%H', '-100', '--', 'plugin.json')
+	if (log === null || log === '') return null
+
+	let introduced = null
+	for (const sha of log.split('\n').filter(Boolean)) {
+		const blob = git('show', `${sha}:./plugin.json`)
+		if (blob === null) break
+		let version
+		try {
+			version = JSON.parse(blob).version
+		} catch {
+			break
+		}
+		if (version !== current) break
+		introduced = sha
+	}
+	return introduced
+}
+
+/** What a consumer installs, as pathspecs. The derived vendor manifests are deliberately absent —
+ *  they only ever change because the canonical manifest did, and counting both would report one
+ *  change twice. */
+function shippedPaths() {
+	const skills = typeof ext?.skills === 'string' ? ext.skills : './skills/'
+	const paths = ['plugin.json', skills, 'agents', 'governances', 'mcp.json']
+	return paths.filter((rel) => fs.existsSync(path.join(root, rel)))
+}
 
 function readJson_stdout(stdout) {
 	if (!stdout) return null
@@ -193,4 +263,11 @@ function report({ vendors }) {
 		for (const f of findings) process.stderr.write(`  [${f.severity}] ${f.code}: ${f.detail}\n`)
 	}
 	process.exit(0)
+}
+
+/** Where the npm package that ships this plugin lives, or `null` when the plugin ships to no
+ *  package. `null` is the author-picks release model of ADR-0010 §2. */
+function readPackagePath() {
+	const declared = readJson(path.join(root, '.agents', 'universal-plugin.json'))?.packagePath ?? ext?.packagePath
+	return typeof declared === 'string' && declared.length > 0 ? declared : null
 }

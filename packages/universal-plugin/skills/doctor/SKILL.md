@@ -70,6 +70,7 @@ Each `code` below is what the script emits.
 | `undeliverable-override` | `harnesses["copilot-cli"]` sets fields that reach nothing | `/universal-plugin:init`, update route — move them to a vendor that has a derived manifest, or drop them |
 | `codex-fields-missing` | Codex is targeted without `version` or `description`; the build fails and writes **nothing at all**, including for the other vendors | add both to the canonical top level |
 | `version-drift` | the `packagePath` `package.json` and the canonical manifest carry different versions | `/universal-plugin:version` |
+| `unreleased-content` | shipped content was committed after the commit that set the current version — a consumer keyed on that version never re-extracts it | `/universal-plugin:version` |
 | `stale-github-plugin` | a leftover `.github/plugin/plugin.json` from an older build — shadowed by root and no longer generated | `/universal-plugin:remove-plugin` |
 | `shadowing-manifest` | a `.plugin/plugin.json` exists — it outranks root in Copilot CLI's search order and silently shadows the canonical manifest | `/universal-plugin:remove-plugin` |
 | `no-vendors` | no vendor is declared, so the build writes nothing and no runtime reads the plugin | `/universal-plugin:init`, update route |
@@ -103,6 +104,25 @@ them and emits `version-drift`.
 They diverge when someone ran `npm version`, or when changesets released a number that never flowed
 back. Both are `/universal-plugin:version`'s to fix — never patch one file by hand to match the
 other.
+
+## Unreleased content
+
+A runtime keys its plugin cache on the version, not on content: Claude Code resolves the version,
+finds it unchanged, and reports *"already at the latest version"* without re-extracting. So content
+pushed without a bump reaches nobody who already installed the plugin, and neither side is told
+([ADR-0010](../../.agents/spec/design/decisions/0010-version-policy.md) §6).
+
+The script compares the shipped paths — the canonical manifest, the skills directory, `agents/`,
+`governances/`, `mcp.json` — against the commit that set the version the manifest carries now, and
+emits `unreleased-content` for anything committed since. Uncommitted work is not reported; it has not
+shipped.
+
+Two cases are deliberately silent. A plugin that declares `packagePath` is skipped, because there the
+release picks the number (ADR-0010 §2) and content waiting ahead of the last released version is the
+normal state of a branch. A tree with no git history is skipped rather than guessed at.
+
+The repair is the bump, and it belongs to `/universal-plugin:version`. Judge first whether the change
+is meant to ship — content that is still being worked on is not a finding to act on.
 
 ## Rules
 
