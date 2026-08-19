@@ -25,6 +25,7 @@ Manifest authoring lives under the `plugin` command group. The other groups sit 
 |---|---|
 | [`plugin build`](../build/) | Generate vendor manifests from root `plugin.json` |
 | `plugin init` | Scaffold a canonical `plugin.json` |
+| [`plugin install`](../install/) | Install the plugin under development into the runtimes it targets (and `plugin uninstall`) |
 | `plugin version <bump>` | Move the version across every file that carries one |
 | `plugin bundle` | Pin skill `npx` references to workspace versions |
 | [`config`](../config/) | Read and write plugin-registered config in `.agents/universal-plugin.json` |

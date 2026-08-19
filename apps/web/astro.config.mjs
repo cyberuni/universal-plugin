@@ -32,6 +32,7 @@ export default defineConfig({
 					items: [
 						{ label: 'Overview', slug: 'cli/overview' },
 						{ label: 'plugin build', slug: 'cli/build' },
+						{ label: 'plugin install', slug: 'cli/install' },
 						{ label: 'config', slug: 'cli/config' },
 					],
 				},

@@ -94,9 +94,9 @@ if (cursor) {
 		[
 			'**Cursor**',
 			'',
-			'Cursor installs from its own reviewed marketplace rather than from a repository, so this',
-			'repository carries a submission scaffold instead of a catalog. To try the plugin before it is',
-			'listed, symlink it into `~/.cursor/plugins/local/`, then reload the window.',
+			'Cursor has no command-line install, so this repository carries a submission scaffold for its',
+			'reviewed marketplace. To try the plugin before it is listed, run',
+			'`npx universal-plugin plugin install --vendor cursor` in a clone, then reload the window.',
 		].join('\n'),
 	)
 }

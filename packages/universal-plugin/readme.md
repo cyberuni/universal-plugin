@@ -37,6 +37,8 @@ Author the canonical manifest and derive everything from it.
 npx universal-plugin plugin init                 # scaffold plugin.json
 npx universal-plugin plugin init --npm           # also wire an npm package to ship it
 npx universal-plugin plugin build                # generate vendor manifests
+npx universal-plugin plugin install              # install the working copy into the runtimes it targets
+npx universal-plugin plugin uninstall            # take it back out
 npx universal-plugin plugin version <bump>       # move the version across every file carrying one
 npx universal-plugin plugin bundle               # pin skill npx references to workspace versions
 ```
@@ -44,6 +46,11 @@ npx universal-plugin plugin bundle               # pin skill npx references to w
 `build` writes `.claude-plugin/plugin.json`, `.cursor-plugin/plugin.json`, and
 `.codex-plugin/plugin.json`. Copilot CLI reads the canonical root `plugin.json` directly, so no
 fourth file is derived.
+
+`install` puts the plugin you are editing into each runtime's local plugin directory, so you can use
+it before publishing anything. It links where the runtime follows a symlink out of the tree, copies
+where it does not, refuses a destination another plugin owns, and prints the reload each runtime now
+needs. Installing a *published* plugin by name stays the runtime's own job.
 
 Each command writes JSON with `JSON.stringify`. Your repository decides how JSON looks, so run your
 formatter after any command that writes a manifest.
