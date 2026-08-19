@@ -9,6 +9,7 @@ import {
 	type MarketplaceTarget,
 	serializeTarget,
 } from './marketplace.js'
+import { formatCatalogIssues, validateCatalogContent } from './validation.js'
 
 export interface MarketplaceInitOptions {
 	targets?: MarketplaceTarget[]
@@ -174,8 +175,15 @@ export function initializeMarketplace(
 	const plugins = discoverPlugins(root, fs, opts.scanDirs)
 	const targets = selectedTargets(opts.targets)
 	const planned = targets.map((target) => ({ target, artifacts: serializeTarget(target, metadata, plugins) }))
-	for (const { artifacts } of planned) {
-		for (const artifact of artifacts) assertContained(root, path.join(root, artifact.path), fs, 'selected artifact')
+	for (const { target, artifacts } of planned) {
+		for (const artifact of artifacts) {
+			assertContained(root, path.join(root, artifact.path), fs, 'selected artifact')
+			// A catalog the runtime would reject is worse than no catalog: it is discovered, read, and
+			// refused at install time, far from here. Check before anything is written, so a manifest
+			// this command cannot reduce to a valid entry stops the whole run.
+			const issues = validateCatalogContent(target, artifact.content)
+			if (issues.length > 0) throw new Error(formatCatalogIssues(artifact.path, issues))
+		}
 	}
 
 	const conflicts: string[] = []

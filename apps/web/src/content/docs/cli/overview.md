@@ -32,6 +32,7 @@ Manifest authoring lives under the `plugin` command group. The other groups sit 
 | `prepare` / `sync` | Detect and apply cross-vendor sync actions for an installed plugin |
 | `publish sync-version` | Copy the package version into the canonical `plugin.json` |
 | [`marketplace init`](../marketplace/) | Generate repository-local marketplace metadata |
+| [`marketplace validate`](../marketplace/#marketplace-validate-checks-what-the-repository-carries) | Check those catalogs against the schema each runtime loads |
 | `governance` | List and show the version-pinned agent-tool contracts |
 | `clean` | Remove the asset store |
 | `self-update` | Update the version pin in `universal-plugin` hook files |

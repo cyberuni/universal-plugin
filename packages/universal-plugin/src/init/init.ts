@@ -14,6 +14,7 @@ import {
 	mergeCatalogEntry,
 	VENDOR_TARGETS,
 } from '../marketplace/marketplace.js'
+import { formatCatalogIssues, validateCatalogContent } from '../marketplace/validation.js'
 
 const SCHEMA_URL = 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json'
 const UP_NAMESPACE = 'org.cyberuni.universal-plugin'
@@ -179,6 +180,11 @@ function planCatalogs(
 		const target = VENDOR_TARGETS[vendor]
 		if (!target) continue
 		const artifact = mergeCatalogEntry(target, metadata, plugin, (path) => repo.catalogs[path])
+		// A catalog this repository already carried may say something its runtime rejects — `owner` as a
+		// string is the usual one. Init folds its entry in and names the problem; it does not rewrite
+		// someone else's top-level metadata.
+		const issues = validateCatalogContent(target, artifact.content)
+		if (issues.length > 0) notes.push(formatCatalogIssues(artifact.path, issues))
 		catalogs.push({ path: `${toPluginRoot}${artifact.path}`, content: artifact.content })
 	}
 	return catalogs

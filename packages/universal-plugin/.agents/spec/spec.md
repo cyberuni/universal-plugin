@@ -119,6 +119,7 @@ ADR-0006 corrects that.
 | [`governance/`](./governance/README.md) | behavioral | `universal-plugin governance show <name>` / `list` — resolve governance documents by name across scopes |
 | [`marketplace/`](./marketplace/README.md) | group | the repository-local marketplace metadata command group |
 | [`marketplace/init/`](./marketplace/init/README.md) | behavioral | `universal-plugin marketplace init [--claude] [--codex] [--copilot] [--cursor]` — generate each vendor's local marketplace catalog; no remote marketplace operation |
+| [`marketplace/validate/`](./marketplace/validate/README.md) | behavioral | `universal-plugin marketplace validate [--claude] [--codex] [--copilot] [--cursor] [--required]` — check the catalogs a repository carries against the schema each vendor's runtime loads, naming the key at fault; reads only |
 | [`config/`](./config/README.md) | group | the `config` command group — read/write plugin-registered keyed config in `.agents/universal-plugin.json` |
 | [`config/add/`](./config/add/README.md) | behavioral | `universal-plugin config add --key <key> --entry '<json>'` — append (or replace by `name`) an entry in the array at `<key>`; idempotent, preserves other keys |
 | [`config/get/`](./config/get/README.md) | behavioral | `universal-plugin config get --key <key> [--format json]` — read the array at `<key>` (TOON default; raw array under `--format json`) |

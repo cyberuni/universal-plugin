@@ -79,7 +79,11 @@ keep their previous version.
 
 ```sh
 npx universal-plugin marketplace init --codex --root .
+npx universal-plugin marketplace validate --root .
 ```
+
+`validate` checks each catalog against the schema its runtime loads and names the key at fault, so a
+catalog that would be refused at install time is caught in the repository.
 
 Codex caches a local plugin install by its marketplace entry version. After you change packaged
 plugin files: update the canonical `plugin.json` version, regenerate the catalog (add `--force` to

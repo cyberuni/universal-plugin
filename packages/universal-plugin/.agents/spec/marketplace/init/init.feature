@@ -59,6 +59,16 @@ Feature: marketplace init — derive local marketplace metadata
     And the Claude Codex and Copilot catalog files do not exist
     And the exit code is 0
 
+  Scenario: entries carry manifest metadata in the shape the catalog schema states
+    Given the root plugin.json has author "Ari"
+    And plugin "alpha" declares repository as an npm object with type and url
+    And plugin "alpha" declares keywords as a string
+    When I run "universal-plugin marketplace init --claude --root <root>"
+    Then the Claude entry for "alpha" carries repository as that url string
+    And the Claude entry for "alpha" carries no keywords field
+    And the Claude catalog is valid for Claude Code
+    And the exit code is 0
+
   Scenario: a missing default scan directory is an empty success
     Given the root plugin.json has author "Ari"
     Given the repository root has no plugins directory

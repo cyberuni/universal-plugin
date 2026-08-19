@@ -77,7 +77,43 @@ A selected artifact that differs from what would be generated stops the whole ru
 command protecting a hand-edited catalog. Read the difference, then re-run with `--force` only once
 you know what it discards.
 
-### 4. Offer the README section
+### 4. Validate every catalog
+
+A catalog the runtime rejects is worse than no catalog: it is found, read, and refused at install
+time, far from here. Never conclude this skill without running the check.
+
+```bash
+node scripts/validate.mjs
+```
+
+Resolve that path against this skill's own directory; `npx universal-plugin marketplace validate` is
+the fallback. It reads each catalog and checks it against the schema its runtime loads. Exit status is
+1 when any selected catalog is invalid, and every issue names the key and the value to write instead,
+on stderr:
+
+```
+error: catalog ".claude-plugin/marketplace.json" does not match the marketplace schema:
+  owner must be an object with a name, not string — write { "name": "Ari Vance" }
+  plugins[0].repository must be a string, not object — write "https://github.com/o/r.git"
+```
+
+| Status | Means |
+| --- | --- |
+| `valid` | loads in that runtime |
+| `invalid` | the runtime would refuse it; the issues say why |
+| `missing` | no catalog at that path, which is only a failure under `--required` |
+
+Fix an issue in the source it comes from, then regenerate: an entry's fields are derived from the
+plugin's `plugin.json`, so an npm-style `repository` object belongs fixed there. The top-level `name`
+and `owner` live in the catalog itself, and `owner` must be an object — `{ "name": "…" }`, never the
+`"Name <email>"` string `package.json` uses.
+
+The two checks the schema cannot make: `--required` for a target the user asked for, and sources on
+disk. Every `./` source is checked for existence by `validate`; sources resolve against the directory
+containing `.claude-plugin/`, and they do not resolve at all for a user who adds the marketplace by
+direct URL to the JSON file.
+
+### 5. Offer the README section
 
 Ask before writing. A README is the user's document, and this is an edit to it, not a new file.
 
@@ -95,15 +131,11 @@ rather than leaving a placeholder in their README.
 If the README already has an install section, show the difference and let the user choose. Do not
 append a second one.
 
-### 5. Verify
+### 6. Verify
 
 Re-run the generator and confirm every selected target reports `unchanged`. Confirm each catalog
 path exists. State plainly that nothing was published: these files sit in the repository until a
 user adds it as a marketplace.
-
-For Claude Code, check that each plugin `source` is a `./`-prefixed path that exists. Sources resolve
-against the directory containing `.claude-plugin/`, and they do not resolve at all for a user who
-adds the marketplace by direct URL to the JSON file.
 
 A local path is the cheapest end-to-end proof:
 
@@ -147,6 +179,11 @@ a version the plugin does not have.
 - **Do not write a Cursor install command.** Cursor has no command that adds a repository catalog;
   a developer tests through `~/.cursor/plugins/local/<name>` and users get the plugin through a team
   marketplace an admin imports.
+- **Never hand-author or hand-patch a catalog.** Generate it, then validate it. A catalog written by
+  copying fields out of `package.json` carries `owner` as a string and `repository` as an object, and
+  Claude Code refuses it for either one.
+- **Report the validation result, not just the generation result.** A run that generated four files
+  and validated none has not been verified.
 - **Ask before editing the README**, and before `--force` replaces a catalog the user may have
   hand-edited.
 - This command publishes nothing and registers nothing. Say so in the report; a user who believes
@@ -166,5 +203,7 @@ a version the plugin does not have.
 ## References
 
 - `references/runtimes.md` — per-runtime install commands and their sources
+- The official Claude Code marketplace schema, which `validate` checks against:
+  <https://json.schemastore.org/claude-code-marketplace.json>
 - [Research conclusion](https://github.com/cyberuni/universal-plugin/blob/main/.research/local-marketplaces/conclusion.md)
 - [`marketplace init` spec](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/marketplace/init/README.md)

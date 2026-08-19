@@ -15,6 +15,7 @@ import {
 	TARGET_CATALOG_PATHS,
 	VENDOR_TARGETS,
 } from '../marketplace/marketplace.js'
+import { formatCatalogIssues, validateCatalogContent } from '../marketplace/validation.js'
 
 type VendorId = 'claude-code' | 'cursor' | 'codex' | 'copilot-cli'
 
@@ -327,6 +328,10 @@ function refreshCatalogs(
 
 		try {
 			const artifact = refreshCatalogEntry(target, plugin, existing)
+			// The build refreshes one entry inside a file it did not author, so an invalid catalog is
+			// reported rather than repaired or refused — `marketplace validate` is where that is fixed.
+			const issues = validateCatalogContent(target, artifact.content)
+			if (issues.length > 0) warnings.push(formatCatalogIssues(relative, issues))
 			if (sameCatalogContent(artifact.content, existing)) {
 				rows.push({ path: relative, status: 'unchanged' })
 				continue

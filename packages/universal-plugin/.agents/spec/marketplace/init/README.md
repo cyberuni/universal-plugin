@@ -73,6 +73,13 @@ proving a discovered plugin will install successfully in every vendor runtime.
   `source` is `{ source: "local", path: "./…" }`, `policy` is
   `{ installation: "AVAILABLE", authentication: "ON_INSTALL" }`, and `category` is
   `"Productivity"`.
+- An entry carries a manifest field only in the shape its catalog schema states. A `repository` the
+  manifest writes as npm does, `{ type, url }`, becomes that URL with any `git+` prefix removed; a
+  value that cannot be reduced to the stated type is omitted rather than written, because an entry
+  missing an optional field still installs and an entry with the wrong type installs nowhere.
+- Every planned artifact is checked against the schema its runtime loads before anything is written
+  (see [`validate/`](../validate/README.md)). A planned catalog that would be refused stops the whole
+  command; generation never emits one.
 - Catalog sources are `./`-prefixed paths relative to `--root`.
 - Generation is deterministic: candidates sort by plugin name and equivalent existing JSON is
   `unchanged` regardless of object-key order or whitespace.
@@ -136,6 +143,7 @@ flowchart TD
 | Copilot shape | Copilot is selected; eligible plugins exist | `the Copilot catalog records marketplace display metadata and local plugin sources` |
 | explicit target union | Claude and Copilot flags selected | `explicit selectors generate exactly their union` |
 | Cursor shape | Cursor is selected; eligible plugins exist | `the Cursor catalog records marketplace ownership and local plugin sources` |
+| npm-shaped metadata | a manifest whose repository is an npm object | `entries carry manifest metadata in the shape the catalog schema states` |
 | default discovery empty | default plugins directory absent | `a missing default scan directory is an empty success` |
 | explicit root guard | requested scan directory escapes `--root` | `an out-of-root explicit scan directory fails before writes` |
 | explicit root existence | requested in-root scan directory is absent | `a missing explicit scan directory fails before writes` |

@@ -46,10 +46,28 @@ export function assertMarketplaceName(value: string, label: string): void {
 	}
 }
 
+/** A manifest field carried into a catalog entry, in the shape the catalog schema states. A manifest
+ *  written from a `package.json` carries `repository` as `{ type, url }`, and every catalog wants the
+ *  URL alone — Claude Code rejects the object (`plugins[].repository: expected string`). A value that
+ *  cannot be reduced to the right type is dropped rather than written: an entry missing an optional
+ *  field still installs, an entry with the wrong type installs nowhere. */
+function catalogValue(field: string, value: unknown): unknown {
+	if (field === 'keywords') {
+		return Array.isArray(value) && value.every((item) => typeof item === 'string') ? value : undefined
+	}
+	if (field === 'repository' && typeof value === 'object' && value !== null && !Array.isArray(value)) {
+		const url = (value as Record<string, unknown>).url
+		return typeof url === 'string' ? url.replace(/^git\+/, '') : undefined
+	}
+	return typeof value === 'string' ? value : undefined
+}
+
 function commonMetadata(plugin: MarketplacePlugin): Record<string, unknown> {
 	const result: Record<string, unknown> = {}
 	for (const field of COMMON_METADATA) {
-		if (plugin.metadata[field] !== undefined) result[field] = plugin.metadata[field]
+		if (plugin.metadata[field] === undefined) continue
+		const value = catalogValue(field, plugin.metadata[field])
+		if (value !== undefined) result[field] = value
 	}
 	return result
 }
