@@ -36,3 +36,20 @@ The topic's standing verdict that **Cursor has no local marketplace** is retract
 carries `.cursor-plugin/marketplace.json` and `.claude-plugin/marketplace.json` as the manifests it
 looks for (E-CUR-M5), so the Claude catalog already covers Cursor.
 
+
+## 2026-08-18 — fifth pass: the Cursor catalog against the vendor page, and Claude Code's owner shape
+
+Re-verified while implementing issue #45, which generates the Cursor catalog and so leans on the
+weakest row here. Two additions and one narrowing; nothing was overturned.
+
+The fourth pass established Cursor's catalog from the shipped bundle alone. Cursor's plugins
+reference documents the same file and its fields, so the row now rests on two independent sources
+(E-CUR-M6), and it names the path a repository catalog actually travels to users: an admin imports
+the repository as a team marketplace (E-CUR-M7). E-CUR-M1 is narrowed rather than retracted, since
+only its last sentence — no documented format — was wrong, and it was wrong because the format sits
+on the reference page rather than the install page it was read from.
+
+`claude plugin validate` rejects a string `owner` outright (E-CC-M8), which every catalog this
+project generated had been carrying. It also accepts an entry whose source directory holds only a
+canonical root `plugin.json` (E-CC-M9), which is what lets `plugin init` register a plugin that has
+no vendor manifest yet.

@@ -23,7 +23,7 @@ Three runtimes install from a repository-hosted catalog. All three read a catalo
 | Claude Code | `.claude-plugin/marketplace.json` | `/plugin marketplace add <owner>/<repo>` | `/plugin install <plugin>@<marketplace>` | High |
 | Codex | `.claude-plugin/marketplace.json` or `.agents/plugins/marketplace.json` | `codex plugin marketplace add <source>` | `codex plugin add <plugin>@<marketplace>` | High |
 | GitHub Copilot CLI | `marketplace.json` in root, `.plugin/`, `.github/plugin/`, or `.claude-plugin/` | `copilot plugin marketplace add <spec>` | `copilot plugin install <plugin>@<marketplace>` | High |
-| Cursor | `.cursor-plugin/marketplace.json` or `.claude-plugin/marketplace.json` | Customize sidebar | Customize sidebar, or the local plugin directory below | Medium-high |
+| Cursor | `.cursor-plugin/marketplace.json` or `.claude-plugin/marketplace.json` | an admin imports the repository from the dashboard | Customize sidebar, or the local plugin directory below | High |
 
 One file, `.claude-plugin/marketplace.json`, is read by three of the four, so a repository that
 generates only the Claude catalog is installable from Claude Code, Codex, and Copilot CLI.
@@ -35,6 +35,10 @@ a catalog named anything else is not found, whatever directory it sits in.
 Where one file has to serve two runtimes, the Claude shape is the portable one: `name`, `owner`, and
 `plugins` with `./`-prefixed string sources. Claude Code rejects a catalog without `owner`; Codex
 requires no `owner` and tolerates extra fields, so the stricter schema wins.
+
+`owner` is an object on Claude Code and on Cursor, and its `name` is required. A string there is a
+schema error rather than a tolerated shorthand: `claude plugin validate` reports `owner: Invalid
+input: expected object, received string` and fails (E-CC-M8).
 
 ### Installing a plugin under development
 
@@ -72,7 +76,15 @@ both.
 - **Cursor does have a local marketplace**, retracting this topic's earlier verdict. The shipped CLI
   reads `.cursor-plugin/marketplace.json` and `.claude-plugin/marketplace.json` (E-CUR-M5), so the
   Claude catalog covers Cursor too. `cursor-agent` still exposes no plugin subcommand, so nothing is
-  installed from a terminal.
+  installed from a terminal. Cursor's plugins reference documents the same file and its fields, which
+  is the vendor page E-CUR-M1 was read as denying (E-CUR-M6): `name`, an object `owner`, `plugins`
+  with repository-relative sources, and an optional `metadata.pluginRoot` prefixing them. The catalog
+  reaches users when an admin imports the repository as a team marketplace (E-CUR-M7), so generate
+  the file and write no Cursor install command.
+- **A catalog entry may point at a canonical root `plugin.json`.** Claude Code accepts a `source`
+  whose directory carries the Agent Plugins Spec manifest at its root rather than
+  `.claude-plugin/plugin.json`, and accepts a `$schema` key on the catalog (E-CC-M9). That is what
+  lets `plugin init` register the plugin it just scaffolded, which has no vendor manifest yet.
 - **The symlink recipe was wrong for both runtimes it named.** `plugin install` replaces it: it reads
   each vendor's local plugin directory from the vendor registry, links where the vendor follows an
   out-of-tree symlink and copies where it does not, and names the reload step. When a vendor moves
@@ -99,6 +111,9 @@ the offending field, and an unsupported location by naming the directory (E-CODE
 
 Six directories were probed with the correct filename. Codex may read a seventh.
 
+The Cursor catalog rows now rest on two independent sources — the shipped bundle and the vendor's
+reference page — rather than on the bundle alone.
+
 The August local-install rows are weaker than the catalog rows and are marked so. Claude Code's was
 run end to end against a sandbox config directory. Cursor's two were **read from the shipped bundle
 and not executed**: `cursor-agent` exposes no way to list what it loaded, and Cursor's IDE loader is
@@ -108,6 +123,9 @@ assumption it is — copying satisfies both a runtime that rejects symlinks and 
 ## Recheck triggers
 
 - Cursor's local plugin scan starts following an out-of-tree symlink, or its containment check moves.
+- Cursor ships a way for a developer to add a repository marketplace from their own machine, or
+  changes the `.cursor-plugin/marketplace.json` fields.
+- Claude Code stops accepting a catalog entry whose source carries only a canonical `plugin.json`.
 - Claude Code moves the skills directory it adopts plugins from, or renames the `skills-dir` marketplace.
 - Codex or Copilot CLI gains a local plugin directory.
 - Codex publishes a plugin CLI reference, or adds support for a vendor-neutral catalog path.
