@@ -895,3 +895,223 @@ describe('legacyLayoutSignals', () => {
 		expect(signals).toHaveLength(2)
 	})
 })
+
+describe('buildPlugin — mcpServers version pinning (#56)', () => {
+	function readJson(relPath: string): Record<string, any> {
+		return JSON.parse(fs.readFileSync(path.join(dir, relPath), 'utf8'))
+	}
+
+	const npxEntry = { command: 'npx', args: ['-y', 'cyber-asana', 'mcp'] }
+
+	function withInline(servers: Record<string, unknown>, manifest: Record<string, unknown> = {}) {
+		writeManifest({
+			name: 'p',
+			version: '0.10.0',
+			...manifest,
+			extensions: up({ mcpServers: servers, harnesses: { 'claude-code': {} } }),
+		})
+	}
+
+	it('pins a marked entry to the manifest version', () => {
+		withInline({ srv: { ...npxEntry, pinToPluginVersion: true } })
+		buildPlugin(dir)
+		expect(readJson('.claude-plugin/plugin.json').mcpServers.srv.args).toEqual(['-y', 'cyber-asana@0.10.0', 'mcp'])
+	})
+
+	it('strips the marker from the derived manifest and leaves the canonical one alone', () => {
+		withInline({ srv: { ...npxEntry, pinToPluginVersion: true } })
+		const canonical = fs.readFileSync(path.join(dir, 'plugin.json'), 'utf8')
+		buildPlugin(dir)
+		expect(fs.readFileSync(path.join(dir, '.claude-plugin', 'plugin.json'), 'utf8')).not.toContain('pinToPluginVersion')
+		expect(fs.readFileSync(path.join(dir, 'plugin.json'), 'utf8')).toBe(canonical)
+	})
+
+	it('leaves an unmarked entry alone — the marker is required, a name match is never used', () => {
+		withInline({ srv: { ...npxEntry } })
+		buildPlugin(dir)
+		expect(readJson('.claude-plugin/plugin.json').mcpServers.srv.args).toEqual(['-y', 'cyber-asana', 'mcp'])
+	})
+
+	it('does not stamp an unrelated invocation sitting beside a marked one', () => {
+		withInline({
+			srv: { ...npxEntry, pinToPluginVersion: true },
+			other: { command: 'npx', args: ['-y', 'some-other-cli'] },
+		})
+		buildPlugin(dir)
+		expect(readJson('.claude-plugin/plugin.json').mcpServers.other.args).toEqual(['-y', 'some-other-cli'])
+	})
+
+	it('keeps a scoped package name when pinning', () => {
+		withInline({
+			srv: { command: 'npx', args: ['--yes', '@cyberuni/server', 'mcp'], pinToPluginVersion: true },
+		})
+		buildPlugin(dir)
+		expect(readJson('.claude-plugin/plugin.json').mcpServers.srv.args).toEqual([
+			'--yes',
+			'@cyberuni/server@0.10.0',
+			'mcp',
+		])
+	})
+
+	it('overwrites an already-pinned specifier and warns about the version it replaced', () => {
+		withInline({
+			srv: { command: 'npx', args: ['-y', 'cyber-asana@0.9.0', 'mcp'], pinToPluginVersion: true },
+		})
+		const result = buildPlugin(dir)
+		expect(readJson('.claude-plugin/plugin.json').mcpServers.srv.args).toEqual(['-y', 'cyber-asana@0.10.0', 'mcp'])
+		expect(result.warnings.join('\n')).toContain('0.9.0')
+	})
+
+	it('rewrites a specifier already at the manifest version without warning', () => {
+		withInline({
+			srv: { command: 'npx', args: ['-y', 'cyber-asana@0.10.0', 'mcp'], pinToPluginVersion: true },
+		})
+		const result = buildPlugin(dir)
+		expect(readJson('.claude-plugin/plugin.json').mcpServers.srv.args).toEqual(['-y', 'cyber-asana@0.10.0', 'mcp'])
+		expect(result.warnings.join('\n')).not.toContain('overwritten')
+	})
+
+	it('warns and leaves the entry alone when the command is not a package runner', () => {
+		withInline({ srv: { command: 'node', args: ['./server.js'], pinToPluginVersion: true } })
+		const result = buildPlugin(dir)
+		expect(readJson('.claude-plugin/plugin.json').mcpServers.srv.args).toEqual(['./server.js'])
+		expect(result.warnings.join('\n')).toContain('srv')
+	})
+
+	it('warns and leaves the entry alone when the manifest carries no version', () => {
+		writeManifest({
+			name: 'p',
+			extensions: up({
+				mcpServers: { srv: { ...npxEntry, pinToPluginVersion: true } },
+				harnesses: { 'claude-code': {} },
+			}),
+		})
+		const result = buildPlugin(dir)
+		expect(readJson('.claude-plugin/plugin.json').mcpServers.srv.args).toEqual(['-y', 'cyber-asana', 'mcp'])
+		expect(result.warnings.join('\n')).toContain('no version')
+	})
+
+	it('warns and leaves the entry alone when args carry no package specifier', () => {
+		withInline({ srv: { command: 'npx', args: ['-y'], pinToPluginVersion: true } })
+		const result = buildPlugin(dir)
+		expect(readJson('.claude-plugin/plugin.json').mcpServers.srv.args).toEqual(['-y'])
+		expect(result.warnings.join('\n')).toContain('no package specifier')
+	})
+
+	it('derives an mcp file for a path declaration with a marked entry and repoints the manifest', () => {
+		fs.writeFileSync(
+			path.join(dir, 'mcp.json'),
+			JSON.stringify({ mcpServers: { srv: { ...npxEntry, pinToPluginVersion: true } } }, null, '\t'),
+		)
+		const authored = fs.readFileSync(path.join(dir, 'mcp.json'), 'utf8')
+		writeManifest({
+			name: 'p',
+			version: '0.10.0',
+			extensions: up({ mcpServers: './mcp.json', harnesses: { 'claude-code': {} } }),
+		})
+		buildPlugin(dir)
+		const derived = readJson('.claude-plugin/mcp.json')
+		expect(derived.mcpServers.srv.args).toEqual(['-y', 'cyber-asana@0.10.0', 'mcp'])
+		expect(derived.mcpServers.srv.pinToPluginVersion).toBeUndefined()
+		expect(readJson('.claude-plugin/plugin.json').mcpServers).toBe('./.claude-plugin/mcp.json')
+		expect(fs.readFileSync(path.join(dir, 'mcp.json'), 'utf8')).toBe(authored)
+	})
+
+	it('derives no mcp file when a path declaration marks nothing', () => {
+		fs.writeFileSync(path.join(dir, 'mcp.json'), JSON.stringify({ mcpServers: { srv: npxEntry } }, null, '\t'))
+		writeManifest({
+			name: 'p',
+			version: '0.10.0',
+			extensions: up({ mcpServers: './mcp.json', harnesses: { 'claude-code': {} } }),
+		})
+		buildPlugin(dir)
+		expect(fs.existsSync(path.join(dir, '.claude-plugin', 'mcp.json'))).toBe(false)
+		expect(readJson('.claude-plugin/plugin.json').mcpServers).toBe('./mcp.json')
+	})
+
+	it('--dry-run derives no mcp file', () => {
+		fs.writeFileSync(
+			path.join(dir, 'mcp.json'),
+			JSON.stringify({ mcpServers: { srv: { ...npxEntry, pinToPluginVersion: true } } }, null, '\t'),
+		)
+		writeManifest({
+			name: 'p',
+			version: '0.10.0',
+			extensions: up({ mcpServers: './mcp.json', harnesses: { 'claude-code': {} } }),
+		})
+		buildPlugin(dir, { dryRun: true })
+		expect(fs.existsSync(path.join(dir, '.claude-plugin', 'mcp.json'))).toBe(false)
+	})
+
+	it('warns that copilot-cli, which reads the canonical manifest, is not delivered the pin', () => {
+		writeManifest({
+			name: 'p',
+			version: '0.10.0',
+			description: 'd',
+			extensions: up({
+				mcpServers: { srv: { ...npxEntry, pinToPluginVersion: true } },
+				harnesses: { 'copilot-cli': {} },
+			}),
+		})
+		const canonical = fs.readFileSync(path.join(dir, 'plugin.json'), 'utf8')
+		const result = buildPlugin(dir)
+		expect(result.warnings.join('\n')).toContain('copilot-cli')
+		expect(fs.readFileSync(path.join(dir, 'plugin.json'), 'utf8')).toBe(canonical)
+	})
+})
+
+describe('buildPlugin — the default mcp.json location', () => {
+	it('reads the spec-fixed mcp.json when the manifest declares no mcpServers', () => {
+		fs.writeFileSync(
+			path.join(dir, 'mcp.json'),
+			JSON.stringify({
+				mcpServers: { srv: { command: 'npx', args: ['-y', 'cyber-asana', 'mcp'], pinToPluginVersion: true } },
+			}),
+		)
+		writeManifest({ name: 'p', version: '0.10.0', extensions: up({ harnesses: { 'claude-code': {} } }) })
+		buildPlugin(dir)
+		const derived = JSON.parse(fs.readFileSync(path.join(dir, '.claude-plugin', 'mcp.json'), 'utf8'))
+		expect(derived.mcpServers.srv.args).toEqual(['-y', 'cyber-asana@0.10.0', 'mcp'])
+	})
+
+	it('derives nothing when no mcp.json exists and none is declared', () => {
+		writeManifest({ name: 'p', version: '0.10.0', extensions: up({ harnesses: { 'claude-code': {} } }) })
+		buildPlugin(dir)
+		expect(fs.existsSync(path.join(dir, '.claude-plugin', 'mcp.json'))).toBe(false)
+		expect(
+			JSON.parse(fs.readFileSync(path.join(dir, '.claude-plugin', 'plugin.json'), 'utf8')).mcpServers,
+		).toBeUndefined()
+	})
+})
+
+describe('buildPlugin — mcpServers pinning under the upx runner', () => {
+	it('pins a marked entry running upx', () => {
+		writeManifest({
+			name: 'p',
+			version: '0.10.0',
+			extensions: up({
+				mcpServers: { srv: { command: 'upx', args: ['-y', 'cyber-asana', 'mcp'], pinToPluginVersion: true } },
+				harnesses: { 'claude-code': {} },
+			}),
+		})
+		buildPlugin(dir)
+		const derived = JSON.parse(fs.readFileSync(path.join(dir, '.claude-plugin', 'plugin.json'), 'utf8'))
+		expect(derived.mcpServers.srv.args).toEqual(['-y', 'cyber-asana@0.10.0', 'mcp'])
+	})
+})
+
+describe('buildPlugin — locating the specifier with no runner flag', () => {
+	it('pins the first argument when args carry no -y/--yes', () => {
+		writeManifest({
+			name: 'p',
+			version: '0.10.0',
+			extensions: up({
+				mcpServers: { srv: { command: 'npx', args: ['cyber-asana', 'mcp'], pinToPluginVersion: true } },
+				harnesses: { 'claude-code': {} },
+			}),
+		})
+		buildPlugin(dir)
+		const derived = JSON.parse(fs.readFileSync(path.join(dir, '.claude-plugin', 'plugin.json'), 'utf8'))
+		expect(derived.mcpServers.srv.args).toEqual(['cyber-asana@0.10.0', 'mcp'])
+	})
+})
