@@ -232,6 +232,166 @@ Feature: plugin build — derive per-vendor manifests
     Then ".cursor-plugin/hooks.json" is NOT written
     And the exit code is 0
 
+  # ── MCP invocation pinning (issue #56) ──
+
+  Scenario: a marked mcpServers entry is pinned to the manifest version
+    Given the manifest version is "0.10.0"
+    And the manifest declares mcpServers inline with entry "srv" running "npx" with args "-y", "cyber-asana", "mcp"
+    And the "srv" entry sets "pinToPluginVersion" true
+    And the manifest declares harnesses for "claude-code"
+    When I run "universal-plugin plugin build"
+    Then ".claude-plugin/plugin.json" mcpServers entry "srv" has args "-y", "cyber-asana@0.10.0", "mcp"
+    And the exit code is 0
+
+  Scenario: the marker is stripped from the derived manifest
+    Given the manifest version is "0.10.0"
+    And the manifest declares mcpServers inline with entry "srv" running "npx" with args "-y", "cyber-asana", "mcp"
+    And the "srv" entry sets "pinToPluginVersion" true
+    And the manifest declares harnesses for "claude-code"
+    When I run "universal-plugin plugin build"
+    Then ".claude-plugin/plugin.json" does not contain "pinToPluginVersion"
+    And the canonical "plugin.json" is left unchanged
+
+  # The marker is required precisely because a plugin may publish its server under a package name
+  # that is not the plugin's own, so a name match would be unsound in both directions.
+  Scenario: an unmarked entry is left alone
+    Given the manifest version is "0.10.0"
+    And the manifest declares mcpServers inline with entry "srv" running "npx" with args "-y", "cyber-asana", "mcp"
+    And the manifest declares harnesses for "claude-code"
+    When I run "universal-plugin plugin build"
+    Then ".claude-plugin/plugin.json" mcpServers entry "srv" has args "-y", "cyber-asana", "mcp"
+    And the exit code is 0
+
+  Scenario: an unrelated invocation beside a marked one is not stamped
+    Given the manifest version is "0.10.0"
+    And the manifest declares mcpServers inline with entry "srv" running "npx" with args "-y", "cyber-asana", "mcp"
+    And the "srv" entry sets "pinToPluginVersion" true
+    And the manifest declares an mcpServers entry "other" running "npx" with args "-y", "some-other-cli"
+    And the manifest declares harnesses for "claude-code"
+    When I run "universal-plugin plugin build"
+    Then ".claude-plugin/plugin.json" mcpServers entry "other" has args "-y", "some-other-cli"
+
+  Scenario: a scoped package name keeps its scope when pinned
+    Given the manifest version is "0.10.0"
+    And the manifest declares mcpServers inline with entry "srv" running "npx" with args "--yes", "@cyberuni/server", "mcp"
+    And the "srv" entry sets "pinToPluginVersion" true
+    And the manifest declares harnesses for "claude-code"
+    When I run "universal-plugin plugin build"
+    Then ".claude-plugin/plugin.json" mcpServers entry "srv" has args "--yes", "@cyberuni/server@0.10.0", "mcp"
+
+  Scenario: an already-pinned specifier is overwritten with a warning
+    Given the manifest version is "0.10.0"
+    And the manifest declares mcpServers inline with entry "srv" running "npx" with args "-y", "cyber-asana@0.9.0", "mcp"
+    And the "srv" entry sets "pinToPluginVersion" true
+    And the manifest declares harnesses for "claude-code"
+    When I run "universal-plugin plugin build"
+    Then ".claude-plugin/plugin.json" mcpServers entry "srv" has args "-y", "cyber-asana@0.10.0", "mcp"
+    And stderr contains "0.9.0"
+    And the exit code is 0
+
+  Scenario: a specifier already at the manifest version is rewritten without a warning
+    Given the manifest version is "0.10.0"
+    And the manifest declares mcpServers inline with entry "srv" running "npx" with args "-y", "cyber-asana@0.10.0", "mcp"
+    And the "srv" entry sets "pinToPluginVersion" true
+    And the manifest declares harnesses for "claude-code"
+    When I run "universal-plugin plugin build"
+    Then ".claude-plugin/plugin.json" mcpServers entry "srv" has args "-y", "cyber-asana@0.10.0", "mcp"
+    And stderr does not contain "pinToPluginVersion"
+
+  Scenario: an args list carrying no runner flag is pinned at its first argument
+    Given the manifest version is "0.10.0"
+    And the manifest declares mcpServers inline with entry "srv" running "npx" with args "cyber-asana", "mcp"
+    And the "srv" entry sets "pinToPluginVersion" true
+    And the manifest declares harnesses for "claude-code"
+    When I run "universal-plugin plugin build"
+    Then ".claude-plugin/plugin.json" mcpServers entry "srv" has args "cyber-asana@0.10.0", "mcp"
+    And the exit code is 0
+
+  # `upx` is the second runner word the spec commits to; the negative below covers a command that is
+  # neither, so the accepted set needs both its members exercised.
+  Scenario: a marked entry running upx is pinned too
+    Given the manifest version is "0.10.0"
+    And the manifest declares mcpServers inline with entry "srv" running "upx" with args "-y", "cyber-asana", "mcp"
+    And the "srv" entry sets "pinToPluginVersion" true
+    And the manifest declares harnesses for "claude-code"
+    When I run "universal-plugin plugin build"
+    Then ".claude-plugin/plugin.json" mcpServers entry "srv" has args "-y", "cyber-asana@0.10.0", "mcp"
+    And the exit code is 0
+
+  Scenario: a marked entry whose command is not a package runner warns and is left alone
+    Given the manifest version is "0.10.0"
+    And the manifest declares mcpServers inline with entry "srv" running "node" with args "./server.js"
+    And the "srv" entry sets "pinToPluginVersion" true
+    And the manifest declares harnesses for "claude-code"
+    When I run "universal-plugin plugin build"
+    Then ".claude-plugin/plugin.json" mcpServers entry "srv" has args "./server.js"
+    And stderr contains "srv"
+    And the exit code is 0
+
+  Scenario: a marked entry cannot be pinned when the manifest carries no version
+    Given the manifest has no version
+    And the manifest declares mcpServers inline with entry "srv" running "npx" with args "-y", "cyber-asana", "mcp"
+    And the "srv" entry sets "pinToPluginVersion" true
+    And the manifest declares harnesses for "claude-code"
+    When I run "universal-plugin plugin build"
+    Then ".claude-plugin/plugin.json" mcpServers entry "srv" has args "-y", "cyber-asana", "mcp"
+    And stderr contains "version"
+    And the exit code is 0
+
+  Scenario: a marked entry with no package specifier in args warns and is left alone
+    Given the manifest version is "0.10.0"
+    And the manifest declares mcpServers inline with entry "srv" running "npx" with args "-y"
+    And the "srv" entry sets "pinToPluginVersion" true
+    And the manifest declares harnesses for "claude-code"
+    When I run "universal-plugin plugin build"
+    Then ".claude-plugin/plugin.json" mcpServers entry "srv" has args "-y"
+    And stderr contains "srv"
+    And the exit code is 0
+
+  # Delivery follows the hooks rule: derive a file only for a vendor whose form differs from the
+  # canonical one, and never rewrite what the author wrote.
+  Scenario: a path declaration with a marked entry gets a derived mcp file and is repointed
+    Given the manifest version is "0.10.0"
+    And the manifest declares mcpServers "./mcp.json"
+    And the authored "mcp.json" declares entry "srv" running "npx" with args "-y", "cyber-asana", "mcp" and the marker
+    And the manifest declares harnesses for "claude-code"
+    When I run "universal-plugin plugin build"
+    Then ".claude-plugin/mcp.json" is written
+    And ".claude-plugin/mcp.json" entry "srv" has args "-y", "cyber-asana@0.10.0", "mcp"
+    And ".claude-plugin/mcp.json" does not contain "pinToPluginVersion"
+    And ".claude-plugin/plugin.json" contains mcpServers "./.claude-plugin/mcp.json"
+    And the authored "mcp.json" is left unchanged
+
+  Scenario: a path declaration with nothing marked derives no mcp file and keeps pointing at the authored one
+    Given the manifest version is "0.10.0"
+    And the manifest declares mcpServers "./mcp.json"
+    And the authored "mcp.json" declares entry "srv" running "npx" with args "-y", "cyber-asana", "mcp"
+    And the manifest declares harnesses for "claude-code"
+    When I run "universal-plugin plugin build"
+    Then no mcp file is derived for "claude-code"
+    And ".claude-plugin/plugin.json" contains mcpServers "./mcp.json"
+
+  Scenario: --dry-run derives no mcp file
+    Given the manifest version is "0.10.0"
+    And the manifest declares mcpServers "./mcp.json"
+    And the authored "mcp.json" declares entry "srv" running "npx" with args "-y", "cyber-asana", "mcp" and the marker
+    And the manifest declares harnesses for "claude-code"
+    When I run "universal-plugin plugin build --dry-run"
+    Then ".claude-plugin/mcp.json" is NOT written
+    And the exit code is 0
+
+  # Copilot CLI reads the canonical manifest and its mcp file directly, so there is no derived
+  # manifest to repoint and no derived file to deliver — the warning is the whole remedy.
+  Scenario: copilot-cli is warned that a marked entry is not pinned for it
+    Given the manifest version is "0.10.0"
+    And the manifest declares mcpServers inline with entry "srv" running "npx" with args "-y", "cyber-asana", "mcp"
+    And the "srv" entry sets "pinToPluginVersion" true
+    And the manifest declares harnesses for "copilot-cli"
+    When I run "universal-plugin plugin build"
+    Then stderr contains "copilot-cli"
+    And the canonical "plugin.json" is left unchanged
+    And the exit code is 0
+
   # ── Vendor filtering ──
 
   Scenario: --vendor filters to a single vendor
