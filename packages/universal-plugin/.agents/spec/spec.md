@@ -8,21 +8,21 @@ approval:
     by: agent
     cause: dimension
     why:
-      floor: none — the suite edit is additive: 8 new scenarios on plugin/build/build.feature, 0 modified and 0 removed (classify-edit-class reports ADDITIVE), so the freeze self-clears and no frozen scenario is narrowed or rewritten. Compatibility none — no CLI flag or option added; the only new surface is warning output. Conflict none.
-      blast: low — one existing behavioral node (plugin/build/) gains a component-path-resolution behavior; no node added, moved, or removed, and no other node's contract touched. The non-behavioral half (deleting the vendored Agent Plugins envelope schema, retaining a namespace-scoped one, repointing two skills/init documents) is loaded by no code and carries no spec node.
-      novelty: low — the CR applies a rule the corpus already carries: a declaration the build cannot use is warned about rather than read as nothing, which is what readCanonicalHooks already does for a declared-but-missing hooks path.
-      confidence: high — cold sdd-spec-judge 3-lens {oracle,builder,architect} all PASS, ALIGNED true; the judge re-ran the miss test itself by reverting the resolver and confirmed 5 of the 8 scenarios fail against the old code. check-spec-state OK, check-suite OK, check-spec-structure and check-scenario-overlap 0 blocking, 0 open markers. Rounds 1–3 were blocked at the governance pre-flight and the remediation surfaced a real coverage hole (a warning branch with no scenario), closed as the 8th scenario.
-      cr: github-60
+      floor: none — gherkin-cli diff reports 4 added / 0 modified / 0 removed on build.feature; the frozen "no targets declared is a definitive empty state" scenario is unchanged, so nothing narrowed and no freeze re-open. Compatibility — the build can newly exit 1 where it exited 0, taken as a minor on the 0.x line and declared in the changeset. Conflict none.
+      blast: small — one existing behavioral node revised (plugin/build); no node added, moved, or otherwise touched.
+      novelty: low — the CR applies the corpus's own AXI contract, splitting a result the node already produced across principles #5 and #6 rather than inventing a rule.
+      confidence: high — cold spec-judge returned ALIGNED true with oracle, builder and architect all passing and no blocker; all four combinations of the closed-form rule are covered by scenarios.
+      cr: github-61
   impl:
     verdict: approve
     by: agent
     cause: dimension
     why:
-      floor: none — no frozen scenario weakened; the 36 pre-existing scenarios on build.feature are byte-identical and their tests still green.
-      blast: low — one resolver added in src/build/build.ts (resolvePathValue) and readSkills rewritten onto it; no other domain touched, no new dependency, no CLI surface change.
-      novelty: low — a pure helper plus a loop over declared paths, following the file's existing structure.
-      confidence: high — cold sdd-impl-judge re-derived each of the 8 frozen scenarios' oracle before reading the tests, then re-ran the mutation experiment independently (5 of 8 fail against the pre-CR resolver) rather than trusting the green run; it also enumerated the resolver's branches beyond the suite and found the two silent ones unreachable through a schema-conformant manifest and inert, recorded as a followup. Full verification green at 594 tests (was 586); knip findings confirmed byte-identical to origin/main. Judged on the tree rebased onto origin/main.
-      cr: github-60
+      floor: none — no frozen scenario weakened; the four scenarios added to plugin/build all verify, and the untouched definitive-empty-state and next-step scenarios were re-exercised against the compiled binary and still hold.
+      blast: small — one branch of buildPlugin, one stderr next-step line in build's CLI, and doctor's recognition of the stopped build; no other command's contract changed.
+      novelty: low — the detection is a pure function handed the one filesystem fact it needs, matching the package's clean-architecture rule; the behavior split follows the AXI contract the corpus already carries.
+      confidence: high — cold impl-judge re-derived each scenario's oracle independently and exercised all four against the compiled binary plus two constructed pre-0.6 git fixtures for doctor; 597 package tests green on the rebased tree.
+      cr: github-61
 ---
 
 # universal-plugin — the cross-vendor plugin build/derivation engine (CLI)

@@ -6,19 +6,19 @@ project: universal-plugin
 project-path: packages/universal-plugin
 todos:
   - content: "Explore: decide the zero-vendor exit question against the AXI contract"
-    status: pending
+    status: completed
   - content: "Spec: add legacy-layout scenarios to plugin/build node + README"
-    status: pending
+    status: completed
   - content: "Spec gate: judge build.feature diff (additive only, freeze preserved)"
-    status: pending
+    status: completed
   - content: "Deliver: legacy-layout detection + structured error in src/build"
-    status: pending
+    status: completed
   - content: "Deliver: rewrite skills/doctor/SKILL.md description for layout/upgrade routing"
-    status: pending
+    status: completed
   - content: "Impl gate: verify each new frozen scenario"
-    status: pending
+    status: completed
   - content: "Handoff: changeset, PR closing #61"
-    status: pending
+    status: completed
 ---
 
 # github-61 — doctor routing + the zero-vendor build result
@@ -60,4 +60,7 @@ Issue #62 (Copilot CLI field loss during adoption, `skills/init/`) — worked in
 
 ## NEXT
 
-Explore: write the new build scenarios, then implement.
+Landed. Both defects are fixed on branch `cyberlegion/unit-2021bb4f488d6acc`: the zero-vendor result
+is split by cause in `src/build`, and `doctor`'s description routes on the symptom. Spec gate and
+impl gate both approved by cold judges; four scenarios added to `plugin/build`, nothing narrowed.
+Nothing remains to resume — the two follow-ups above are recorded in the ledger, not carried here.
