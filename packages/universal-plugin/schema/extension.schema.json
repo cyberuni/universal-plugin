@@ -1,0 +1,846 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"title": "universal-plugin extension namespace",
+	"description": "universal-plugin build configuration: the build-target list, per-harness manifest overrides, the plugins depended on, the npm package tracked, and the canonical component input paths the build derives per harness. This is the body of extensions[\"org.cyberuni.universal-plugin\"] in an Agent Plugins Specification v1.0.0 manifest, and nothing else — apply it to the namespace object, not to the manifest.",
+	"$comment": "The manifest envelope around this object belongs to the Agent Plugins Specification and is validated by https://agent-plugins.org/schemas/1.0.0/plugin.schema.json. That specification assigns no semantics to a namespace object's contents (§8), so this schema supplies them for the one namespace universal-plugin owns. It carries no $id: the fields it describes version with the universal-plugin package that ships it.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"vendors": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/vendorId"
+			},
+			"uniqueItems": true,
+			"description": "Vendor targets to generate manifests for during 'plugin build'."
+		},
+		"harnesses": {
+			"$ref": "#/$defs/harnesses",
+			"description": "Per-harness fields copied verbatim into that harness's derived manifest during 'plugin build'. Keyed by vendor id."
+		},
+		"dependencies": {
+			"$ref": "#/$defs/dependencies",
+			"description": "Plugins this plugin needs. Delivered to the harnesses that read a dependency and dropped with a build warning for the rest — only Claude Code reads one (ADR-0013)."
+		},
+		"packagePath": {
+			"type": "string",
+			"description": "Relative path (from repo root) to the npm package folder whose version this plugin tracks."
+		},
+		"skills": {
+			"$ref": "#/$defs/pathValue",
+			"description": "Skill directories. Default: ./skills/. Each subdirectory must contain SKILL.md."
+		},
+		"mcpServers": {
+			"$ref": "#/$defs/mcpServersValue",
+			"description": "MCP server configuration. Path string, path config, or inline mcpServers object. Default: ./mcp.json."
+		},
+		"commands": {
+			"$ref": "#/$defs/pathValue",
+			"description": "Command markdown files. Default: ./commands/."
+		},
+		"agents": {
+			"$ref": "#/$defs/pathValue",
+			"description": "Agent definition markdown files. Default: ./agents/."
+		},
+		"rules": {
+			"$ref": "#/$defs/pathValue",
+			"description": "Rule markdown files (.mdc). Default: ./rules/."
+		},
+		"hooks": {
+			"$ref": "#/$defs/hooksValue",
+			"description": "Hook configuration. Path string, path config, or inline hooks object. Default: ./hooks/hooks.json. Event names must be PascalCase canonical names — the build translates per vendor."
+		},
+		"lspServers": {
+			"$ref": "#/$defs/lspServersValue",
+			"description": "LSP server configuration. Path string, path config, or inline server map. Default: ./.lsp.json."
+		},
+		"outputStyles": {
+			"$ref": "#/$defs/pathValue",
+			"description": "Output style resources. Default: ./output-styles/."
+		}
+	},
+	"$defs": {
+		"dependencies": {
+			"type": "array",
+			"description": "Each entry names a plugin, optionally qualified with @marketplace. Use the object form to carry a constraint: a range in the string form parses and is then discarded by the runtime.",
+			"items": {
+				"oneOf": [
+					{
+						"type": "string",
+						"pattern": "^[A-Za-z0-9][-A-Za-z0-9._]*(@[A-Za-z0-9][-A-Za-z0-9._]*)?(@\\^[^@]*)?$"
+					},
+					{
+						"type": "object",
+						"required": ["name"],
+						"description": "Claude Code parses this form loosely, so an unknown key is carried rather than rejected.",
+						"properties": {
+							"name": {
+								"type": "string",
+								"pattern": "^[A-Za-z0-9][-A-Za-z0-9._]*$"
+							},
+							"marketplace": {
+								"type": "string",
+								"pattern": "^[A-Za-z0-9][-A-Za-z0-9._]*$"
+							},
+							"version": {
+								"type": "string",
+								"description": "Semver range, checked against the installed plugin's version."
+							},
+							"sha": {
+								"type": "string",
+								"description": "Commit sha to pin a git-sourced dependency to."
+							}
+						}
+					}
+				]
+			}
+		},
+		"pluginPath": {
+			"type": "string",
+			"pattern": "^\\./"
+		},
+		"pathConfig": {
+			"type": "object",
+			"required": ["paths"],
+			"additionalProperties": false,
+			"properties": {
+				"paths": {
+					"type": "array",
+					"minItems": 1,
+					"items": {
+						"$ref": "#/$defs/pluginPath"
+					}
+				}
+			}
+		},
+		"pathValue": {
+			"description": "A component path: a single path string, an array of path strings, or a path config object with a 'paths' array. All paths must start with './'.",
+			"oneOf": [
+				{
+					"$ref": "#/$defs/pluginPath"
+				},
+				{
+					"type": "array",
+					"minItems": 1,
+					"items": {
+						"$ref": "#/$defs/pluginPath"
+					}
+				},
+				{
+					"$ref": "#/$defs/pathConfig"
+				}
+			]
+		},
+		"mcpServerStdio": {
+			"type": "object",
+			"required": ["command"],
+			"additionalProperties": false,
+			"properties": {
+				"type": {
+					"type": "string",
+					"const": "stdio"
+				},
+				"command": {
+					"type": "string",
+					"description": "Executable. Supports ${PLUGIN_ROOT} and ${PLUGIN_DATA}."
+				},
+				"args": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					}
+				},
+				"env": {
+					"type": "object",
+					"additionalProperties": {
+						"type": "string"
+					}
+				},
+				"cwd": {
+					"type": "string"
+				}
+			}
+		},
+		"mcpServerUrl": {
+			"type": "object",
+			"required": ["type", "url"],
+			"additionalProperties": false,
+			"properties": {
+				"type": {
+					"type": "string",
+					"enum": ["sse", "http", "ws"]
+				},
+				"url": {
+					"type": "string",
+					"format": "uri"
+				},
+				"headers": {
+					"type": "object",
+					"additionalProperties": {
+						"type": "string"
+					}
+				},
+				"headersHelper": {
+					"type": "string"
+				},
+				"oauth": {
+					"type": "object",
+					"additionalProperties": false,
+					"properties": {
+						"clientId": {
+							"type": "string"
+						},
+						"callbackPort": {
+							"type": "integer",
+							"exclusiveMinimum": 0
+						},
+						"authServerMetadataUrl": {
+							"type": "string",
+							"format": "uri"
+						},
+						"scopes": {
+							"type": "string",
+							"minLength": 1
+						},
+						"xaa": {
+							"type": "boolean"
+						}
+					}
+				}
+			}
+		},
+		"mcpServerMap": {
+			"type": "object",
+			"description": "Map of server name to server configuration.",
+			"additionalProperties": {
+				"oneOf": [
+					{
+						"$ref": "#/$defs/mcpServerStdio"
+					},
+					{
+						"$ref": "#/$defs/mcpServerUrl"
+					}
+				]
+			}
+		},
+		"mcpServersValue": {
+			"description": "MCP server config: a path string, path config, or an inline object with a top-level 'mcpServers' map.",
+			"oneOf": [
+				{
+					"$ref": "#/$defs/pluginPath"
+				},
+				{
+					"$ref": "#/$defs/pathConfig"
+				},
+				{
+					"type": "object",
+					"required": ["mcpServers"],
+					"additionalProperties": false,
+					"properties": {
+						"mcpServers": {
+							"$ref": "#/$defs/mcpServerMap"
+						}
+					}
+				}
+			]
+		},
+		"canonicalHookEvent": {
+			"type": "string",
+			"description": "Canonical PascalCase hook event name. The build translates to vendor-specific casing.",
+			"enum": [
+				"PreToolUse",
+				"PostToolUse",
+				"PostToolUseFailure",
+				"SessionStart",
+				"SessionEnd",
+				"UserPromptSubmit",
+				"Stop",
+				"StopFailure",
+				"SubagentStart",
+				"SubagentStop",
+				"PreCompact",
+				"PostCompact",
+				"Notification",
+				"PermissionRequest",
+				"InstructionsLoaded",
+				"ConfigChange",
+				"CwdChanged",
+				"FileChanged",
+				"WorktreeCreate",
+				"WorktreeRemove",
+				"Elicitation",
+				"ElicitationResult",
+				"TaskCreated",
+				"TaskCompleted",
+				"TeammateIdle"
+			]
+		},
+		"hookActionCommand": {
+			"type": "object",
+			"required": ["type", "command"],
+			"additionalProperties": false,
+			"properties": {
+				"type": {
+					"type": "string",
+					"const": "command"
+				},
+				"command": {
+					"type": "string",
+					"description": "Shell command. Supports ${PLUGIN_ROOT} and ${PLUGIN_DATA}."
+				},
+				"shell": {
+					"type": "string",
+					"enum": ["bash", "powershell"]
+				},
+				"if": {
+					"type": "string",
+					"description": "Permission rule filter expression."
+				},
+				"timeout": {
+					"type": "number",
+					"exclusiveMinimum": 0
+				},
+				"statusMessage": {
+					"type": "string"
+				},
+				"once": {
+					"type": "boolean"
+				},
+				"async": {
+					"type": "boolean"
+				},
+				"asyncRewake": {
+					"type": "boolean"
+				}
+			}
+		},
+		"hookActionHttp": {
+			"type": "object",
+			"required": ["type", "url"],
+			"additionalProperties": false,
+			"properties": {
+				"type": {
+					"type": "string",
+					"const": "http"
+				},
+				"url": {
+					"type": "string",
+					"format": "uri"
+				},
+				"if": {
+					"type": "string"
+				},
+				"timeout": {
+					"type": "number",
+					"exclusiveMinimum": 0
+				},
+				"headers": {
+					"type": "object",
+					"additionalProperties": {
+						"type": "string"
+					}
+				},
+				"allowedEnvVars": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					}
+				},
+				"statusMessage": {
+					"type": "string"
+				},
+				"once": {
+					"type": "boolean"
+				}
+			}
+		},
+		"hookActionPrompt": {
+			"type": "object",
+			"required": ["type", "prompt"],
+			"additionalProperties": false,
+			"properties": {
+				"type": {
+					"type": "string",
+					"const": "prompt"
+				},
+				"prompt": {
+					"type": "string",
+					"description": "Prompt text. Use $ARGUMENTS for event context."
+				},
+				"if": {
+					"type": "string"
+				},
+				"timeout": {
+					"type": "number",
+					"exclusiveMinimum": 0
+				},
+				"model": {
+					"type": "string"
+				},
+				"statusMessage": {
+					"type": "string"
+				},
+				"once": {
+					"type": "boolean"
+				}
+			}
+		},
+		"hookActionAgent": {
+			"type": "object",
+			"required": ["type", "prompt"],
+			"additionalProperties": false,
+			"properties": {
+				"type": {
+					"type": "string",
+					"const": "agent"
+				},
+				"prompt": {
+					"type": "string"
+				},
+				"if": {
+					"type": "string"
+				},
+				"timeout": {
+					"type": "number",
+					"exclusiveMinimum": 0,
+					"default": 60
+				},
+				"model": {
+					"type": "string"
+				},
+				"statusMessage": {
+					"type": "string"
+				},
+				"once": {
+					"type": "boolean"
+				}
+			}
+		},
+		"hookAction": {
+			"description": "A single hook action. Discriminated by 'type'.",
+			"oneOf": [
+				{
+					"$ref": "#/$defs/hookActionCommand"
+				},
+				{
+					"$ref": "#/$defs/hookActionHttp"
+				},
+				{
+					"$ref": "#/$defs/hookActionPrompt"
+				},
+				{
+					"$ref": "#/$defs/hookActionAgent"
+				}
+			]
+		},
+		"hookRule": {
+			"type": "object",
+			"required": ["hooks"],
+			"additionalProperties": false,
+			"properties": {
+				"matcher": {
+					"type": "string",
+					"description": "Optional regex matched against event-specific context (e.g. tool name for PreToolUse)."
+				},
+				"hooks": {
+					"type": "array",
+					"minItems": 1,
+					"items": {
+						"$ref": "#/$defs/hookAction"
+					}
+				}
+			}
+		},
+		"hooksMap": {
+			"type": "object",
+			"description": "Map of canonical PascalCase event name to an array of hook rules.",
+			"propertyNames": {
+				"$ref": "#/$defs/canonicalHookEvent"
+			},
+			"additionalProperties": {
+				"type": "array",
+				"items": {
+					"$ref": "#/$defs/hookRule"
+				}
+			}
+		},
+		"hooksValue": {
+			"description": "Hooks config: a path string, path config, or an inline object with a top-level 'hooks' map.",
+			"oneOf": [
+				{
+					"$ref": "#/$defs/pluginPath"
+				},
+				{
+					"$ref": "#/$defs/pathConfig"
+				},
+				{
+					"type": "object",
+					"required": ["hooks"],
+					"additionalProperties": false,
+					"properties": {
+						"hooks": {
+							"$ref": "#/$defs/hooksMap"
+						}
+					}
+				}
+			]
+		},
+		"lspServer": {
+			"type": "object",
+			"required": ["command", "extensionToLanguage"],
+			"additionalProperties": false,
+			"properties": {
+				"command": {
+					"type": "string"
+				},
+				"extensionToLanguage": {
+					"type": "object",
+					"description": "Maps file extensions (e.g. '.ts') to language IDs (e.g. 'typescript').",
+					"additionalProperties": {
+						"type": "string"
+					}
+				},
+				"args": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					}
+				},
+				"transport": {
+					"type": "string",
+					"enum": ["stdio", "socket"],
+					"default": "stdio"
+				},
+				"env": {
+					"type": "object",
+					"additionalProperties": {
+						"type": "string"
+					}
+				},
+				"initializationOptions": {},
+				"settings": {},
+				"workspaceFolder": {
+					"type": "string"
+				},
+				"startupTimeout": {
+					"type": "integer",
+					"exclusiveMinimum": 0
+				},
+				"shutdownTimeout": {
+					"type": "integer",
+					"exclusiveMinimum": 0
+				},
+				"restartOnCrash": {
+					"type": "boolean"
+				},
+				"maxRestarts": {
+					"type": "integer",
+					"minimum": 0
+				}
+			}
+		},
+		"lspServersValue": {
+			"description": "LSP server config: a path string, path config, or an inline map of server name to server config.",
+			"oneOf": [
+				{
+					"$ref": "#/$defs/pluginPath"
+				},
+				{
+					"$ref": "#/$defs/pathConfig"
+				},
+				{
+					"type": "object",
+					"description": "Inline server map. Each key is a server name.",
+					"additionalProperties": {
+						"$ref": "#/$defs/lspServer"
+					}
+				}
+			]
+		},
+		"vendorId": {
+			"type": "string",
+			"enum": ["claude-code", "cursor", "codex", "copilot-cli"],
+			"description": "Recognized vendor target identifier."
+		},
+		"userConfigItem": {
+			"type": "object",
+			"required": ["type", "title", "description"],
+			"additionalProperties": false,
+			"properties": {
+				"type": {
+					"type": "string",
+					"enum": ["string", "number", "boolean", "directory", "file"]
+				},
+				"title": {
+					"type": "string",
+					"description": "Label shown in the configuration dialog."
+				},
+				"description": {
+					"type": "string",
+					"description": "Help text shown below the input."
+				},
+				"required": {
+					"type": "boolean"
+				},
+				"default": {
+					"description": "Default value. Type must match the 'type' field."
+				},
+				"multiple": {
+					"type": "boolean",
+					"description": "Array of strings. Only valid when type is 'string'."
+				},
+				"sensitive": {
+					"type": "boolean",
+					"description": "Store securely (e.g. keychain). Only valid when type is 'string'."
+				},
+				"min": {
+					"type": "number",
+					"description": "Minimum value. Only valid when type is 'number'."
+				},
+				"max": {
+					"type": "number",
+					"description": "Maximum value. Only valid when type is 'number'."
+				}
+			}
+		},
+		"channelEntry": {
+			"type": "object",
+			"required": ["server"],
+			"additionalProperties": false,
+			"properties": {
+				"server": {
+					"type": "string",
+					"description": "MCP server name as declared in mcpServers."
+				},
+				"displayName": {
+					"type": "string"
+				},
+				"userConfig": {
+					"type": "object",
+					"additionalProperties": {
+						"$ref": "#/$defs/userConfigItem"
+					}
+				}
+			}
+		},
+		"monitorEntry": {
+			"type": "object",
+			"required": ["name", "command", "description"],
+			"additionalProperties": false,
+			"properties": {
+				"name": {
+					"type": "string"
+				},
+				"command": {
+					"type": "string",
+					"description": "Supports ${PLUGIN_ROOT}, ${PLUGIN_DATA}, ${user_config.*}, and env vars."
+				},
+				"description": {
+					"type": "string"
+				},
+				"when": {
+					"type": "string",
+					"description": "When to run. 'always' or 'on-skill-invoke:<skill-name>'.",
+					"default": "always"
+				}
+			}
+		},
+		"harnesses": {
+			"type": "object",
+			"additionalProperties": false,
+			"description": "Per-harness manifest overrides, keyed by vendor id. Each block is copied verbatim into that harness's derived manifest.",
+			"properties": {
+				"claude-code": {
+					"$ref": "#/$defs/harnessExtensionClaudeCode"
+				},
+				"cursor": {
+					"$ref": "#/$defs/harnessExtensionCursor"
+				},
+				"codex": {
+					"$ref": "#/$defs/harnessExtensionCodex"
+				},
+				"copilot-cli": {
+					"$ref": "#/$defs/harnessExtensionCopilotCli"
+				}
+			}
+		},
+		"harnessExtensionClaudeCode": {
+			"type": "object",
+			"additionalProperties": true,
+			"description": "Per-harness overrides merged into the derived .claude-plugin/plugin.json (was vendorExtensions['claude-code']).",
+			"properties": {
+				"displayName": {
+					"type": "string"
+				},
+				"defaultEnabled": {
+					"type": "boolean"
+				},
+				"dependencies": {
+					"type": "array",
+					"items": {
+						"oneOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "object",
+								"required": ["name"],
+								"additionalProperties": false,
+								"properties": {
+									"name": {
+										"type": "string"
+									},
+									"version": {
+										"type": "string"
+									}
+								}
+							}
+						]
+					},
+					"description": "Inter-plugin dependencies by name or name+version range."
+				},
+				"themes": {
+					"$ref": "#/$defs/pathValue"
+				},
+				"monitors": {
+					"oneOf": [
+						{
+							"$ref": "#/$defs/pluginPath"
+						},
+						{
+							"$ref": "#/$defs/pathConfig"
+						},
+						{
+							"type": "array",
+							"items": {
+								"$ref": "#/$defs/monitorEntry"
+							}
+						}
+					]
+				},
+				"channels": {
+					"type": "array",
+					"items": {
+						"$ref": "#/$defs/channelEntry"
+					}
+				},
+				"userConfig": {
+					"type": "object",
+					"additionalProperties": {
+						"$ref": "#/$defs/userConfigItem"
+					},
+					"description": "Prompted at plugin enable time. Keys are config item names."
+				},
+				"settings": {
+					"type": "object",
+					"description": "User settings overrides."
+				},
+				"hooks": {
+					"$ref": "#/$defs/vendorOnlyHooksMap",
+					"description": "Claude Code-only hook events (e.g. PostToolBatch, UserPromptExpansion). Merged with translated canonical hooks."
+				}
+			},
+			"$comment": "Open by design. The build copies this block verbatim into the derived manifest and holds no opinion on a field it does not translate, so a vendor field newer than this schema must ride along rather than be rejected. The properties below are the ones documented here, not the ones permitted."
+		},
+		"harnessExtensionCursor": {
+			"type": "object",
+			"additionalProperties": true,
+			"description": "Per-harness overrides merged into the derived .cursor-plugin/plugin.json (was vendorExtensions['cursor']).",
+			"properties": {
+				"displayName": {
+					"type": "string"
+				},
+				"publisher": {
+					"type": "string"
+				},
+				"logo": {
+					"type": "string",
+					"description": "Relative path or absolute URL to logo image."
+				},
+				"category": {
+					"type": "string"
+				},
+				"tags": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					}
+				}
+			},
+			"$comment": "Open by design. The build copies this block verbatim into the derived manifest and holds no opinion on a field it does not translate, so a vendor field newer than this schema must ride along rather than be rejected. The properties below are the ones documented here, not the ones permitted."
+		},
+		"codexInterface": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"displayName": {
+					"type": "string"
+				},
+				"shortDescription": {
+					"type": "string"
+				},
+				"category": {
+					"type": "string"
+				},
+				"websiteURL": {
+					"type": "string",
+					"format": "uri"
+				}
+			}
+		},
+		"harnessExtensionCodex": {
+			"type": "object",
+			"additionalProperties": true,
+			"description": "Per-harness overrides merged into the derived .codex-plugin/plugin.json (was vendorExtensions['codex']).",
+			"properties": {
+				"version": {
+					"type": "string",
+					"description": "Override canonical version for Codex. Required if not set in canonical fields."
+				},
+				"description": {
+					"type": "string",
+					"description": "Override canonical description for Codex. Required if not set in canonical fields."
+				},
+				"apps": {
+					"$ref": "#/$defs/pathValue",
+					"description": ".app.json for connector/app integrations."
+				},
+				"interface": {
+					"$ref": "#/$defs/codexInterface"
+				}
+			},
+			"$comment": "Open by design. The build copies this block verbatim into the derived manifest and holds no opinion on a field it does not translate, so a vendor field newer than this schema must ride along rather than be rejected. The properties below are the ones documented here, not the ones permitted."
+		},
+		"harnessExtensionCopilotCli": {
+			"type": "object",
+			"additionalProperties": true,
+			"description": "Per-harness overrides merged into the derived plugin.json for Copilot CLI (was vendorExtensions['copilot-cli']).",
+			"properties": {
+				"category": {
+					"type": "string"
+				},
+				"tags": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					}
+				},
+				"hooks": {
+					"$ref": "#/$defs/vendorOnlyHooksMap",
+					"description": "Copilot CLI-only hook events (e.g. agentStop, permissionRequest, notification). Merged with translated canonical hooks."
+				}
+			},
+			"$comment": "Open by design. The build copies this block verbatim into the derived manifest and holds no opinion on a field it does not translate, so a vendor field newer than this schema must ride along rather than be rejected. The properties below are the ones documented here, not the ones permitted."
+		},
+		"vendorOnlyHooksMap": {
+			"type": "object",
+			"description": "Vendor-specific hook events not in the canonical event set. Keys are vendor-native event names (any string).",
+			"additionalProperties": {
+				"type": "array",
+				"items": {
+					"$ref": "#/$defs/hookRule"
+				}
+			}
+		}
+	}
+}
