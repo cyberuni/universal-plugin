@@ -9,3 +9,9 @@ like `category` and `tags` that the closed Agent Plugins Spec field set cannot h
 now enumerates every non-spec field on the pre-adoption root manifest and reports it by name and
 value before overwriting the file, and the losslessness diff includes root `plugin.json` — the one
 vendor manifest that can lose fields, and the one the proof used to skip.
+
+`references/vendors/copilot-cli.md` now records what is actually known about `category` and `tags`:
+Copilot CLI documents both as manifest fields, nothing in its documentation consumes either, and the
+Agent Plugins Spec bars a conformant client from assigning unknown fields meaning — so dropping them
+costs nothing observable. What remains unestablished is written down as open questions rather than
+guessed at.
