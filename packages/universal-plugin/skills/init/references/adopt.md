@@ -41,18 +41,64 @@ canonical manifest (has `$schema` pointing at `agent-plugins.org` and an `extens
 which case there is nothing to adopt; route to `update.md`, or hand off to `doctor`, instead), or a legacy
 Copilot CLI manifest that now collides with the canonical path and must be folded in.
 
-## Step 2 — Sort every field into shared vs vendor-specific
+## Step 2 — Sort every field into shared, vendor-specific, and undeliverable
 
-Build two buckets from the manifests you inventoried:
+Build three buckets from the manifests you inventoried:
 
-- **Shared metadata** — `name`, `version`, `description`, `author`, `homepage`, `repository`,
-  `license`, `keywords`, and the component paths. These go at the canonical top level.
+- **Shared metadata** — the canonical top level is a **closed** set of exactly ten fields:
+  `$schema`, `name`, `version`, `description`, `author`, `homepage`, `repository`, `license`,
+  `keywords`, `extensions`. A field in that list stays at the top level.
 - **Vendor-specific** — anything only one runtime understands (Cursor's `publisher`/`category`/
-  `tags`, Codex's `interface`, Copilot's `category`/`tags`). These go under
-  `extensions["org.cyberuni.universal-plugin"].harnesses.<vendor>`.
+  `tags`, Codex's `interface`). These go under
+  `extensions["org.cyberuni.universal-plugin"].harnesses.<vendor>`. The component paths
+  (`skills`, `commands`, `agents`, `hooks`, `mcpServers`, `rules`, `lspServers`, `outputStyles`)
+  are not top-level either — they go under that same extension namespace, one level up from
+  `harnesses`.
+- **Undeliverable** — a field whose only consumer is Copilot CLI. Copilot CLI reads the canonical
+  root manifest directly and gets no derived file, so such a field has no home on either side: the
+  closed schema rejects it at the top level, and a `harnesses["copilot-cli"]` entry is never
+  written anywhere. Adoption drops it. See
+  [`vendors/copilot-cli.md`](./vendors/copilot-cli.md), which records what Copilot CLI does with a
+  non-spec field in the first place.
 
 Where two vendor manifests disagree on a shared field, **ask the user** which value is canonical
 rather than picking one. A silent choice here is a silent behavior change for one of their runtimes.
+
+### Name every field you are about to drop
+
+A legacy root `plugin.json` is what makes the third bucket real. Before 0.6 the build wrote
+Copilot CLI's output *to root*, so root carries whatever Copilot-specific fields the project set —
+`category` and `tags` are the ones seen in the wild. After adoption root is the canonical manifest
+and those fields have nowhere to go.
+
+Nothing warns about this. The build's `undeliverable-override` warning and `doctor`'s matching
+finding fire only on a `harnesses["copilot-cli"]` entry — which is what someone doing it *wrong*
+writes. An adoption done correctly never creates one, so it gets silence. Enumerate the fields
+yourself, from the pre-adoption root manifest, before you overwrite it:
+
+```bash
+node -e '
+  const spec = ["$schema", "name", "version", "description", "author",
+                "homepage", "repository", "license", "keywords", "extensions"]
+  const root = JSON.parse(require("node:fs").readFileSync("plugin.json", "utf8"))
+  for (const k of Object.keys(root)) {
+    if (!spec.includes(k)) console.log(k, "=", JSON.stringify(root[k]))
+  }
+'
+```
+
+Every name it prints is a field the canonical top level cannot hold. Sort each one:
+
+| The field | Where it goes |
+| --- | --- |
+| a component path (`skills`, `commands`, `agents`, …) | `extensions["org.cyberuni.universal-plugin"].<name>` — carried |
+| a field a vendor with a *derived* manifest understands | that vendor's `harnesses` entry — carried |
+| anything left | **dropped** |
+
+**Report the dropped ones to the user by name, with the value each held, before Step 3 writes
+anything.** That report is the only notice they get, and it is the difference between an informed
+decision and a field that evaporates. Say what the field was for if you know; if a field looks load-
+bearing and the user wants it kept, stop rather than shipping the adoption around it.
 
 ## Step 3 — Write the canonical manifest
 
@@ -85,8 +131,8 @@ regenerated rather than edited.
 - Tell the user they are generated from here on, and that hand-edits will be overwritten by
   `plugin build`.
 - If the project has a legacy root `plugin.json` for Copilot CLI, that path is now the canonical
-  manifest — its derived Copilot output moves elsewhere. Check the vendor output table in
-  [`create.md`](./create.md) Step 2 for the current path.
+  manifest. Copilot CLI gets no replacement file: it reads root directly, so the canonical manifest
+  *is* its manifest from here on. See the vendor output table in [`create.md`](./create.md) Step 2.
 
 ## Step 5 — Build
 
@@ -99,14 +145,27 @@ npx universal-plugin plugin build
 This is the point of the whole procedure.
 
 ```bash
-git diff -- .claude-plugin .cursor-plugin .codex-plugin .github/plugin
+git diff -- plugin.json .claude-plugin .cursor-plugin .codex-plugin .github/plugin
 ```
 
-Read every line of that diff. Expect only formatting and key-order churn.
+Root `plugin.json` is in that list on purpose, and it is the one path that behaves differently from
+the other four.
 
-**Any field that disappeared is a regression**, not a cleanup. Trace it back: either it belongs in
-the shared metadata, or it belongs in that vendor's `harnesses` entry, or it is a field the build
-does not yet support — in which case stop and tell the user rather than shipping a quiet
+- For `.claude-plugin`, `.cursor-plugin`, `.codex-plugin`, and `.github/plugin`, expect only
+  formatting and key-order churn. A hunk that changes a value is a finding.
+- For root `plugin.json`, **expect real hunks** — the `$schema` line and the `extensions` object are
+  new, and the component paths moved under them. That is the rewrite working. Because the diff is
+  large by design it is the easy one to skim, and under the legacy layout root *was* a vendor
+  manifest — Copilot CLI's — so it is also the only file where a field can go missing without any
+  other check noticing. Read it, do not skim it.
+
+Account for **every key that leaves root**. Each one must land in exactly one of three places: at the
+canonical top level, under `extensions`, or on the dropped list you enumerated and reported in
+Step 2. A key that left root and is on none of those three is a regression.
+
+**Any field that disappeared unannounced is a regression**, not a cleanup. Trace it back: either it
+belongs in the shared metadata, or it belongs in that vendor's `harnesses` entry, or it is a field
+the build does not yet support — in which case stop and tell the user rather than shipping a quiet
 capability loss.
 
 Then confirm the plugin still loads. See [`create.md`](./create.md) Step 8 for local install.

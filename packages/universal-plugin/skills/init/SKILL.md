@@ -78,9 +78,12 @@ Sort each finding into exactly one bucket:
 - **adoptable** — a hand-written vendor manifest with no canonical manifest above it, a legacy root
   `plugin.json` carrying neither `$schema` nor `extensions`, or publicly-shipped skills with no
   manifest at all. These become canonical content in Phase 4.
-- **undeliverable** — a vendor-specific field with no delivery path, most often a
-  `harnesses["copilot-cli"]` override: the canonical schema is closed, so the field cannot ride
-  along in root and the build warns about it. Report; do not invent a home for it.
+- **undeliverable** — a vendor-specific field with no delivery path, because Copilot CLI reads the
+  canonical manifest directly and has no derived file of its own. Two shapes reach this bucket: a
+  `harnesses["copilot-cli"]` override, which the build warns about; and a non-spec field on a
+  **legacy root `plugin.json`** — `category`, `tags` — which nothing warns about at all, because the
+  correct adoption never writes a `harnesses` entry for it. Report every one by name; do not invent
+  a home for it.
 - **not a plugin** — repo-private agent configuration (`.claude/skills/`, `.agents/skills/`,
   `.cursor/rules/`). It is this project's own tooling, not something it distributes. Say nothing
   about packaging it.
@@ -94,6 +97,11 @@ Present the plan before touching anything the user wrote: which files will be cr
 hand-written vendor manifests become generated artifacts, which vendors will be enabled, what the
 canonical metadata will say (show `name`, `version`, and `description` verbatim), and what is being
 left alone and why.
+
+An adoption also presents **every non-spec field it is about to drop, by name and value** — the
+undeliverable bucket from Phase 2. Nothing downstream warns about those, so this is the only notice
+the user gets. [`references/adopt.md`](./references/adopt.md) Step 2 has the command that enumerates
+them.
 
 Get explicit approval before any step that deletes, replaces, or rewrites a user-authored file —
 adoption always crosses that line, because it turns manifests the user maintains into build output.
@@ -167,11 +175,16 @@ override both surface there and both are silent capability loss if ignored.
 When the work was an adoption, the proof is the diff:
 
 ```bash
-git diff -- .claude-plugin .cursor-plugin .codex-plugin .github/plugin
+git diff -- plugin.json .claude-plugin .cursor-plugin .codex-plugin .github/plugin
 ```
 
-Expect only formatting and key-order churn. Any field that disappeared is a regression, not a
-cleanup — trace it back to the shared metadata or to that vendor's `harnesses` entry before shipping.
+From the four derived paths, expect only formatting and key-order churn. Root `plugin.json` is
+different and is in the list on purpose: it shows real hunks — the `$schema`/`extensions` rewrite —
+and under the legacy layout it *was* Copilot CLI's manifest, so it is the one file where a field can
+vanish unnoticed. Read those hunks rather than skimming them.
+
+Any field that disappeared is a regression, not a cleanup — trace it back to the shared metadata, to
+that vendor's `harnesses` entry, or to the drop list you reported in Phase 3, before shipping.
 
 Audit each skill the plugin ships, per [`references/create.md`](./references/create.md) Step 6.
 Report what was created, adopted, derived, and left alone. For a fuller read of the plugin's state
@@ -186,7 +199,9 @@ This skill is not a formatter. If the project has one, run it over the written f
 - **Never hand-edit a `version` field.** Two authored files and every derived artifact fall out of
   sync. The `version` skill owns that move.
 - **Adoption is lossless by contract.** Every vendor that worked before must still work after, and
-  the Phase 5 diff is the check that proves it.
+  the Phase 5 diff — root `plugin.json` included — is the check that proves it. Where a field
+  genuinely cannot be carried, losing it is a decision the user makes, not one the adoption makes
+  quietly: name it first.
 - **Do not package repo-private agent configuration.** A `.claude/skills/` directory is the project's
   own tooling; offering to publish it is wrong.
 - **Do not convert vendor settings without a documented mapping.** Hooks have one: author them in
