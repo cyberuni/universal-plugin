@@ -100,3 +100,50 @@ test('refreshes the repository catalog entry and reports it', () => {
 	expect(catalog.plugins[0]).toMatchObject({ name: 'pods', source: './packages/pods', version: '1.0.0' })
 	expect(catalog.owner).toEqual({ name: 'pan' })
 })
+
+// ── issue #61: deriving nothing is reported by cause ──
+
+function writeWorkspaceManifest(manifest: object) {
+	fs.writeFileSync(path.join(workspacePackage, 'plugin.json'), `${JSON.stringify(manifest, null, '\t')}\n`)
+}
+
+// Scenario: the definitive empty state names doctor as the next step
+test('a canonical manifest declaring no harnesses stays exit 0 and points at doctor', () => {
+	writeWorkspaceManifest({ name: 'pods', version: '1.0.0', description: 'a workspace plugin' })
+	const r = build()
+	expect(r.status).toBe(0)
+	expect(r.stderr).toMatch(/nothing to build/)
+	expect(r.stderr).toMatch(/\/universal-plugin:doctor/)
+	expect(built()).toBe(false)
+})
+
+// Scenario: a pre-0.6 vendorExtensions block that derives nothing fails loud
+test('a top-level vendorExtensions block that derives nothing exits 1 naming the signal', () => {
+	writeWorkspaceManifest({ name: 'pods', version: '1.0.0', vendorExtensions: { 'claude-code': {} } })
+	const r = build()
+	expect(r.status).toBe(1)
+	expect(r.stderr).toMatch(/vendorExtensions/)
+	expect(r.stderr).toMatch(/\/universal-plugin:doctor/)
+	expect(built()).toBe(false)
+})
+
+// Scenario: a shadowing .plugin/plugin.json that derives nothing fails loud
+test('a shadowing .plugin/plugin.json that derives nothing exits 1 naming the signal', () => {
+	writeWorkspaceManifest({ name: 'pods', version: '1.0.0', description: 'a workspace plugin' })
+	fs.mkdirSync(path.join(workspacePackage, '.plugin'), { recursive: true })
+	fs.writeFileSync(path.join(workspacePackage, '.plugin/plugin.json'), '{"name":"pods"}\n')
+	const r = build()
+	expect(r.status).toBe(1)
+	expect(r.stderr).toMatch(/\.plugin\/plugin\.json/)
+	expect(r.stderr).toMatch(/\/universal-plugin:doctor/)
+	expect(built()).toBe(false)
+})
+
+// Scenario: a pre-0.6 signal beside harnesses that still derive is not a build failure
+test('a shadowing .plugin/plugin.json beside deriving harnesses is not a build failure', () => {
+	fs.mkdirSync(path.join(workspacePackage, '.plugin'), { recursive: true })
+	fs.writeFileSync(path.join(workspacePackage, '.plugin/plugin.json'), '{"name":"pods"}\n')
+	const r = build()
+	expect(r.status).toBe(0)
+	expect(built()).toBe(true)
+})

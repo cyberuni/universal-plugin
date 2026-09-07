@@ -3,7 +3,7 @@ import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { buildPlugin, readManifest, validateManifest } from './build.js'
+import { buildPlugin, legacyLayoutSignals, readManifest, validateManifest } from './build.js'
 
 let dir: string
 let home: string
@@ -91,6 +91,32 @@ describe('buildPlugin', () => {
 		const result = buildPlugin(dir, { dryRun: true })
 		expect(result.vendors).toHaveLength(0)
 		expect(result.warnings[0]).toMatch(/nothing to build/)
+	})
+
+	// Scenario: a pre-0.6 vendorExtensions block that derives nothing fails loud
+	it('fails loud when a pre-0.6 vendorExtensions block explains the empty result', () => {
+		writeManifest({ name: 'my-plugin', vendorExtensions: { 'claude-code': {} } })
+		expect(() => buildPlugin(dir, { dryRun: true })).toThrow(/vendorExtensions/)
+		expect(() => buildPlugin(dir, { dryRun: true })).toThrow(/\/universal-plugin:doctor/)
+	})
+
+	// Scenario: a shadowing .plugin/plugin.json that derives nothing fails loud
+	it('fails loud when a shadowing .plugin/plugin.json explains the empty result', () => {
+		writeManifest({ name: 'my-plugin' })
+		fs.mkdirSync(path.join(dir, '.plugin'), { recursive: true })
+		fs.writeFileSync(path.join(dir, '.plugin/plugin.json'), '{"name":"my-plugin"}')
+		expect(() => buildPlugin(dir, { dryRun: true })).toThrow(/\.plugin\/plugin\.json/)
+		expect(() => buildPlugin(dir, { dryRun: true })).toThrow(/\/universal-plugin:doctor/)
+	})
+
+	// Scenario: a pre-0.6 signal beside harnesses that still derive is not a build failure
+	it('builds normally when a pre-0.6 signal sits beside harnesses that still derive', () => {
+		writeManifest({ name: 'my-plugin', extensions: up({ harnesses: { 'claude-code': {} } }) })
+		fs.mkdirSync(path.join(dir, '.plugin'), { recursive: true })
+		fs.writeFileSync(path.join(dir, '.plugin/plugin.json'), '{"name":"my-plugin"}')
+		const result = buildPlugin(dir)
+		expect(result.vendors).toEqual(['claude-code'])
+		expect(fs.existsSync(path.join(dir, '.claude-plugin/plugin.json'))).toBe(true)
 	})
 
 	it('lists vendors from harnesses keys', () => {
@@ -850,5 +876,22 @@ describe('buildPlugin — catalog formatting', () => {
 		expect(written).toContain('\n\t"name"')
 		expect(written).not.toContain('\n  "name"')
 		expect(Object.keys(JSON.parse(written))).toEqual(['name', 'owner', 'description', 'plugins'])
+	})
+})
+
+describe('legacyLayoutSignals', () => {
+	it('reports nothing for a canonical manifest in a clean project root', () => {
+		expect(legacyLayoutSignals({ name: 'my-plugin', extensions: up({ harnesses: {} }) }, false)).toEqual([])
+	})
+
+	// A manifest that merely omits the extensions block is deliberately not a pre-0.6 signal — it is
+	// as likely to be one nobody has configured yet. doctor still reports it as `legacy-manifest`.
+	it('does not treat a manifest without an extensions block as a pre-0.6 signal', () => {
+		expect(legacyLayoutSignals({ name: 'my-plugin' }, false)).toEqual([])
+	})
+
+	it('reports both signals when both are present', () => {
+		const signals = legacyLayoutSignals({ name: 'my-plugin', vendorExtensions: {} }, true)
+		expect(signals).toHaveLength(2)
 	})
 })
