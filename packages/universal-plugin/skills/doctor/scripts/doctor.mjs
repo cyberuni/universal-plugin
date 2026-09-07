@@ -106,6 +106,17 @@ if (build === null) {
 			'codex is targeted without version or description — the build writes nothing at all, for any vendor',
 			'add both to the canonical top level',
 		)
+	} else if (findings.some((f) => f.code === 'legacy-manifest' || f.code === 'shadowing-manifest')) {
+		// The build stops rather than reporting a definitive empty state when the layout explains the
+		// empty result (issue #61). That is still the no-vendors diagnosis — the layout findings above
+		// name the signals, and this names the consequence. Keyed on those findings rather than on the
+		// build's message, so the two never have to agree on wording.
+		add(
+			'no-vendors',
+			'medium',
+			'no vendor is declared — the project is on the pre-0.6 layout, so the build derives nothing and no runtime reads this plugin',
+			'/universal-plugin:init, adopt route',
+		)
 	} else {
 		add(
 			'build-failed',

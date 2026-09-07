@@ -1,6 +1,6 @@
 ---
 name: doctor
-description: Use this skill to diagnose a universal agent plugin — when a runtime loads none of the plugin's skills, when a vendor manifest is missing or looks out of date after a pull, when a build prints warnings nobody has read, or when checking whether what the canonical plugin.json declares still matches what is on disk for Claude Code, Cursor, Codex, and GitHub Copilot CLI. Trigger on "is my plugin set up right", "why isn't my plugin loading", "check the plugin", "are the vendor manifests current", or "what does this plugin declare".
+description: Use this skill to diagnose a universal agent plugin — when `plugin build` reports "built 0" or "nothing to build", when it warns "No vendors declared in harnesses", when a repository still carries `.plugin/plugin.json` or a top-level `vendorExtensions` block after upgrading universal-plugin across a major, when a released version never reached the vendor manifests, when a runtime loads none of the plugin's skills, when a vendor manifest is missing or looks out of date after a pull, or when checking whether what the canonical plugin.json declares still matches what is on disk for Claude Code, Cursor, Codex, and GitHub Copilot CLI. Trigger on "is my plugin set up right", "why isn't my plugin loading", "the build says built 0", "why did nothing get built", "check the plugin", "are the vendor manifests current", or "what does this plugin declare".
 ---
 
 # Plugin Doctor
@@ -73,7 +73,7 @@ Each `code` below is what the script emits.
 | `unreleased-content` | shipped content was committed after the commit that set the current version — a consumer keyed on that version never re-extracts it | `/universal-plugin:version` |
 | `stale-github-plugin` | a leftover `.github/plugin/plugin.json` from an older build — shadowed by root and no longer generated | `/universal-plugin:remove-plugin` |
 | `shadowing-manifest` | a `.plugin/plugin.json` exists — it outranks root in Copilot CLI's search order and silently shadows the canonical manifest | `/universal-plugin:remove-plugin` |
-| `no-vendors` | no vendor is declared, so the build writes nothing and no runtime reads the plugin | `/universal-plugin:init`, update route |
+| `no-vendors` | no vendor is declared, so the build writes nothing and no runtime reads the plugin. On a repository still on the pre-0.6 layout the build stops rather than reporting an empty result, and the detail says so — read it beside `legacy-manifest` and `shadowing-manifest`, which name the signals | `/universal-plugin:init`, adopt route on the pre-0.6 layout, else update route |
 | `package-path-missing` | `packagePath` names a directory with no readable `package.json` | fix `packagePath`, or create the package |
 | `unparsable-manifest` | root `plugin.json` is not valid JSON | fix the syntax error |
 | `invalid-catalog` | a marketplace catalog at the repository root is not a shape its runtime loads — it is found, read, and refused at install time, in the user's terminal | `/universal-plugin:marketplace` |
