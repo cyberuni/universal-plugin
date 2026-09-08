@@ -1,5 +1,140 @@
 # universal-plugin
 
+## 0.7.0
+
+### Minor Changes
+
+- af44d02: `plugin build` now separates "nothing was declared" from "this layout is one I cannot read".
+  
+  A repository left on the pre-0.6 layout — a top-level `vendorExtensions` block, or a
+  `.plugin/plugin.json` shadowing the canonical manifest — derives nothing, and until now that was
+  reported as a definitive empty state: `built 0`, exit 0. Chained behind a release script it read as
+  success, and a released version silently never reached the vendor manifests.
+  
+  Deriving nothing from a canonical manifest that genuinely declares no harnesses is still an empty
+  result (exit 0), and its stderr now names `/universal-plugin:doctor` as the next step rather than
+  `plugin validate`, which has nothing to say about it. Deriving nothing because the layout predates
+  this CLI is a failed read: the build exits 1, names the signal it found, and points at `doctor`. The
+  check only fires where the target set was already empty, so a project carrying one of those signals
+  whose harnesses still derive is unaffected.
+  
+  `doctor`'s description now covers this case — `built 0`, "nothing to build", the
+  `No vendors declared in harnesses` warning, a major upgrade, a leftover `.plugin/plugin.json` or
+  `vendorExtensions` — so an agent seeing the symptom routes to the skill that diagnoses it.
+  
+  Closes #61
+- b87c872: `plugin build` now derives the `com.github.copilot/` component tree, so a plugin's agents reach
+  GitHub Copilot CLI.
+  
+  `plugin init` always writes the canonical `$schema`, which puts every plugin this CLI builds into
+  Copilot CLI's spec mode. Spec mode reads the runtime's native components — agents, commands, rules,
+  `hooks/hooks.json` and `lsp.json` — **only** under `com.github.copilot/`, and no longer from the
+  plugin root. The build derived nothing for `copilot-cli`, so every plugin it shipped loaded none of
+  them on Copilot CLI, with no warning from anywhere. Skills kept working, which is what made it easy
+  to miss.
+  
+  Authoring does not move. You keep declaring `agents`, `commands`, `rules`, `hooks` and `lspServers`
+  at their canonical locations, and the build derives the namespace tree from them: the directory kinds
+  are copied — with agents renamed to Copilot CLI's `.agent.md` convention, since the canonical
+  `agents/` is the Claude Code-shaped `*.md` and a file under the other name is ignored — the hooks file
+  is translated (so a handler Copilot CLI cannot run is now dropped from a
+  real derived file rather than reported as ignored at runtime), and a declared `lspServers` **path**
+  is copied to `com.github.copilot/lsp.json`. An **inline** `lspServers` map is not delivered — the
+  file's top-level shape is undocumented, so the build warns rather than guessing. `skills/` and
+  `mcp.json` do not move and are not copied. `com.github.copilot/extensions/` runs the other way: it is
+  authored there, passed through untouched, and left alone by `--clean`.
+  
+  `copilot-cli` now reports `built` at `com.github.copilot/` when it derives any of this, and still
+  reports `canonical` at `plugin.json` when the plugin declares none of the moved kinds. Its manifest
+  is unchanged — root `plugin.json` still serves it, so a `harnesses.copilot-cli` override and a
+  `pinToPluginVersion` MCP entry are still undelivered and still warn. `plugin init --npm` wires
+  `com.github.copilot/` into `package.json` `files`.
+  
+  `doctor` gains `copilot-root-components`: components sitting at the plugin root with no namespace
+  copy, which is the shape of the defect above.
+  
+  Verified against `@github/copilot-linux-x64` 1.0.83; the move landed in Copilot CLI 1.0.80-0. The
+  published CLI plugin reference still describes the old layout and is stale. Recorded as ADR-0015,
+  with the evidence and its confidence under `.research/copilot-spec-mode-namespace/`.
+  
+  Closes #67
+- c152a2e: Stop vendoring the Agent Plugins Specification manifest schema; ship a schema for only the
+  `org.cyberuni.universal-plugin` extension namespace.
+  
+  The repository carried `schema/v1.json`, a local fork of the upstream Agent Plugins Specification
+  v1.0.0 manifest schema. Every `plugin.json` already declares the published schema
+  (`https://agent-plugins.org/schemas/1.0.0/plugin.schema.json`), so the fork added nothing on the
+  envelope and could only drift from a spec this project does not own.
+  
+  Upstream deliberately assigns no semantics inside `extensions[<namespace>]`, and that is where all
+  of this tool's configuration lives. The file is therefore split along the ownership line: the
+  envelope copy is deleted, and the namespace body is retained as
+  `schema/extension.schema.json`, now shipped in the package so a consumer resolving these fields
+  against an installed dependency can validate against a schema instead of reimplementing the rule.
+  
+  Validating that namespace for the first time surfaced two defects, both fixed:
+  
+  - `plugin build` resolved only the string form of a component path. The array and
+    `{ "paths": [...] }` forms — both valid — fell through to `./skills/` without complaint, so a
+    plugin declaring its skills either way had them silently left underived. All three forms now
+    resolve, every declared directory is searched, and a declared directory that does not exist warns
+    instead of being replaced by the default.
+  - The per-harness override blocks were a closed field set while the build copies each one verbatim
+    into the derived manifest. A harness field newer than the schema now rides along rather than being
+    rejected.
+- e8bdb8a: `plugin build` stamps the plugin's version onto an MCP invocation that asks for it.
+  
+  A plugin whose MCP server is its own npm package writes `{"command": "npx", "args": ["-y",
+  "my-server", "mcp"]}`, and nothing pins it: a consumer on 1.4.0 gets 1.4.0's skills and whatever
+  `npx` resolves as latest for the server, so skills and server drift apart silently. The version is
+  known at build time and nowhere else — `mcp.json` expands only `${PLUGIN_ROOT}` and `${PLUGIN_DATA}`,
+  so a runtime placeholder would reach the client literally.
+  
+  An `mcpServers` entry now opts in with `"pinToPluginVersion": true`, and the build rewrites that
+  entry's package specifier to `<pkg>@<manifest version>`. Opt-in is required and a name match is never
+  used — a plugin may publish its server under a package name that is not the plugin's, and
+  `npx -y widget-cli` must never be stamped with this plugin's version. The marker is a build
+  directive, so it is stripped from every derived manifest and derived MCP file; the authored
+  `plugin.json` and `mcp.json` are left as written. Delivery follows the hooks rule: with nothing
+  marked, the declaration passes through and nothing is derived; with an entry marked, the pinned map
+  is delivered inline when the canonical declared it inline, else as `<vendor-dir>/mcp.json` with the
+  vendor's `mcpServers` repointed there.
+
+### Patch Changes
+
+- a286459: `init`: stop the vendor table from reading as though Copilot CLI needs nothing derived.
+  
+  Copilot CLI has no derived *manifest* — that part was right. But declaring the canonical `$schema`
+  puts a plugin in Open Plugin Spec mode, and Copilot CLI then reads its native components (agents,
+  commands, rules, hooks) from a `com.github.copilot/` directory rather than the plugin root. The
+  table's "Extra requirements: none" cell was the inaccurate one, and it now names the requirement.
+  
+  Superseded within this release: the build derives that directory now, so the table names the
+  requirement as met rather than as tracked.
+- 1524e07: `init`: adoption no longer drops Copilot CLI's non-spec root fields in silence.
+  
+  A pre-0.6 project's root `plugin.json` *was* Copilot CLI's derived manifest, so it carries fields
+  like `category` and `tags` that the closed Agent Plugins Spec field set cannot hold. The adopt route
+  now enumerates every non-spec field on the pre-adoption root manifest and reports it by name and
+  value before overwriting the file, and the losslessness diff includes root `plugin.json` — the one
+  vendor manifest that can lose fields, and the one the proof used to skip.
+  
+  `references/vendors/copilot-cli.md` now records what is actually known about `category` and `tags`:
+  Copilot CLI documents both as manifest fields, nothing in its documentation consumes either, and the
+  Agent Plugins Spec bars a conformant client from assigning unknown fields meaning — so dropping them
+  costs nothing observable. What remains unestablished is written down as open questions rather than
+  guessed at.
+  
+  The field-sorting table also routes a pre-0.6 top-level `vendorExtensions` block explicitly: it is
+  the old name for `harnesses`, not an undeliverable field, and dropping it would discard every
+  per-harness override the project had.
+  
+  The Copilot CLI reference is now settled against the shipped runtime rather than the vendor's field
+  table: `category` and `tags` have no `plugin.json` handling at all in Copilot CLI 1.0.83 — the
+  manifest validator treats them as unknown-and-ignored — and are real only on a `marketplace.json`
+  catalog entry. Adoption therefore folds them into `keywords`, a spec field the validator does know,
+  instead of dropping them.
+
 ## 0.6.0
 
 ### Minor Changes
