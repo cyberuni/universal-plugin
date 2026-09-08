@@ -15,3 +15,14 @@
   "named by the runtime"; `lsp.json`, which the issue missed; the 1.0.80-0 version boundary; and the
   unresolved "MCP config" wording, recorded as an open question rather than acted on.
 - **Triggered by**: Issue #67.
+
+## 2026-09-07 — Added the agent filename convention
+
+- **What changed**: Recorded E07, that Copilot CLI recognizes an agent by its `.agent.md` extension.
+- **Why**: Found by building this repository's own plugin against the new derivation — the copied
+  agent landed as `agentskills-specialist.md`, a name Copilot CLI does not read. The namespace
+  finding is about *where* the runtime looks; this is about *what* it recognizes once it looks there,
+  and the two together are what a working copy needs.
+- **Conclusion change**: added the renaming note to the verdict. Nothing already recorded changed.
+- **Triggered by**: dogfooding the ADR-0015 build.
+

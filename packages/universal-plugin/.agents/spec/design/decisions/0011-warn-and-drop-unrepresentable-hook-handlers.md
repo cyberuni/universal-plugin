@@ -1,6 +1,6 @@
 # 0011 — Warn and drop hook handlers a vendor cannot represent
 
-**Status:** accepted
+**Status:** superseded in part — §3 by [0015](./0015-copilot-spec-mode-namespace.md)
 **Date:** 2026-08-18
 **Extends:** [0007](./0007-adopt-agent-plugins-spec-canonical.md) — the canonical manifest is the one
 authored artifact; this decides what the build does when one target cannot express what it declares.
@@ -68,10 +68,22 @@ points at it.
 
 ### 3. Copilot CLI is warned about, never derived for
 
-Copilot CLI reads the canonical root `plugin.json` directly (ADR-0007 as applied in
-[`plugin/build/`](../../plugin/build/README.md)), so the build has no manifest of its own to repoint
-and no derived file it could deliver. An `agent` handler is therefore reported as ignored at runtime
-rather than dropped from a file. The warning is the whole remedy available.
+**Superseded by [ADR-0015](./0015-copilot-spec-mode-namespace.md).** Copilot CLI's spec mode reads
+`hooks/hooks.json` under `com.github.copilot/`, so the build **does** have a derived hooks file to
+deliver: an unrunnable handler is dropped from it under §1 like any other vendor's. This section is
+wholly replaced — nothing in it still holds for hooks.
+
+What replaces it is not the manifest-level rule either. That rule is §2 of ADR-0015 and is
+independent of this ADR: data that can only ride in the canonical manifest — a
+`harnesses.copilot-cli` override, a pinned `mcpServers` entry — still has no delivery path and still
+warns. It never depended on the hooks claim below.
+
+> _Historical, and false as of ADR-0015. Kept for the record:_
+>
+> > Copilot CLI reads the canonical root `plugin.json` directly (ADR-0007 as applied in
+> > [`plugin/build/`](../../plugin/build/README.md)), so the build has no manifest of its own to
+> > repoint and no derived file it could deliver. An `agent` handler is therefore reported as ignored
+> > at runtime rather than dropped from a file. The warning is the whole remedy available.
 
 ### 4. Per-event handler restrictions are out of scope
 

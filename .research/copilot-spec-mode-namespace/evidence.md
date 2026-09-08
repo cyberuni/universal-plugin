@@ -114,3 +114,21 @@
 - **notes**: `"agents": "agents/"` in a spec-mode manifest still loads nothing. The namespace is not
   a default that a manifest path overrides — it is where spec-mode resolution starts. This rules out
   "declare the root path explicitly" as a cheaper fix than deriving the directory.
+
+---
+
+## E07 — Copilot CLI agent files carry the `.agent.md` extension
+
+- **claim_id**: E07
+- **date**: 2026-09-07
+- **status**: Confirmed
+- **confidence**: High
+- **source.label**: Creating and using custom agents for GitHub Copilot CLI
+- **source.url**: https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/create-custom-agents-for-cli
+- **source.type**: Official docs
+- **notes**: "Each custom agent is defined by a Markdown file with an `.agent.md` extension"; an agent
+  is selected by "the file name of the custom agent profile, without the `.agent.md` extension".
+  This is native-mode behavior the namespace inherits — the moved location changes where the runtime
+  looks, not what it recognizes. It matters here because the canonical `agents/` layout is the Claude
+  Code-shaped `*.md`, so a copy that kept the authored name would land a file Copilot CLI ignores.
+  Cited in preference to the plugin reference (E05), which this research treats as stale.

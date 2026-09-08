@@ -33,8 +33,10 @@ Feature: plugin build — derive per-vendor manifests
   # Copilot CLI checks .plugin/plugin.json -> plugin.json -> .github/plugin/plugin.json ->
   # .claude-plugin/plugin.json and takes the first match, so root shadows the lower two. Copilot CLI
   # reads Open Plugin Spec v1 manifests as of v1.0.74, so the canonical manifest serves it directly.
-  Scenario: copilot-cli derives nothing — the canonical root manifest serves it
+  # Its components are a separate question — see the spec-mode namespace section (ADR-0015).
+  Scenario: copilot-cli derives no manifest — the canonical root manifest serves it
     Given the manifest declares harnesses for "copilot-cli"
+    And the extensions namespace declares only skills "./skills/"
     When I run "universal-plugin plugin build"
     Then no ".github/plugin/plugin.json" is written
     And the canonical "plugin.json" is left unchanged
@@ -193,14 +195,16 @@ Feature: plugin build — derive per-vendor manifests
     Then a warning names "cursor", "SessionStart", and the dropped type "http"
     And the exit code is 0
 
-  # Copilot CLI reads the canonical root manifest and its hooks file directly, so there is no derived
-  # manifest to repoint and no derived hooks file to deliver — the warning is the whole remedy.
-  Scenario: copilot-cli warns that an unsupported handler is ignored at runtime
-    Given the authored hooks declare one agent handler on "SessionStart"
+  # Copilot CLI now has a derived hooks file of its own at the spec-mode path (ADR-0015 revises
+  # ADR-0011 §3), so a handler it cannot run is dropped from that file rather than left in place.
+  Scenario: copilot-cli drops an unsupported handler from its derived namespace file
+    Given the authored hooks declare one agent handler on "SessionStart" and one command handler on "Stop"
     And the manifest declares harnesses for "copilot-cli"
     When I run "universal-plugin plugin build"
-    Then a warning names "copilot-cli", "SessionStart", and the type "agent"
-    And no hooks file is derived for "copilot-cli"
+    Then a warning names "copilot-cli", "SessionStart", and the dropped type "agent"
+    And "com.github.copilot/hooks/hooks.json" does not contain "SessionStart"
+    And "com.github.copilot/hooks/hooks.json" contains "Stop"
+    And the canonical "plugin.json" is left unchanged
     And the exit code is 0
 
   Scenario: an event left with no runnable handler is omitted from the derived file
@@ -390,6 +394,194 @@ Feature: plugin build — derive per-vendor manifests
     When I run "universal-plugin plugin build"
     Then stderr contains "copilot-cli"
     And the canonical "plugin.json" is left unchanged
+    And the exit code is 0
+
+  # ── The Copilot spec-mode namespace (ADR-0015) ──
+
+  # Declaring the canonical $schema puts a plugin in Copilot CLI's spec mode, which reads agents,
+  # commands, rules, hooks/hooks.json and lsp.json only under com.github.copilot/ and no longer from
+  # the plugin root. Verified against @github/copilot-linux-x64 1.0.83; the move landed in 1.0.80-0.
+
+  Scenario: declared agents, commands, and rules are copied under the namespace
+    Given the manifest declares agents "./agents/", commands "./commands/", and rules "./rules/"
+    And "agents/reviewer.agent.md", "commands/ship.md", and "rules/style.md" exist
+    And the manifest declares harnesses for "copilot-cli"
+    When I run "universal-plugin plugin build"
+    Then "com.github.copilot/agents/reviewer.agent.md" is written
+    And "com.github.copilot/commands/ship.md" is written
+    And "com.github.copilot/rules/style.md" is written
+    And each copied file matches the authored file byte for byte
+    And the exit code is 0
+
+  # Copilot CLI reads agents/ as .agent.md files, while the canonical agents/ is the Claude Code
+  # shaped *.md — a copy under the authored name would land a file the runtime ignores.
+  Scenario: a copied agent is renamed to the .agent.md convention
+    Given the manifest declares agents "./agents/"
+    And "agents/reviewer.md" exists
+    And the manifest declares harnesses for "copilot-cli"
+    When I run "universal-plugin plugin build"
+    Then "com.github.copilot/agents/reviewer.agent.md" is written
+    And "com.github.copilot/agents/reviewer.md" is NOT written
+    And the exit code is 0
+
+  Scenario: an agent already named .agent.md keeps its name
+    Given the manifest declares agents "./agents/"
+    And "agents/reviewer.agent.md" exists
+    And the manifest declares harnesses for "copilot-cli"
+    When I run "universal-plugin plugin build"
+    Then "com.github.copilot/agents/reviewer.agent.md" is written
+    And "com.github.copilot/agents/reviewer.agent.agent.md" is NOT written
+    And the exit code is 0
+
+  Scenario: a component path array is resolved across every declared directory
+    Given the extensions namespace declares agents as the array "./agents/" and "./more-agents/"
+    And "agents/a.agent.md" and "more-agents/b.agent.md" exist
+    And the manifest declares harnesses for "copilot-cli"
+    When I run "universal-plugin plugin build"
+    Then "com.github.copilot/agents/a.agent.md" is written
+    And "com.github.copilot/agents/b.agent.md" is written
+    And the exit code is 0
+
+  Scenario: a component paths object is resolved across every declared directory
+    Given the extensions namespace declares agents as a paths object listing "./agents/" and "./more-agents/"
+    And "agents/a.agent.md" and "more-agents/b.agent.md" exist
+    And the manifest declares harnesses for "copilot-cli"
+    When I run "universal-plugin plugin build"
+    Then "com.github.copilot/agents/a.agent.md" is written
+    And "com.github.copilot/agents/b.agent.md" is written
+    And the exit code is 0
+
+  Scenario: the schema default is read when the field is absent
+    Given the extensions namespace declares no agents path
+    And "agents/reviewer.agent.md" exists
+    And the manifest declares harnesses for "copilot-cli"
+    When I run "universal-plugin plugin build"
+    Then "com.github.copilot/agents/reviewer.agent.md" is written
+    And the exit code is 0
+
+  # A declared path that did not resolve is a loss the author can fix; an unused default is not.
+  Scenario: a declared component directory that does not exist is warned about
+    Given the manifest declares agents "./agents/"
+    And no "agents/" directory exists
+    And the manifest declares harnesses for "copilot-cli"
+    When I run "universal-plugin plugin build"
+    Then a warning names "agents" and the path "./agents/"
+    And "copilot-cli" is reported with status "canonical"
+    And the exit code is 0
+
+  Scenario: an absent default directory is not warned about
+    Given the extensions namespace declares only skills "./skills/"
+    And no "agents/", "commands/", or "rules/" directory exists
+    And the manifest declares harnesses for "copilot-cli"
+    When I run "universal-plugin plugin build"
+    Then no warning names "agents"
+    And "copilot-cli" is reported with status "canonical"
+    And the exit code is 0
+
+  Scenario: a component declaration in none of the three forms warns and copies nothing
+    Given the manifest declares agents as the number 7
+    And the manifest declares harnesses for "copilot-cli"
+    When I run "universal-plugin plugin build"
+    Then a warning names "agents"
+    And "com.github.copilot/agents/" is NOT written
+    And the exit code is 0
+
+  # The aggregate suffix reports the vendors root plugin.json serves whole. It is reachable only
+  # while some vendor is canonical, which is now conditional rather than copilot-cli's fixed result.
+  Scenario: the aggregate names the vendors the canonical manifest serves
+    Given the extensions namespace declares only skills "./skills/"
+    And the manifest declares harnesses for "copilot-cli"
+    When I run "universal-plugin plugin build"
+    Then stdout contains "served by plugin.json 1"
+    And the exit code is 0
+
+  # The suffix is conditional on a vendor being canonical, and copilot-cli is no longer canonical
+  # unconditionally — a build that still assumed it was would report a vendor it did not serve.
+  Scenario: the aggregate omits the suffix when copilot-cli derives its components
+    Given the manifest declares agents "./agents/"
+    And "agents/reviewer.agent.md" exists
+    And the manifest declares harnesses for "copilot-cli"
+    When I run "universal-plugin plugin build"
+    Then stdout contains "built 1"
+    And stdout does not contain "served by plugin.json"
+    And the exit code is 0
+
+  Scenario: the vendor is reported as built at the namespace directory
+    Given the manifest declares agents "./agents/"
+    And "agents/reviewer.agent.md" exists
+    And the manifest declares harnesses for "copilot-cli"
+    When I run "universal-plugin plugin build"
+    Then "copilot-cli" is reported with status "built"
+    And "copilot-cli" is reported with path "com.github.copilot/"
+    And the canonical "plugin.json" is left unchanged
+    And the exit code is 0
+
+  Scenario: hooks are translated to the fixed spec-mode path
+    Given the authored hooks declare one command handler on "SessionStart"
+    And the manifest declares harnesses for "copilot-cli"
+    When I run "universal-plugin plugin build"
+    Then "com.github.copilot/hooks/hooks.json" is written
+    And "com.github.copilot/hooks/hooks.json" contains "SessionStart"
+    And the exit code is 0
+
+  # A declared lsp path is copied verbatim: the file's top-level shape is the authored one, and the
+  # runtime does not document it, so the build carries the file rather than composing one.
+  Scenario: a declared lspServers path is copied to the namespace lsp.json
+    Given the manifest declares lspServers "./.lsp.json"
+    And the authored ".lsp.json" declares entry "tf"
+    And the manifest declares harnesses for "copilot-cli"
+    When I run "universal-plugin plugin build"
+    Then "com.github.copilot/lsp.json" is written
+    And "com.github.copilot/lsp.json" matches the authored ".lsp.json" byte for byte
+    And the exit code is 0
+
+  Scenario: an inline lspServers map warns rather than guessing the file shape
+    Given the manifest declares lspServers inline with entry "tf"
+    And the manifest declares harnesses for "copilot-cli"
+    When I run "universal-plugin plugin build"
+    Then a warning names "copilot-cli" and "lspServers"
+    And "com.github.copilot/lsp.json" is NOT written
+    And the exit code is 0
+
+  # skills/ and mcp.json are read from the plugin root in spec mode, so copying them would ship a
+  # second copy nothing reads.
+  Scenario: skills and mcp.json are not copied into the namespace
+    Given the manifest declares skills "./skills/", mcpServers "./mcp.json", and agents "./agents/"
+    And a skill "reviewer" exists under "skills/"
+    And "agents/reviewer.agent.md" exists
+    And the manifest declares harnesses for "copilot-cli"
+    When I run "universal-plugin plugin build"
+    Then "com.github.copilot/agents/reviewer.agent.md" is written
+    And "com.github.copilot/skills/" is NOT written
+    And "com.github.copilot/mcp.json" is NOT written
+    And the exit code is 0
+
+  Scenario: an authored extensions directory is passed through untouched
+    Given "com.github.copilot/extensions/canvas/extension.json" is authored
+    And the manifest declares harnesses for "copilot-cli"
+    When I run "universal-plugin plugin build"
+    Then "com.github.copilot/extensions/canvas/extension.json" is left unchanged
+    And the exit code is 0
+
+  Scenario: --clean replaces the derived tree but leaves authored extensions
+    Given the manifest declares agents "./agents/"
+    And "agents/reviewer.agent.md" exists
+    And a stale "com.github.copilot/agents/removed.agent.md" exists
+    And "com.github.copilot/extensions/canvas/extension.json" is authored
+    And the manifest declares harnesses for "copilot-cli"
+    When I run "universal-plugin plugin build --clean"
+    Then "com.github.copilot/agents/removed.agent.md" is NOT written
+    And "com.github.copilot/agents/reviewer.agent.md" is written
+    And "com.github.copilot/extensions/canvas/extension.json" is left unchanged
+    And the exit code is 0
+
+  Scenario: --dry-run derives no namespace files
+    Given the manifest declares agents "./agents/"
+    And "agents/reviewer.agent.md" exists
+    And the manifest declares harnesses for "copilot-cli"
+    When I run "universal-plugin plugin build --dry-run"
+    Then "com.github.copilot/agents/reviewer.agent.md" is NOT written
+    And "copilot-cli" is reported with status "built"
     And the exit code is 0
 
   # ── Vendor filtering ──

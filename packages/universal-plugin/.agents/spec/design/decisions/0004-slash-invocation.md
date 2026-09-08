@@ -1,6 +1,6 @@
 # 0004 — Slash invocation: skills are canonical, commands are an invocation policy
 
-**Status:** accepted
+**Status:** superseded in part — the Copilot CLI premise, by [0015](./0015-copilot-spec-mode-namespace.md)
 **Date:** 2026-07-21
 
 ## Context
@@ -65,6 +65,16 @@ separate command mechanism into skills; the fourth never shipped file-based user
      deprecated; prefer the skill and treat the prompt as best-effort.
    - **Copilot CLI** → skill only; there is no user-command surface to derive.
 
+> **The Copilot CLI row's premise no longer holds ([ADR-0015](./0015-copilot-spec-mode-namespace.md)).**
+> Copilot CLI does have a commands surface — `com.github.copilot/commands/`, which the build derives
+> from the canonical `commands` path. Two things about that are worth keeping straight. It does not
+> revive a **canonical `commands/` tree**: `commands` is a universal-plugin extension field, not a
+> field of the spec's closed root manifest, so Decision 1 stands and the Alternatives bullet below
+> still rejects what it rejected. And it is not the same object as *this* ADR's subject — ADR-0015
+> copies an **authored** commands directory to where the runtime reads it, while §3 here derives a
+> command **from a user-invocable skill**. That derivation is still deferred behavioral work, but
+> when it lands, Copilot CLI now has somewhere to put it.
+
 4. **Deterministic user-triggered invocation is a three-vendor guarantee.** Claude Code, Cursor, and
    Codex support a deterministic user-typed command; Copilot CLI's `/skill-name` is a hint, not a
    guarantee. Any plugin behavior that *requires* deterministic user invocation must document Copilot
@@ -73,7 +83,8 @@ separate command mechanism into skills; the fourth never shipped file-based user
 ## Consequences
 
 - **Low-regret.** Betting canonical on `skills/` aligns with where every vendor is heading and avoids
-  a `commands/` concept that would immediately strand Copilot CLI.
+  a `commands/` concept that duplicates a strict subset of a skill. _(This bullet also read "would
+  immediately strand Copilot CLI" — see the Alternatives note.)_
 - **No behavior change ships in this CR.** This ADR is a design record (no `.feature`, no gate), like
   ADR-0001..0003. The invocation-policy field and build's per-vendor command derivation are **deferred
   behavioral work** — a future `revise` CR on `plugin/build/` (placement pre-decided here). Filed as a
@@ -84,8 +95,11 @@ separate command mechanism into skills; the fourth never shipped file-based user
 
 ## Alternatives considered
 
-- **First-class canonical `commands/` tree** — rejected. It strands Copilot CLI (no target), duplicates
+- **First-class canonical `commands/` tree** — rejected. It duplicates
   a concept that is a strict subset of a skill, and fights the industry-wide collapse-into-skills
   direction. Every command expressible as a canonical artifact is expressible as a user-only skill.
+  _(The original wording led with "it strands Copilot CLI (no target)". That reason expired with
+  [ADR-0015](./0015-copilot-spec-mode-namespace.md); the two that remain are what the rejection now
+  rests on.)_
 - **A shipped governance instead of an ADR** — deferred, not rejected. The decision belongs in an ADR;
   author-facing governance belongs with the feature that gives authors something to configure.

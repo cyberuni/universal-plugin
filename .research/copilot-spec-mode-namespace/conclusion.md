@@ -27,6 +27,11 @@ therefore cannot serve both a native-mode and a spec-mode Copilot CLI consumer f
 The change landed in Copilot CLI **1.0.80-0** and is labelled a breaking change by the runtime's own
 changelog. `com.github.copilot/extensions/` arrived one release earlier, in 1.0.79.
 
+Copying is not enough for agents. Copilot CLI recognizes an agent by its `.agent.md` extension
+(E07), while the canonical `agents/` layout is the Claude Code-shaped `*.md` — so the file has to be
+renamed on the way into the namespace, not just moved. Commands and rules have no documented
+extension; leave them as authored.
+
 ## Why it matters here
 
 `plugin init` always writes the canonical `$schema`, so every plugin universal-plugin builds is in

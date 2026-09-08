@@ -16,9 +16,16 @@ Terms used across this spec. A flat reference doc (not a scanned node).
 - **vendor manifest** — the per-vendor output file the build derives from the canonical manifest
   (e.g. `.claude-plugin/plugin.json`, `.cursor-plugin/plugin.json`). `copilot-cli` has none — it
   reads the canonical root `plugin.json` directly, which shadows every lower-precedence path it
-  searches. The canonical wrapper (`$schema`, `extensions`) and `universal-plugin`'s own
-  orchestration keys (`vendors`, `packagePath`, `harnesses`) are stripped; that vendor's own
-  `harnesses.<vendor>` fields are merged over the shared metadata and component paths.
+  searches. Having no manifest of its own does not make it a zero-output vendor: its **components**
+  are derived, into the spec-mode namespace below. The canonical wrapper (`$schema`, `extensions`)
+  and `universal-plugin`'s own orchestration keys (`vendors`, `packagePath`, `harnesses`) are
+  stripped; that vendor's own `harnesses.<vendor>` fields are merged over the shared metadata and
+  component paths.
+- **spec-mode namespace** — `com.github.copilot/`, the reverse-domain directory Copilot CLI reads its
+  native components from once a plugin declares the canonical `$schema` (ADR-0015). It **replaces**
+  the plugin root for agents, commands, rules, `hooks/hooks.json` and `lsp.json`, and is the only
+  location for `extensions/`; `skills/` and `mcp.json` stay at the root. `plugin build` derives the
+  tree; `extensions/` is authored there and passed through.
 - **harnesses** — the `harnesses` object under the extensions namespace, mapping a vendor id to the
   per-harness override fields only that runtime needs (was the top-level `vendorExtensions`). Merged at
   build time (harness wins on conflict), stripped from output.
