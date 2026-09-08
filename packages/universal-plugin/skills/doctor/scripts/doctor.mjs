@@ -84,6 +84,51 @@ if (fs.existsSync(path.join(root, '.github/plugin/plugin.json'))) {
 	)
 }
 
+// Copilot CLI's spec mode reads its native components ONLY under com.github.copilot/ — declaring the
+// canonical $schema moves them out of the plugin root (ADR-0015). A plugin that ships them at the
+// root and has no namespace copy loads none of them on Copilot CLI, and nothing at runtime says so.
+// Checked from the filesystem rather than from the build result, so it still fires on a repository
+// whose build cannot run.
+const COPILOT_NAMESPACE = 'com.github.copilot'
+const declaredTargets = ext?.vendors ?? Object.keys(ext?.harnesses ?? {})
+if (declaredTargets.includes('copilot-cli')) {
+	const nsDir = path.join(root, COPILOT_NAMESPACE)
+	const declaredPaths = (value, fallback) => {
+		if (value === undefined) return fallback === null ? [] : [fallback]
+		if (typeof value === 'string') return [value]
+		if (Array.isArray(value)) return value.filter((entry) => typeof entry === 'string')
+		if (value && Array.isArray(value.paths)) return value.paths.filter((entry) => typeof entry === 'string')
+		return []
+	}
+	const hasContent = (rel) => {
+		const abs = path.join(root, rel)
+		return fs.existsSync(abs) && fs.statSync(abs).isDirectory() && fs.readdirSync(abs).length > 0
+	}
+	const missing = []
+	for (const kind of ['agents', 'commands', 'rules']) {
+		const roots = declaredPaths(ext?.[kind], null)
+		if (roots.some(hasContent) && !hasContent(path.join(COPILOT_NAMESPACE, kind))) missing.push(kind)
+	}
+	// hooks is a single file, declared as a path or inline in the manifest, and carries a default the
+	// manifest need not declare at all.
+	const inlineHooks = ext?.hooks !== null && typeof ext?.hooks === 'object' && 'hooks' in ext.hooks
+	const hookSources = inlineHooks ? [] : declaredPaths(ext?.hooks, './hooks/hooks.json')
+	const hasHooks = inlineHooks || hookSources.some((rel) => fs.existsSync(path.join(root, rel)))
+	if (hasHooks && !fs.existsSync(path.join(nsDir, 'hooks', 'hooks.json'))) missing.push('hooks')
+	const lspSources = declaredPaths(ext?.lspServers, null)
+	if (lspSources.some((rel) => fs.existsSync(path.join(root, rel))) && !fs.existsSync(path.join(nsDir, 'lsp.json'))) {
+		missing.push('lspServers')
+	}
+	if (missing.length > 0) {
+		add(
+			'copilot-root-components',
+			'high',
+			`${missing.join(', ')} sit at the plugin root with no copy under ${COPILOT_NAMESPACE}/ — Copilot CLI reads them only from there once the canonical $schema is declared, so it loads none of them`,
+			'universal-plugin plugin build',
+		)
+	}
+}
+
 // Ask the shipped CLI what it would write, without writing it.
 const bin = path.join(packageRoot, 'bin', 'universal-plugin.mjs')
 const cli = fs.existsSync(bin)

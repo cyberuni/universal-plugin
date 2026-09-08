@@ -43,13 +43,20 @@ Read `vendors[].status` literally:
 
 | Status | Means |
 | --- | --- |
-| `built` | the build writes this vendor's manifest |
+| `built` | the build writes this vendor's output. For `copilot-cli` that output is the `com.github.copilot/` component tree, not a manifest |
 | `canonical` | the vendor reads root `plugin.json`; **no file is written, and that is correct** |
 | `skipped` | an unknown vendor id — a typo in `vendors` |
 | `failed` | the write itself failed; the finding names why |
 
-`copilot-cli` reporting `canonical` with `exists: false` is a healthy plugin, not a missing build.
-Never report it as a fault.
+`copilot-cli` reporting `canonical` is a healthy plugin, not a missing build — root `plugin.json`
+serves it, and a plugin declaring no agents, commands, rules, hooks, or LSP servers has nothing else
+to derive. Never report it as a fault.
+
+A plugin that **does** declare those reports `copilot-cli` as `built` at `com.github.copilot/`
+instead. Declaring the canonical `$schema` moves them there: Copilot CLI stops reading them from the
+plugin root entirely, so a root-only layout loads none of them and says nothing
+([ADR-0015](../../.agents/spec/design/decisions/0015-copilot-spec-mode-namespace.md)). That is what
+`copilot-root-components` reports.
 
 If `node` is unavailable, read `scripts/doctor.mjs` and apply the same checks by hand: it composes
 `universal-plugin plugin build --dry-run --format json` with filesystem facts that build cannot see.
@@ -71,6 +78,7 @@ Each `code` below is what the script emits.
 | `codex-fields-missing` | Codex is targeted without `version` or `description`; the build fails and writes **nothing at all**, including for the other vendors | add both to the canonical top level |
 | `version-drift` | the `packagePath` `package.json` and the canonical manifest carry different versions | `/universal-plugin:version` |
 | `unreleased-content` | shipped content was committed after the commit that set the current version — a consumer keyed on that version never re-extracts it | `/universal-plugin:version` |
+| `copilot-root-components` | agents, commands, rules, hooks, or LSP servers sit at the plugin root with no copy under `com.github.copilot/` — Copilot CLI reads them only from there in spec mode, so it loads none of them, silently | `universal-plugin plugin build` |
 | `stale-github-plugin` | a leftover `.github/plugin/plugin.json` from an older build — shadowed by root and no longer generated | `/universal-plugin:remove-plugin` |
 | `shadowing-manifest` | a `.plugin/plugin.json` exists — it outranks root in Copilot CLI's search order and silently shadows the canonical manifest | `/universal-plugin:remove-plugin` |
 | `no-vendors` | no vendor is declared, so the build writes nothing and no runtime reads the plugin. On a repository still on the pre-0.6 layout the build stops rather than reporting an empty result, and the detail says so — read it beside `legacy-manifest` and `shadowing-manifest`, which name the signals | `/universal-plugin:init`, adopt route on the pre-0.6 layout, else update route |
@@ -140,7 +148,9 @@ is meant to ship — content that is still being worked on is not a finding to a
 - **Never repair.** Report the finding and name the skill that owns it.
 - **Never hand-edit a derived manifest to make a finding go away.** The next build overwrites it and
   the finding comes back.
-- Do not report `copilot-cli` writing no file as a fault. It reads the canonical manifest directly.
+- Do not report `copilot-cli` writing no **manifest** as a fault. It reads the canonical manifest
+  directly. Its **components** are a separate question — a `copilot-root-components` finding is a real
+  fault, and `canonical` is only healthy for a plugin that declares none of the moved kinds.
 - Do not treat repo-private agent configuration (`.claude/skills/`, `.agents/skills/`) as part of the
   plugin. Diagnosing a repository's own skill wiring is `buddy-agent-harness:doctor`.
 
