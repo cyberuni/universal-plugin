@@ -1287,6 +1287,7 @@ describe('buildPlugin — the copilot spec-mode namespace (ADR-0015)', () => {
 			`agents declaration is not a path, a path list, or a { paths } object — nothing copied to ${NS}/agents/`,
 		])
 		expect(fs.existsSync(path.join(dir, NS, 'agents'))).toBe(false)
+		expect(result.rows).toEqual([{ vendor: 'copilot-cli', path: 'plugin.json', status: 'canonical' }])
 	})
 
 	it('translates hooks to the fixed namespace path', () => {
@@ -1344,6 +1345,7 @@ describe('buildPlugin — the copilot spec-mode namespace (ADR-0015)', () => {
 			'copilot-cli reads lspServers from com.github.copilot/lsp.json, and an inline map has no documented file shape to write — not delivered',
 		])
 		expect(fs.existsSync(path.join(dir, NS, 'lsp.json'))).toBe(false)
+		expect(result.rows).toEqual([{ vendor: 'copilot-cli', path: 'plugin.json', status: 'canonical' }])
 	})
 
 	// skills/ and mcp.json are two paths spec mode leaves at the plugin root; a copy under the
@@ -1369,6 +1371,18 @@ describe('buildPlugin — the copilot spec-mode namespace (ADR-0015)', () => {
 		expect(fs.readFileSync(path.join(dir, NS, 'extensions', 'canvas', 'extension.json'), 'utf8')).toBe(
 			'{ "name": "canvas" }\n',
 		)
+	})
+
+	// The status names what the build derived, never what the directory happens to hold. Extensions
+	// are authored under the namespace, so their presence alone is not a derivation.
+	it('does not report built for a plugin whose only namespace content is authored extensions', () => {
+		writeComponent(`${NS}/extensions/canvas/extension.json`, '{ "name": "canvas" }\n')
+		writeSkill('reviewer', '---\nname: reviewer\ndescription: reviews\n---\nbody\n')
+		copilotManifest({ skills: './skills/' })
+
+		const result = buildPlugin(dir)
+
+		expect(result.rows).toEqual([{ vendor: 'copilot-cli', path: 'plugin.json', status: 'canonical' }])
 	})
 
 	it('--clean removes a stale derived file but keeps authored extensions', () => {

@@ -500,6 +500,7 @@ Feature: plugin build — derive per-vendor manifests
     When I run "universal-plugin plugin build"
     Then a warning names "agents"
     And "com.github.copilot/agents/" is NOT written
+    And "copilot-cli" is reported with status "canonical"
     And the exit code is 0
 
   # The aggregate suffix reports the vendors root plugin.json serves whole. It is reachable only
@@ -561,6 +562,7 @@ Feature: plugin build — derive per-vendor manifests
     When I run "universal-plugin plugin build"
     Then a warning names "copilot-cli" and "lspServers"
     And "com.github.copilot/lsp.json" is NOT written
+    And "copilot-cli" is reported with status "canonical"
     And the exit code is 0
 
   # skills/ and mcp.json are read from the plugin root in spec mode, so copying them would ship a
@@ -576,11 +578,15 @@ Feature: plugin build — derive per-vendor manifests
     And "com.github.copilot/mcp.json" is NOT written
     And the exit code is 0
 
+  # The status names what the build derived, never what the directory happens to hold — extensions
+  # are authored there, so their presence alone is not a derivation.
   Scenario: an authored extensions directory is passed through untouched
     Given "com.github.copilot/extensions/canvas/extension.json" is authored
+    And the extensions namespace declares only skills "./skills/"
     And the manifest declares harnesses for "copilot-cli"
     When I run "universal-plugin plugin build"
     Then "com.github.copilot/extensions/canvas/extension.json" is left unchanged
+    And "copilot-cli" is reported with status "canonical"
     And the exit code is 0
 
   Scenario: --clean replaces the derived tree but leaves authored extensions

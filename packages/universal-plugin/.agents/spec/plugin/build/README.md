@@ -64,7 +64,9 @@ Follows the AXI output contract ([../../axi/](../../axi/README.md)).
 - **`com.github.copilot/extensions/` is authored, never derived** — Copilot's canvas extensions have
   no canonical root location to derive from, so an author writes them under the namespace directly.
   The build leaves the directory exactly as authored: it is neither written nor removed by `--clean`,
-  and its presence alone does not make the vendor `built`.
+  and its presence alone does not make the vendor `built`. The status names what the build **derived**,
+  never what the directory happens to hold — so a guard that delivers nothing leaves the vendor
+  `canonical`, whatever else is sitting under the namespace.
 - **Hooks are translated, not copied** — the canonical `hooks` declaration (a path, a path list, or
   an inline block) is read and derived per vendor. Claude Code and Codex read the canonical
   PascalCase event names and matcher-group shape; Cursor reads camelCase events, a top-level
