@@ -47,7 +47,9 @@ Build three buckets from the manifests you inventoried:
 
 - **Shared metadata** — the canonical top level is a **closed** set of exactly ten fields:
   `$schema`, `name`, `version`, `description`, `author`, `homepage`, `repository`, `license`,
-  `keywords`, `extensions`. A field in that list stays at the top level.
+  `keywords`, `extensions`. A field in that list stays at the top level. That set is the upstream
+  spec's, not this project's — see
+  [the published schema](https://agent-plugins.org/schemas/1.0.0/plugin.schema.json).
 - **Vendor-specific** — anything only one runtime understands (Cursor's `publisher`/`category`/
   `tags`, Codex's `interface`). These go under
   `extensions["org.cyberuni.universal-plugin"].harnesses.<vendor>`. The component paths
@@ -91,9 +93,20 @@ Every name it prints is a field the canonical top level cannot hold. Sort each o
 
 | The field | Where it goes |
 | --- | --- |
+| `vendorExtensions` — the whole pre-0.6 block | `extensions["org.cyberuni.universal-plugin"].harnesses` — **renamed, not dropped** |
 | a component path (`skills`, `commands`, `agents`, …) | `extensions["org.cyberuni.universal-plugin"].<name>` — carried |
 | a field a vendor with a *derived* manifest understands | that vendor's `harnesses` entry — carried |
 | anything left | **dropped** |
+
+`vendorExtensions` is the row that catches people out, because the snippet prints it alongside the
+genuinely undeliverable fields and it looks like one of them. It is not: it is the old name for
+`harnesses`, and dropping it discards every per-harness override the project had. Carry the block
+across, then sort the `copilot-cli` entry inside it by the rule above — that entry is the one whose
+contents have no delivery path.
+
+`plugin build` will not let this one pass quietly: a root manifest still carrying `vendorExtensions`
+now exits 1 rather than reporting `built 0`, naming the signal and routing to `doctor`. If Step 5
+fails that way, the block did not get carried across.
 
 **Report the dropped ones to the user by name, with the value each held, before Step 3 writes
 anything.** That report is the only notice they get, and it is the difference between an informed

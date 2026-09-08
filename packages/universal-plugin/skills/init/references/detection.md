@@ -15,6 +15,7 @@ ls .mcp.json .lsp.json hooks/ commands/ agents/ rules/ output-styles/ 2>/dev/nul
 | `.claude-plugin/`, `.cursor-plugin/`, `.codex-plugin/` manifest **below** a canonical root | build output | derived |
 | a vendor manifest with **no** canonical root `plugin.json` | a vendor-specific plugin | adoptable |
 | root `plugin.json` with neither `$schema` nor `extensions` | a legacy single-vendor manifest now sitting on the canonical path | adoptable |
+| a top-level `vendorExtensions` block | the pre-0.6 name for `harnesses`; `plugin build` exits 1 on it | adoptable — carry the block, do not drop it |
 | publicly-shipped skills and no manifest of any kind | skills shipped without a plugin | adoptable |
 | `harnesses["copilot-cli"]` carrying fields | no delivery path — the canonical schema is closed | undeliverable |
 | a non-spec field on a legacy root `plugin.json` (`category`, `tags`, …) | it was Copilot CLI's, and Copilot CLI has no derived manifest to move it to | undeliverable — and **nothing warns**; name it in Phase 3 |

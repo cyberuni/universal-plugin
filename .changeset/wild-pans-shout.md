@@ -15,3 +15,7 @@ Copilot CLI documents both as manifest fields, nothing in its documentation cons
 Agent Plugins Spec bars a conformant client from assigning unknown fields meaning — so dropping them
 costs nothing observable. What remains unestablished is written down as open questions rather than
 guessed at.
+
+The field-sorting table also routes a pre-0.6 top-level `vendorExtensions` block explicitly: it is
+the old name for `harnesses`, not an undeliverable field, and dropping it would discard every
+per-harness override the project had.
