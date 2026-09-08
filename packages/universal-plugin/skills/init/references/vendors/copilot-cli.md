@@ -85,7 +85,9 @@ These were not established. Re-check them before anyone relies on more than the 
 - **Do not delete root `plugin.json` to "clean up" a Copilot target.** It is the source of truth and
   the Copilot manifest at once.
 - Do not write `.plugin/plugin.json`. It outranks root, so it would silently shadow the canonical
-  manifest with a copy nothing regenerates.
+  manifest with a copy nothing regenerates. `plugin build` names it as a pre-0.6 signal and exits 1 —
+  but only when nothing derived at all. A project whose other harnesses still build keeps the shadow
+  and gets no warning, so this stays a rule you follow rather than one the tool enforces.
 
 ## Hooks
 
