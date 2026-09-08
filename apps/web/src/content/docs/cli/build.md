@@ -39,15 +39,61 @@ For each vendor in `extensions["org.cyberuni.universal-plugin"].vendors`:
 2. Merge `extensions["org.cyberuni.universal-plugin"].harnesses.<vendor>` fields (vendor fields win on conflict)
 3. Drop component fields and dependencies unsupported by the vendor (emits a warning)
 4. Translate hook event names to vendor casing
-5. Translate `${PLUGIN_ROOT}` / `${PLUGIN_DATA}` env vars
-6. Enforce required fields (fails build on missing)
-7. Write to the vendor output path
+5. Pin any `mcpServers` invocation marked `pinToPluginVersion` to the manifest's version
+6. Translate `${PLUGIN_ROOT}` / `${PLUGIN_DATA}` env vars
+7. Enforce required fields (fails build on missing)
+8. Write to the vendor output path
 
 Then, once per build: each repository-local marketplace catalog the repository **already carries**
 has this plugin's entry re-derived, for the vendors just built, so a catalog entry's version follows
 the canonical manifest instead of drifting. No catalog is created — that stays with
 [`plugin init --vendor` and `marketplace init`](../marketplace/) — and nothing else in the file
 changes. `--dry-run` reports the refresh as planned and writes nothing.
+
+## Pinning an MCP server to the plugin version
+
+A plugin whose MCP server is its own npm package launches it unpinned:
+
+```json
+{ "command": "npx", "args": ["-y", "my-server", "mcp"] }
+```
+
+A consumer on plugin 1.4.0 then gets 1.4.0's skills alongside whatever `npx` resolves as latest for
+the server, and the two drift further with every release the consumer does not reinstall. The version
+is known at build time and nowhere else — `mcp.json` expands only `${PLUGIN_ROOT}` and
+`${PLUGIN_DATA}`, so a `${PLUGIN_VERSION}` placeholder would reach the client literally.
+
+Mark the entry and the build stamps the version on:
+
+```json
+{
+  "mcpServers": {
+    "my-server": {
+      "command": "npx",
+      "args": ["-y", "my-server", "mcp"],
+      "pinToPluginVersion": true
+    }
+  }
+}
+```
+
+The derived manifest carries `["-y", "my-server@1.4.0", "mcp"]`, and `pinToPluginVersion` is gone —
+it is a build directive, not part of any vendor's schema.
+
+The marker is **required**. The build never matches on name: a plugin may publish its server under a
+package name that is not the plugin's, and an unrelated `npx -y widget-cli` sitting in the same
+block must never be stamped with this plugin's version.
+
+- An already-pinned specifier is **overwritten** with the manifest version, and the build warns naming
+  the version it replaced. Do not hand-pin a marked entry.
+- A marked entry the build cannot pin — the `command` is not `npx`/`upx`, the manifest declares no
+  `version`, or `args` carry no package specifier — is warned about and left alone. The build stays
+  green.
+- A path declaration (`"mcpServers": "./mcp.json"`) with a marked entry gets a derived
+  `<vendor-dir>/mcp.json` and the vendor's `mcpServers` repointed at it. Your authored `mcp.json` is
+  never rewritten. With nothing marked, nothing is derived and the declaration passes through.
+- `copilot-cli` reads the canonical manifest directly, so it has no derived manifest to receive the
+  pin; the build warns rather than pretending otherwise.
 
 ## Validation
 

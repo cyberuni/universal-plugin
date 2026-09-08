@@ -692,3 +692,37 @@ test('publish sync-version exits 1 when packagePath is missing from manifest', (
 		fs.rmSync(root, { recursive: true, force: true })
 	}
 })
+
+test('plugin build pins a marked mcpServers invocation and warns about the version it replaced', () => {
+	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-mcp-pin-'))
+	try {
+		fs.writeFileSync(
+			path.join(root, 'plugin.json'),
+			JSON.stringify({
+				name: 'test-plugin',
+				version: '0.10.0',
+				extensions: {
+					'org.cyberuni.universal-plugin': {
+						mcpServers: {
+							srv: { command: 'npx', args: ['-y', 'cyber-asana@0.9.0', 'mcp'], pinToPluginVersion: true },
+							other: { command: 'npx', args: ['-y', 'some-other-cli'] },
+						},
+						harnesses: { 'claude-code': {} },
+					},
+				},
+			}),
+		)
+		const result = spawnSync('node', [bin, 'plugin', 'build', '--root', root], {
+			encoding: 'utf8',
+			env: { ...process.env, NODE_NO_WARNINGS: '1' },
+		})
+		expect(result.status ?? 0).toBe(0)
+		const derived = JSON.parse(fs.readFileSync(path.join(root, '.claude-plugin', 'plugin.json'), 'utf8'))
+		expect(derived.mcpServers.srv.args).toEqual(['-y', 'cyber-asana@0.10.0', 'mcp'])
+		expect(derived.mcpServers.other.args).toEqual(['-y', 'some-other-cli'])
+		expect(derived.mcpServers.srv.pinToPluginVersion).toBeUndefined()
+		expect(result.stderr).toMatch(/0\.9\.0/)
+	} finally {
+		fs.rmSync(root, { recursive: true, force: true })
+	}
+})

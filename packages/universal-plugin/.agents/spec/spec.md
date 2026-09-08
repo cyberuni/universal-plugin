@@ -110,7 +110,7 @@ ADR-0006 corrects that.
 | Folder | Type | What |
 |---|---|---|
 | [`plugin/`](./plugin/README.md) | group | the `plugin` command group — build / bundle / validate / init / install / version |
-| [`plugin/build/`](./plugin/build/README.md) | behavioral | `universal-plugin plugin build [--vendor] [--dry-run] [--clean]` — derive per-vendor manifests from the canonical `plugin.json` (dev-consumable form; no pins) |
+| [`plugin/build/`](./plugin/build/README.md) | behavioral | `universal-plugin plugin build [--vendor] [--dry-run] [--clean]` — derive per-vendor manifests from the canonical `plugin.json` (dev-consumable form; no skill pins, but it stamps a marked `mcpServers` invocation with the plugin version) |
 | [`plugin/bundle/`](./plugin/bundle/README.md) | behavioral | `universal-plugin plugin bundle [--dry-run] [--full] [--format] [--runner]` — materialize the release form: pin the `npx`/`upx <cli>@<version>` references in the plugin's skills to their shipping workspace versions (`--runner` selects the emitted runner word) |
 | [`plugin/validate/`](./plugin/validate/README.md) | behavioral | `universal-plugin plugin validate [--vendor] [--strict]` — check the canonical manifest against schema + vendor rules |
 | [`plugin/version/`](./plugin/version/README.md) | behavioral | `universal-plugin plugin version <major\|minor\|patch\|pre*\|x.y.z> [--preid] [--force] [--no-build] [--dry-run]` — move the plugin's version: write the two **authored** numbers (canonical `plugin.json`, and the `packagePath` `package.json` when declared), then re-derive the vendor manifests through `build`'s own writer |
@@ -148,6 +148,11 @@ Where a new concept lives — slot here, do not invent placement (strategy = **c
   distinct from `build`'s dev-time manifest derivation. `build` no longer touches pins. It is **not**
   the `self-update` hook-file concern (updating `universal-plugin`'s own pin across a project's hook
   files departs with the sync engine — see the non-goals below).
+- **a new op stamping the plugin's version into _manifest content_ the build already derives** (a
+  package specifier inside an `mcpServers` entry's `args`, marked `pinToPluginVersion`) →
+  **`plugin/build/`**. It does not contradict the `plugin/bundle/` rule above: bundle owns the pins
+  in the plugin's **skills** (prose files build never rewrites), build owns the pins in the
+  **manifest** it already derives. The dividing line is the object, not the word "pin".
 - **a new name→document resolution op** (resolve or list governance by name across scopes) →
   `governance/`.
 - **a new repository-local marketplace metadata derivation** (discover eligible plugin roots and
