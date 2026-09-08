@@ -1305,7 +1305,12 @@ describe('buildPlugin — the copilot spec-mode namespace (ADR-0015)', () => {
 	// Every derived kind flips the status, not only the copied ones: a plugin whose entire Copilot
 	// content is one hook or one LSP entry still has a tree the runtime reads.
 	it.each([
-		['hooks', { hooks: './hooks/hooks.json' }, 'hooks/hooks.json', '{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"./x.sh"}]}]}}\n'],
+		[
+			'hooks',
+			{ hooks: './hooks/hooks.json' },
+			'hooks/hooks.json',
+			'{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"./x.sh"}]}]}}\n',
+		],
 		['commands', { commands: './commands/' }, 'commands/ship.md', 'ship\n'],
 		['rules', { rules: './rules/' }, 'rules/style.md', 'style\n'],
 		['lspServers', { lspServers: './.lsp.json' }, '.lsp.json', '{ "servers": {} }\n'],
