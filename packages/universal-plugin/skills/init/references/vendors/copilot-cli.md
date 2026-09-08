@@ -90,9 +90,8 @@ Do not build a delivery path for these into the plugin manifest. There is nothin
 - **Server-side catalog search.** The runtime carries a remote catalog client with a `canSearch`
   capability. Whether GitHub's hosted catalog indexes `category`/`tags` is outside what the shipped
   code can answer, and it would be indexing `marketplace.json`, not a plugin manifest.
-- **What `$schema` mode does to native-only fields.** The docs' "Open Plugin Spec support" section
-  is an empty bullet list — born empty 2026-07-24, unchanged through five doc syncs and a human
-  edit, so treat it as a stale docs artifact rather than a pending answer.
+- **Extension, command, rule, and hook loading from the namespace directory** (below) was not
+  observed directly — only agents were proven by experiment. The rest rests on GitHub's GA post.
 
 ### Sources
 
@@ -103,6 +102,45 @@ Do not build a delivery path for these into the plugin manifest. There is nothin
 - GitHub's own catalog: https://github.com/github/copilot-plugins `.github/plugin/marketplace.json`
 - Agent Plugins Specification v1.0.0 §8 (`extensions` is the sanctioned channel for non-spec data)
   and the closed field set: https://agent-plugins.org/schemas/1.0.0/plugin.schema.json
+
+## `com.github.copilot/` — the namespace directory
+
+Declaring the canonical `$schema` puts a plugin in **spec mode**, and spec mode changes where
+Copilot CLI looks for its *native* components. They move out of the plugin root and into a
+reverse-domain directory that other runtimes ignore by design:
+
+```
+com.github.copilot/agents/  commands/  rules/  hooks  extensions/
+```
+
+Spec components stay where the spec puts them: `skills/` and `mcp.json` remain at the plugin root.
+Only Copilot-native kinds move. `extensions/` — canvas extensions, added in **1.0.79**
+(2026-08-10) — is one subdirectory of it.
+
+The directory pairs with the manifest key of the same name: `com.github.copilot/` carries Copilot's
+*files*, `extensions["com.github.copilot"]` carries Copilot's *data* (§8). Same namespace, two
+surfaces.
+
+**This is a real delivery path, and it narrows the rule above.** "A Copilot-only field has nowhere
+to go" still holds for **manifest fields** — the canonical schema is closed and that argument is
+untouched. It does **not** hold for **content**: Copilot-specific agents, commands, rules, and hooks
+have a sanctioned home, and `extensions["com.github.copilot"]` is the right place for Copilot
+metadata.
+
+### Consequences this project has not yet absorbed
+
+`plugin build` writes no `com.github.copilot/` directory and has no notion of one. Two things follow,
+and neither is fixed here:
+
+- **Every plugin this tool builds is in spec mode**, because `plugin init` always writes the
+  canonical `$schema`. A plugin that ships `agents/` at its root is therefore **agent-less on
+  Copilot CLI** — verified by experiment against 1.0.83, and an explicit `agents` path in the
+  manifest does not rescue it. `examples/copilot-cli/terraform/plugin.json` declares exactly that
+  layout.
+- Copilot CLI would stop being the zero-file `canonical` case and become a vendor with a derived
+  output, which is a build change and an ADR-level decision.
+
+Do not hand-write the directory to work around this. Raise it.
 
 ## Do not
 
