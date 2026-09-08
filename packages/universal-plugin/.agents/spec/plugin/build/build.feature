@@ -65,6 +65,86 @@ Feature: plugin build — derive per-vendor manifests
     And the output file does not contain "vendors"
     And the output file does not contain "packagePath"
 
+  # ── Component path resolution (the extension's pathValue contract) ──
+  #
+  # `skills`, like every pathValue-typed field in extensions["org.cyberuni.universal-plugin"], is a
+  # single "./" path string, an array of those strings, or a { "paths": [...] } object. Build reads
+  # the skills it declares in order to derive each vendor's skill artifacts, so a form the build does
+  # not resolve is a plugin whose skills are silently left underived.
+
+  Scenario: a skills path string is resolved
+    Given the manifest declares harnesses for "claude-code"
+    And the extensions namespace declares skills as the string "./my-skills/"
+    And "./my-skills/alpha/SKILL.md" declares invocation-policy "user"
+    When I run "universal-plugin plugin build"
+    Then "./my-skills/alpha/SKILL.md" carries "disable-model-invocation: true"
+    And the exit code is 0
+
+  Scenario: a skills path array is resolved across every declared directory
+    Given the manifest declares harnesses for "claude-code"
+    And the extensions namespace declares skills as the array "./a-skills/" and "./b-skills/"
+    And "./a-skills/alpha/SKILL.md" declares invocation-policy "user"
+    And "./b-skills/beta/SKILL.md" declares invocation-policy "user"
+    When I run "universal-plugin plugin build"
+    Then "./a-skills/alpha/SKILL.md" carries "disable-model-invocation: true"
+    And "./b-skills/beta/SKILL.md" carries "disable-model-invocation: true"
+    And the exit code is 0
+
+  Scenario: a skills paths object is resolved across every declared directory
+    Given the manifest declares harnesses for "claude-code"
+    And the extensions namespace declares skills as a paths object listing "./a-skills/" and "./b-skills/"
+    And "./a-skills/alpha/SKILL.md" declares invocation-policy "user"
+    And "./b-skills/beta/SKILL.md" declares invocation-policy "user"
+    When I run "universal-plugin plugin build"
+    Then "./a-skills/alpha/SKILL.md" carries "disable-model-invocation: true"
+    And "./b-skills/beta/SKILL.md" carries "disable-model-invocation: true"
+    And the exit code is 0
+
+  Scenario: a declared skills path is never silently replaced by the default directory
+    Given the manifest declares harnesses for "claude-code"
+    And the extensions namespace declares skills as the array "./a-skills/"
+    And "./a-skills/alpha/SKILL.md" declares invocation-policy "user"
+    And "./skills/ignored/SKILL.md" declares invocation-policy "user"
+    When I run "universal-plugin plugin build"
+    Then "./a-skills/alpha/SKILL.md" carries "disable-model-invocation: true"
+    And "./skills/ignored/SKILL.md" does NOT carry "disable-model-invocation: true"
+    And the exit code is 0
+
+  Scenario: skills fall back to "./skills/" only when the namespace declares none
+    Given the manifest declares harnesses for "claude-code"
+    And the extensions namespace declares no skills path
+    And "./skills/alpha/SKILL.md" declares invocation-policy "user"
+    When I run "universal-plugin plugin build"
+    Then "./skills/alpha/SKILL.md" carries "disable-model-invocation: true"
+    And the exit code is 0
+
+  Scenario: a declared skills directory that does not exist is warned about, not skipped in silence
+    Given the manifest declares harnesses for "claude-code"
+    And the extensions namespace declares skills as the array "./a-skills/" and "./missing/"
+    And "./a-skills/alpha/SKILL.md" declares invocation-policy "user"
+    And "./missing/" does not exist
+    When I run "universal-plugin plugin build"
+    Then a warning names the skills path "./missing/"
+    And "./a-skills/alpha/SKILL.md" carries "disable-model-invocation: true"
+    And the exit code is 0
+
+  Scenario: a skills declaration in none of the three forms is warned about and reads nothing
+    Given the manifest declares harnesses for "claude-code"
+    And the extensions namespace declares skills as the number 7
+    And "./skills/alpha/SKILL.md" declares invocation-policy "user"
+    When I run "universal-plugin plugin build"
+    Then a warning says the skills declaration is not a path, a path list, or a paths object
+    And "./skills/alpha/SKILL.md" does NOT carry "disable-model-invocation: true"
+    And the exit code is 0
+
+  Scenario: an absent default skills directory is not warned about
+    Given the manifest declares harnesses for "claude-code"
+    And the extensions namespace declares no skills path
+    And "./skills/" does not exist
+    When I run "universal-plugin plugin build"
+    Then no warning names a skills path
+    And the exit code is 0
+
   # ── Hook translation (ADR-0011) ──
 
   # Claude Code and Codex read PascalCase and the canonical matcher-group shape; Cursor reads

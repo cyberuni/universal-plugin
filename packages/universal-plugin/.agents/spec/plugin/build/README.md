@@ -51,6 +51,14 @@ Follows the AXI output contract ([../../axi/](../../axi/README.md)).
   file is omitted rather than written empty, and a vendor left with no hooks at all carries no
   `hooks` field. Copilot CLI, which reads the canonical manifest directly, is warned about rather
   than derived for — its unsupported handlers are reported as ignored at runtime.
+- **Component paths follow the extension's `pathValue` contract** — every path-typed field in
+  `extensions["org.cyberuni.universal-plugin"]` is a single `./` path string, an array of those
+  strings, or a `{ "paths": [...] }` object. Build reads `skills` (to derive each vendor's skill
+  artifacts), so it resolves all three forms and discovers `SKILL.md` under **every** declared
+  directory. `./skills/` is the fallback for a namespace that declares **no** skills path — never a
+  substitute for a declared one the build failed to read. A declared directory that does not exist
+  warns, naming the path; the undeclared default being absent does not. A declaration in none of
+  the three forms warns and reads no skills, rather than falling through to the default.
 - **Merge then strip** — per-harness fields from `harnesses.<vendor>` are merged over the shared
   metadata and component paths; the canonical wrapper (`$schema`, `extensions`) and the orchestration
   keys (`vendors`, `packagePath`, `harnesses`) never appear in output.
@@ -96,6 +104,7 @@ Every scenario in [`build.feature`](./build.feature) maps to one of these behavi
 |---|---|
 | **target selection (`vendors ?? harnesses`)** | builds the `vendors` list, else all `harnesses` keys; correct per-vendor output paths; copilot-cli derives nothing (canonical root serves it) |
 | **merge then strip** | harness fields merged; canonical wrapper (`$schema`, `extensions`) + orchestration keys (`vendors`, `packagePath`, `harnesses`) stripped |
+| **component path resolution** | `skills` resolved from a path string, a path array, and a `{ paths }` object; every declared directory searched; `./skills/` used only when nothing is declared; a declared-but-missing directory warned, an absent default not; a declaration in none of the three forms warned and read as nothing |
 | **hook translation** | canonical PascalCase kept for claude-code and codex; camelCase, `version: 1`, and flattened matcher groups for cursor; derived file written beside the vendor manifest and pointed at; inline hooks translated; `--dry-run` derives nothing |
 | **unrepresentable handlers (ADR-0011)** | per-drop warning naming vendor, event, and type; emptied event omitted; emptied file not written and the `hooks` field dropped; copilot-cli warned rather than derived for |
 | **`--vendor` filters** | filter to one vendor; a `--vendor` not among the targets fails |

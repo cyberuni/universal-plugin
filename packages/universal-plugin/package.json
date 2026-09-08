@@ -30,6 +30,7 @@
 		"dist",
 		"governances",
 		"plugin.json",
+		"schema",
 		".claude-plugin",
 		".cursor-plugin",
 		".codex-plugin",

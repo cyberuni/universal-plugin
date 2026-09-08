@@ -8,21 +8,21 @@ approval:
     by: agent
     cause: dimension
     why:
-      floor: none — the CR is purely additive: one new behavioral node and its suite, no frozen scenario narrowed or rewritten anywhere in the corpus. Compatibility none — a new verb beside the existing ones. Conflict none.
-      blast: moderate — one new behavioral node under the plugin group, its root capability and placement-map entries, and the generated concept index; no existing node's contract touched.
-      novelty: low — the node applies a rule the corpus already carries (ADR-0007's derived-not-authored manifest model) to the version field, and places the verb by ADR-0006's shared-object test.
-      confidence: high — 29 boolean scenarios, scenario map 1:1 with the suite; gherkin-cli parses the suite; check-spec-structure reports zero blocking findings and does not flag the new node; concept-index regenerated clean.
-      cr: github-32
+      floor: none — the suite edit is additive: 8 new scenarios on plugin/build/build.feature, 0 modified and 0 removed (classify-edit-class reports ADDITIVE), so the freeze self-clears and no frozen scenario is narrowed or rewritten. Compatibility none — no CLI flag or option added; the only new surface is warning output. Conflict none.
+      blast: low — one existing behavioral node (plugin/build/) gains a component-path-resolution behavior; no node added, moved, or removed, and no other node's contract touched. The non-behavioral half (deleting the vendored Agent Plugins envelope schema, retaining a namespace-scoped one, repointing two skills/init documents) is loaded by no code and carries no spec node.
+      novelty: low — the CR applies a rule the corpus already carries: a declaration the build cannot use is warned about rather than read as nothing, which is what readCanonicalHooks already does for a declared-but-missing hooks path.
+      confidence: high — cold sdd-spec-judge 3-lens {oracle,builder,architect} all PASS, ALIGNED true; the judge re-ran the miss test itself by reverting the resolver and confirmed 5 of the 8 scenarios fail against the old code. check-spec-state OK, check-suite OK, check-spec-structure and check-scenario-overlap 0 blocking, 0 open markers. Rounds 1–3 were blocked at the governance pre-flight and the remediation surfaced a real coverage hole (a warning branch with no scenario), closed as the 8th scenario.
+      cr: github-60
   impl:
     verdict: approve
     by: agent
     cause: dimension
     why:
-      floor: none — no frozen scenario weakened; publish sync-version was refactored onto the shared applier with its observable behavior unchanged and its existing suite still green.
-      blast: moderate — a new src/version domain plus its CLI registration, and a same-behavior refactor of publish/sync-version onto the shared applier.
-      novelty: low — the domain follows the package's established pure-plan/apply layering; the only structural claim is that re-derivation calls plugin build's writer rather than duplicating it.
-      confidence: high — every one of the 29 frozen scenarios has a named test exercising the compiled binary; full package verification passes (395 tests, up from 335); knip reports no new findings; the verb was dogfooded against this package's own manifest.
-      cr: github-32
+      floor: none — no frozen scenario weakened; the 36 pre-existing scenarios on build.feature are byte-identical and their tests still green.
+      blast: low — one resolver added in src/build/build.ts (resolvePathValue) and readSkills rewritten onto it; no other domain touched, no new dependency, no CLI surface change.
+      novelty: low — a pure helper plus a loop over declared paths, following the file's existing structure.
+      confidence: high — cold sdd-impl-judge re-derived each of the 8 frozen scenarios' oracle before reading the tests, then re-ran the mutation experiment independently (5 of 8 fail against the pre-CR resolver) rather than trusting the green run; it also enumerated the resolver's branches beyond the suite and found the two silent ones unreachable through a schema-conformant manifest and inert, recorded as a followup. Full verification green at 594 tests (was 586); knip findings confirmed byte-identical to origin/main. Judged on the tree rebased onto origin/main.
+      cr: github-60
 ---
 
 # universal-plugin — the cross-vendor plugin build/derivation engine (CLI)
