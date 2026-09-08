@@ -1335,6 +1335,16 @@ describe('buildPlugin — the copilot spec-mode namespace (ADR-0015)', () => {
 		)
 	})
 
+	it('resolves an lspServers paths object to the namespace lsp.json', () => {
+		writeComponent('.lsp.json', '{ "servers": { "tf": { "command": "terraform-ls" } } }\n')
+		copilotManifest({ lspServers: { paths: ['./.lsp.json'] } })
+
+		const result = buildPlugin(dir)
+
+		expect(fs.existsSync(path.join(dir, NS, 'lsp.json'))).toBe(true)
+		expect(result.rows).toEqual([{ vendor: 'copilot-cli', path: `${NS}/`, status: 'built' }])
+	})
+
 	// The file's top-level shape is not documented anywhere, so composing one would be a guess.
 	it('warns rather than composing a namespace lsp.json from an inline map', () => {
 		copilotManifest({ lspServers: { tf: { command: 'terraform-ls' } } })

@@ -556,6 +556,15 @@ Feature: plugin build — derive per-vendor manifests
     And "copilot-cli" is reported with status "built"
     And the exit code is 0
 
+  Scenario: an lspServers paths object is resolved to the namespace lsp.json
+    Given the extensions namespace declares lspServers as a paths object listing "./.lsp.json"
+    And the authored ".lsp.json" declares entry "tf"
+    And the manifest declares harnesses for "copilot-cli"
+    When I run "universal-plugin plugin build"
+    Then "com.github.copilot/lsp.json" is written
+    And "copilot-cli" is reported with status "built"
+    And the exit code is 0
+
   Scenario: an inline lspServers map warns rather than guessing the file shape
     Given the manifest declares lspServers inline with entry "tf"
     And the manifest declares harnesses for "copilot-cli"
