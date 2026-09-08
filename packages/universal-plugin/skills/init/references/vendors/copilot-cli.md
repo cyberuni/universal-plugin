@@ -1,9 +1,11 @@
 # GitHub Copilot CLI
 
-Reads the **canonical root `plugin.json` directly**. The build derives nothing for it and writes no
-file — `plugin build` reports it with status `canonical`, which is success, not a skipped target.
+Reads the **canonical root `plugin.json` directly**, so the build derives no vendor manifest for it.
+It does derive its **components** — see [`com.github.copilot/` — the namespace directory](#comgithubcopilot--the-namespace-directory).
+A plugin declaring none of the moved kinds is reported with status `canonical`, which is success, not
+a skipped target.
 
-## Why nothing is derived
+## Why no manifest is derived
 
 Copilot CLI searches four paths and takes the first match:
 
@@ -127,20 +129,48 @@ untouched. It does **not** hold for **content**: Copilot-specific agents, comman
 have a sanctioned home, and `extensions["com.github.copilot"]` is the right place for Copilot
 metadata.
 
-### Consequences this project has not yet absorbed
+The list above is the shape; these are the exact paths, and `lsp.json` belongs on it too:
 
-`plugin build` writes no `com.github.copilot/` directory and has no notion of one. Two things follow,
-and neither is fixed here:
+| Component | Spec-mode path | Root still read |
+| --- | --- | --- |
+| agents | `com.github.copilot/agents/` | no |
+| commands | `com.github.copilot/commands/` | no |
+| rules | `com.github.copilot/rules/` | no |
+| hooks | `com.github.copilot/hooks/hooks.json` | no |
+| LSP servers | `com.github.copilot/lsp.json` | no |
+| extensions (canvases) | `com.github.copilot/extensions/` | never had a root path |
+| skills | `skills/` | **yes — does not move** |
+| MCP servers | `mcp.json` | **yes — does not move** |
 
-- **Every plugin this tool builds is in spec mode**, because `plugin init` always writes the
-  canonical `$schema`. A plugin that ships `agents/` at its root is therefore **agent-less on
-  Copilot CLI** — verified by experiment against 1.0.83, and an explicit `agents` path in the
-  manifest does not rescue it. `examples/copilot-cli/terraform/plugin.json` declares exactly that
-  layout.
-- Copilot CLI would stop being the zero-file `canonical` case and become a vendor with a derived
-  output, which is a build change and an ADR-level decision.
+The namespace **replaces** the root rather than supplementing it, and an explicit component path in
+the manifest does **not** opt back into root loading. The move landed in **1.0.80-0** and the
+runtime's own changelog labels it breaking. Evidence and its confidence, including which kinds were
+proven by experiment:
+[`.research/copilot-spec-mode-namespace/`](../../../../../../.research/copilot-spec-mode-namespace/conclusion.md).
+The published CLI plugin reference still says spec support is "additive on top of standard plugin
+loading" and documents only the root layout — it is stale; do not build against it.
 
-Do not hand-write the directory to work around this. Raise it.
+### What the build derives
+
+`plugin build` derives the tree ([ADR-0015](../../../../.agents/spec/design/decisions/0015-copilot-spec-mode-namespace.md)),
+so **authoring stays at the canonical locations**:
+
+- `agents`, `commands` and `rules` are copied, resolved through the same `pathValue` contract
+  `skills` uses, defaults included.
+- Agents are **renamed** on the way. Copilot CLI reads `agents/` as `.agent.md` files while the
+  canonical `agents/` is the Claude Code-shaped `*.md`, so a copy under the authored name would land
+  a file the runtime ignores. Commands and rules keep their authored names — the runtime documents no
+  extension for either.
+- Hooks are **translated** into `com.github.copilot/hooks/hooks.json`, so a handler Copilot CLI
+  cannot run is dropped from that file with a warning rather than reported as ignored at runtime.
+- A declared `lspServers` **path** is copied to `com.github.copilot/lsp.json`. An **inline** map is
+  not delivered: the file's top-level shape is undocumented, so the build warns instead of composing
+  one.
+- `com.github.copilot/extensions/` is the inverse — authored there, never derived, and left alone by
+  `--clean`.
+
+The vendor reports `built` at `com.github.copilot/` when it derives any of this, and keeps reporting
+`canonical` at `plugin.json` when the plugin declares none of the moved kinds.
 
 ## Do not
 
@@ -150,16 +180,22 @@ Do not hand-write the directory to work around this. Raise it.
   manifest with a copy nothing regenerates. `plugin build` names it as a pre-0.6 signal and exits 1 —
   but only when nothing derived at all. A project whose other harnesses still build keeps the shadow
   and gets no warning, so this stays a rule you follow rather than one the tool enforces.
+- **Do not tell an author to move `agents/` into `com.github.copilot/`.** The root copy is the
+  canonical input every other vendor derives from; the namespace is a build output. Moving it
+  serves Copilot and strands the other three.
+- **Do not hand-write the namespace directory.** `--clean` replaces everything the build derives
+  under it. `extensions/` is the one subtree it leaves alone, and the only one to author there.
 
 ## Hooks
 
 Copilot CLI accepts **either casing**, and the casing selects the payload format: PascalCase gets the
-Claude-compatible format, so the canonical file reaches Copilot CLI unchanged. Because Copilot CLI
-reads that file directly, the build derives nothing for it — an `agent` handler is reported as ignored
-at runtime rather than dropped. See [`claude-code.md`](./claude-code.md).
+Claude-compatible format, so the canonical file needs no translation. It is written to
+`com.github.copilot/hooks/hooks.json` all the same, because that is where spec mode reads it — so a
+handler Copilot CLI cannot run is **dropped from that derived file** with a warning, like any other
+vendor's. See [`claude-code.md`](./claude-code.md).
 
 ## Dependencies
 
-Copilot CLI reads no plugin dependency. Because it reads the canonical manifest directly, there is no
-derived file to leave the declaration out of — it sits under `extensions`, which Copilot CLI ignores,
+Copilot CLI reads no plugin dependency. Because it reads the canonical *manifest* directly, there is
+no derived manifest to leave the declaration out of — it sits under `extensions`, which Copilot CLI ignores,
 and the build reports it as ignored at runtime. See [`claude-code.md`](./claude-code.md).

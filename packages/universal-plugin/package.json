@@ -34,6 +34,7 @@
 		".claude-plugin",
 		".cursor-plugin",
 		".codex-plugin",
+		"com.github.copilot",
 		"skills",
 		"agents"
 	],

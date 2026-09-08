@@ -89,7 +89,7 @@ for the field-by-field analysis.
 
 ## Research
 
-Findings are dated June 2026. Each topic holds four files: `conclusion.md` (the current best
+Findings are dated June 2026 unless the topic says otherwise. Each topic holds four files: `conclusion.md` (the current best
 answer), `topic.md` (the full investigation), `evidence.md` (claims with source URLs and
 confidence), and `changes.md` (update history).
 
@@ -103,6 +103,7 @@ Read `conclusion.md` first.
 | [`plugin-consumption-leveling`](.research/plugin-consumption-leveling/conclusion.md) | Whether a plugin installed through one vendor can be reached from the others |
 | [`prepare-skill-design`](.research/prepare-skill-design/conclusion.md) | How to sync an installed plugin across runtimes without npm in the user project |
 | [`skill-description-guidelines`](.research/skill-description-guidelines/conclusion.md) | What a skill description must contain for a runtime to trigger it |
+| [`copilot-spec-mode-namespace`](.research/copilot-spec-mode-namespace/conclusion.md) | Where Copilot CLI loads its native components from once a plugin declares the canonical `$schema` |
 
 ## License
 

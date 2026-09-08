@@ -29,7 +29,43 @@ universal-plugin plugin build [options]
 | `claude-code` | `.claude-plugin/plugin.json` |
 | `cursor` | `.cursor-plugin/plugin.json` |
 | `codex` | `.codex-plugin/plugin.json` |
-| `copilot-cli` | `plugin.json` (repo root) |
+| `copilot-cli` | `plugin.json` (repo root), plus the `com.github.copilot/` component tree |
+
+## Copilot CLI reads its components from `com.github.copilot/`
+
+Copilot CLI reads the canonical root `plugin.json` directly, so the build derives no manifest for it.
+Its components are a different answer. Declaring the canonical `$schema` — which every plugin this
+CLI builds does — puts the plugin into Copilot CLI's spec mode, and spec mode reads these **only**
+under `com.github.copilot/`, no longer from the plugin root:
+
+| Component | Where Copilot CLI reads it |
+|---|---|
+| agents | `com.github.copilot/agents/` |
+| commands | `com.github.copilot/commands/` |
+| rules | `com.github.copilot/rules/` |
+| hooks | `com.github.copilot/hooks/hooks.json` |
+| LSP servers | `com.github.copilot/lsp.json` |
+| extensions (canvases) | `com.github.copilot/extensions/` |
+| skills | `skills/` — **does not move** |
+| MCP servers | `mcp.json` — **does not move** |
+
+The namespace **replaces** the plugin root for the kinds that move; an explicit component path in the
+manifest does not bring the root path back. So you keep authoring at the canonical locations, and
+`plugin build` derives the tree: `agents/` is copied to `com.github.copilot/agents/` — renamed to
+Copilot CLI's `.agent.md` convention, since the canonical `agents/` is the Claude Code-shaped `*.md`
+and a file under the other name is ignored — the hooks file is translated into
+`com.github.copilot/hooks/hooks.json`, and a declared `lspServers` path is copied to
+`com.github.copilot/lsp.json`. Commands and rules keep their authored names. An inline `lspServers` map is not delivered — the file's top-level
+shape is undocumented, so the build warns rather than guessing.
+
+`com.github.copilot/extensions/` runs the other way: canvas extensions have no canonical root
+location, so you author them there and the build passes them through untouched, including under
+`--clean`.
+
+The vendor reports `built` at `com.github.copilot/` when it derives any of this, and keeps reporting
+`canonical` when the plugin declares none of the moved kinds. If you ship agents at the root and no
+namespace copy exists, Copilot CLI loads none of them and says nothing — `/universal-plugin:doctor`
+reports that as `copilot-root-components`.
 
 ## Build steps
 
@@ -42,7 +78,7 @@ For each vendor in `extensions["org.cyberuni.universal-plugin"].vendors`:
 5. Pin any `mcpServers` invocation marked `pinToPluginVersion` to the manifest's version
 6. Translate `${PLUGIN_ROOT}` / `${PLUGIN_DATA}` env vars
 7. Enforce required fields (fails build on missing)
-8. Write to the vendor output path
+8. Write to the vendor output path — and for `copilot-cli`, derive the `com.github.copilot/` component tree instead of a manifest
 
 Then, once per build: each repository-local marketplace catalog the repository **already carries**
 has this plugin's entry re-derived, for the vendors just built, so a catalog entry's version follows
@@ -93,7 +129,8 @@ block must never be stamped with this plugin's version.
   `<vendor-dir>/mcp.json` and the vendor's `mcpServers` repointed at it. Your authored `mcp.json` is
   never rewritten. With nothing marked, nothing is derived and the declaration passes through.
 - `copilot-cli` reads the canonical manifest directly, so it has no derived manifest to receive the
-  pin; the build warns rather than pretending otherwise.
+  pin — and `mcp.json` is one of the two paths its spec mode leaves at the plugin root, so there is no
+  derived file either. The build warns rather than pretending otherwise.
 
 ## Validation
 

@@ -46,6 +46,15 @@ Plugins from the [OpenAI Codex plugin directory](https://developers.openai.com/c
 
 Plugins from [github/awesome-copilot](https://github.com/github/awesome-copilot).
 
+Copilot CLI reads the canonical root `plugin.json` directly, so no vendor manifest is derived for it.
+Its **components** are another matter. Declaring the canonical `$schema` — which every one of these
+examples does — puts the plugin in Copilot CLI's spec mode, and spec mode reads agents, commands,
+rules, `hooks/hooks.json` and `lsp.json` **only** under `com.github.copilot/`, never from the plugin
+root. Authoring stays at the root; `plugin build` derives the `com.github.copilot/` tree, so
+`copilot-cli/terraform` below declares `"agents": "./agents/"` and the agent it names reaches Copilot
+CLI at `com.github.copilot/agents/terraform.agent.md`. `skills/` and `mcp.json` do not move. See
+[ADR-0015](../packages/universal-plugin/.agents/spec/design/decisions/0015-copilot-spec-mode-namespace.md).
+
 | Example | Description | Source |
 |---|---|---|
 | `copilot-cli/terraform` | Terraform IaC specialist — registry integration, workspace management, compliant code generation | [terraform.agent.md](https://github.com/github/awesome-copilot/blob/main/agents/terraform.agent.md) |

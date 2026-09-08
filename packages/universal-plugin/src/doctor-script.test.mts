@@ -181,3 +181,94 @@ test('a repo left on the pre-0.6 layout still reports the layout findings and no
 	expect(codes).toContain('no-vendors')
 	expect(codes).not.toContain('build-failed')
 })
+
+// Declaring the canonical $schema puts a plugin in Copilot CLI's spec mode, which reads agents,
+// commands, rules, hooks and lsp.json only under com.github.copilot/ (ADR-0015). A root-only layout
+// loads none of them there and nothing at runtime says so — this finding is what says so.
+test('reports declared components left at the plugin root with no com.github.copilot copy', () => {
+	write(
+		'plugin.json',
+		`${JSON.stringify(
+			{
+				$schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json',
+				name: 'demo',
+				version: '1.0.0',
+				description: 'a demo plugin',
+				extensions: {
+					'org.cyberuni.universal-plugin': { agents: './agents/', harnesses: { 'copilot-cli': {} } },
+				},
+			},
+			null,
+			2,
+		)}\n`,
+	)
+	write('agents/reviewer.agent.md', '---\nname: reviewer\n---\nreview\n')
+	commit('a plugin whose agents never reach copilot')
+
+	const report = spawnSync('node', [doctor, '--root', root], { encoding: 'utf8' })
+	const parsed = JSON.parse(report.stdout) as { findings: { code: string; detail: string }[] }
+	const finding = parsed.findings.find((f) => f.code === 'copilot-root-components')
+	expect(finding?.detail).toContain('agents')
+	expect(finding?.detail).toContain('com.github.copilot/')
+})
+
+test('reports nothing once the namespace copy exists', () => {
+	write(
+		'plugin.json',
+		`${JSON.stringify(
+			{
+				$schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json',
+				name: 'demo',
+				version: '1.0.0',
+				description: 'a demo plugin',
+				extensions: {
+					'org.cyberuni.universal-plugin': { agents: './agents/', harnesses: { 'copilot-cli': {} } },
+				},
+			},
+			null,
+			2,
+		)}\n`,
+	)
+	write('agents/reviewer.agent.md', '---\nname: reviewer\n---\nreview\n')
+	write('com.github.copilot/agents/reviewer.agent.md', '---\nname: reviewer\n---\nreview\n')
+	commit('a plugin whose agents do reach copilot')
+
+	expect(findings()).not.toContain('copilot-root-components')
+})
+
+// A plugin that declares none of the moved kinds has nothing to copy — copilot-cli reading the
+// canonical manifest is the whole story, and reporting it would be a false positive.
+// The build derives from the schema's default when the manifest names no path, so a check that only
+// fired on a declared path would miss the manifest that names none — the common one.
+test('reports components at the default path even when the manifest declares none', () => {
+	write(
+		'plugin.json',
+		`${JSON.stringify(
+			{
+				$schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json',
+				name: 'demo',
+				version: '1.0.0',
+				description: 'a demo plugin',
+				extensions: { 'org.cyberuni.universal-plugin': { harnesses: { 'copilot-cli': {} } } },
+			},
+			null,
+			2,
+		)}\n`,
+	)
+	write('agents/reviewer.md', '---\nname: reviewer\n---\nreview\n')
+	// The tree exists but holds no agents, so the generic existence check would pass it.
+	write('com.github.copilot/extensions/canvas/extension.json', '{ "name": "canvas" }\n')
+	commit('a plugin whose undeclared agents never reach copilot')
+
+	const report = spawnSync('node', [doctor, '--root', root], { encoding: 'utf8' })
+	const parsed = JSON.parse(report.stdout) as { findings: { code: string; detail: string }[] }
+	expect(parsed.findings.find((f) => f.code === 'copilot-root-components')?.detail).toContain('agents')
+})
+
+test('reports nothing when the plugin declares no component of a moved kind', () => {
+	writeManifest('1.0.0')
+	writeSkill('a skill')
+	commit('a skills-only plugin')
+
+	expect(findings()).not.toContain('copilot-root-components')
+})

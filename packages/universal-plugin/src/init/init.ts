@@ -96,9 +96,9 @@ const STANDARD_FILES = ['plugin.json', 'skills/'] as const
  *  the array when absent and never duplicating an entry. Other fields and existing entries are
  *  preserved. The base goes in regardless of `--vendor`: a package that ships only
  *  `.claude-plugin/plugin.json` has published a Claude Code plugin, not a standard one. */
-export function wireFiles(pkg: Record<string, unknown>, manifestPaths: string[]): Record<string, unknown> {
+export function wireFiles(pkg: Record<string, unknown>, vendorPaths: string[]): Record<string, unknown> {
 	const files = Array.isArray(pkg.files) ? [...(pkg.files as unknown[])] : []
-	for (const entry of [...STANDARD_FILES, ...manifestPaths]) {
+	for (const entry of [...STANDARD_FILES, ...vendorPaths]) {
 		if (!files.includes(entry)) files.push(entry)
 	}
 	return { ...pkg, files }
@@ -196,7 +196,7 @@ export function planInit(
 	state: InitState,
 	opts: InitOptions,
 	rootDirName: string,
-	resolveManifestPath: (vendor: string) => string | undefined,
+	resolveShippedPaths: (vendor: string) => string[],
 ): InitPlan {
 	// --npm requires a package.json; the guard fires before the manifest write.
 	if (opts.npm && state.packageJson === null) {
@@ -225,8 +225,7 @@ export function planInit(
 	if (opts.npm) {
 		// The files-wiring default is claude-code, independent of the manifest's (omitted) vendors list.
 		const wireVendors = opts.vendors.length > 0 ? opts.vendors : ['claude-code']
-		const manifestPaths = wireVendors.map(resolveManifestPath).filter((p): p is string => Boolean(p))
-		packageJson = wireFiles(state.packageJson as Record<string, unknown>, manifestPaths)
+		packageJson = wireFiles(state.packageJson as Record<string, unknown>, wireVendors.flatMap(resolveShippedPaths))
 		rows.push({ path: 'package.json', action: 'updated' })
 	}
 
