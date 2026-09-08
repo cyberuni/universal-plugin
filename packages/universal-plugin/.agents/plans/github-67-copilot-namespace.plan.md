@@ -8,21 +8,21 @@ todos:
   - content: "Research: verify which component kinds move under the namespace, and in which version"
     status: completed
   - content: "Explore: decide Copilot's vendor class, the derived tree's shape, and the ADR-0011 knock-on"
-    status: pending
+    status: completed
   - content: "Spec: ADR-0015 + plugin/build README/feature + glossary; doctor SKILL.md findings"
-    status: pending
+    status: completed
   - content: "Spec gate: judge the build.feature diff (two frozen copilot scenarios are rewritten)"
-    status: pending
+    status: completed
   - content: "Deliver: derive com.github.copilot/ in src/build; pass authored extensions through"
-    status: pending
+    status: completed
   - content: "Deliver: doctor check for native components left at the plugin root"
-    status: pending
+    status: completed
   - content: "Deliver: fix examples/copilot-cli/terraform; update apps/web copilot layout docs"
-    status: pending
+    status: completed
   - content: "Impl gate: verify each new frozen scenario"
-    status: pending
+    status: completed
   - content: "Handoff: changeset, PR closing #67"
-    status: pending
+    status: completed
 ---
 
 # github-67 — Copilot CLI reads its components from `com.github.copilot/`
@@ -49,4 +49,10 @@ undeliverable. Recorded as ADR-0015.
 
 ## NEXT
 
-Write ADR-0015 and revise the `plugin/build` node against it.
+Landed. ADR-0015 accepted; both gates passed and self-asserted (spec gate at cold-judge round 6,
+ALIGNED true; impl gate after the judge's one real finding was fixed). PR #69 against `main`,
+CI green, changeset in. Nothing remains for this CR.
+
+One item was deliberately held out of scope and rides the follow-up record in the ledger shard:
+backfilling `## Control Flow` / `## Scenario map` on the `plugin/build` node, which every behavioral
+node in this corpus lacks. It is formation-loop work, not this CR's.
