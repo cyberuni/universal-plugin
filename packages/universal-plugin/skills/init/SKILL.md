@@ -10,9 +10,16 @@ Give a project one canonical plugin manifest — a root `plugin.json` on the Age
 Specification — and derive from it the manifest each runtime expects.
 
 Most of the manifest is shared. The divergence is small and asymmetric: Copilot CLI reads the
-canonical `plugin.json` directly and gets no derived file at all, while Claude Code, Cursor, and
+canonical `plugin.json` directly and gets no derived *manifest*, while Claude Code, Cursor, and
 Codex each read their own path. Keep that asymmetry in mind — this is a consolidation job, not a
 copy-everywhere job.
+
+That asymmetry does not extend to components. Declaring the canonical `$schema` puts a plugin in
+Open Plugin Spec mode, and Copilot CLI then reads its **native** components — agents, commands,
+rules, hooks — from a `com.github.copilot/` directory rather than the plugin root. `plugin build`
+does not derive that directory yet, so a plugin shipping root `agents/` loads none of them on
+Copilot CLI. Tracked in [#67](https://github.com/cyberuni/universal-plugin/issues/67); see
+[`references/vendors/copilot-cli.md`](./references/vendors/copilot-cli.md).
 
 `references/standard.md` defines the baseline every plugin gets. Read the vendor file for each
 runtime you are enabling, and only those.
@@ -22,7 +29,7 @@ runtime you are enabling, and only those.
 | Claude Code | `.claude-plugin/plugin.json` | none | `references/vendors/claude-code.md` |
 | Cursor | `.cursor-plugin/plugin.json` | none | `references/vendors/cursor.md` |
 | Codex | `.codex-plugin/plugin.json` | `version`, `description` | `references/vendors/codex.md` |
-| GitHub Copilot CLI | none — reads root `plugin.json` | none | `references/vendors/copilot-cli.md` |
+| GitHub Copilot CLI | none — reads root `plugin.json` | native components under `com.github.copilot/`, not yet derived ([#67](https://github.com/cyberuni/universal-plugin/issues/67)) | `references/vendors/copilot-cli.md` |
 
 This skill owns the **authoring** side: the plugin a project ships. Setting a repository up to
 *consume* skills — the `.agents/skills/` layout, `AGENTS.md`, per-harness bridges — is
