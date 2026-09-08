@@ -627,7 +627,8 @@ function deriveCopilotNamespace(
 			const sourceDir = path.resolve(root, relPath)
 			if (!fs.existsSync(sourceDir)) {
 				// An undeclared default that is simply absent is the ordinary case, not a loss.
-				if (declared) warnings.push(`${kind} path "${relPath}" not found — nothing copied to ${COPILOT_NAMESPACE}/${kind}/`)
+				if (declared)
+					warnings.push(`${kind} path "${relPath}" not found — nothing copied to ${COPILOT_NAMESPACE}/${kind}/`)
 				continue
 			}
 			for (const file of listFilesRecursive(sourceDir)) {
@@ -663,7 +664,9 @@ function deriveCopilotNamespace(
 			for (const relPath of lspPaths) {
 				const sourceFile = path.resolve(root, relPath)
 				if (!fs.existsSync(sourceFile)) {
-					warnings.push(`lspServers path "${relPath}" not found — nothing copied to ${COPILOT_NAMESPACE}/${COPILOT_LSP_PATH}`)
+					warnings.push(
+						`lspServers path "${relPath}" not found — nothing copied to ${COPILOT_NAMESPACE}/${COPILOT_LSP_PATH}`,
+					)
 					continue
 				}
 				writeArtifact(path.join(nsDir, COPILOT_LSP_PATH), fs.readFileSync(sourceFile), opts, written)
