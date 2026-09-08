@@ -2,7 +2,7 @@ import * as path from 'node:path'
 
 import { Command, Option } from 'commander'
 
-import { VENDOR_OUTPUT } from '../build/build.js'
+import { VENDOR_SHIPPED_PATHS } from '../build/build.js'
 import { ROOT_OPTION, resolveRoot } from '../cli-options.js'
 import { output } from '../output.js'
 import { type InitFs, realInitFs } from './fs.js'
@@ -57,7 +57,7 @@ export function initCommand(deps: { fs: InitFs } = { fs: realInitFs }): Command 
 						marketplace: opts.marketplace !== false,
 					},
 					path.basename(root),
-					(vendor) => VENDOR_OUTPUT[vendor as keyof typeof VENDOR_OUTPUT],
+					(vendor) => VENDOR_SHIPPED_PATHS[vendor as keyof typeof VENDOR_SHIPPED_PATHS] ?? [],
 				)
 
 				deps.fs.apply(root, plan)

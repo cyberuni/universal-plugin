@@ -161,7 +161,7 @@ describe('buildPlugin', () => {
 	// Copilot CLI checks .plugin/ → plugin.json → .github/plugin/ → .claude-plugin/ and takes the
 	// first match, so root always shadows .github/plugin/. Deriving there produced a file Copilot
 	// could never read; the canonical manifest serves Copilot directly instead.
-	it('derives no manifest for copilot-cli — the canonical root plugin.json serves it', () => {
+	it('derives no manifest for copilot-cli, and no namespace tree when it declares no moved kind', () => {
 		writeManifest({ name: 'my-plugin', extensions: up({ harnesses: { 'copilot-cli': {} } }) })
 		const canonicalBefore = fs.readFileSync(path.join(dir, 'plugin.json'), 'utf8')
 		const result = buildPlugin(dir)
@@ -527,19 +527,24 @@ describe('buildPlugin — hooks (ADR-0011)', () => {
 		expect(fs.existsSync(path.join(dir, '.codex-plugin', 'hooks.json'))).toBe(false)
 	})
 
-	// Copilot CLI reads the canonical manifest and its hooks file directly, so there is no derived
-	// file to deliver — the warning is the whole remedy available.
-	it('warns that copilot-cli ignores an unsupported handler at runtime, and derives nothing', () => {
-		writeHooks('hooks/hooks.json', { SessionStart: [{ hooks: [{ type: 'agent', prompt: 'verify' }] }] })
+	// Copilot CLI's spec mode reads hooks/hooks.json under com.github.copilot/, so it does have a
+	// derived file — the handler is dropped from it like any other vendor's (ADR-0015 revises
+	// ADR-0011 §3).
+	it('drops an unsupported handler from the copilot-cli namespace hooks file', () => {
+		writeHooks('hooks/hooks.json', {
+			SessionStart: [{ hooks: [{ type: 'agent', prompt: 'verify' }] }],
+			Stop: [commandRule],
+		})
 		writeManifest({
 			name: 'my-plugin',
 			extensions: up({ hooks: './hooks/hooks.json', harnesses: { 'copilot-cli': {} } }),
 		})
 		const result = buildPlugin(dir)
 		expect(result.warnings).toEqual([
-			'copilot-cli cannot run the "agent" hook handler on SessionStart — it is ignored at runtime',
+			'copilot-cli cannot run the "agent" hook handler on SessionStart — dropped from the derived hooks file',
 		])
-		expect(result.written).toEqual([])
+		const derived = JSON.parse(fs.readFileSync(path.join(dir, 'com.github.copilot', 'hooks', 'hooks.json'), 'utf8'))
+		expect(Object.keys(derived.hooks)).toEqual(['Stop'])
 	})
 
 	it('translates hooks declared inline in the manifest', () => {
@@ -1113,5 +1118,259 @@ describe('buildPlugin — locating the specifier with no runner flag', () => {
 		buildPlugin(dir)
 		const derived = JSON.parse(fs.readFileSync(path.join(dir, '.claude-plugin', 'plugin.json'), 'utf8'))
 		expect(derived.mcpServers.srv.args).toEqual(['cyber-asana@0.10.0', 'mcp'])
+	})
+})
+
+// Declaring the canonical $schema puts a plugin in Copilot CLI's spec mode, which reads agents,
+// commands, rules, hooks/hooks.json and lsp.json ONLY under com.github.copilot/ and no longer from
+// the plugin root (ADR-0015; `.research/copilot-spec-mode-namespace/`).
+describe('buildPlugin — the copilot spec-mode namespace (ADR-0015)', () => {
+	const NS = 'com.github.copilot'
+
+	function writeComponent(relPath: string, content: string) {
+		const target = path.join(dir, relPath)
+		fs.mkdirSync(path.dirname(target), { recursive: true })
+		fs.writeFileSync(target, content)
+	}
+
+	function copilotManifest(config: Record<string, unknown>) {
+		writeManifest({
+			$schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json',
+			name: 'my-plugin',
+			extensions: up({ ...config, harnesses: { 'copilot-cli': {} } }),
+		})
+	}
+
+	it('copies declared agents, commands, and rules under the namespace', () => {
+		writeComponent('agents/reviewer.agent.md', '---\nname: reviewer\n---\nreview it\n')
+		writeComponent('commands/ship.md', '---\ndescription: ship\n---\nship it\n')
+		writeComponent('rules/style.md', '---\ndescription: style\n---\ntabs\n')
+		copilotManifest({ agents: './agents/', commands: './commands/', rules: './rules/' })
+
+		buildPlugin(dir)
+
+		for (const [source, copied] of [
+			['agents/reviewer.agent.md', `${NS}/agents/reviewer.agent.md`],
+			['commands/ship.md', `${NS}/commands/ship.md`],
+			['rules/style.md', `${NS}/rules/style.md`],
+		]) {
+			expect(fs.readFileSync(path.join(dir, copied as string), 'utf8')).toBe(
+				fs.readFileSync(path.join(dir, source as string), 'utf8'),
+			)
+		}
+	})
+
+	// Copilot CLI reads agents/ as .agent.md files; the canonical agents/ is the Claude Code-shaped
+	// *.md, so a copy under the authored name lands a file the runtime ignores.
+	it('renames a copied agent to the .agent.md convention', () => {
+		writeComponent('agents/reviewer.md', 'agent\n')
+		copilotManifest({ agents: './agents/' })
+
+		buildPlugin(dir)
+
+		expect(fs.existsSync(path.join(dir, NS, 'agents', 'reviewer.agent.md'))).toBe(true)
+		expect(fs.existsSync(path.join(dir, NS, 'agents', 'reviewer.md'))).toBe(false)
+	})
+
+	it('leaves an agent already named .agent.md alone', () => {
+		writeComponent('agents/reviewer.agent.md', 'agent\n')
+		copilotManifest({ agents: './agents/' })
+
+		buildPlugin(dir)
+
+		expect(fs.existsSync(path.join(dir, NS, 'agents', 'reviewer.agent.md'))).toBe(true)
+		expect(fs.existsSync(path.join(dir, NS, 'agents', 'reviewer.agent.agent.md'))).toBe(false)
+	})
+
+	// Neither kind has a documented extension on the runtime, so inventing one would be a guess.
+	it('copies commands and rules under their authored names', () => {
+		writeComponent('commands/ship.md', 'ship\n')
+		writeComponent('rules/style.md', 'style\n')
+		copilotManifest({ commands: './commands/', rules: './rules/' })
+
+		buildPlugin(dir)
+
+		expect(fs.existsSync(path.join(dir, NS, 'commands', 'ship.md'))).toBe(true)
+		expect(fs.existsSync(path.join(dir, NS, 'rules', 'style.md'))).toBe(true)
+	})
+
+	it('preserves the directory structure inside a copied kind', () => {
+		writeComponent('agents/team/reviewer.agent.md', 'nested\n')
+		copilotManifest({ agents: './agents/' })
+
+		buildPlugin(dir)
+
+		expect(fs.existsSync(path.join(dir, NS, 'agents', 'team', 'reviewer.agent.md'))).toBe(true)
+	})
+
+	it('reports the vendor as built at the namespace directory, leaving the canonical manifest alone', () => {
+		writeComponent('agents/reviewer.agent.md', 'agent\n')
+		copilotManifest({ agents: './agents/' })
+		const canonicalBefore = fs.readFileSync(path.join(dir, 'plugin.json'), 'utf8')
+
+		const result = buildPlugin(dir)
+
+		expect(result.rows).toEqual([{ vendor: 'copilot-cli', path: `${NS}/`, status: 'built' }])
+		expect(fs.readFileSync(path.join(dir, 'plugin.json'), 'utf8')).toBe(canonicalBefore)
+	})
+
+	it('resolves a path array across every declared directory', () => {
+		writeComponent('agents/a.agent.md', 'a\n')
+		writeComponent('more-agents/b.agent.md', 'b\n')
+		copilotManifest({ agents: ['./agents/', './more-agents/'] })
+
+		buildPlugin(dir)
+
+		expect(fs.existsSync(path.join(dir, NS, 'agents', 'a.agent.md'))).toBe(true)
+		expect(fs.existsSync(path.join(dir, NS, 'agents', 'b.agent.md'))).toBe(true)
+	})
+
+	it('resolves a paths object across every declared directory', () => {
+		writeComponent('agents/a.agent.md', 'a\n')
+		writeComponent('more-agents/b.agent.md', 'b\n')
+		copilotManifest({ agents: { paths: ['./agents/', './more-agents/'] } })
+
+		buildPlugin(dir)
+
+		expect(fs.existsSync(path.join(dir, NS, 'agents', 'a.agent.md'))).toBe(true)
+		expect(fs.existsSync(path.join(dir, NS, 'agents', 'b.agent.md'))).toBe(true)
+	})
+
+	// The AXI aggregate appends "served by plugin.json N" only while some vendor is canonical, and
+	// copilot-cli is no longer canonical unconditionally.
+	it('reports no canonical vendor once copilot-cli derives its components', () => {
+		writeComponent('agents/reviewer.agent.md', 'agent\n')
+		copilotManifest({ agents: './agents/' })
+
+		const result = buildPlugin(dir)
+
+		expect(result.summary).toEqual({ built: 1, skipped: 0, failed: 0, canonical: 0 })
+	})
+
+	it('warns when a declared component directory does not exist', () => {
+		copilotManifest({ agents: './agents/' })
+
+		const result = buildPlugin(dir)
+
+		expect(result.warnings).toEqual([`agents path "./agents/" not found — nothing copied to ${NS}/agents/`])
+		expect(result.rows).toEqual([{ vendor: 'copilot-cli', path: 'plugin.json', status: 'canonical' }])
+	})
+
+	// The default is what an undeclared field means. Copilot reads these from the namespace whether or
+	// not the manifest names them, so an undeclared agents/ is still content the plugin ships.
+	it('reads the schema default when the field is absent', () => {
+		writeComponent('agents/reviewer.agent.md', 'agent\n')
+		copilotManifest({})
+
+		buildPlugin(dir)
+
+		expect(fs.existsSync(path.join(dir, NS, 'agents', 'reviewer.agent.md'))).toBe(true)
+	})
+
+	// A declared path that did not resolve is a loss the author can fix; an unused default is not.
+	it('does not warn when an undeclared default directory is simply absent', () => {
+		writeSkill('reviewer', '---\nname: reviewer\ndescription: reviews\n---\nbody\n')
+		copilotManifest({ skills: './skills/' })
+
+		const result = buildPlugin(dir)
+
+		expect(result.warnings).toEqual([])
+		expect(result.rows).toEqual([{ vendor: 'copilot-cli', path: 'plugin.json', status: 'canonical' }])
+	})
+
+	it('warns and copies nothing when a declaration is in none of the three forms', () => {
+		copilotManifest({ agents: 7 })
+
+		const result = buildPlugin(dir)
+
+		expect(result.warnings).toEqual([
+			`agents declaration is not a path, a path list, or a { paths } object — nothing copied to ${NS}/agents/`,
+		])
+		expect(fs.existsSync(path.join(dir, NS, 'agents'))).toBe(false)
+	})
+
+	it('translates hooks to the fixed namespace path', () => {
+		writeComponent(
+			'hooks/hooks.json',
+			`${JSON.stringify({ hooks: { SessionStart: [{ hooks: [{ type: 'command', command: './start.sh' }] }] } })}\n`,
+		)
+		copilotManifest({ hooks: './hooks/hooks.json' })
+
+		buildPlugin(dir)
+
+		const derived = JSON.parse(fs.readFileSync(path.join(dir, NS, 'hooks', 'hooks.json'), 'utf8'))
+		expect(Object.keys(derived.hooks)).toEqual(['SessionStart'])
+	})
+
+	it('copies a declared lspServers path verbatim', () => {
+		writeComponent('.lsp.json', '{ "servers": { "tf": { "command": "terraform-ls" } } }\n')
+		copilotManifest({ lspServers: './.lsp.json' })
+
+		buildPlugin(dir)
+
+		expect(fs.readFileSync(path.join(dir, NS, 'lsp.json'), 'utf8')).toBe(
+			fs.readFileSync(path.join(dir, '.lsp.json'), 'utf8'),
+		)
+	})
+
+	// The file's top-level shape is not documented anywhere, so composing one would be a guess.
+	it('warns rather than composing a namespace lsp.json from an inline map', () => {
+		copilotManifest({ lspServers: { tf: { command: 'terraform-ls' } } })
+
+		const result = buildPlugin(dir)
+
+		expect(result.warnings).toEqual([
+			'copilot-cli reads lspServers from com.github.copilot/lsp.json, and an inline map has no documented file shape to write — not delivered',
+		])
+		expect(fs.existsSync(path.join(dir, NS, 'lsp.json'))).toBe(false)
+	})
+
+	// skills/ and mcp.json are two paths spec mode leaves at the plugin root; a copy under the
+	// namespace is one nothing reads.
+	it('copies neither skills nor mcp.json into the namespace', () => {
+		writeSkill('reviewer', '---\nname: reviewer\ndescription: reviews\n---\nbody\n')
+		writeComponent('mcp.json', '{ "mcpServers": {} }\n')
+		copilotManifest({ skills: './skills/', mcpServers: './mcp.json' })
+
+		buildPlugin(dir)
+
+		expect(fs.existsSync(path.join(dir, NS, 'skills'))).toBe(false)
+		expect(fs.existsSync(path.join(dir, NS, 'mcp.json'))).toBe(false)
+	})
+
+	it('leaves an authored extensions directory untouched', () => {
+		writeComponent(`${NS}/extensions/canvas/extension.json`, '{ "name": "canvas" }\n')
+		writeComponent('agents/reviewer.agent.md', 'agent\n')
+		copilotManifest({ agents: './agents/' })
+
+		buildPlugin(dir)
+
+		expect(fs.readFileSync(path.join(dir, NS, 'extensions', 'canvas', 'extension.json'), 'utf8')).toBe(
+			'{ "name": "canvas" }\n',
+		)
+	})
+
+	it('--clean removes a stale derived file but keeps authored extensions', () => {
+		writeComponent(`${NS}/agents/removed.agent.md`, 'gone\n')
+		writeComponent(`${NS}/extensions/canvas/extension.json`, '{ "name": "canvas" }\n')
+		writeComponent('agents/reviewer.agent.md', 'agent\n')
+		copilotManifest({ agents: './agents/' })
+
+		buildPlugin(dir, { clean: true })
+
+		expect(fs.existsSync(path.join(dir, NS, 'agents', 'removed.agent.md'))).toBe(false)
+		expect(fs.existsSync(path.join(dir, NS, 'agents', 'reviewer.agent.md'))).toBe(true)
+		expect(fs.existsSync(path.join(dir, NS, 'extensions', 'canvas', 'extension.json'))).toBe(true)
+	})
+
+	it('--dry-run reports the vendor as built and writes nothing', () => {
+		writeComponent('agents/reviewer.agent.md', 'agent\n')
+		copilotManifest({ agents: './agents/' })
+
+		const result = buildPlugin(dir, { dryRun: true })
+
+		expect(result.rows).toEqual([{ vendor: 'copilot-cli', path: `${NS}/`, status: 'built' }])
+		expect(result.written).toEqual([path.join(dir, NS, 'agents', 'reviewer.agent.md')])
+		expect(fs.existsSync(path.join(dir, NS))).toBe(false)
 	})
 })

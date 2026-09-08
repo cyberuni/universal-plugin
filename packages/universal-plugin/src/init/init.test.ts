@@ -4,11 +4,11 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { VENDOR_OUTPUT } from '../build/build.js'
+import { VENDOR_SHIPPED_PATHS } from '../build/build.js'
 import { realInitFs } from './fs.js'
 import { buildManifest, type InitOptions, type InitState, planInit, wireFiles } from './init.js'
 
-const resolve = (v: string) => VENDOR_OUTPUT[v as keyof typeof VENDOR_OUTPUT]
+const resolve = (v: string) => VENDOR_SHIPPED_PATHS[v as keyof typeof VENDOR_SHIPPED_PATHS] ?? []
 const empty: InitState = { manifestExists: false, packageJson: null }
 
 describe('buildManifest', () => {

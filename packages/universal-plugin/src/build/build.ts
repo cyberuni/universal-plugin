@@ -6,7 +6,7 @@ import {
 	translateDependencies,
 	validateDependencies,
 } from '../dependencies/dependencies.js'
-import { type CanonicalHooksFile, type HookDrop, translateHooks } from '../hooks/hooks.js'
+import { type CanonicalHooksFile, type HookDrop, type HookTranslation, translateHooks } from '../hooks/hooks.js'
 import { detectIndent } from '../json.js'
 import { gatherCatalogRepo } from '../marketplace/fs.js'
 import {
@@ -38,9 +38,47 @@ export const VENDOR_OUTPUT: Record<VendorId, string> = {
 
 const KNOWN_VENDORS = new Set<string>(Object.keys(VENDOR_OUTPUT))
 
-/** Vendors the canonical root manifest serves as-is. The build derives no file for these — writing
- *  one would either be shadowed by root (a lower-precedence path) or clobber root itself. */
+/** Vendors the canonical root manifest serves as-is. The build derives no *manifest* for these —
+ *  writing one would either be shadowed by root (a lower-precedence path) or clobber root itself.
+ *  Their components are a separate question: see COPILOT_NAMESPACE. */
 const CANONICAL_SERVED = new Set<VendorId>(['copilot-cli'])
+
+/** The reverse-domain directory Copilot CLI reads its native components from once a plugin declares
+ *  the canonical `$schema` (ADR-0015). It REPLACES the plugin root for these kinds — a spec-mode
+ *  runtime does not read `agents/` at all — so the build derives the tree rather than relying on the
+ *  authored paths. `skills/` and `mcp.json` do not move.
+ *  Evidence: `.research/copilot-spec-mode-namespace/`. */
+const COPILOT_NAMESPACE = 'com.github.copilot'
+
+/** Component kinds whose directories the namespace took over, copied file-for-file, each with the
+ *  schema's default location for the field. The default is what an *undeclared* field means, never a
+ *  stand-in for a declared path that did not resolve — the same asymmetry `readSkills` follows. */
+const COPILOT_COPIED_KINDS: Record<string, string> = {
+	agents: './agents/',
+	commands: './commands/',
+	rules: './rules/',
+}
+
+/** Where the namespace reads hooks and LSP config from. Fixed paths — Copilot CLI has no derived
+ *  manifest that could repoint them. */
+const COPILOT_HOOKS_PATH = 'hooks/hooks.json'
+const COPILOT_LSP_PATH = 'lsp.json'
+
+/** Authored under the namespace, never derived: Copilot's canvas extensions have no canonical root
+ *  location to derive from, so `--clean` must leave this subtree alone. */
+const COPILOT_AUTHORED_DIR = 'extensions'
+
+/** What each vendor's build output occupies in the published package, for `plugin init --npm`'s
+ *  `package.json` `files` wiring. */
+export const VENDOR_SHIPPED_PATHS: Record<VendorId, string[]> = {
+	'claude-code': [VENDOR_OUTPUT['claude-code']],
+	cursor: [VENDOR_OUTPUT.cursor],
+	codex: [VENDOR_OUTPUT.codex],
+	// Not VENDOR_OUTPUT's `plugin.json`: that is the canonical manifest, which `--npm` already ships
+	// as part of the open-standard base. What is Copilot-specific and derived is the component tree
+	// (ADR-0015), so that is what has to travel.
+	'copilot-cli': [`${COPILOT_NAMESPACE}/`],
+}
 
 /** Where every vendor looks for a plugin's hooks when the manifest declares none
  *  (`.research/hook-event-survey/conclusion.md`). */
@@ -273,14 +311,16 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 		// over root. Any harness override for it has no delivery path: the canonical schema is closed
 		// (`additionalProperties: false`), so a vendor-only field cannot ride along in root.
 		if (CANONICAL_SERVED.has(vendor)) {
-			// No derived manifest to repoint and no derived file to deliver — this vendor reads the
-			// canonical hooks file itself, so naming the handler it will ignore is the whole remedy
-			// (ADR-0011).
+			// The manifest is canonical, but the components are not: spec mode reads them from
+			// `com.github.copilot/`, so this vendor does get a derived hooks file and a dropped handler
+			// is dropped from it like any other vendor's (ADR-0015 revises ADR-0011 §3).
 			for (const drop of dedupeDrops(hooks?.drops ?? [])) {
 				warnings.push(
-					`${vendor} cannot run the "${drop.type}" hook handler on ${drop.event} — it is ignored at runtime`,
+					`${vendor} cannot run the "${drop.type}" hook handler on ${drop.event} — dropped from the derived hooks file`,
 				)
 			}
+			// `mcp.json` is one of the two paths spec mode leaves at the plugin root, so there is still
+			// no derived file the pin could ride in.
 			if (mcp?.changed) {
 				warnings.push(
 					`${vendor} reads the canonical plugin.json directly — the pinned mcpServers is not delivered to it`,
@@ -293,7 +333,14 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 				)
 			}
 			writeSkillArtifacts(vendor, skills, opts, written, warnings)
-			rows.push({ vendor, path: relPath, status: 'canonical' })
+			const derived = deriveCopilotNamespace(root, componentConfig, hooks, indent, opts, written, warnings)
+			// Nothing to derive is still the old result, and still correct for the plugin that has no
+			// component of a moved kind: root plugin.json serves it whole.
+			rows.push(
+				derived
+					? { vendor, path: `${COPILOT_NAMESPACE}/`, status: 'built' }
+					: { vendor, path: relPath, status: 'canonical' },
+			)
 			continue
 		}
 
@@ -545,7 +592,117 @@ function withClaudeInvocationFlags(skill: Skill): string {
 	return `${skill.content.slice(0, match.index)}---\n${lines.join('\n')}\n---${skill.content.slice(match.index! + match[0].length)}`
 }
 
-function writeArtifact(outputPath: string, content: string, opts: BuildOptions, written: string[]) {
+/** Derives the `com.github.copilot/` tree Copilot CLI reads its native components from in spec mode
+ *  (ADR-0015). Returns whether anything was derived — a plugin that declares none of the moved kinds
+ *  has nothing here and keeps its `canonical` row.
+ *
+ *  The moved directory kinds are copied file-for-file: their content is vendor-neutral, and the
+ *  namespace is a location change, not a format change. Hooks are the exception — they are translated
+ *  first, exactly as for every other vendor. `skills/` and `mcp.json` stay at the plugin root and are
+ *  deliberately not copied: a second copy under the namespace is one nothing reads. */
+function deriveCopilotNamespace(
+	root: string,
+	componentConfig: Record<string, unknown>,
+	hooks: HookTranslation | null,
+	indent: string | number,
+	opts: BuildOptions,
+	written: string[],
+	warnings: string[],
+): boolean {
+	const nsDir = path.join(root, COPILOT_NAMESPACE)
+	if (opts.clean && !opts.dryRun) cleanCopilotNamespace(nsDir)
+
+	let derived = false
+
+	for (const [kind, defaultPath] of Object.entries(COPILOT_COPIED_KINDS)) {
+		const declaration = componentConfig[kind]
+		const declared = declaration === undefined ? null : resolvePathValue(declaration)
+		if (declaration !== undefined && declared === null) {
+			warnings.push(
+				`${kind} declaration is not a path, a path list, or a { paths } object — nothing copied to ${COPILOT_NAMESPACE}/${kind}/`,
+			)
+			continue
+		}
+		for (const relPath of declared ?? [defaultPath]) {
+			const sourceDir = path.resolve(root, relPath)
+			if (!fs.existsSync(sourceDir)) {
+				// An undeclared default that is simply absent is the ordinary case, not a loss.
+				if (declared) warnings.push(`${kind} path "${relPath}" not found — nothing copied to ${COPILOT_NAMESPACE}/${kind}/`)
+				continue
+			}
+			for (const file of listFilesRecursive(sourceDir)) {
+				const relative = path.relative(sourceDir, file)
+				const target = kind === 'agents' ? copilotAgentName(relative) : relative
+				writeArtifact(path.join(nsDir, kind, target), fs.readFileSync(file), opts, written)
+				derived = true
+			}
+		}
+	}
+
+	// Copilot CLI has no derived manifest, so its hooks file cannot be repointed — it lives at the
+	// one path spec mode reads.
+	const hooksPath = path.join(nsDir, COPILOT_HOOKS_PATH)
+	if (hooks?.hooks) {
+		writeArtifact(hooksPath, `${JSON.stringify(hooks.hooks, null, indent)}\n`, opts, written)
+		derived = true
+	} else if (hooks && !opts.dryRun && fs.existsSync(hooksPath)) {
+		// Nothing runnable survived this time; an earlier build's file would linger unreferenced.
+		fs.unlinkSync(hooksPath)
+	}
+
+	// A declared path is copied verbatim. An inline map would mean composing the file, and its
+	// top-level shape is not documented anywhere — so it warns rather than guessing (ADR-0015 §3).
+	const lspDeclaration = componentConfig['lspServers']
+	if (lspDeclaration !== undefined) {
+		const lspPaths = resolvePathValue(lspDeclaration)
+		if (lspPaths === null) {
+			warnings.push(
+				'copilot-cli reads lspServers from com.github.copilot/lsp.json, and an inline map has no documented file shape to write — not delivered',
+			)
+		} else {
+			for (const relPath of lspPaths) {
+				const sourceFile = path.resolve(root, relPath)
+				if (!fs.existsSync(sourceFile)) {
+					warnings.push(`lspServers path "${relPath}" not found — nothing copied to ${COPILOT_NAMESPACE}/${COPILOT_LSP_PATH}`)
+					continue
+				}
+				writeArtifact(path.join(nsDir, COPILOT_LSP_PATH), fs.readFileSync(sourceFile), opts, written)
+				derived = true
+			}
+		}
+	}
+
+	return derived
+}
+
+/** Copilot CLI reads `agents/` as `.agent.md` files, while the canonical `agents/` is the Claude
+ *  Code-shaped `*.md`. Copying the authored name would land a file the runtime ignores — the same
+ *  silent loss ADR-0015 exists to end, one directory over. Commands and rules are copied verbatim:
+ *  the runtime documents no extension for either, and inventing one would be a guess. */
+function copilotAgentName(relative: string): string {
+	if (!relative.endsWith('.md') || relative.endsWith('.agent.md')) return relative
+	return `${relative.slice(0, -'.md'.length)}.agent.md`
+}
+
+/** Removes what the build derives under the namespace, and only that. `extensions/` is authored
+ *  there — deleting it would destroy the one thing in the tree nothing can regenerate. */
+function cleanCopilotNamespace(nsDir: string) {
+	if (!fs.existsSync(nsDir)) return
+	for (const entry of fs.readdirSync(nsDir, { withFileTypes: true })) {
+		if (entry.name === COPILOT_AUTHORED_DIR) continue
+		fs.rmSync(path.join(nsDir, entry.name), { recursive: true, force: true })
+	}
+}
+
+function listFilesRecursive(dir: string): string[] {
+	return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+		const entryPath = path.join(dir, entry.name)
+		if (entry.isDirectory()) return listFilesRecursive(entryPath)
+		return entry.isFile() ? [entryPath] : []
+	})
+}
+
+function writeArtifact(outputPath: string, content: string | Buffer, opts: BuildOptions, written: string[]) {
 	if (!opts.dryRun) {
 		if (opts.clean && fs.existsSync(outputPath)) fs.unlinkSync(outputPath)
 		fs.mkdirSync(path.dirname(outputPath), { recursive: true })
