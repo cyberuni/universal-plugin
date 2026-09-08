@@ -51,6 +51,14 @@ Follows the AXI output contract ([../../axi/](../../axi/README.md)).
   file is omitted rather than written empty, and a vendor left with no hooks at all carries no
   `hooks` field. Copilot CLI, which reads the canonical manifest directly, is warned about rather
   than derived for — its unsupported handlers are reported as ignored at runtime.
+- **Component paths follow the extension's `pathValue` contract** — every path-typed field in
+  `extensions["org.cyberuni.universal-plugin"]` is a single `./` path string, an array of those
+  strings, or a `{ "paths": [...] }` object. Build reads `skills` (to derive each vendor's skill
+  artifacts), so it resolves all three forms and discovers `SKILL.md` under **every** declared
+  directory. `./skills/` is the fallback for a namespace that declares **no** skills path — never a
+  substitute for a declared one the build failed to read. A declared directory that does not exist
+  warns, naming the path; the undeclared default being absent does not. A declaration in none of
+  the three forms warns and reads no skills, rather than falling through to the default.
 - **Merge then strip** — per-harness fields from `harnesses.<vendor>` are merged over the shared
   metadata and component paths; the canonical wrapper (`$schema`, `extensions`) and the orchestration
   keys (`vendors`, `packagePath`, `harnesses`) never appear in output.
@@ -78,7 +86,30 @@ Follows the AXI output contract ([../../axi/](../../axi/README.md)).
   `--format toon` names the default explicitly.
 - **Definitive empty state** — no targets at all (neither `vendors` nor `harnesses`) still emits a
   TOON result on stdout (zero built rows, aggregate `built 0`) with exit 0, plus "nothing to build" on
-  stderr.
+  stderr. Because deriving nothing is the one result an agent is most likely to read as success, that
+  stderr line also names `/universal-plugin:doctor` as the next step — the skill that can say *why*
+  nothing was declared.
+- **A declaration this CLI no longer reads is a failure, not an empty result** — a repository left on
+  the pre-0.6 manifest layout derives nothing for a different reason. Its manifest parses; what it
+  declares just sits somewhere this CLI no longer looks, so the declaration is dropped on the way in.
+  A dropped read reported as `built 0` is a lost declaration wearing the costume of an honest zero,
+  so it is an error (AXI #6), not a definitive empty state (AXI #5).
+  When the target set resolves to zero **and** the project carries a pre-0.6 signal — a top-level
+  `vendorExtensions` block in the root manifest, or a `.plugin/plugin.json` that shadows root — the
+  build exits 1 naming the signal it found and pointing at `/universal-plugin:doctor`, and writes
+  nothing.
+
+  The rule in closed form: **the build errors if and only if the target set is empty *and* at least
+  one pre-0.6 signal is present.** Both conditions matter independently, so all four combinations are
+  distinct outcomes — empty ∧ signal errors; empty ∧ no signal is the definitive empty state above;
+  a non-empty target set builds normally whether or not a signal is present. Gating on the empty
+  target set is what keeps the error from reaching a project that still derives: the error can only
+  fire where the build was already producing nothing.
+
+  A manifest that merely omits the extensions block is deliberately **not** a pre-0.6 signal — it is
+  as likely a manifest nobody has configured yet as one an upgrade left behind, and erroring on it
+  would fail builds this rule has no quarrel with. `doctor` still reports it as `legacy-manifest`,
+  which is what the empty state's `doctor` pointer is for.
 - **Next-step suggestion** — a successful build's stderr ends with
   `→ universal-plugin plugin validate`.
 - **Fail-loud, no prompts, help** — an unknown flag exits 1 naming the flag; the command never
@@ -96,6 +127,7 @@ Every scenario in [`build.feature`](./build.feature) maps to one of these behavi
 |---|---|
 | **target selection (`vendors ?? harnesses`)** | builds the `vendors` list, else all `harnesses` keys; correct per-vendor output paths; copilot-cli derives nothing (canonical root serves it) |
 | **merge then strip** | harness fields merged; canonical wrapper (`$schema`, `extensions`) + orchestration keys (`vendors`, `packagePath`, `harnesses`) stripped |
+| **component path resolution** | `skills` resolved from a path string, a path array, and a `{ paths }` object; every declared directory searched; `./skills/` used only when nothing is declared; a declared-but-missing directory warned, an absent default not; a declaration in none of the three forms warned and read as nothing |
 | **hook translation** | canonical PascalCase kept for claude-code and codex; camelCase, `version: 1`, and flattened matcher groups for cursor; derived file written beside the vendor manifest and pointed at; inline hooks translated; `--dry-run` derives nothing |
 | **unrepresentable handlers (ADR-0011)** | per-drop warning naming vendor, event, and type; emptied event omitted; emptied file not written and the `hooks` field dropped; copilot-cli warned rather than derived for |
 | **`--vendor` filters** | filter to one vendor; a `--vendor` not among the targets fails |
@@ -105,7 +137,8 @@ Every scenario in [`build.feature`](./build.feature) maps to one of these behavi
 | **catalog refresh (ADR-0010 §3)** | this plugin's entry re-derived in each existing repository catalog for the vendors built; other entries and top-level fields untouched; no catalog created; unchanged reported as unchanged; `--dry-run` plans only |
 | **TOON default + aggregate (#1,#2,#4)** | stdout TOON, one row per vendor (`vendor, path, status`), pre-computed `built/skipped/failed` summary |
 | **`--format json` / `--format toon`** | JSON escape hatch with `built` array + counts; `--format toon` names the default |
-| **definitive empty state (#5)** | no targets → exit 0, TOON zero built rows + aggregate `built 0`, stderr "nothing to build" |
+| **definitive empty state (#5)** | no targets → exit 0, TOON zero built rows + aggregate `built 0`, stderr "nothing to build", stderr names `/universal-plugin:doctor` |
+| **a declaration this CLI no longer reads (#6)** | zero targets beside a top-level `vendorExtensions` block or a shadowing `.plugin/plugin.json` → exit 1 naming the signal and `/universal-plugin:doctor`, nothing written; the same signal beside deriving harnesses stays exit 0 |
 | **next-step suggestion (#9)** | successful build's stderr ends with `→ universal-plugin plugin validate` |
 | **fail-loud unknown flag (#6)** | unknown flag exits 1, stderr names it |
 | **`--help` (#10)** | exits 0, concise synopsis + flags + one example |

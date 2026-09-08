@@ -3,7 +3,7 @@ import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { buildPlugin, readManifest, validateManifest } from './build.js'
+import { buildPlugin, legacyLayoutSignals, readManifest, validateManifest } from './build.js'
 
 let dir: string
 let home: string
@@ -91,6 +91,32 @@ describe('buildPlugin', () => {
 		const result = buildPlugin(dir, { dryRun: true })
 		expect(result.vendors).toHaveLength(0)
 		expect(result.warnings[0]).toMatch(/nothing to build/)
+	})
+
+	// Scenario: a pre-0.6 vendorExtensions block that derives nothing fails loud
+	it('fails loud when a pre-0.6 vendorExtensions block explains the empty result', () => {
+		writeManifest({ name: 'my-plugin', vendorExtensions: { 'claude-code': {} } })
+		expect(() => buildPlugin(dir, { dryRun: true })).toThrow(/vendorExtensions/)
+		expect(() => buildPlugin(dir, { dryRun: true })).toThrow(/\/universal-plugin:doctor/)
+	})
+
+	// Scenario: a shadowing .plugin/plugin.json that derives nothing fails loud
+	it('fails loud when a shadowing .plugin/plugin.json explains the empty result', () => {
+		writeManifest({ name: 'my-plugin' })
+		fs.mkdirSync(path.join(dir, '.plugin'), { recursive: true })
+		fs.writeFileSync(path.join(dir, '.plugin/plugin.json'), '{"name":"my-plugin"}')
+		expect(() => buildPlugin(dir, { dryRun: true })).toThrow(/\.plugin\/plugin\.json/)
+		expect(() => buildPlugin(dir, { dryRun: true })).toThrow(/\/universal-plugin:doctor/)
+	})
+
+	// Scenario: a pre-0.6 signal beside harnesses that still derive is not a build failure
+	it('builds normally when a pre-0.6 signal sits beside harnesses that still derive', () => {
+		writeManifest({ name: 'my-plugin', extensions: up({ harnesses: { 'claude-code': {} } }) })
+		fs.mkdirSync(path.join(dir, '.plugin'), { recursive: true })
+		fs.writeFileSync(path.join(dir, '.plugin/plugin.json'), '{"name":"my-plugin"}')
+		const result = buildPlugin(dir)
+		expect(result.vendors).toEqual(['claude-code'])
+		expect(fs.existsSync(path.join(dir, '.claude-plugin/plugin.json'))).toBe(true)
 	})
 
 	it('lists vendors from harnesses keys', () => {
@@ -257,6 +283,109 @@ describe('buildPlugin', () => {
 		writeSkill('invalid', '---\ninvocation-policy: never\n---\nNope.')
 
 		expect(() => buildPlugin(dir)).toThrow('expected user, model, or both')
+	})
+})
+
+describe('buildPlugin — component path resolution (the pathValue contract)', () => {
+	/** Writes a skill under an arbitrary declared directory, not just the default ./skills/. */
+	function writeSkillAt(dirRel: string, name: string, content: string) {
+		const skillDir = path.join(dir, dirRel, name)
+		fs.mkdirSync(skillDir, { recursive: true })
+		fs.writeFileSync(path.join(skillDir, 'SKILL.md'), content)
+	}
+
+	const userSkill = '---\ninvocation-policy: user\n---\nBody.'
+
+	function derived(dirRel: string, name: string) {
+		return fs.readFileSync(path.join(dir, dirRel, name, 'SKILL.md'), 'utf8')
+	}
+
+	it('resolves a skills path string', () => {
+		writeManifest({ name: 'x', extensions: up({ harnesses: { 'claude-code': {} }, skills: './my-skills/' }) })
+		writeSkillAt('my-skills', 'alpha', userSkill)
+
+		buildPlugin(dir)
+
+		expect(derived('my-skills', 'alpha')).toContain('disable-model-invocation: true')
+	})
+
+	it('resolves a skills path array across every declared directory', () => {
+		writeManifest({
+			name: 'x',
+			extensions: up({ harnesses: { 'claude-code': {} }, skills: ['./a-skills/', './b-skills/'] }),
+		})
+		writeSkillAt('a-skills', 'alpha', userSkill)
+		writeSkillAt('b-skills', 'beta', userSkill)
+
+		buildPlugin(dir)
+
+		expect(derived('a-skills', 'alpha')).toContain('disable-model-invocation: true')
+		expect(derived('b-skills', 'beta')).toContain('disable-model-invocation: true')
+	})
+
+	it('resolves a skills paths object across every declared directory', () => {
+		writeManifest({
+			name: 'x',
+			extensions: up({ harnesses: { 'claude-code': {} }, skills: { paths: ['./a-skills/', './b-skills/'] } }),
+		})
+		writeSkillAt('a-skills', 'alpha', userSkill)
+		writeSkillAt('b-skills', 'beta', userSkill)
+
+		buildPlugin(dir)
+
+		expect(derived('a-skills', 'alpha')).toContain('disable-model-invocation: true')
+		expect(derived('b-skills', 'beta')).toContain('disable-model-invocation: true')
+	})
+
+	it('never silently replaces a declared skills path with the default directory', () => {
+		writeManifest({ name: 'x', extensions: up({ harnesses: { 'claude-code': {} }, skills: ['./a-skills/'] }) })
+		writeSkillAt('a-skills', 'alpha', userSkill)
+		writeSkillAt('skills', 'ignored', userSkill)
+
+		buildPlugin(dir)
+
+		expect(derived('a-skills', 'alpha')).toContain('disable-model-invocation: true')
+		expect(derived('skills', 'ignored')).not.toContain('disable-model-invocation: true')
+	})
+
+	it('falls back to ./skills/ only when the namespace declares no skills path', () => {
+		writeManifest({ name: 'x', extensions: up({ harnesses: { 'claude-code': {} } }) })
+		writeSkill('alpha', userSkill)
+
+		buildPlugin(dir)
+
+		expect(derived('skills', 'alpha')).toContain('disable-model-invocation: true')
+	})
+
+	it('warns about a declared skills directory that does not exist', () => {
+		writeManifest({
+			name: 'x',
+			extensions: up({ harnesses: { 'claude-code': {} }, skills: ['./a-skills/', './missing/'] }),
+		})
+		writeSkillAt('a-skills', 'alpha', userSkill)
+
+		const result = buildPlugin(dir)
+
+		expect(result.warnings.some((w) => w.includes('./missing/'))).toBe(true)
+		expect(derived('a-skills', 'alpha')).toContain('disable-model-invocation: true')
+	})
+
+	it('warns and reads nothing when the skills declaration is in none of the three forms', () => {
+		writeManifest({ name: 'x', extensions: up({ harnesses: { 'claude-code': {} }, skills: 7 }) })
+		writeSkill('alpha', userSkill)
+
+		const result = buildPlugin(dir)
+
+		expect(result.warnings.some((w) => w.includes('not a path, a path list, or a { paths } object'))).toBe(true)
+		expect(derived('skills', 'alpha')).not.toContain('disable-model-invocation: true')
+	})
+
+	it('does not warn when the undeclared default skills directory is absent', () => {
+		writeManifest({ name: 'x', extensions: up({ harnesses: { 'claude-code': {} } }) })
+
+		const result = buildPlugin(dir)
+
+		expect(result.warnings.some((w) => w.includes('skills'))).toBe(false)
 	})
 })
 
@@ -747,5 +876,22 @@ describe('buildPlugin — catalog formatting', () => {
 		expect(written).toContain('\n\t"name"')
 		expect(written).not.toContain('\n  "name"')
 		expect(Object.keys(JSON.parse(written))).toEqual(['name', 'owner', 'description', 'plugins'])
+	})
+})
+
+describe('legacyLayoutSignals', () => {
+	it('reports nothing for a canonical manifest in a clean project root', () => {
+		expect(legacyLayoutSignals({ name: 'my-plugin', extensions: up({ harnesses: {} }) }, false)).toEqual([])
+	})
+
+	// A manifest that merely omits the extensions block is deliberately not a pre-0.6 signal — it is
+	// as likely to be one nobody has configured yet. doctor still reports it as `legacy-manifest`.
+	it('does not treat a manifest without an extensions block as a pre-0.6 signal', () => {
+		expect(legacyLayoutSignals({ name: 'my-plugin' }, false)).toEqual([])
+	})
+
+	it('reports both signals when both are present', () => {
+		const signals = legacyLayoutSignals({ name: 'my-plugin', vendorExtensions: {} }, true)
+		expect(signals).toHaveLength(2)
 	})
 })

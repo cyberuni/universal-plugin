@@ -45,6 +45,9 @@ const CANONICAL_SERVED = new Set<VendorId>(['copilot-cli'])
  *  (`.research/hook-event-survey/conclusion.md`). */
 const DEFAULT_HOOKS_PATH = './hooks/hooks.json'
 
+/** Where skills live when the extension namespace declares no `skills` path. */
+const DEFAULT_SKILLS_PATH = './skills/'
+
 /** universal-plugin's own build config, nested under extensions["org.cyberuni.universal-plugin"]
  *  in the canonical Agent Plugins Spec v1.0.0 manifest (ADR-0007). */
 export interface UniversalPluginExtension {
@@ -73,6 +76,31 @@ const UP_NAMESPACE = 'org.cyberuni.universal-plugin'
 /** Reads universal-plugin's config block from the canonical manifest's extensions map. */
 export function universalPluginExtension(manifest: PluginManifest): UniversalPluginExtension {
 	return (manifest.extensions?.[UP_NAMESPACE] as UniversalPluginExtension | undefined) ?? {}
+}
+
+/** Copilot CLI searches `.plugin/plugin.json` first, so a leftover one there outranks the canonical
+ *  root manifest — the pre-0.6 layout's other half. */
+const SHADOWING_MANIFEST = '.plugin/plugin.json'
+
+/** The pre-0.6 layout signals, if any, that explain a build deriving nothing (issue #61). Pure: the
+ *  one filesystem fact it needs is passed in.
+ *
+ *  Scoped to the two signals that are unambiguously the old layout. A manifest that merely omits the
+ *  `extensions` block is not one of them — that is as likely a manifest nobody has configured yet as
+ *  one left behind by an upgrade, and erroring on it would fail builds this change has no quarrel
+ *  with. `doctor` still reports it as `legacy-manifest`, which is why the empty-state path points
+ *  there. */
+export function legacyLayoutSignals(manifest: PluginManifest, hasShadowingManifest: boolean): string[] {
+	const signals: string[] = []
+	if ('vendorExtensions' in manifest) {
+		signals.push(
+			'plugin.json carries a top-level "vendorExtensions" block — harness fields moved under extensions["org.cyberuni.universal-plugin"].harnesses',
+		)
+	}
+	if (hasShadowingManifest) {
+		signals.push(`${SHADOWING_MANIFEST} shadows the canonical root plugin.json`)
+	}
+	return signals
 }
 
 export interface BuildOptions {
@@ -179,6 +207,19 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 	}
 
 	if (vendors.length === 0) {
+		// Deriving nothing has two very different causes, and reporting both the same way is what let a
+		// repository left on the pre-0.6 layout read `built 0` as success (issue #61). A canonical
+		// manifest that genuinely declares no harnesses is an empty *result* (AXI #5) — exit 0, say so
+		// plainly. A pre-0.6 layout still declares harnesses, somewhere this CLI no longer looks, so its
+		// zero is a dropped read (AXI #6) — an error.
+		const signals = legacyLayoutSignals(manifest, fs.existsSync(path.join(root, SHADOWING_MANIFEST)))
+		if (signals.length > 0) {
+			throw new Error(
+				`Nothing was derived, and this project is still on the pre-0.6 manifest layout:\n${signals
+					.map((s) => `  - ${s}`)
+					.join('\n')}\nRun /universal-plugin:doctor for the full diagnosis and the skill that owns each repair.`,
+			)
+		}
 		warnings.push('No vendors declared in harnesses — nothing to build')
 		return { vendors: [], written: [], warnings, rows, catalogs: [], summary: summarize(rows) }
 	}
@@ -204,7 +245,7 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 	// A declaration the runtime accepts and then discards is an invisible loss, and it is one loss to
 	// fix however many vendors are targeted.
 	warnings.push(...validateDependencies(declaredDependencies).warnings)
-	const skills = readSkills(root, manifest)
+	const skills = readSkills(root, manifest, warnings)
 	const canonicalHooks = readCanonicalHooks(root, componentConfig['hooks'], warnings)
 
 	for (const vendor of vendors) {
@@ -388,13 +429,44 @@ function writeSkillArtifacts(
 	}
 }
 
-function readSkills(root: string, manifest: PluginManifest): Skill[] {
-	const skillsCfg = universalPluginExtension(manifest).skills
-	const skillsPath = typeof skillsCfg === 'string' ? skillsCfg : './skills/'
-	const skillsDir = path.resolve(root, skillsPath)
-	if (!fs.existsSync(skillsDir)) return []
+/** Resolves a `pathValue` declaration — a single "./" path, an array of them, or a { paths: [...] }
+ *  object — into the list of declared paths. Returns null when the field is absent or malformed, so
+ *  the caller can tell "declared nothing" from "declared these", and never silently substitute a
+ *  default for a form it failed to read. */
+function resolvePathValue(declaration: unknown): string[] | null {
+	if (typeof declaration === 'string') return [declaration]
+	if (Array.isArray(declaration)) {
+		const paths = declaration.filter((entry): entry is string => typeof entry === 'string')
+		return paths.length === declaration.length ? paths : null
+	}
+	if (declaration && typeof declaration === 'object') {
+		const paths = (declaration as { paths?: unknown }).paths
+		if (Array.isArray(paths) && paths.every((entry) => typeof entry === 'string')) return paths as string[]
+	}
+	return null
+}
 
-	return listSkillFiles(skillsDir).map((skillPath) => parseSkill(skillPath))
+function readSkills(root: string, manifest: PluginManifest, warnings: string[]): Skill[] {
+	const skillsCfg = universalPluginExtension(manifest).skills
+	const declared = skillsCfg === undefined ? null : resolvePathValue(skillsCfg)
+	if (skillsCfg !== undefined && declared === null) {
+		warnings.push('skills declaration is not a path, a path list, or a { paths } object — no skills were read')
+		return []
+	}
+
+	// The default is what an undeclared field means, never a stand-in for a declared path that did
+	// not resolve: a declared directory that is missing is warned about rather than papered over.
+	const paths = declared ?? [DEFAULT_SKILLS_PATH]
+	const skills: Skill[] = []
+	for (const relPath of paths) {
+		const skillsDir = path.resolve(root, relPath)
+		if (!fs.existsSync(skillsDir)) {
+			if (declared) warnings.push(`skills path "${relPath}" not found — no skills read from it`)
+			continue
+		}
+		skills.push(...listSkillFiles(skillsDir).map((skillPath) => parseSkill(skillPath)))
+	}
+	return skills
 }
 
 function listSkillFiles(dir: string): string[] {

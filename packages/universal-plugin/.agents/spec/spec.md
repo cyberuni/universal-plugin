@@ -8,21 +8,21 @@ approval:
     by: agent
     cause: dimension
     why:
-      floor: none — the CR is purely additive: one new behavioral node and its suite, no frozen scenario narrowed or rewritten anywhere in the corpus. Compatibility none — a new verb beside the existing ones. Conflict none.
-      blast: moderate — one new behavioral node under the plugin group, its root capability and placement-map entries, and the generated concept index; no existing node's contract touched.
-      novelty: low — the node applies a rule the corpus already carries (ADR-0007's derived-not-authored manifest model) to the version field, and places the verb by ADR-0006's shared-object test.
-      confidence: high — 29 boolean scenarios, scenario map 1:1 with the suite; gherkin-cli parses the suite; check-spec-structure reports zero blocking findings and does not flag the new node; concept-index regenerated clean.
-      cr: github-32
+      floor: none — gherkin-cli diff reports 4 added / 0 modified / 0 removed on build.feature; the frozen "no targets declared is a definitive empty state" scenario is unchanged, so nothing narrowed and no freeze re-open. Compatibility — the build can newly exit 1 where it exited 0, taken as a minor on the 0.x line and declared in the changeset. Conflict none.
+      blast: small — one existing behavioral node revised (plugin/build); no node added, moved, or otherwise touched.
+      novelty: low — the CR applies the corpus's own AXI contract, splitting a result the node already produced across principles #5 and #6 rather than inventing a rule.
+      confidence: high — cold spec-judge returned ALIGNED true with oracle, builder and architect all passing and no blocker; all four combinations of the closed-form rule are covered by scenarios.
+      cr: github-61
   impl:
     verdict: approve
     by: agent
     cause: dimension
     why:
-      floor: none — no frozen scenario weakened; publish sync-version was refactored onto the shared applier with its observable behavior unchanged and its existing suite still green.
-      blast: moderate — a new src/version domain plus its CLI registration, and a same-behavior refactor of publish/sync-version onto the shared applier.
-      novelty: low — the domain follows the package's established pure-plan/apply layering; the only structural claim is that re-derivation calls plugin build's writer rather than duplicating it.
-      confidence: high — every one of the 29 frozen scenarios has a named test exercising the compiled binary; full package verification passes (395 tests, up from 335); knip reports no new findings; the verb was dogfooded against this package's own manifest.
-      cr: github-32
+      floor: none — no frozen scenario weakened; the four scenarios added to plugin/build all verify, and the untouched definitive-empty-state and next-step scenarios were re-exercised against the compiled binary and still hold.
+      blast: small — one branch of buildPlugin, one stderr next-step line in build's CLI, and doctor's recognition of the stopped build; no other command's contract changed.
+      novelty: low — the detection is a pure function handed the one filesystem fact it needs, matching the package's clean-architecture rule; the behavior split follows the AXI contract the corpus already carries.
+      confidence: high — cold impl-judge re-derived each scenario's oracle independently and exercised all four against the compiled binary plus two constructed pre-0.6 git fixtures for doctor; 597 package tests green on the rebased tree.
+      cr: github-61
 ---
 
 # universal-plugin — the cross-vendor plugin build/derivation engine (CLI)

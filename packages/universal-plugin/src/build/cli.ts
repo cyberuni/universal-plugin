@@ -5,6 +5,9 @@ import { output } from '../output.js'
 import { buildPlugin, type VendorRow } from './build.js'
 
 const NEXT_STEP = '→ universal-plugin plugin validate\n'
+// Validate is no use when nothing was derived — it would only re-confirm a manifest that declares no
+// targets. The natural follow-up is the skill that can say why (AXI #9, issue #61).
+const NEXT_STEP_NOTHING_BUILT = '→ /universal-plugin:doctor — diagnose why nothing is declared\n'
 
 interface BuildCliOptions {
 	vendor?: string
@@ -58,7 +61,7 @@ export function buildCommand(): Command {
 					summary: (canonical > 0 ? `${counts}, served by plugin.json ${canonical}` : counts) + catalogSummary,
 				})
 
-				process.stderr.write(NEXT_STEP)
+				process.stderr.write(result.vendors.length === 0 ? NEXT_STEP_NOTHING_BUILT : NEXT_STEP)
 				if (failed > 0) process.exitCode = 1
 			} catch (err) {
 				process.stderr.write(`${err instanceof Error ? err.message : String(err)}\n`)

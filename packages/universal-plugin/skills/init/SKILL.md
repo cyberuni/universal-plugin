@@ -230,5 +230,7 @@ This skill is not a formatter. If the project has one, run it over the written f
 
 - Governance: `npx universal-plugin governance show plugin-design`
 - Spec: https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/spec.md
-- Schema: https://raw.githubusercontent.com/cyberuni/universal-plugin/refs/heads/main/schema/v1.json
+- Manifest schema (Agent Plugins Specification v1.0.0): https://agent-plugins.org/schemas/1.0.0/plugin.schema.json
+- Extension schema (the body of `extensions["org.cyberuni.universal-plugin"]`), shipped in the package at
+  `schema/extension.schema.json`: https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/schema/extension.schema.json
 - Examples: https://github.com/cyberuni/universal-plugin/tree/main/examples
