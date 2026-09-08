@@ -78,6 +78,31 @@ export function universalPluginExtension(manifest: PluginManifest): UniversalPlu
 	return (manifest.extensions?.[UP_NAMESPACE] as UniversalPluginExtension | undefined) ?? {}
 }
 
+/** Copilot CLI searches `.plugin/plugin.json` first, so a leftover one there outranks the canonical
+ *  root manifest — the pre-0.6 layout's other half. */
+const SHADOWING_MANIFEST = '.plugin/plugin.json'
+
+/** The pre-0.6 layout signals, if any, that explain a build deriving nothing (issue #61). Pure: the
+ *  one filesystem fact it needs is passed in.
+ *
+ *  Scoped to the two signals that are unambiguously the old layout. A manifest that merely omits the
+ *  `extensions` block is not one of them — that is as likely a manifest nobody has configured yet as
+ *  one left behind by an upgrade, and erroring on it would fail builds this change has no quarrel
+ *  with. `doctor` still reports it as `legacy-manifest`, which is why the empty-state path points
+ *  there. */
+export function legacyLayoutSignals(manifest: PluginManifest, hasShadowingManifest: boolean): string[] {
+	const signals: string[] = []
+	if ('vendorExtensions' in manifest) {
+		signals.push(
+			'plugin.json carries a top-level "vendorExtensions" block — harness fields moved under extensions["org.cyberuni.universal-plugin"].harnesses',
+		)
+	}
+	if (hasShadowingManifest) {
+		signals.push(`${SHADOWING_MANIFEST} shadows the canonical root plugin.json`)
+	}
+	return signals
+}
+
 export interface BuildOptions {
 	vendor?: string
 	dryRun?: boolean
@@ -182,6 +207,19 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 	}
 
 	if (vendors.length === 0) {
+		// Deriving nothing has two very different causes, and reporting both the same way is what let a
+		// repository left on the pre-0.6 layout read `built 0` as success (issue #61). A canonical
+		// manifest that genuinely declares no harnesses is an empty *result* (AXI #5) — exit 0, say so
+		// plainly. A pre-0.6 layout still declares harnesses, somewhere this CLI no longer looks, so its
+		// zero is a dropped read (AXI #6) — an error.
+		const signals = legacyLayoutSignals(manifest, fs.existsSync(path.join(root, SHADOWING_MANIFEST)))
+		if (signals.length > 0) {
+			throw new Error(
+				`Nothing was derived, and this project is still on the pre-0.6 manifest layout:\n${signals
+					.map((s) => `  - ${s}`)
+					.join('\n')}\nRun /universal-plugin:doctor for the full diagnosis and the skill that owns each repair.`,
+			)
+		}
 		warnings.push('No vendors declared in harnesses — nothing to build')
 		return { vendors: [], written: [], warnings, rows, catalogs: [], summary: summarize(rows) }
 	}

@@ -164,3 +164,20 @@ test('a repository whose catalogs load reports nothing about them', () => {
 	)
 	expect(findings()).not.toContain('invalid-catalog')
 })
+
+// issue #61 — the pre-0.6 layout. `plugin build` now stops on it rather than reporting a definitive
+// empty state, so doctor must keep naming the cause instead of falling back to `build-failed`.
+test('a repo left on the pre-0.6 layout still reports the layout findings and no-vendors', () => {
+	write(
+		'plugin.json',
+		`${JSON.stringify({ name: 'demo', version: '1.0.0', vendorExtensions: { 'claude-code': {} } }, null, 2)}\n`,
+	)
+	write('.plugin/plugin.json', `${JSON.stringify({ name: 'demo' }, null, 2)}\n`)
+	commit('a repo on the pre-0.6 layout')
+
+	const codes = findings()
+	expect(codes).toContain('legacy-manifest')
+	expect(codes).toContain('shadowing-manifest')
+	expect(codes).toContain('no-vendors')
+	expect(codes).not.toContain('build-failed')
+})

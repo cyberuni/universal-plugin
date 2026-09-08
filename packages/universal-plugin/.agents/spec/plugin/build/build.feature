@@ -257,6 +257,13 @@ Feature: plugin build — derive per-vendor manifests
     And stdout is TOON with zero built rows and the aggregate "built 0"
     And stderr contains "nothing to build"
 
+  Scenario: the definitive empty state names doctor as the next step
+    Given the manifest has no harnesses and no vendors list
+    And the project root carries no pre-0.6 layout signal
+    When I run "universal-plugin plugin build"
+    Then the exit code is 0
+    And stderr names "/universal-plugin:doctor"
+
   Scenario: unknown vendor in harnesses is warned and skipped
     Given harnesses contains an unknown vendor key "acme"
     When I run "universal-plugin plugin build"
@@ -279,6 +286,33 @@ Feature: plugin build — derive per-vendor manifests
     Then the exit code is 1
     And stderr contains "description is required when targeting codex"
     And stderr contains "version is required when targeting codex"
+
+  # ── A declaration this CLI no longer reads ──
+
+  Scenario: a pre-0.6 vendorExtensions block that derives nothing fails loud
+    Given the root manifest carries a top-level "vendorExtensions" block
+    And the manifest declares no harnesses and no vendors list
+    When I run "universal-plugin plugin build"
+    Then the exit code is 1
+    And stderr contains "vendorExtensions"
+    And stderr names "/universal-plugin:doctor"
+    And no output files are written
+
+  Scenario: a shadowing .plugin/plugin.json that derives nothing fails loud
+    Given the project root also carries ".plugin/plugin.json"
+    And the manifest declares no harnesses and no vendors list
+    When I run "universal-plugin plugin build"
+    Then the exit code is 1
+    And stderr contains ".plugin/plugin.json"
+    And stderr names "/universal-plugin:doctor"
+    And no output files are written
+
+  Scenario: a pre-0.6 signal beside harnesses that still derive is not a build failure
+    Given the project root also carries ".plugin/plugin.json"
+    And the manifest declares harnesses for "claude-code"
+    When I run "universal-plugin plugin build"
+    Then ".claude-plugin/plugin.json" is written
+    And the exit code is 0
 
   # ── Write-control flags ──
 
