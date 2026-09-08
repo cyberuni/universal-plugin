@@ -105,8 +105,14 @@ if (declaredTargets.includes('copilot-cli')) {
 		return fs.existsSync(abs) && fs.statSync(abs).isDirectory() && fs.readdirSync(abs).length > 0
 	}
 	const missing = []
-	for (const kind of ['agents', 'commands', 'rules']) {
-		const roots = declaredPaths(ext?.[kind], null)
+	// The same defaults the build derives from. Passing null here would make the check fire only for a
+	// manifest that names the path — and the manifest that names none is the common one.
+	for (const [kind, defaultPath] of [
+		['agents', './agents/'],
+		['commands', './commands/'],
+		['rules', './rules/'],
+	]) {
+		const roots = declaredPaths(ext?.[kind], defaultPath)
 		if (roots.some(hasContent) && !hasContent(path.join(COPILOT_NAMESPACE, kind))) missing.push(kind)
 	}
 	// hooks is a single file, declared as a path or inline in the manifest, and carries a default the
