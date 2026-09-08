@@ -19,3 +19,9 @@ guessed at.
 The field-sorting table also routes a pre-0.6 top-level `vendorExtensions` block explicitly: it is
 the old name for `harnesses`, not an undeliverable field, and dropping it would discard every
 per-harness override the project had.
+
+The Copilot CLI reference is now settled against the shipped runtime rather than the vendor's field
+table: `category` and `tags` have no `plugin.json` handling at all in Copilot CLI 1.0.83 — the
+manifest validator treats them as unknown-and-ignored — and are real only on a `marketplace.json`
+catalog entry. Adoption therefore folds them into `keywords`, a spec field the validator does know,
+instead of dropping them.

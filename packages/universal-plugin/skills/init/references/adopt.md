@@ -59,9 +59,9 @@ Build three buckets from the manifests you inventoried:
 - **Undeliverable** — a field whose only consumer is Copilot CLI. Copilot CLI reads the canonical
   root manifest directly and gets no derived file, so such a field has no home on either side: the
   closed schema rejects it at the top level, and a `harnesses["copilot-cli"]` entry is never
-  written anywhere. Adoption drops it. See
-  [`vendors/copilot-cli.md`](./vendors/copilot-cli.md), which records what Copilot CLI does with a
-  non-spec field in the first place.
+  written anywhere. Before dropping one, check
+  [`vendors/copilot-cli.md`](./vendors/copilot-cli.md) — the two fields that actually turn up here,
+  `category` and `tags`, have a spec-conformant home (`keywords`) and are not a loss.
 
 Where two vendor manifests disagree on a shared field, **ask the user** which value is canonical
 rather than picking one. A silent choice here is a silent behavior change for one of their runtimes.
@@ -96,6 +96,7 @@ Every name it prints is a field the canonical top level cannot hold. Sort each o
 | `vendorExtensions` — the whole pre-0.6 block | `extensions["org.cyberuni.universal-plugin"].harnesses` — **renamed, not dropped** |
 | a component path (`skills`, `commands`, `agents`, …) | `extensions["org.cyberuni.universal-plugin"].<name>` — carried |
 | a field a vendor with a *derived* manifest understands | that vendor's `harnesses` entry — carried |
+| `category` / `tags` from the legacy Copilot output | fold into **`keywords`** — see below |
 | anything left | **dropped** |
 
 `vendorExtensions` is the row that catches people out, because the snippet prints it alongside the
@@ -108,8 +109,23 @@ contents have no delivery path.
 now exits 1 rather than reporting `built 0`, naming the signal and routing to `doctor`. If Step 5
 fails that way, the block did not get carried across.
 
-**Report the dropped ones to the user by name, with the value each held, before Step 3 writes
-anything.** That report is the only notice they get, and it is the difference between an informed
+`category` and `tags` have their own row because they are the fields this whole step exists for, and
+they are **not** simply dropped. Copilot CLI has no `plugin.json` handling for either — its manifest
+validator knows `keywords` and treats these two as unknown-and-ignored — while `keywords` is both a
+spec field and the one Copilot actually parses. So fold the values in rather than deleting them:
+
+```
+category: "productivity" + tags: ["workflow", "planning", "verification"]
+  → keywords: ["productivity", "workflow", "planning", "verification"]
+```
+
+If the project also ships a `marketplace.json` catalog, `category` and `tags` are real fields on a
+catalog entry and belong there as well — with the right types, because a wrong one is a fatal browse
+error rather than a warning. [`vendors/copilot-cli.md`](./vendors/copilot-cli.md) has the evidence
+and the exact validator messages.
+
+**Report anything genuinely dropped to the user by name, with the value each held, before Step 3
+writes anything.** That report is the only notice they get, and it is the difference between an informed
 decision and a field that evaporates. Say what the field was for if you know; if a field looks load-
 bearing and the user wants it kept, stop rather than shipping the adoption around it.
 

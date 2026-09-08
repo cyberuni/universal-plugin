@@ -33,52 +33,76 @@ directly — these fields are not delivered
 Treat that warning as a decision to make, not noise: either the field belongs to a vendor that has a
 derived manifest, or it does not ship. Do not invent a path for it.
 
-## `category` and `tags` — recognized, but nothing is known to read them
+## `category` and `tags` belong to the catalog, not the manifest
 
 A project on the pre-0.6 layout carries these on its **root** `plugin.json`, because root *was*
-Copilot CLI's derived output. Adoption drops them: root becomes the canonical manifest and the spec
-field set is closed. This is what that costs, as far as the published evidence goes — checked
-2026-09-07.
+Copilot CLI's derived output. Adoption drops them from there, and that loses nothing — but not for
+the reason the field table suggests.
 
-- **They are not unknown keys.** Copilot CLI's own plugin reference documents both under the
-  *Optional metadata fields* of `plugin.json`: `category` (string, "Plugin category") and `tags`
-  (string array, "Additional tags"). It documents them again as marketplace **entry** fields, so
-  "they were only ever catalog fields" is not the explanation either. Do not tell a user Copilot
-  ignores them as unknown keys — its own field table contradicts that.
-- **Nothing in Copilot's documentation consumes either one.** Neither field appears in the
-  finding/installing, marketplace, or plugin-authoring how-to pages, nor in the canonical example
-  manifest, and no described behavior reads them — no listing, no search, no filtering. `keywords`,
-  by contrast, is documented as search keywords.
-- **In spec mode a conformant client may not act on them anyway.** Declaring the canonical `$schema`
-  opts the plugin into Agent Plugins Spec v1.0.0, which requires a client to report and ignore each
-  unknown top-level field and states that clients **must not** assign semantics to unknown fields
-  (§5.2, restated non-fatal in §11.3).
+**Copilot CLI has no `plugin.json` handling for either field.** Verified against the shipped
+`@github/copilot-linux-x64` **1.0.83** runtime (the plugin loader is Rust in
+`prebuilds/*/runtime.node`, not the bundled JS), and confirmed by running the binary. The manifest
+validator carries a dedicated message for `keywords` and none for `category` or `tags`; both land on
+the unknown-field path:
 
-**Working answer: dropping `category` and `tags` costs nothing observable.** Say that to a user
-mid-migration rather than leaving them to guess whether they just lost something — but say it as what
-it is, an argument from the vendor's published behavior, not a guarantee.
+```
+Plugin manifest "…": field "keywords" must be an array of strings (ignored)
+Plugin manifest "…": unknown field "…" (ignored)
+```
 
-### Open questions
+Unknown keys are **warn-and-ignore**: not rejected, not stripped from disk, dropped from the parsed
+struct. A manifest carrying `category`, `tags`, and an outright bogus key installs cleanly with no
+output about any of them. GitHub's published field table lists `category`/`tags` under the
+`plugin.json` optional metadata fields anyway — as of 1.0.83 that part of the table does not match
+the shipped loader.
 
-These were not established. Re-check them before anyone relies on more than the paragraph above.
+**Where they are real is `marketplace.json`.** The catalog validator type-checks both on every
+`plugins[]` entry, and a wrong type is a *fatal* browse failure, not a warning:
 
-- Whether Copilot CLI's loader **reads** `category`/`tags` at runtime or merely documents them. The
-  shipped code is a ~300 MB per-platform binary package (`@github/copilot` is a launcher shim); no
-  bundle inspection was done.
-- Whether declaring the spec `$schema` **changes** how native extras are handled. Copilot's docs say
-  spec support is layered "additively on top of standard plugin loading", but the bullet list that
-  would explain what that means is empty in the published source.
-- Whether Copilot **surfaces** either field anywhere — `/plugin`, marketplace browse, install
-  listings. Nothing in its docs says it does.
+```
+Failed to browse marketplace: Invalid marketplace.json:
+  plugins.0.category: Expected string, received number,
+  plugins.0.tags: Expected array, received string
+```
+
+With valid values, nothing renders them — `marketplace browse` prints only `name` and `description`,
+and `plugins list --json` emits neither field, nor `keywords`. No list, search, sort, or filter in
+the CLI touches any of them. GitHub's own marketplace (`github/copilot-plugins`, 17 curated entries)
+sets `category` and `tags` zero times while populating `keywords` on 15 of 17.
+
+### So where does a migrating project put them
+
+| Was | Goes |
+| --- | --- |
+| `category` / `tags` on root `plugin.json` | fold into **`keywords`** — a spec field, in the closed set, and the one Copilot's manifest validator actually knows |
+| the same values for marketplace discovery | the **catalog entry** in `marketplace.json`, where Copilot defines them |
+
+Do not build a delivery path for these into the plugin manifest. There is nothing at the other end.
+
+### Still open
+
+- **Where the `unknown field (ignored)` warning surfaces.** It exists in the binary but reached no
+  output on `plugin install`, `plugin list`, or `plugins list`. Likely the interactive dashboard or
+  the session config-problems channel.
+- **The full known-field allow-list for `plugin.json`.** The validator's field set is a Rust const
+  array in a stripped binary; only fields with dedicated messages are recoverable. The negative is
+  solid — neither `category` nor `tags` has any handling — but the positive list is not.
+- **Server-side catalog search.** The runtime carries a remote catalog client with a `canSearch`
+  capability. Whether GitHub's hosted catalog indexes `category`/`tags` is outside what the shipped
+  code can answer, and it would be indexing `marketplace.json`, not a plugin manifest.
+- **What `$schema` mode does to native-only fields.** The docs' "Open Plugin Spec support" section
+  is an empty bullet list — born empty 2026-07-24, unchanged through five doc syncs and a human
+  edit, so treat it as a stale docs artifact rather than a pending answer.
 
 ### Sources
 
-- Copilot CLI plugin reference — the `plugin.json` field table and the Open Plugin Spec section:
+- Shipped runtime: `@github/copilot-linux-x64` 1.0.83, `prebuilds/linux-x64/runtime.node`; validator
+  strings and live `plugin install` / `marketplace browse` / `plugins list --json` runs.
+- Copilot CLI plugin reference (the field table this contradicts):
   https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-plugin-reference
-- Agent Plugins Specification v1.0.0 §5.2 and §11.3:
-  https://github.com/agentplugins/agent-plugins-spec/blob/main/spec/1.0.0.md
-- The canonical schema's closed field set (`additionalProperties: false`, ten properties, no
-  `category`/`tags`): https://agent-plugins.org/schemas/1.0.0/plugin.schema.json
+- GitHub's own catalog: https://github.com/github/copilot-plugins `.github/plugin/marketplace.json`
+- Agent Plugins Specification v1.0.0 §8 (`extensions` is the sanctioned channel for non-spec data)
+  and the closed field set: https://agent-plugins.org/schemas/1.0.0/plugin.schema.json
 
 ## Do not
 
