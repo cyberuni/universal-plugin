@@ -1302,6 +1302,22 @@ describe('buildPlugin — the copilot spec-mode namespace (ADR-0015)', () => {
 		expect(Object.keys(derived.hooks)).toEqual(['SessionStart'])
 	})
 
+	// Every derived kind flips the status, not only the copied ones: a plugin whose entire Copilot
+	// content is one hook or one LSP entry still has a tree the runtime reads.
+	it.each([
+		['hooks', { hooks: './hooks/hooks.json' }, 'hooks/hooks.json', '{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"./x.sh"}]}]}}\n'],
+		['commands', { commands: './commands/' }, 'commands/ship.md', 'ship\n'],
+		['rules', { rules: './rules/' }, 'rules/style.md', 'style\n'],
+		['lspServers', { lspServers: './.lsp.json' }, '.lsp.json', '{ "servers": {} }\n'],
+	])('reports built when %s is the only derived kind', (_kind, config, file, content) => {
+		writeComponent(file, content)
+		copilotManifest(config)
+
+		const result = buildPlugin(dir)
+
+		expect(result.rows).toEqual([{ vendor: 'copilot-cli', path: `${NS}/`, status: 'built' }])
+	})
+
 	it('copies a declared lspServers path verbatim', () => {
 		writeComponent('.lsp.json', '{ "servers": { "tf": { "command": "terraform-ls" } } }\n')
 		copilotManifest({ lspServers: './.lsp.json' })

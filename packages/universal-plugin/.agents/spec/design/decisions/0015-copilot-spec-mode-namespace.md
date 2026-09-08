@@ -61,7 +61,10 @@ com.github.copilot/lsp.json
 com.github.copilot/extensions/  ← authored, passed through
 ```
 
-The vendor reports `built` with path `com.github.copilot/` when it derives at least one of these. A
+The vendor reports `built` with path `com.github.copilot/` when it derives at least one of these —
+**any** of the five, not only the copied ones. A plugin whose entire Copilot content is one hook or
+one LSP entry still has a tree the runtime reads, and reporting it `canonical` would be the same
+silent loss this ADR ends, moved into the status column. A
 plugin declaring none of the moving kinds has nothing to derive and keeps reporting `canonical` with
 path `plugin.json` — the pre-existing result stays correct for the plugins it was correct for.
 

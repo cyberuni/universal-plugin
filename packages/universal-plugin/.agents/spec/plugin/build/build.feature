@@ -451,6 +451,22 @@ Feature: plugin build — derive per-vendor manifests
     And "com.github.copilot/agents/b.agent.md" is written
     And the exit code is 0
 
+  Scenario: a commands-only plugin is reported as built
+    Given the manifest declares commands "./commands/"
+    And "commands/ship.md" exists
+    And the manifest declares harnesses for "copilot-cli"
+    When I run "universal-plugin plugin build"
+    Then "copilot-cli" is reported with status "built"
+    And the exit code is 0
+
+  Scenario: a rules-only plugin is reported as built
+    Given the manifest declares rules "./rules/"
+    And "rules/style.md" exists
+    And the manifest declares harnesses for "copilot-cli"
+    When I run "universal-plugin plugin build"
+    Then "copilot-cli" is reported with status "built"
+    And the exit code is 0
+
   Scenario: the schema default is read when the field is absent
     Given the extensions namespace declares no agents path
     And "agents/reviewer.agent.md" exists
@@ -516,12 +532,15 @@ Feature: plugin build — derive per-vendor manifests
     And the canonical "plugin.json" is left unchanged
     And the exit code is 0
 
+  # Every derived kind flips the status, not just the copied ones — hooks are translated rather than
+  # copied, and a plugin whose only Copilot content is a hook still has a tree the runtime reads.
   Scenario: hooks are translated to the fixed spec-mode path
     Given the authored hooks declare one command handler on "SessionStart"
     And the manifest declares harnesses for "copilot-cli"
     When I run "universal-plugin plugin build"
     Then "com.github.copilot/hooks/hooks.json" is written
     And "com.github.copilot/hooks/hooks.json" contains "SessionStart"
+    And "copilot-cli" is reported with status "built"
     And the exit code is 0
 
   # A declared lsp path is copied verbatim: the file's top-level shape is the authored one, and the
@@ -533,6 +552,7 @@ Feature: plugin build — derive per-vendor manifests
     When I run "universal-plugin plugin build"
     Then "com.github.copilot/lsp.json" is written
     And "com.github.copilot/lsp.json" matches the authored ".lsp.json" byte for byte
+    And "copilot-cli" is reported with status "built"
     And the exit code is 0
 
   Scenario: an inline lspServers map warns rather than guessing the file shape
