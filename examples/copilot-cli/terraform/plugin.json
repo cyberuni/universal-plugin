@@ -10,10 +10,7 @@
 			"skills": "./skills/",
 			"mcpServers": "./.mcp.json",
 			"harnesses": {
-				"copilot-cli": {
-					"category": "devops",
-					"tags": ["terraform", "infrastructure", "iac"]
-				}
+				"copilot-cli": {}
 			}
 		}
 	}
