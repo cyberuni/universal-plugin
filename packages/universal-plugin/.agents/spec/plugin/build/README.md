@@ -18,7 +18,9 @@ Build is the **dev-consumable** derivation — it runs constantly while authorin
 deterministic, and needs no network. Producing the **release form** — pinning the `npx <cli>@<version>`
 references a plugin's skills carry to the versions being shipped — is a separate release-time step that
 lives in [`plugin bundle`](../bundle/README.md), not here (root `spec.md` placement map). Build does
-not touch skill pins.
+not touch skill pins. The one version pin build *does* stamp is a different object: a package
+specifier inside an `mcpServers` entry's `args`, which is manifest content build already derives —
+authored abstractly with a marker, stamped concretely here, exactly as hook casing is.
 
 Follows the AXI output contract ([../../axi/](../../axi/README.md)).
 
@@ -59,6 +61,33 @@ Follows the AXI output contract ([../../axi/](../../axi/README.md)).
   substitute for a declared one the build failed to read. A declared directory that does not exist
   warns, naming the path; the undeclared default being absent does not. A declaration in none of
   the three forms warns and reads no skills, rather than falling through to the default.
+- **An MCP invocation is pinned only on an explicit marker** — a plugin whose MCP server is its own
+  npm package writes `{"command": "npx", "args": ["-y", "<pkg>", "mcp"]}`, and nothing pins it: a
+  consumer on 1.4.0 gets 1.4.0's skills and whatever `npx` resolves as latest for the server. The
+  version is known at build time and nowhere else — `mcp.json` expands only `${PLUGIN_ROOT}` and
+  `${PLUGIN_DATA}`, so a runtime placeholder would arrive at the client literally. An `mcpServers`
+  entry therefore opts in with `"pinToPluginVersion": true`, and the build rewrites that entry's
+  package specifier in `args` to `<pkg>@<manifest version>`. The specifier is the **first argument
+  that is not a runner flag** (`-y`, `--yes`), so an `args` list that omits the flag entirely is
+  located the same way; every other argument is carried through exactly as authored. The marker is required and a name match
+  is never used — a plugin may publish its server under a package name that is not the plugin's, and
+  `npx -y widget-cli` must not be stamped with this plugin's version. An **already-pinned**
+  specifier is **overwritten**, warning when the authored version differs: the marker declares that
+  this package's version *is* the plugin's, and a version that is derived is never also authored
+  ([ADR-0010](../../design/decisions/0010-version-policy.md) §1, whose derived-artifact table carries
+  this pin). Each guard warns and leaves the
+  entry untouched rather than failing the build: a `command` that is not `npx`/`upx`, a manifest with
+  no `version`, or `args` carrying no package specifier.
+- **The marker never reaches a vendor** — `pinToPluginVersion` is a build directive, not part of any
+  vendor's schema, so it is stripped from every derived manifest and derived MCP file. Delivery
+  follows the hooks rule: with no entry marked, the canonical `mcpServers` declaration passes through
+  as authored and nothing is derived; with an entry marked, the pinned, marker-stripped servers map
+  is delivered — inline when the canonical declared it inline, else as `<vendor-dir>/mcp.json` with
+  the vendor's `mcpServers` field repointed there. The authored `mcp.json` is never rewritten.
+  `copilot-cli` reads the canonical manifest directly, so there is no derived manifest to repoint and
+  no derived file to deliver — the build warns that the pin is not delivered, the same remedy
+  [ADR-0011](../../design/decisions/0011-warn-and-drop-unrepresentable-hook-handlers.md) uses for a
+  handler the vendor cannot run.
 - **Merge then strip** — per-harness fields from `harnesses.<vendor>` are merged over the shared
   metadata and component paths; the canonical wrapper (`$schema`, `extensions`) and the orchestration
   keys (`vendors`, `packagePath`, `harnesses`) never appear in output.
@@ -119,7 +148,8 @@ Follows the AXI output contract ([../../axi/](../../axi/README.md)).
 project (`plugin init`); publishing or installing manifests (the `cyberplace` package); the shared
 output-contract mechanics themselves ([`../../axi/`](../../axi/README.md) owns those); **resolving or
 pinning the `npx <cli>@<version>` references a plugin's skills carry** — that is the release-time
-[`plugin bundle`](../bundle/README.md) step, not a build step. Build derives manifests only.
+[`plugin bundle`](../bundle/README.md) step, not a build step (the MCP-invocation pin above is a
+different object — see the intro).
 
 Every scenario in [`build.feature`](./build.feature) maps to one of these behaviors:
 
@@ -130,6 +160,8 @@ Every scenario in [`build.feature`](./build.feature) maps to one of these behavi
 | **component path resolution** | `skills` resolved from a path string, a path array, and a `{ paths }` object; every declared directory searched; `./skills/` used only when nothing is declared; a declared-but-missing directory warned, an absent default not; a declaration in none of the three forms warned and read as nothing |
 | **hook translation** | canonical PascalCase kept for claude-code and codex; camelCase, `version: 1`, and flattened matcher groups for cursor; derived file written beside the vendor manifest and pointed at; inline hooks translated; `--dry-run` derives nothing |
 | **unrepresentable handlers (ADR-0011)** | per-drop warning naming vendor, event, and type; emptied event omitted; emptied file not written and the `hooks` field dropped; copilot-cli warned rather than derived for |
+| **MCP invocation pinning** | a marked entry's `args` specifier rewritten to `<pkg>@<version>` under either runner word (`npx`, `upx`), located as the first non-flag argument with or without a leading `-y`/`--yes`; an unmarked entry and an unrelated `npx` invocation left alone; an already-pinned specifier overwritten with a warning; guards (non-runner `command`, no manifest `version`, no specifier in `args`) warn and leave the entry |
+| **marker stripping + delivery** | `pinToPluginVersion` absent from every derived manifest and derived MCP file; nothing marked derives nothing; an inline declaration stays inline, a path declaration gets `<vendor-dir>/mcp.json` and is repointed; the authored `mcp.json` untouched; copilot-cli warned rather than derived for |
 | **`--vendor` filters** | filter to one vendor; a `--vendor` not among the targets fails |
 | **eager validation** | missing manifest fails; codex requires description + version |
 | **unknown vendors warn** | unknown vendor key in `harnesses` skipped with warning |

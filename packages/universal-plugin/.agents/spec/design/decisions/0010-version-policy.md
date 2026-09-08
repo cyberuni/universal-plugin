@@ -43,6 +43,7 @@ artifact in the repository is **derived** from it and is never authored by hand:
 | `.claude-plugin/plugin.json`, `.cursor-plugin/plugin.json`, `.codex-plugin/plugin.json`, root copilot manifest | `plugin build` |
 | Repository-local marketplace catalogs | `marketplace init` |
 | `npx`/`upx <cli>@<version>` pins inside `skills/**` | `plugin bundle` |
+| A marked `mcpServers` invocation's package specifier (`pinToPluginVersion`) | `plugin build` |
 
 "Owns" is about the value every artifact reads, not about who chooses it. Choosing is §2.
 
