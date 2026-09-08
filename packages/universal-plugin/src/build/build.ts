@@ -45,6 +45,9 @@ const CANONICAL_SERVED = new Set<VendorId>(['copilot-cli'])
  *  (`.research/hook-event-survey/conclusion.md`). */
 const DEFAULT_HOOKS_PATH = './hooks/hooks.json'
 
+/** Where skills live when the extension namespace declares no `skills` path. */
+const DEFAULT_SKILLS_PATH = './skills/'
+
 /** universal-plugin's own build config, nested under extensions["org.cyberuni.universal-plugin"]
  *  in the canonical Agent Plugins Spec v1.0.0 manifest (ADR-0007). */
 export interface UniversalPluginExtension {
@@ -204,7 +207,7 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 	// A declaration the runtime accepts and then discards is an invisible loss, and it is one loss to
 	// fix however many vendors are targeted.
 	warnings.push(...validateDependencies(declaredDependencies).warnings)
-	const skills = readSkills(root, manifest)
+	const skills = readSkills(root, manifest, warnings)
 	const canonicalHooks = readCanonicalHooks(root, componentConfig['hooks'], warnings)
 
 	for (const vendor of vendors) {
@@ -388,13 +391,44 @@ function writeSkillArtifacts(
 	}
 }
 
-function readSkills(root: string, manifest: PluginManifest): Skill[] {
-	const skillsCfg = universalPluginExtension(manifest).skills
-	const skillsPath = typeof skillsCfg === 'string' ? skillsCfg : './skills/'
-	const skillsDir = path.resolve(root, skillsPath)
-	if (!fs.existsSync(skillsDir)) return []
+/** Resolves a `pathValue` declaration — a single "./" path, an array of them, or a { paths: [...] }
+ *  object — into the list of declared paths. Returns null when the field is absent or malformed, so
+ *  the caller can tell "declared nothing" from "declared these", and never silently substitute a
+ *  default for a form it failed to read. */
+function resolvePathValue(declaration: unknown): string[] | null {
+	if (typeof declaration === 'string') return [declaration]
+	if (Array.isArray(declaration)) {
+		const paths = declaration.filter((entry): entry is string => typeof entry === 'string')
+		return paths.length === declaration.length ? paths : null
+	}
+	if (declaration && typeof declaration === 'object') {
+		const paths = (declaration as { paths?: unknown }).paths
+		if (Array.isArray(paths) && paths.every((entry) => typeof entry === 'string')) return paths as string[]
+	}
+	return null
+}
 
-	return listSkillFiles(skillsDir).map((skillPath) => parseSkill(skillPath))
+function readSkills(root: string, manifest: PluginManifest, warnings: string[]): Skill[] {
+	const skillsCfg = universalPluginExtension(manifest).skills
+	const declared = skillsCfg === undefined ? null : resolvePathValue(skillsCfg)
+	if (skillsCfg !== undefined && declared === null) {
+		warnings.push('skills declaration is not a path, a path list, or a { paths } object — no skills were read')
+		return []
+	}
+
+	// The default is what an undeclared field means, never a stand-in for a declared path that did
+	// not resolve: a declared directory that is missing is warned about rather than papered over.
+	const paths = declared ?? [DEFAULT_SKILLS_PATH]
+	const skills: Skill[] = []
+	for (const relPath of paths) {
+		const skillsDir = path.resolve(root, relPath)
+		if (!fs.existsSync(skillsDir)) {
+			if (declared) warnings.push(`skills path "${relPath}" not found — no skills read from it`)
+			continue
+		}
+		skills.push(...listSkillFiles(skillsDir).map((skillPath) => parseSkill(skillPath)))
+	}
+	return skills
 }
 
 function listSkillFiles(dir: string): string[] {

@@ -260,6 +260,109 @@ describe('buildPlugin', () => {
 	})
 })
 
+describe('buildPlugin — component path resolution (the pathValue contract)', () => {
+	/** Writes a skill under an arbitrary declared directory, not just the default ./skills/. */
+	function writeSkillAt(dirRel: string, name: string, content: string) {
+		const skillDir = path.join(dir, dirRel, name)
+		fs.mkdirSync(skillDir, { recursive: true })
+		fs.writeFileSync(path.join(skillDir, 'SKILL.md'), content)
+	}
+
+	const userSkill = '---\ninvocation-policy: user\n---\nBody.'
+
+	function derived(dirRel: string, name: string) {
+		return fs.readFileSync(path.join(dir, dirRel, name, 'SKILL.md'), 'utf8')
+	}
+
+	it('resolves a skills path string', () => {
+		writeManifest({ name: 'x', extensions: up({ harnesses: { 'claude-code': {} }, skills: './my-skills/' }) })
+		writeSkillAt('my-skills', 'alpha', userSkill)
+
+		buildPlugin(dir)
+
+		expect(derived('my-skills', 'alpha')).toContain('disable-model-invocation: true')
+	})
+
+	it('resolves a skills path array across every declared directory', () => {
+		writeManifest({
+			name: 'x',
+			extensions: up({ harnesses: { 'claude-code': {} }, skills: ['./a-skills/', './b-skills/'] }),
+		})
+		writeSkillAt('a-skills', 'alpha', userSkill)
+		writeSkillAt('b-skills', 'beta', userSkill)
+
+		buildPlugin(dir)
+
+		expect(derived('a-skills', 'alpha')).toContain('disable-model-invocation: true')
+		expect(derived('b-skills', 'beta')).toContain('disable-model-invocation: true')
+	})
+
+	it('resolves a skills paths object across every declared directory', () => {
+		writeManifest({
+			name: 'x',
+			extensions: up({ harnesses: { 'claude-code': {} }, skills: { paths: ['./a-skills/', './b-skills/'] } }),
+		})
+		writeSkillAt('a-skills', 'alpha', userSkill)
+		writeSkillAt('b-skills', 'beta', userSkill)
+
+		buildPlugin(dir)
+
+		expect(derived('a-skills', 'alpha')).toContain('disable-model-invocation: true')
+		expect(derived('b-skills', 'beta')).toContain('disable-model-invocation: true')
+	})
+
+	it('never silently replaces a declared skills path with the default directory', () => {
+		writeManifest({ name: 'x', extensions: up({ harnesses: { 'claude-code': {} }, skills: ['./a-skills/'] }) })
+		writeSkillAt('a-skills', 'alpha', userSkill)
+		writeSkillAt('skills', 'ignored', userSkill)
+
+		buildPlugin(dir)
+
+		expect(derived('a-skills', 'alpha')).toContain('disable-model-invocation: true')
+		expect(derived('skills', 'ignored')).not.toContain('disable-model-invocation: true')
+	})
+
+	it('falls back to ./skills/ only when the namespace declares no skills path', () => {
+		writeManifest({ name: 'x', extensions: up({ harnesses: { 'claude-code': {} } }) })
+		writeSkill('alpha', userSkill)
+
+		buildPlugin(dir)
+
+		expect(derived('skills', 'alpha')).toContain('disable-model-invocation: true')
+	})
+
+	it('warns about a declared skills directory that does not exist', () => {
+		writeManifest({
+			name: 'x',
+			extensions: up({ harnesses: { 'claude-code': {} }, skills: ['./a-skills/', './missing/'] }),
+		})
+		writeSkillAt('a-skills', 'alpha', userSkill)
+
+		const result = buildPlugin(dir)
+
+		expect(result.warnings.some((w) => w.includes('./missing/'))).toBe(true)
+		expect(derived('a-skills', 'alpha')).toContain('disable-model-invocation: true')
+	})
+
+	it('warns and reads nothing when the skills declaration is in none of the three forms', () => {
+		writeManifest({ name: 'x', extensions: up({ harnesses: { 'claude-code': {} }, skills: 7 }) })
+		writeSkill('alpha', userSkill)
+
+		const result = buildPlugin(dir)
+
+		expect(result.warnings.some((w) => w.includes('not a path, a path list, or a { paths } object'))).toBe(true)
+		expect(derived('skills', 'alpha')).not.toContain('disable-model-invocation: true')
+	})
+
+	it('does not warn when the undeclared default skills directory is absent', () => {
+		writeManifest({ name: 'x', extensions: up({ harnesses: { 'claude-code': {} } }) })
+
+		const result = buildPlugin(dir)
+
+		expect(result.warnings.some((w) => w.includes('skills'))).toBe(false)
+	})
+})
+
 describe('buildPlugin — hooks (ADR-0011)', () => {
 	function writeHooks(relPath: string, hooks: object) {
 		const target = path.join(dir, relPath)
