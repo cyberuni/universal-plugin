@@ -43,9 +43,10 @@ carries the full list with examples.
 
 ## Fast alternative: upx
 
-A global install of `universal-plugin` also puts `upx` on PATH. It runs an already-installed CLI
-directly instead of resolving one on every call. See [npx and upx](../../concepts/npx-and-upx/) for
-the measurements and the cases where `npx` is still the right runner.
+[`@repobuddy/upx`](https://github.com/repobuddy/upx) (`npm i -g @repobuddy/upx`) runs an
+already-installed CLI directly instead of resolving one on every call. See
+[Choosing a runner](../../concepts/npx-and-upx/) for the cases where `npx` is still the right
+runner.
 
 ## Output formats
 

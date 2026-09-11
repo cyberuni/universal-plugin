@@ -123,7 +123,6 @@ ADR-0006 corrects that.
 | [`config/`](./config/README.md) | group | the `config` command group — read/write plugin-registered keyed config in `.agents/universal-plugin.json` |
 | [`config/add/`](./config/add/README.md) | behavioral | `universal-plugin config add --key <key> --entry '<json>'` — append (or replace by `name`) an entry in the array at `<key>`; idempotent, preserves other keys |
 | [`config/get/`](./config/get/README.md) | behavioral | `universal-plugin config get --key <key> [--format json]` — read the array at `<key>` (TOON default; raw array under `--format json`) |
-| [`run/`](./run/README.md) | behavioral | `upx <pkg>@<range> [args…]` — a lean **second bin**: run a package's CLI from a range-satisfying local/global install (fast), else fall back to `npx`. Kept separate from the main CLI for fast cold-start |
 | [`axi/`](./axi/README.md) | reference | the **AXI** output contract — shared token-efficient CLI conventions (TOON default, aggregates, empty states, next-step, fail-loud, content-first, help) every command follows |
 
 ## Placement map
@@ -170,7 +169,8 @@ Where a new concept lives — slot here, do not invent placement (strategy = **c
   `packagePath` is the CLI's own **string** config, not a plugin-registered array — both verbs **reject**
   `--key packagePath` (fail loud, write nothing) rather than coerce it. Entry-shape validation beyond
   valid JSON + a required `name` (the `add` merge key) is the **consumer's**, not this CLI's.
-- **a new fast-invocation / package-runner op** (run an installed CLI in place of `npx`) → `run/`
+- **a new fast-invocation / package-runner op** (run an installed CLI in place of `npx`) → out of
+  scope; that is [`@repobuddy/upx`](https://github.com/repobuddy/upx), a separate package
   (the `upx` bin). **Charter note:** a generic runner is broader than "derive/validate/scaffold the
   manifest", but it lives here deliberately — `plugin bundle` already emits `upx` references at release,
   so the runner and its emitter ship and version as one unit — and ships as a **separate lean bin** so
@@ -209,12 +209,11 @@ scanned node).
 
 | Concept | Facets |
 |---|---|
-| `axi` | `axi/` (reference) · `config/add/` (behavior) · `config/get/` (behavior) · `governance/` (behavior) · `marketplace/init/` (behavior) · `plugin/build/` (behavior) · `plugin/bundle/` (behavior) · `plugin/init/` (behavior) · `plugin/install/` (behavior) · `plugin/validate/` (behavior) · `plugin/version/` (behavior) · `run/` (behavior) |
+| `axi` | `axi/` (reference) · `config/add/` (behavior) · `config/get/` (behavior) · `governance/` (behavior) · `marketplace/init/` (behavior) · `plugin/build/` (behavior) · `plugin/bundle/` (behavior) · `plugin/init/` (behavior) · `plugin/install/` (behavior) · `plugin/validate/` (behavior) · `plugin/version/` (behavior) |
 | `canonical-manifest` | `plugin/build/` (behavior) · `plugin/init/` (behavior) · `plugin/install/` (behavior) · `plugin/validate/` (behavior) · `plugin/version/` (behavior) |
 | `config` | `config/add/` (behavior) · `config/get/` (behavior) |
 | `governance` | `governance/` (behavior) |
 | `marketplace` | `marketplace/init/` (behavior) |
 | `release` | `plugin/bundle/` (behavior) · `plugin/version/` (behavior) |
-| `run` | `run/` (behavior) |
 
 <!-- END generated: by-concept -->

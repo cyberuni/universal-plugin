@@ -24,19 +24,23 @@ universal-plugin plugin build
 
 ## Fast repeated calls: upx
 
-A global install puts a second bin, `upx`, on PATH. It runs an already-installed CLI matching a
-semver range instead of resolving one on every call:
+`upx` runs an already-installed CLI matching a semver range instead of resolving one on every call.
+It ships as its own package:
 
 ```bash
-npm i -g universal-plugin   # installs the upx bin alongside universal-plugin
+npm i -g @repobuddy/upx
 
 upx cyber-skills@^2 audit validate
 ```
 
 Use a caret range (`@^2`), not an exact pin. That is what lets one global install serve every caller
 at that major. `upx` only exists once installed, so keep `npx` anywhere you cannot guarantee the
-global install. [npx and upx](../../concepts/npx-and-upx/) covers the measurements and the rest of
-the tradeoffs.
+global install. [Choosing a runner](../../concepts/npx-and-upx/) covers when to reach for which runner.
+
+:::caution[Deprecated]
+`universal-plugin` still installs a `upx` bin that re-exports `@repobuddy/upx`, so existing global
+installs keep working. It will be removed in the next major.
+:::
 
 ## Install as a dev dependency
 

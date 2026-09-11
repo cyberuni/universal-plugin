@@ -6,13 +6,13 @@ Rewrites `npx <pkg>@<version>` references in `SKILL.md` files to a caret range o
 
 ## When to use
 
-When you want a project's skills to call CLIs via `upx` instead of `npx`, for the ~10× speed win
-on repeated invocations (local-first resolution vs. `npx`'s ~1s registry+spawn cost per call, even
+When you want a project's skills to call CLIs via `upx` instead of `npx`, for the speed win
+on repeated invocations (local-first resolution vs. `npx`'s registry+spawn cost per call, even
 cached).
 
 ## What it does
 
-1. Confirms `upx` is installed (`npm i -g universal-plugin`) and on PATH.
+1. Confirms `upx` is installed (`npm i -g @repobuddy/upx`) and on PATH.
 2. Rewrites `npx <pkg>@<concrete-semver>` → `upx <pkg>@^<major>` (or `^0.<minor>` for a 0.x pin)
    across a chosen scope:
    - one specific skill (a path)
@@ -29,7 +29,7 @@ cached).
 ## Tradeoff
 
 A rewritten skill depends on `upx` being on PATH. `npx` ships with every npm install; `upx` only
-exists after `npm i -g universal-plugin`. This is an opt-in migration, not a safe default.
+exists after `npm i -g @repobuddy/upx`. This is an opt-in migration, not a safe default.
 
 ## Install
 

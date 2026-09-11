@@ -11,7 +11,7 @@ AI agent spends the fewest tokens per interaction. It adopts [AXI](https://githu
 a first-class constraint. This node states the cross-cutting conventions **once**; each behavioral
 node ([`plugin/build/`](../plugin/build/README.md), [`plugin/bundle/`](../plugin/bundle/README.md),
 [`plugin/validate/`](../plugin/validate/README.md), [`plugin/init/`](../plugin/init/README.md),
-[`governance/`](../governance/README.md), [`run/`](../run/README.md),
+[`governance/`](../governance/README.md),
 [`config/add/`](../config/add/README.md), [`config/get/`](../config/get/README.md)) references this
 contract and carries the concrete scenarios that exercise it.
 
