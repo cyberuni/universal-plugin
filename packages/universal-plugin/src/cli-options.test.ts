@@ -1,7 +1,7 @@
 import * as path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-import { resolveRoot } from './cli-options.js'
+import { resolveOwnVersion, resolveRoot } from './cli-options.js'
 
 const REPO = path.resolve('/repo')
 const PACKAGE = path.join(REPO, 'packages', 'pods')
@@ -42,5 +42,17 @@ describe('resolveRoot', () => {
 	it('leaves an unrelated missing relative root alone, so the command reports the real path', () => {
 		const missing = path.join(PACKAGE, 'packages', 'other')
 		expect(resolveRoot('packages/other', { cwd: PACKAGE, exists: existsIn(PACKAGE) })).toBe(missing)
+	})
+})
+
+describe('resolveOwnVersion', () => {
+	it('reads the version field from the given package.json', () => {
+		const readFileSync = () => JSON.stringify({ name: 'universal-plugin', version: '1.2.3' })
+		expect(resolveOwnVersion('/anywhere/package.json', { readFileSync })).toBe('1.2.3')
+	})
+
+	it('never reports the hardcoded placeholder for a real version', () => {
+		const readFileSync = () => JSON.stringify({ version: '0.7.0' })
+		expect(resolveOwnVersion('/anywhere/package.json', { readFileSync })).not.toBe('0.0.0')
 	})
 })
