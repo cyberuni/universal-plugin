@@ -1,9 +1,12 @@
 #!/usr/bin/env node
+import { fileURLToPath } from 'node:url'
+
 import { Command } from 'commander'
 
 import { cleanCommand } from './asset-store/cli.js'
 import { buildCommand } from './build/cli.js'
 import { bundleCommand } from './bundle/cli.js'
+import { resolveOwnVersion } from './cli-options.js'
 import { configCommand } from './config/cli.js'
 import { governanceCommand } from './governance/cli.js'
 import { initCommand } from './init/cli.js'
@@ -17,7 +20,16 @@ import { versionCommand } from './version/cli.js'
 
 const program = new Command()
 
-program.name('universal-plugin').description('Universal AI agent plugin build tool').version('0.0.0').helpCommand(false)
+// This bundle ships beside its own `package.json` in both the source tree (`src/cli.ts` next to
+// `package.json`) and the published npm package (`dist/cli.mjs` one level under it), so `../package.json`
+// resolves the same way in both.
+const ownPackageJsonPath = fileURLToPath(new URL('../package.json', import.meta.url))
+
+program
+	.name('universal-plugin')
+	.description('Universal AI agent plugin build tool')
+	.version(resolveOwnVersion(ownPackageJsonPath))
+	.helpCommand(false)
 
 // The `plugin` command group: author the canonical plugin.json.
 // build, bundle, init, install, uninstall, and version are implemented; validate is specced (impl-deferred).

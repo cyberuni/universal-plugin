@@ -6,23 +6,23 @@ approval:
   spec:
     verdict: approve
     by: agent
-    cause: clearance
+    cause: dimension
     why:
-      floor: clearance — two frozen scenarios in plugin/build/build.feature are rewritten rather than extended, both asserting behavior the Copilot CLI runtime made false in 1.0.80-0. Pre-authorized by the CR, which asks for exactly that reversal, and recorded in the leash block. Compatibility — additive on the 0.x line, declared minor in the changeset. Conflict none.
-      blast: high for one node — the plugin/build behavioral node gains a component-derivation surface, two ADRs lose a premise and are marked superseded in part (0011 wholly for section 3, 0004 for its Copilot premise), and the glossary gains a term. No node added, moved, or removed.
-      novelty: medium — the vendor model gains a case it did not have: a vendor whose manifest is canonical and whose components are derived. The mechanism is the corpus's own derivation pattern; what is new is that one vendor now answers those two questions differently.
-      confidence: high — cold spec-judge round 6 returned ALIGNED true with oracle, builder and architect all passing, no blocker and no content gaps, after five rounds that each closed a real finding. check-suite and check-spec-state clean. The evidence under .research/copilot-spec-mode-namespace/ is first-party and dated, and the published docs that contradict it are named as stale rather than ignored.
-      cr: github-67
+      floor: none — new node (cli/), no frozen scenario anywhere in the corpus touched.
+      blast: small — one new behavioral node (cli/) plus a capability-map row and a placement-map bullet on this root spec.md; no existing node's contract changed.
+      novelty: low — applies the corpus's own pattern (a node scoped by object) to a gap the placement map did not yet name: the root Command's own identity, distinct from every verb node and from axi/'s cross-command contract.
+      confidence: high — cold spec-judge (general-purpose subagent standing in for the spec-judge role) returned ALIGNED true: placement defensible and disjoint from plugin/version/ and axi/, structure matches the sibling template, Gherkin scenarios pin observable behavior (exit code, exact stdout) with no redundancy, and one scenario directly forecloses silent reintroduction of the reported 0.0.0 placeholder.
+      cr: github-76
   impl:
     verdict: approve
     by: agent
     cause: dimension
     why:
-      floor: none — no frozen scenario weakened; every scenario in the new namespace section verifies, and the two rewritten ones verify against the behavior that replaced them.
-      blast: medium — one branch of buildPlugin plus four new functions in src/build, the shipped-paths map plugin init --npm reads, one new doctor finding, and this package's own derived namespace tree. No other command's contract changed.
-      novelty: medium — derivation by copy is new to this build, which had only ever written manifests and translated files. The agent rename and the inline-lspServers warn are the two places it claims less than the location evidence would allow.
-      confidence: high — cold impl-judge built its own fixtures and exercised the compiled binary rather than reading the tests, confirming the canonical-manifest write path is unreachable for this vendor, that --clean cannot touch authored extensions, that --dry-run writes nothing while still reporting built, and the rename's idempotent, non-markdown and nested cases. It found one real defect — doctor resolving the moved kinds with no default, so the check was silent on the manifest that names no path — which is fixed with a regression test confirmed to fail against the old resolution. Its architecture note (inline fs I/O in build.ts against the package layer table) is pre-existing across every function in that file and is deferred, not absorbed.
-      cr: github-67
+      floor: none — no frozen scenario weakened; all four new scenarios in cli.feature verify against the compiled binary.
+      blast: small — cli.ts gains a resolveOwnVersion call reading the CLI's own package.json via import.meta.url; cli-options.ts gains one pure, injectable helper; two new test files (unit + integration). No other command's contract changed.
+      novelty: low — reuses the resolveRoot module's existing shape (a pure function with an injectable dependency) rather than inventing a new pattern.
+      confidence: high — verified manually against the compiled bin/universal-plugin.mjs from both the package root and an unrelated empty cwd, both matching the real package.json version and never 0.0.0; full package suite (604 tests), typecheck, and lint all green on the rebased tree.
+      cr: github-76
 ---
 
 # universal-plugin — the cross-vendor plugin build/derivation engine (CLI)
@@ -109,6 +109,7 @@ ADR-0006 corrects that.
 
 | Folder | Type | What |
 |---|---|---|
+| [`cli/`](./cli/README.md) | behavioral | the root program's own identity — `--version`/`-V` reports the installed `universal-plugin` package's version |
 | [`plugin/`](./plugin/README.md) | group | the `plugin` command group — build / bundle / validate / init / install / version |
 | [`plugin/build/`](./plugin/build/README.md) | behavioral | `universal-plugin plugin build [--vendor] [--dry-run] [--clean]` — derive per-vendor manifests from the canonical `plugin.json` (dev-consumable form; no skill pins, but it stamps a marked `mcpServers` invocation with the plugin version) |
 | [`plugin/bundle/`](./plugin/bundle/README.md) | behavioral | `universal-plugin plugin bundle [--dry-run] [--full] [--format] [--runner]` — materialize the release form: pin the `npx`/`upx <cli>@<version>` references in the plugin's skills to their shipping workspace versions (`--runner` selects the emitted runner word) |
@@ -180,6 +181,9 @@ Where a new concept lives — slot here, do not invent placement (strategy = **c
   source) → **`plugin/init/`**, under its `--npm` flag. `plugin init` already scaffolds the canonical
   `plugin.json`; publishing is that same scaffold plus its shipping wiring, so it stays one verb on the
   manifest rather than a second beside it. In charter because its object **is** the manifest (ADR-0006).
+- **a new op on the root program's own identity** (name, description, `--version`/`-V`, or the bare-
+  invocation dispatch) → **`cli/`** — the bootstrap `Command` instance in `src/cli.ts`, distinct from
+  any single verb node and from `axi/`'s cross-command output contract.
 - **a new shared output / CLI convention** (TOON shape, aggregate, next-step, empty-state,
   truncation, help, content-first) → `axi/` (the reference contract), plus concrete scenarios in each
   behavioral node that exercises it. Never a per-command copy of the convention.
