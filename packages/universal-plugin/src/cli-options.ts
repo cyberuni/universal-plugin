@@ -31,3 +31,15 @@ export function resolveRoot(root?: string, deps: Partial<RootDeps> = {}): string
 	const relative = path.normalize(root).replace(new RegExp(`\\${path.sep}+$`), '')
 	return cwd.endsWith(path.sep + relative) ? cwd : resolved
 }
+
+export interface OwnVersionDeps {
+	readFileSync: (path: string) => string
+}
+
+/** Reads the `universal-plugin` CLI's own version from the `package.json` at `packageJsonPath` — the
+ *  version this running bundle ships under, never a target project's `plugin.json`. */
+export function resolveOwnVersion(packageJsonPath: string, deps: Partial<OwnVersionDeps> = {}): string {
+	const readFileSync = deps.readFileSync ?? ((p: string) => fs.readFileSync(p, 'utf8'))
+	const pkg = JSON.parse(readFileSync(packageJsonPath)) as { version?: string }
+	return pkg.version ?? '0.0.0'
+}
