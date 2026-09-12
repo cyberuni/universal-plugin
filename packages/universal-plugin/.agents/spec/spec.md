@@ -68,8 +68,8 @@ and skills whose *subject* is authoring craft stay with `cyberspace`/`aced`. No 
 skill for **interactivity** today — the one that did (harness selection) left with the consume half
 (ADR-0006 §5). **Reach is a second, independent question**: a verb no agent can find ships
 unreachable however non-interactive it is, and the package's answer to it is a set of verb-shaped
-skills under `skills/`, each named for what it does and scoped by the object it touches: `init`
-writes the manifest's declaration (create / adopt / update), `doctor` only reads, `version` moves the
+skills under `skills/`, each named for what it does and scoped by the object it touches:
+`init-universal-plugin` writes the manifest's declaration (create / adopt / update), `doctor` only reads, `version` moves the
 released number, `remove-plugin` deletes artifacts. A new verb earns a **route** on the skill whose
 object it shares, and a skill of its own only when its object differs — competing writers on one
 object are what fragments a surface, not skill count

@@ -16,7 +16,7 @@ The skill supplies the judgment around it: which finding matters, and which skil
 
 ## It never repairs
 
-Every finding names the skill that fixes it — `init` for anything that rewrites the manifest,
+Every finding names the skill that fixes it — `init-universal-plugin` for anything that rewrites the manifest,
 `version` for the release number, `remove-plugin` for artifacts. A repair can overwrite a manifest
 the user maintains, and that judgment belongs to the skill that owns the write.
 

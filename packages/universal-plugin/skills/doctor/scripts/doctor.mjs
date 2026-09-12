@@ -45,10 +45,10 @@ if (manifest === null) {
 			'vendor-only',
 			'high',
 			`vendor manifests with no canonical manifest: ${orphans.join(', ')}`,
-			'/universal-plugin:init, adopt route',
+			'/universal-plugin:init-universal-plugin, adopt route',
 		)
 	} else {
-		add('no-manifest', 'high', 'no root plugin.json — this is not a plugin yet', '/universal-plugin:init')
+		add('no-manifest', 'high', 'no root plugin.json — this is not a plugin yet', '/universal-plugin:init-universal-plugin')
 	}
 	report({ vendors: [] })
 }
@@ -65,7 +65,7 @@ if (!manifest.$schema?.includes('agent-plugins.org') || ext === null) {
 		'legacy-manifest',
 		'high',
 		'root plugin.json carries no $schema on agent-plugins.org or no extensions block',
-		'/universal-plugin:init, adopt route',
+		'/universal-plugin:init-universal-plugin, adopt route',
 	)
 }
 
@@ -169,7 +169,7 @@ if (build === null) {
 			'no-vendors',
 			'medium',
 			'no vendor is declared — the project is on the pre-0.6 layout, so the build derives nothing and no runtime reads this plugin',
-			'/universal-plugin:init, adopt route',
+			'/universal-plugin:init-universal-plugin, adopt route',
 		)
 	} else {
 		add(
@@ -202,13 +202,13 @@ if (build === null) {
 	}
 	for (const warning of build.warnings ?? []) {
 		if (/not delivered/.test(warning)) {
-			add('undeliverable-override', 'medium', warning, '/universal-plugin:init, update route')
+			add('undeliverable-override', 'medium', warning, '/universal-plugin:init-universal-plugin, update route')
 		} else if (/No vendors declared/.test(warning)) {
 			add(
 				'no-vendors',
 				'medium',
 				'no vendor is declared — the build writes nothing, so no runtime reads this plugin',
-				'/universal-plugin:init, update route',
+				'/universal-plugin:init-universal-plugin, update route',
 			)
 		} else if (/^Unknown vendor/.test(warning)) {
 			add('unknown-vendor', 'medium', warning, 'fix the vendor id in plugin.json')

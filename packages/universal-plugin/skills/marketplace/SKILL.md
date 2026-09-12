@@ -195,7 +195,7 @@ a version the plugin does not have.
 
 | Task | Skill |
 |------|-------|
-| Create or change the plugin being listed | `init` |
+| Create or change the plugin being listed | `init-universal-plugin` |
 | Check that the plugin's own manifests are current | `doctor` |
 | Move the version users will install | `version` |
 | Submit to the shared marketplace repository instead | `publish-plugin` |

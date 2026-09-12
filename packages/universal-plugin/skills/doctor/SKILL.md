@@ -70,21 +70,21 @@ Each `code` below is what the script emits.
 
 | Finding | What it means | Repair |
 | --- | --- | --- |
-| `no-manifest` | no root `plugin.json` — this is not a plugin yet | `/universal-plugin:init` |
-| `legacy-manifest` | root `plugin.json` with neither `$schema` nor `extensions` — a single-vendor manifest on the canonical path | `/universal-plugin:init`, adopt route |
-| `vendor-only` | a vendor manifest with no canonical manifest above it | `/universal-plugin:init`, adopt route |
+| `no-manifest` | no root `plugin.json` — this is not a plugin yet | `/universal-plugin:init-universal-plugin` |
+| `legacy-manifest` | root `plugin.json` with neither `$schema` nor `extensions` — a single-vendor manifest on the canonical path | `/universal-plugin:init-universal-plugin`, adopt route |
+| `vendor-only` | a vendor manifest with no canonical manifest above it | `/universal-plugin:init-universal-plugin`, adopt route |
 | `unbuilt` | a declared vendor whose output path holds no file — that runtime sees no plugin | `universal-plugin plugin build` |
 | `stale` | a derived manifest older than `plugin.json` | `universal-plugin plugin build` |
 | `hand-edited` | a derived manifest that `build` would rewrite — the edit is already lost, it just has not been overwritten yet | move the field to the canonical manifest or to `harnesses.<vendor>`, then rebuild |
 | `unknown-vendor` | a `vendors` entry no build target matches; reported as `skipped` plus a warning | fix the id in `plugin.json` |
-| `undeliverable-override` | `harnesses["copilot-cli"]` sets fields that reach nothing | `/universal-plugin:init`, update route — move them to a vendor that has a derived manifest, or drop them |
+| `undeliverable-override` | `harnesses["copilot-cli"]` sets fields that reach nothing | `/universal-plugin:init-universal-plugin`, update route — move them to a vendor that has a derived manifest, or drop them |
 | `codex-fields-missing` | Codex is targeted without `version` or `description`; the build fails and writes **nothing at all**, including for the other vendors | add both to the canonical top level |
 | `version-drift` | the `packagePath` `package.json` and the canonical manifest carry different versions | `/universal-plugin:version` |
 | `unreleased-content` | shipped content was committed after the commit that set the current version — a consumer keyed on that version never re-extracts it | `/universal-plugin:version` |
 | `copilot-root-components` | agents, commands, rules, hooks, or LSP servers sit at the plugin root with no copy under `com.github.copilot/` — Copilot CLI reads them only from there in spec mode, so it loads none of them, silently | `universal-plugin plugin build` |
 | `stale-github-plugin` | a leftover `.github/plugin/plugin.json` from an older build — shadowed by root and no longer generated | `/universal-plugin:remove-plugin` |
 | `shadowing-manifest` | a `.plugin/plugin.json` exists — it outranks root in Copilot CLI's search order and silently shadows the canonical manifest | `/universal-plugin:remove-plugin` |
-| `no-vendors` | no vendor is declared, so the build writes nothing and no runtime reads the plugin. On a repository still on the pre-0.6 layout the build stops rather than reporting an empty result, and the detail says so — read it beside `legacy-manifest` and `shadowing-manifest`, which name the signals | `/universal-plugin:init`, adopt route on the pre-0.6 layout, else update route |
+| `no-vendors` | no vendor is declared, so the build writes nothing and no runtime reads the plugin. On a repository still on the pre-0.6 layout the build stops rather than reporting an empty result, and the detail says so — read it beside `legacy-manifest` and `shadowing-manifest`, which name the signals | `/universal-plugin:init-universal-plugin`, adopt route on the pre-0.6 layout, else update route |
 | `package-path-missing` | `packagePath` names a directory with no readable `package.json` | fix `packagePath`, or create the package |
 | `unparsable-manifest` | root `plugin.json` is not valid JSON | fix the syntax error |
 | `invalid-catalog` | a marketplace catalog — at the repository root, or at a `--marketplace-root` clone — is not a shape its runtime loads — it is found, read, and refused at install time, in the user's terminal | `/universal-plugin:marketplace` |
@@ -176,7 +176,7 @@ is meant to ship — content that is still being worked on is not a finding to a
 
 | Task | Skill |
 |------|-------|
-| Create, adopt, or change what the plugin declares | `init` |
+| Create, adopt, or change what the plugin declares | `init-universal-plugin` |
 | Move the plugin's version | `version` |
 | Remove derived manifests, or the plugin itself | `remove-plugin` |
 | Generate the repository's own marketplace catalogs | `marketplace` |

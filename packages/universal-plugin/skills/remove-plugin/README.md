@@ -22,7 +22,7 @@ Root `plugin.json` is never deleted as cleanup. It is the canonical source of tr
 manifest GitHub Copilot CLI reads, so removing it takes out the source and a live target at once.
 
 Dropping a vendor is a manifest edit first: deleting only the file leaves the vendor declared, and
-the next build writes it straight back. That edit routes to `init`.
+the next build writes it straight back. That edit routes to `init-universal-plugin`.
 
 Deleting a published plugin's source does not unpublish it. The skill says so rather than implying
 the removal reached consumers.

@@ -1,4 +1,4 @@
-# init skill
+# init-universal-plugin skill
 
 Give a project one canonical `plugin.json` on the [Agent Plugins
 Specification](https://agent-plugins.org), then derive the manifest each runtime expects — Claude

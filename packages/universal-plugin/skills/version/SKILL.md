@@ -90,7 +90,7 @@ Every guard resolves before the first write, so a failed run leaves the tree unt
 
 | Message names | What it means | Do this |
 |---|---|---|
-| a missing `plugin.json` | not at a plugin root, or the plugin was never scaffolded | `cd` to the plugin root, or run `/universal-plugin:init` |
+| a missing `plugin.json` | not at a plugin root, or the plugin was never scaffolded | `cd` to the plugin root, or run `/universal-plugin:init-universal-plugin` |
 | no version to bump from | the manifest has never carried a `version` | pass an explicit version (`plugin version 0.1.0`) to set the first one |
 | an unknown version or release type | the argument is neither a release type nor valid semver | use one of the values in the table above |
 | a target that does not advance | the requested version is not greater than the current one | pick a higher version, or pass `--force` if the user genuinely wants to move backward |
@@ -108,7 +108,7 @@ Every guard resolves before the first write, so a failed run leaves the tree unt
 
 | Task | Skill |
 |------|-------|
-| Create, adopt, or change what the plugin declares | `init` |
+| Create, adopt, or change what the plugin declares | `init-universal-plugin` |
 | Check whether the two authored versions agree | `doctor` |
 | Add a changeset for the change being released | `add-changeset` |
 | Refresh the repository's own marketplace catalogs after a bump | `marketplace` |

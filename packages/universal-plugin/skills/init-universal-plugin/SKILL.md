@@ -1,5 +1,5 @@
 ---
-name: init
+name: init-universal-plugin
 description: Use this skill to create or change a universal agent plugin — scaffold a new one, adopt an existing vendor-specific plugin or already-shipped skills onto the open Agent Plugins Specification, or add and remove vendors and components on the canonical plugin.json that drives Claude Code, Cursor, Codex, and GitHub Copilot CLI. Trigger on "init a plugin here", "make my Claude Code plugin work in Cursor", "convert this to the open plugin standard", "turn these skills into a plugin", "add Codex support", or "add a hooks component".
 argument-hint: '[--name <name>] [--vendor <id>] [--scaffold] [--npm] [--no-marketplace] [--force]'
 ---
@@ -48,7 +48,7 @@ It is the authoritative source for which component to reach for and which anti-p
 
 ## Arguments
 
-An invocation may carry the CLI's own flags: `/universal-plugin:init --name my-plugin --scaffold --npm`.
+An invocation may carry the CLI's own flags: `/universal-plugin:init-universal-plugin --name my-plugin --scaffold --npm`.
 
 Read them from the invocation itself rather than from a placeholder. Claude Code appends what the
 caller typed as `ARGUMENTS: <value>`, and Codex substitutes nothing at all, so on every runtime the
@@ -161,7 +161,7 @@ and read back any line it printed on stderr — a repository with no author, no 
 remote gets no catalog, because every runtime requires an owner. `--no-marketplace` skips the step.
 
 The catalog is named after the repository, `<owner>-<repo>-local`, not after the plugin: it lists
-every plugin the repository develops. Re-running `init` folds the entry back in and leaves the
+every plugin the repository develops. Re-running `init-universal-plugin` folds the entry back in and leaves the
 marketplace name, the owner, and every other entry alone, so it is safe over a catalog someone
 edited. Generating catalogs for a repository that already holds several plugins, and writing the
 README install section, is the `marketplace` skill's job.
