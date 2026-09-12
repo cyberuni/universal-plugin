@@ -1,5 +1,39 @@
 # universal-plugin
 
+## 0.8.0
+
+### Minor Changes
+
+- 1eab810: Move the `upx` runner into its own package, `@repobuddy/upx`.
+  
+  A generic package runner is broader than this package's build/derivation charter — a placement note
+  in the spec has said so since it landed. It also made the wrong trade for `upx` itself: the runner's
+  value is *install once globally, use everywhere*, and that install should be small, so requiring
+  `npm i -g universal-plugin` to get a runner word worked against it.
+  
+  Nothing about `upx`'s behavior changed, and the emitter side stays here: `plugin bundle --runner upx`,
+  the `adopt-upx` skill, and `upgrade-plugin`'s runner-word handling all still live in this package.
+  Their coupling was always to the *word* `upx`, never to its code.
+  
+  **Install `@repobuddy/upx` directly** — `npm i -g @repobuddy/upx`. The `upx` bin on this package now
+  re-exports it so existing global installs keep working, and prints a deprecation notice on `--help`
+  (never on a normal call — `upx` is a transparent exec wrapper). It will be removed in the next major.
+
+### Patch Changes
+
+- f0be1fa: `doctor` now accepts a repeatable `--marketplace-root <path>` flag to also validate a separately-cloned shared marketplace repository (e.g. a local clone of `cyberuni/marketplace`) — previously only the plugin's own repository root was checked, so a bad entry that reached the shared catalog another way went unnoticed. A named `--marketplace-root` that does not exist is reported as `marketplace-root-missing` instead of being silently skipped.
+- 0211cae: State the CLI's dependency bundling explicitly in the build config.
+  
+  `dist/cli.mjs` already shipped with its runtime dependencies inlined, and that is what lets the
+  shipped skill launchers run from an installed plugin directory at all — those directories are copies
+  of a source checkout, so their `node_modules` is absent or incomplete. The build now declares that
+  intent through an explicit `deps.alwaysBundle` block rather than relying on it incidentally, so a
+  dependency added later cannot quietly become external and break the launchers.
+  
+  `@repobuddy/upx` is deliberately excluded. It is reachable only from the separate `bin/upx.mjs` shim,
+  which is not a build entry, so the `upx` bin still resolves it at runtime from an installed tree.
+- 2469986: Fix `universal-plugin --version` (and `-V`) always printing `0.0.0` instead of the installed package's actual version.
+
 ## 0.7.0
 
 ### Minor Changes
