@@ -83,17 +83,32 @@ Clone or check out the marketplace repo locally, then look for vendor marketplac
 
 Only prepare entries for files that actually exist — do not create new vendor marketplace files.
 
-### 2b. Claude Code entry (`.claude-plugin/marketplace.json`)
+### 2b. Determine the source/distribution type
 
-The richer format. Use this shape:
+Before writing any entry, decide how the plugin is actually distributed — do not default to a
+root-clone `url`. Read the signals from the plugin's own repository, in this order:
+
+1. **`npm`** — `.agents/universal-plugin.json` carries a `packagePath`, and
+   `<packagePath>/package.json` is not `"private": true`. The plugin ships as an npm package.
+2. **`git-subdir`** — the plugin's `plugin.json` (or its vendor manifests) live below the
+   repository root, e.g. `packages/<name>/plugin.json`, and there is no `packagePath`/npm
+   distribution. This is the common monorepo case: the repository root holds no plugin manifest at
+   all, only a `marketplace.json` catalog or unrelated packages, so a root-clone `url` source
+   resolves nothing.
+3. **`url` / `github`** — `plugin.json` sits at the repository root. `url` for a plain clone,
+   `github` when a sparse/shallow checkout is preferred.
+
+Only ask the user when these signals genuinely conflict or are missing (e.g. no `plugin.json` found
+at any candidate path). Otherwise decide from the signals and state which one you picked and why.
+
+### 2c. Claude Code entry (`.claude-plugin/marketplace.json`)
+
+The richer format. Use this shape, filling `source` per the type decided in 2b:
 
 ```json
 {
   "name": "<plugin-name>",
-  "source": {
-    "source": "url",
-    "url": "<git-clone-url>.git"
-  },
+  "source": { "source": "url", "url": "<git-clone-url>.git" },
   "description": "<one-line description>",
   "author": { "name": "<author>" },
   "homepage": "<URL>",
@@ -103,7 +118,15 @@ The richer format. Use this shape:
 }
 ```
 
-**`source`** — use `"source": "url"` with the `.git` clone URL for public repos. Other options: `github` (sparse checkout), `git` (with ref/path), `file`, `directory`.
+**`source` shapes** — pick the one matching 2b's decision:
+
+| Type | Shape | When |
+|---|---|---|
+| `url` | `{ "source": "url", "url": "<git-clone-url>.git" }` | `plugin.json` at repo root |
+| `github` | `{ "source": "github", "repo": "<owner>/<repo>" }` | repo root, sparse checkout |
+| `git-subdir` | `{ "source": "git-subdir", "url": "<git-clone-url>.git", "path": "<repo-relative-path-to-plugin-dir>" }` | plugin lives in a monorepo subdirectory, e.g. `packages/<name>` |
+| `npm` | `{ "source": "npm", "package": "<npm-package-name>" }` | plugin ships as an npm package (`packagePath` present, not private) |
+| `file` / `directory` | see the marketplace schema | local-only entries |
 
 **`category`** — choose closest: `research`, `skills`, `setup`, `productivity`, `plugin-authoring`.
 
@@ -116,28 +139,39 @@ The richer format. Use this shape:
 
 Omit optional fields rather than leaving them empty.
 
-### 2c. Cursor entry (`.cursor-plugin/marketplace.json`)
+### 2d. Cursor entry (`.cursor-plugin/marketplace.json`)
 
 The simpler format — only three required fields:
 
 ```json
 {
   "name": "<plugin-name>",
-  "source": {
-    "source": "url",
-    "url": "<git-clone-url>.git"
-  },
+  "source": { "source": "url", "url": "<git-clone-url>.git" },
   "description": "<one-line description>"
 }
 ```
 
-The `source` field supports the same options as Claude Code (`url`, `github`, `git`, `file`, `directory`).
+The `source` field supports the same shapes as Claude Code (`url`, `github`, `git-subdir`, `npm`,
+`file`, `directory`) — pick per 2b, same as the Claude Code entry.
 
-### 2d. Update scenario
+### 2e. Update scenario
 
 If the plugin is already listed (this is an update), find its existing entry, update changed fields, and preserve any curator-added fields not in the standard shape. Do not overwrite `publishedAt` if present — add `"updatedAt": "<today>"` instead.
 
 Show all prepared entries to the user and ask them to confirm before proceeding.
+
+### 2f. Validate the catalogs
+
+Before moving to Step 3, run the validator against the marketplace repo's working copy (the same
+checkout the entries were just written into):
+
+```bash
+npx universal-plugin marketplace validate --root .
+```
+
+This is the same check `marketplace init`/`build` rely on — it catches an entry shape no runtime can
+load (a bad `source`, a missing required key) before it reaches a PR. Fix any reported issue and
+re-run before continuing. Do not open the PR while validation fails.
 
 ---
 
@@ -240,6 +274,8 @@ Return the PR URL to the user when done.
 | PR rejected: missing source link | Add `homepage` or `repository` to plugin.json |
 | Name conflict in marketplace | Check existing entries in each marketplace file first |
 | Plugin loads but skills missing | Add `skills` array to the Claude Code marketplace entry |
+| Entry installs nothing for a monorepo plugin | `source` was `url`/root-clone instead of `git-subdir` — redo 2b/2c with the plugin's actual repo-relative path |
+| `marketplace validate` fails after 2f | Fix the reported shape before opening the PR — do not open it while validation fails |
 
 ---
 

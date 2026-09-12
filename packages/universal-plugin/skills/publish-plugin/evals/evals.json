@@ -18,6 +18,12 @@
 			"prompt": "My plugin 'ai-commit' is already published in the universal marketplace at version 1.0.0. I've just released v1.1.0 with some new hooks. How do I update the marketplace listing?",
 			"expected_output": "Recognizes this as an update scenario, reads existing registry entry, runs pre-flight on new version, prepares updated entry preserving existing fields (especially curator_note and original publishedAt), adds updatedAt, submits an update PR.",
 			"files": []
+		},
+		{
+			"id": 4,
+			"prompt": "My plugin 'foo' lives at packages/foo/plugin.json inside a monorepo (the repo root only has a marketplace.json catalog, no plugin.json). Publish it to cyberuni/marketplace.",
+			"expected_output": "Determines the plugin is not at the repo root and has no npm packagePath, so decides source type git-subdir rather than a root-clone url. Writes { \"source\": \"git-subdir\", \"url\": \"<clone-url>.git\", \"path\": \"packages/foo\" } in the marketplace entry. Runs marketplace validate against the marketplace working copy before opening the PR, and does not proceed if it fails.",
+			"files": []
 		}
 	]
 }
