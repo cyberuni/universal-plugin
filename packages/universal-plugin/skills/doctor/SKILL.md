@@ -21,6 +21,9 @@ node scripts/doctor.mjs
 
 Resolve that path against this skill's own directory. It runs the CLI that shipped beside it against
 the current working directory, so nothing is downloaded; add `--root <path>` to diagnose elsewhere.
+Add `--marketplace-root <path>` (repeatable) to also check a **separately-cloned** shared marketplace
+repository (e.g. a local clone of `cyberuni/marketplace`) — see
+[Catalogs are checked at the repository root](#catalogs-are-checked-at-the-repository-root).
 It never prompts and never writes, so it is safe to run unattended.
 
 Stdout is one JSON object — that is the contract to read, not the CLI's own terminal output:
@@ -84,7 +87,8 @@ Each `code` below is what the script emits.
 | `no-vendors` | no vendor is declared, so the build writes nothing and no runtime reads the plugin. On a repository still on the pre-0.6 layout the build stops rather than reporting an empty result, and the detail says so — read it beside `legacy-manifest` and `shadowing-manifest`, which name the signals | `/universal-plugin:init`, adopt route on the pre-0.6 layout, else update route |
 | `package-path-missing` | `packagePath` names a directory with no readable `package.json` | fix `packagePath`, or create the package |
 | `unparsable-manifest` | root `plugin.json` is not valid JSON | fix the syntax error |
-| `invalid-catalog` | a marketplace catalog at the repository root is not a shape its runtime loads — it is found, read, and refused at install time, in the user's terminal | `/universal-plugin:marketplace` |
+| `invalid-catalog` | a marketplace catalog — at the repository root, or at a `--marketplace-root` clone — is not a shape its runtime loads — it is found, read, and refused at install time, in the user's terminal | `/universal-plugin:marketplace` |
+| `marketplace-root-missing` | a `--marketplace-root` path does not exist, so it could not be checked at all | clone the marketplace repository, or fix the path |
 
 ## Catalogs are checked at the repository root
 
@@ -95,6 +99,20 @@ one is not a fault, and nothing here has an opinion on which catalogs a reposito
 The detail names the key at fault, so hand it to `/universal-plugin:marketplace` as it stands. An
 entry's fields are derived from the plugin's `plugin.json`, and the catalog's own `name` and `owner`
 are authored in the catalog — which half is at fault decides where the repair goes.
+
+A **shared** marketplace repository (e.g. `cyberuni/marketplace`) is a repository of its own — a bad
+entry that reached it by another path (a hand-edited entry, a PR from a different tool, a curator
+edit) is invisible to a `doctor` run inside any plugin's own repo, because that run never sees the
+shared repository at all. Clone it separately and name the clone explicitly:
+
+```bash
+node scripts/doctor.mjs --marketplace-root ../marketplace
+```
+
+Pass `--marketplace-root` once per clone to check more than one. Each invalid entry it finds is still
+reported as `invalid-catalog`, with the clone's path in the detail so it reads apart from the plugin
+repo's own catalogs; a path that does not exist is `marketplace-root-missing` rather than a silent
+skip.
 
 ## Checking staleness properly
 

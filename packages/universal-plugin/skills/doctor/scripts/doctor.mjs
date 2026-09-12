@@ -15,6 +15,9 @@ const argv = process.argv.slice(2)
 const verbose = argv.includes('--verbose')
 const rootFlag = argv.indexOf('--root')
 const root = path.resolve(rootFlag === -1 ? process.cwd() : (argv[rootFlag + 1] ?? process.cwd()))
+// A shared marketplace repository (e.g. cyberuni/marketplace) is cloned separately from any plugin
+// repo, so it is named explicitly rather than discovered — repeatable, one clone per flag.
+const marketplaceRoots = argv.flatMap((arg, i) => (arg === '--marketplace-root' ? [argv[i + 1]] : [])).filter(Boolean)
 
 const findings = []
 const add = (code, severity, detail, repair) => findings.push({ code, severity, detail, repair })
@@ -264,31 +267,51 @@ if (manifest.version !== undefined && packagePath === null) {
 // The marketplace catalogs a user installs from. They sit at the *repository* root, above a plugin in
 // a monorepo, and each is read by its runtime at install time — a catalog whose shape that runtime
 // refuses fails in the user's terminal, not here. The shipped CLI owns the rules; this only asks.
-for (const row of invalidCatalogs()) {
+// A shared marketplace repository (--marketplace-root) is a separate clone this plugin's repo root
+// cannot see, so it is checked the same way but reported with the clone's path attached.
+const missingMarketplaceRoots = marketplaceRoots.filter((r) => !fs.existsSync(path.resolve(r)))
+for (const r of missingMarketplaceRoots) {
+	add(
+		'marketplace-root-missing',
+		'high',
+		`--marketplace-root ${r} does not exist`,
+		'clone the marketplace repository, or fix the path',
+	)
+}
+const existingMarketplaceRoots = marketplaceRoots.filter((r) => fs.existsSync(path.resolve(r)))
+
+for (const row of invalidCatalogs(existingMarketplaceRoots)) {
+	const label = row.own ? row.path : `${row.catalogRoot}/${row.path}`
 	add(
 		'invalid-catalog',
 		'high',
-		`${row.path} is not a shape its runtime loads: ${row.issues.map((issue) => `${issue.path} ${issue.message}`).join('; ')}`,
+		`${label} is not a shape its runtime loads: ${row.issues.map((issue) => `${issue.path} ${issue.message}`).join('; ')}`,
 		'/universal-plugin:marketplace',
 	)
 }
 
 report({ vendors })
 
-/** Every catalog the repository carries that its runtime would refuse. Empty when there is nothing to
- *  read, when the CLI is too old to answer, or when every catalog is fine — a missing catalog is not a
- *  fault, and this reports no opinion on which ones a repository ought to carry. */
-function invalidCatalogs() {
+/** Every catalog the repository — and any explicitly named marketplace clone — carries that its
+ *  runtime would refuse. Empty when there is nothing to read, when the CLI is too old to answer, or
+ *  when every catalog is fine — a missing catalog is not a fault, and this reports no opinion on
+ *  which ones a repository ought to carry. */
+function invalidCatalogs(extraRoots) {
 	const catalogRoot = git('rev-parse', '--show-toplevel') ?? root
-	const result = fs.existsSync(bin)
-		? spawnSync(process.execPath, [bin, 'marketplace', 'validate', '--format', 'json', '--root', catalogRoot], {
-				encoding: 'utf8',
-			})
-		: spawnSync('npx', ['universal-plugin', 'marketplace', 'validate', '--format', 'json', '--root', catalogRoot], {
-				encoding: 'utf8',
-			})
-	const rows = readJson_stdout(result.stdout)
-	return Array.isArray(rows) ? rows.filter((row) => row.status === 'invalid') : []
+	const targets = [{ catalogRoot, own: true }, ...extraRoots.map((r) => ({ catalogRoot: path.resolve(r), own: false }))]
+	return targets.flatMap(({ catalogRoot, own }) => {
+		const result = fs.existsSync(bin)
+			? spawnSync(process.execPath, [bin, 'marketplace', 'validate', '--format', 'json', '--root', catalogRoot], {
+					encoding: 'utf8',
+				})
+			: spawnSync('npx', ['universal-plugin', 'marketplace', 'validate', '--format', 'json', '--root', catalogRoot], {
+					encoding: 'utf8',
+				})
+		const rows = readJson_stdout(result.stdout)
+		return Array.isArray(rows)
+			? rows.filter((row) => row.status === 'invalid').map((row) => ({ ...row, catalogRoot, own }))
+			: []
+	})
 }
 
 /** Runs git inside `root`, returning its stdout or `null` — a non-zero status, a missing git, and a

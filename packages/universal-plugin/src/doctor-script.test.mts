@@ -61,15 +61,15 @@ function writeSkill(body: string) {
 
 /** The codes `doctor` reported. Other findings (an unbuilt vendor, say) are expected in a fixture
  *  that never runs `plugin build`, so every case asserts on presence, not on the whole list. */
-function findings(): string[] {
-	const result = spawnSync('node', [doctor, '--root', root], { encoding: 'utf8' })
+function findings(extraArgs: string[] = []): string[] {
+	const result = spawnSync('node', [doctor, '--root', root, ...extraArgs], { encoding: 'utf8' })
 	expect(result.status).toBe(0)
 	const report = JSON.parse(result.stdout) as { findings: { code: string; detail: string }[] }
 	return report.findings.map((f) => f.code)
 }
 
-function detail(code: string): string {
-	const result = spawnSync('node', [doctor, '--root', root], { encoding: 'utf8' })
+function detail(code: string, extraArgs: string[] = []): string {
+	const result = spawnSync('node', [doctor, '--root', root, ...extraArgs], { encoding: 'utf8' })
 	const report = JSON.parse(result.stdout) as { findings: { code: string; detail: string }[] }
 	return report.findings.find((f) => f.code === code)?.detail ?? ''
 }
@@ -163,6 +163,57 @@ test('a repository whose catalogs load reports nothing about them', () => {
 		)}\n`,
 	)
 	expect(findings()).not.toContain('invalid-catalog')
+})
+
+// A shared marketplace repository (e.g. cyberuni/marketplace) is cloned separately from the plugin —
+// nothing at the plugin's own repository root sees a bad entry that reached it another way (issue #74).
+test('a bad entry in a separately-cloned marketplace repository is reported via --marketplace-root', () => {
+	seedRelease()
+	const marketplaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-marketplace-'))
+	try {
+		fs.mkdirSync(path.join(marketplaceRoot, '.claude-plugin'), { recursive: true })
+		fs.writeFileSync(
+			path.join(marketplaceRoot, '.claude-plugin', 'marketplace.json'),
+			`${JSON.stringify({ name: 'shared', owner: 'Ari Vance', plugins: [{ name: 'demo', source: './' }] }, null, 2)}\n`,
+		)
+
+		const codes = findings(['--marketplace-root', marketplaceRoot])
+		expect(codes).toContain('invalid-catalog')
+		expect(detail('invalid-catalog', ['--marketplace-root', marketplaceRoot])).toMatch(
+			/owner must be an object with a name/,
+		)
+		expect(detail('invalid-catalog', ['--marketplace-root', marketplaceRoot])).toContain(marketplaceRoot)
+	} finally {
+		fs.rmSync(marketplaceRoot, { recursive: true, force: true })
+	}
+})
+
+test('a clean shared marketplace repository reports nothing, and its own repo is still checked', () => {
+	seedRelease()
+	write(
+		'.claude-plugin/marketplace.json',
+		`${JSON.stringify({ name: 'demo', owner: 'Ari Vance', plugins: [{ name: 'demo', source: './' }] }, null, 2)}\n`,
+	)
+	const marketplaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-marketplace-'))
+	try {
+		fs.mkdirSync(path.join(marketplaceRoot, '.claude-plugin'), { recursive: true })
+		fs.writeFileSync(
+			path.join(marketplaceRoot, '.claude-plugin', 'marketplace.json'),
+			`${JSON.stringify({ name: 'shared', owner: { name: 'Ari Vance' }, plugins: [{ name: 'demo', source: './' }] }, null, 2)}\n`,
+		)
+
+		expect(findings(['--marketplace-root', marketplaceRoot])).toContain('invalid-catalog')
+	} finally {
+		fs.rmSync(marketplaceRoot, { recursive: true, force: true })
+	}
+})
+
+test('a --marketplace-root that does not exist is reported rather than silently skipped', () => {
+	seedRelease()
+	const missing = path.join(root, 'does-not-exist')
+
+	expect(findings(['--marketplace-root', missing])).toContain('marketplace-root-missing')
+	expect(detail('marketplace-root-missing', ['--marketplace-root', missing])).toContain(missing)
 })
 
 // issue #61 — the pre-0.6 layout. `plugin build` now stops on it rather than reporting a definitive
