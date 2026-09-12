@@ -47,7 +47,8 @@ output per the AXI contract:
 - **Runner selection** — `bundle` recognizes both `npx <pkg>@<pin>` and `upx <pkg>@<pin>` references.
   `--runner <npx|upx>` chooses the runner word written on every rewritten reference; **omitting it
   preserves** each reference's existing runner word (an `npx` ref stays `npx`, an `upx` ref stays
-  `upx`) while still re-pinning the version. `upx` is the local-first runner ([`run/`](../../run/README.md));
+  `upx`) while still re-pinning the version. `upx` is the local-first runner shipped as
+  [`@repobuddy/upx`](https://github.com/repobuddy/upx);
   emitting it is opt-in because a released plugin then depends on `upx` being on the consumer's PATH,
   whereas `npx` always ships with npm. An unknown `--runner` value fails loud.
 - **Doc-example ignore** — a skill declared **pin-exempt** (its version strings are illustration, not

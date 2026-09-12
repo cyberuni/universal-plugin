@@ -48,6 +48,9 @@ importers:
 
   packages/universal-plugin:
     dependencies:
+      '@repobuddy/upx':
+        specifier: ^0.1.0
+        version: 0.1.1
       '@toon-format/toon':
         specifier: ^4.1.1
         version: 4.1.1
@@ -1237,6 +1240,11 @@ packages:
     resolution: {integrity: sha512-dFxQSl+lYZ5Wc9TVUxrSwze9vwC6IBpg4zcbxJkLiZPPnYLX95Zvp9zC+ChPRmc2QpyVzqH4eGnxKzHaVZ1A7Q==}
     peerDependencies:
       '@biomejs/biome': '>= 2'
+
+  '@repobuddy/upx@0.1.1':
+    resolution: {integrity: sha512-WBLoxQFQN41VmhX/GZ5PNZl8G54VmUL1ovHO1/w5RqOxVSFyOd8RhXrIITq7SVnQMaWJE7GvCmHoDsV+tqf2Cw==}
+    engines: {node: '>=22'}
+    hasBin: true
 
   '@rolldown/binding-android-arm64@1.0.3':
     resolution: {integrity: sha512-454rs7jHngixp/NMxd5srYD57OnzSlZ/eFTETjORQHLwJG1lRtmNOJcBerZlfu4GjKqeq8aCCIQrMdHyhI51Hw==}
@@ -4480,6 +4488,10 @@ snapshots:
   '@repobuddy/biome@2.3.1(@biomejs/biome@2.4.16)':
     dependencies:
       '@biomejs/biome': 2.4.16
+
+  '@repobuddy/upx@0.1.1':
+    dependencies:
+      semver: 7.8.1
 
   '@rolldown/binding-android-arm64@1.0.3':
     optional: true

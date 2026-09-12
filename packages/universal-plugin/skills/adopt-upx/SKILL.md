@@ -1,6 +1,6 @@
 ---
 name: adopt-upx
-description: Use this skill when the user wants to make their skills use upx — the fast local-first package runner shipped by universal-plugin. Trigger on phrases like "make my skills use upx", "adopt the upx runner", "speed up npx calls", "switch to upx", or "rewrite npx pins to upx". Rewrites `npx <pkg>@<version>` references to a caret range on `upx` (`^<major>`, or `^0.<minor>` for a 0.x pin) across one skill, a named set, or every skill in the project.
+description: Use this skill when the user wants to make their skills use upx — the fast local-first package runner shipped as @repobuddy/upx. Trigger on phrases like "make my skills use upx", "adopt the upx runner", "speed up npx calls", "switch to upx", or "rewrite npx pins to upx". Rewrites `npx <pkg>@<version>` references to a caret range on `upx` (`^<major>`, or `^0.<minor>` for a 0.x pin) across one skill, a named set, or every skill in the project.
 ---
 
 # Adopt upx
@@ -11,7 +11,7 @@ fast local-first runner shipped by `universal-plugin` (see the package
 
 ## When to use
 
-The user wants their project's skills to shell out via `upx` instead of `npx`, for the ~10× speed
+The user wants their project's skills to shell out via `upx` instead of `npx`, for the speed
 win on repeated calls. This is an opt-in migration, not a default — see Tradeoff below before
 running it broadly.
 
@@ -20,7 +20,7 @@ running it broadly.
 Install the runner:
 
 ```bash
-npm i -g universal-plugin
+npm i -g @repobuddy/upx
 ```
 
 This puts the `upx` bin on PATH. Verify:
@@ -94,7 +94,7 @@ a no-op (there's no `npx` left to match), so it's safe to run again after adding
 
 A skill rewritten to `upx` now depends on the `upx` bin being on that environment's PATH.
 `npx` always ships with npm — every Node environment has it. `upx` does not — it only exists after
-`npm i -g universal-plugin`. So this is a deliberate opt-in for environments where
+`npm i -g @repobuddy/upx`. So this is a deliberate opt-in for environments where
 `universal-plugin` is installed globally, not a safe-by-default swap.
 
 Mitigating factor: `upx` itself falls back to plain `npx` on a miss (no local/global install

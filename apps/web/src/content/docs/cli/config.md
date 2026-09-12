@@ -68,8 +68,8 @@ npx universal-plugin@$(npm view universal-plugin version) \
   config add --key sdd-plugins --entry '{"name":"my-plugin","handles":["agent evaluation"]}'
 ```
 
-If `universal-plugin` is installed globally, `upx` runs the same call ~10× faster, using a caret
-range so one global install serves every caller at that major:
+If [`@repobuddy/upx`](https://github.com/repobuddy/upx) is installed globally, `upx` runs the same
+call faster, using a caret range so one global install serves every caller at that major:
 
 ```bash
 # Local-first (upx), caret range
