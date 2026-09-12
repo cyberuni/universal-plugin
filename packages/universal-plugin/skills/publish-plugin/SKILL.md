@@ -1,6 +1,6 @@
 ---
 name: publish-plugin
-description: Use this skill whenever the user wants to publish, release, submit, or share a plugin to the universal plugin marketplace so it works across Claude Code, Cursor, Codex, and GitHub Copilot CLI. Trigger on phrases like "publish my plugin", "submit to marketplace", "release plugin", "list my plugin", "share my plugin", or any mention of getting a plugin into the universal registry. The plugin should already be packaged before using this skill.
+description: Use this skill whenever the user wants to publish, release, submit, or share a plugin to the universal plugin marketplace so it works across Claude Code, Cursor, Codex, and GitHub Copilot CLI. Trigger on phrases like "publish my plugin", "submit to marketplace", "release plugin", "list my plugin", "share my plugin", or any mention of getting a plugin into the universal registry. Works whether the current repo is the plugin being published or the marketplace it is going into. The plugin should already be packaged before using this skill.
 ---
 
 # Publish Universal Plugin
@@ -15,8 +15,9 @@ two compose, and neither replaces the other.
 
 ## Overview
 
-Publishing has three steps:
+Publishing has four steps:
 
+0. **Locate** — work out which repo is which, and where the plugin and the marketplace each live
 1. **Pre-flight** — validate the plugin is ready
 2. **Prepare entries** — build the entry for each vendor marketplace file that exists
 3. **Submit PR** — one PR that updates all relevant marketplace files
@@ -25,9 +26,48 @@ Work through each step in order. Do not skip pre-flight even if the user says th
 
 ---
 
+## Step 0: Locate the plugin and the marketplace
+
+Two repos are in play — the plugin being published and the marketplace it is going into — and the
+current working directory could be either one. Do not assume it is the plugin repo just because that
+is the common case.
+
+### 0a. Identify the marketplace repo
+
+Default to `cyberuni/marketplace` unless the user names another one.
+
+### 0b. Identify which repo the cwd is
+
+```bash
+gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null
+```
+
+Compare the result against the marketplace repo from 0a.
+
+- **Matches the marketplace repo** → cwd *is* the marketplace. The plugin lives elsewhere: ask the
+  user for its location if they have not given one — a local path, or a git URL to clone. Resolve a
+  git URL with `gh repo clone <url> /tmp/<plugin-name>` (or a scratch directory) so pre-flight has a
+  checkout to read; do not guess metadata from the URL alone.
+- **Does not match, or `gh repo view` fails** (no `origin`, not a GitHub repo, detached checkout) →
+  cwd is the plugin repo. This is the default path described in Steps 1–3 below.
+- **User states their role explicitly** ("I'm already in the marketplace repo", "publish the plugin
+  at ../foo") — trust that over the remote check; it exists to catch the unstated case, not to
+  override what the user already told you.
+
+Name two locations going forward and keep them distinct in your own reasoning and in what you tell
+the user:
+
+- **plugin location** — the directory holding the plugin's root `plugin.json`, wherever it is
+- **marketplace location** — the directory holding the marketplace's vendor catalog files
+
+Every pre-flight check and entry field in Steps 1–2 reads from the plugin location, not the cwd.
+Step 3 branches on whether the marketplace location is already the cwd.
+
+---
+
 ## Step 1: Pre-flight validation
 
-Run these checks against the plugin directory. Stop and fix any failures before continuing.
+Run these checks against the **plugin location** from Step 0. Stop and fix any failures before continuing.
 
 ### 1a. Required metadata
 
@@ -74,7 +114,9 @@ List what passed and what failed. Do not proceed to Step 2 until all checks pass
 
 ### 2a. Detect which vendor marketplace files exist
 
-Clone or check out the marketplace repo locally, then look for vendor marketplace files:
+Get the **marketplace location** locally if it is not already the cwd — see Step 3a, which this step
+can run ahead of when you need the files present before drafting entries. Then look for vendor
+marketplace files:
 
 | File | Runtime |
 |---|---|
@@ -117,6 +159,8 @@ The richer format. Use this shape, filling `source` per the type decided in 2b:
   "category": "<category>"
 }
 ```
+
+**`<git-clone-url>`** — the plugin's own repo URL, read from the **plugin location** (`gh repo view --json url -q .url`, or the `repository` field in its `plugin.json`) — never the marketplace repo's URL.
 
 **`source` shapes** — pick the one matching 2b's decision:
 
@@ -181,7 +225,15 @@ Use the `gh` CLI. Confirm commands that affect shared state before running.
 
 ### 3a. Get the marketplace repo locally
 
-If the user has write access (org member), work directly:
+Skip this whole step when Step 0 already found the cwd to be the marketplace location — work
+directly in it, but bring it up to date first:
+
+```bash
+git fetch origin && git merge origin/main
+```
+
+Otherwise, the marketplace repo is elsewhere and needs a working copy. If the user has write access
+(org member), work directly:
 
 ```bash
 gh repo clone cyberuni/marketplace
@@ -195,6 +247,9 @@ gh repo fork cyberuni/marketplace --clone --remote
 cd marketplace
 git fetch upstream && git merge upstream/main
 ```
+
+From here on, "the marketplace repo" means whichever of these is now the working directory —
+including the original cwd, when Step 0 found it already was the marketplace.
 
 ### 3b. Create a branch
 
@@ -276,6 +331,7 @@ Return the PR URL to the user when done.
 | Plugin loads but skills missing | Add `skills` array to the Claude Code marketplace entry |
 | Entry installs nothing for a monorepo plugin | `source` was `url`/root-clone instead of `git-subdir` — redo 2b/2c with the plugin's actual repo-relative path |
 | `marketplace validate` fails after 2f | Fix the reported shape before opening the PR — do not open it while validation fails |
+| Entry's `repository`/`source.url` points at the marketplace repo | Step 0 role detection was skipped or overridden wrongly — re-check which repo the cwd is |
 
 ---
 

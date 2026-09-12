@@ -24,6 +24,12 @@
 			"prompt": "My plugin 'foo' lives at packages/foo/plugin.json inside a monorepo (the repo root only has a marketplace.json catalog, no plugin.json). Publish it to cyberuni/marketplace.",
 			"expected_output": "Determines the plugin is not at the repo root and has no npm packagePath, so decides source type git-subdir rather than a root-clone url. Writes { \"source\": \"git-subdir\", \"url\": \"<clone-url>.git\", \"path\": \"packages/foo\" } in the marketplace entry. Runs marketplace validate against the marketplace working copy before opening the PR, and does not proceed if it fails.",
 			"files": []
+		},
+		{
+			"id": 5,
+			"prompt": "I'm a maintainer of cyberuni/marketplace and I already have it checked out here. I want to add a plugin called 'db-migrate' that lives at github.com/someuser/db-migrate. Add it.",
+			"expected_output": "Detects the cwd is the marketplace repo itself, not the plugin, so it reads the plugin's metadata from the given URL (cloning it to a scratch location) instead of the cwd, then works directly in the existing checkout (fetch/merge, branch, edit, commit, push, PR) rather than cloning or forking cyberuni/marketplace again. The prepared entry's source/repository URL points at db-migrate's repo, not at cyberuni/marketplace.",
+			"files": []
 		}
 	]
 }
