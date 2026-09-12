@@ -120,21 +120,28 @@ npx universal-plugin self-update <version>            # update the version pin i
 
 ## upx, the fast package runner
 
-`npm i -g universal-plugin` puts a second bin, `upx`, on PATH.
+`upx` now ships as its own package, [`@repobuddy/upx`](https://www.npmjs.com/package/@repobuddy/upx).
 
 `upx <pkg>@^<major>` looks for an already-installed version satisfying the range, checking local
 `node_modules` first and then global. It spawns that binary directly, skipping the resolve step that
-costs `npx` roughly 1s per call. When nothing installed matches, it falls back to `npx`.
+costs `npx` a registry round-trip on every call. When nothing installed matches, it falls back to
+`npx`. See [its measurements](https://repobuddy.github.io/upx/concepts/measurements/) for what that
+is worth on current npm.
 
 ```sh
-npm i -g universal-plugin
+npm i -g @repobuddy/upx
 upx cyber-skills@^2 audit validate
 ```
 
 Use a caret range on the major rather than an exact pin, so one global install serves every caller.
+`plugin bundle --runner upx` emits references in this form.
 
-`upx` only works once `universal-plugin` is installed globally. `npx` ships with npm, so keep `npx`
-as the default anywhere you cannot guarantee that install.
+`upx` only works once it is installed globally. `npx` ships with npm, so keep `npx` as the default
+anywhere you cannot guarantee that install.
+
+> **Deprecated:** `universal-plugin` still installs a `upx` bin that re-exports `@repobuddy/upx`, so
+> existing global installs keep working. It will be removed in the next major — install
+> `@repobuddy/upx` directly.
 
 ## Related
 
