@@ -35,8 +35,14 @@ contract:
 - **Definitive empty state** — a key that is absent, or present with an empty array, prints a TOON
   result with zero rows and aggregate `0 entries` on stdout with exit 0 (`--format json` prints `[]`);
   a missing `.agents/universal-plugin.json` is treated the same as an absent key — exit 0, empty.
-- **Reject the reserved key** — `--key packagePath` exits non-zero naming the reserved key; it is the
-  CLI's own string config, not a plugin-registered array, so `config get` never returns it as one.
+- **Read the reserved key as a string** — `--key packagePath` prints the declared `packagePath`, the
+  CLI's own string config, not a plugin-registered array. Under `--format json` stdout is the raw
+  JSON string, or `null` when none is declared (absent key, missing file, empty or non-string value —
+  the same reading `plugin version` and `publish sync-version` apply). The TOON default shows the
+  value (`(none)` when undeclared), that it is relative to the plugin root, and a summary. Exit 0 in
+  both cases; stderr's next step is `→ universal-plugin publish sync-version` when declared. This is
+  how a skill (e.g. `doctor`) learns `packagePath` from the CLI rather than re-reading the file
+  (issue #79).
 - **Missing --key fails loud** — a missing `--key` exits non-zero naming the flag; the command never
   prompts interactively.
 - **Next-step suggestion** — `get`'s stderr ends with `→ universal-plugin config add --key <key> --entry <json>`.
@@ -44,9 +50,8 @@ contract:
   synopsis, flags, and one example.
 
 **Non-goals** — writing or removing entries ([`config add`](../add/README.md) owns the write); reading
-a single element by name or filtering within a key (the consumer parses the array itself); reading
-`universal-plugin`'s own reserved key as config (`packagePath` is the CLI's own string config, not a
-plugin-registered array — both verbs reject `--key packagePath`); the shared output-contract mechanics themselves
+a single element by name or filtering within a key (the consumer parses the array itself); writing
+`universal-plugin`'s own reserved key (`config add` rejects `--key packagePath`); the shared output-contract mechanics themselves
 ([`../../axi/`](../../axi/README.md) owns those).
 
 Every scenario in [`get.feature`](./get.feature) maps to one of these behaviors:
@@ -57,7 +62,7 @@ Every scenario in [`get.feature`](./get.feature) maps to one of these behaviors:
 | **TOON default + aggregate** | stdout TOON, one row per entry keyed on `name`, `<key>: N entries` |
 | **`--format json` raw array** | exact stored array to stdout, untruncated; `--format toon` names default |
 | **definitive empty state** | absent key / empty array / missing file → 0 rows, exit 0 (`[]` under json) |
-| **reject the reserved key** | `--key packagePath` fails naming the reserved key |
+| **read packagePath as a string** | `--key packagePath` → declared string (json) / `null` when undeclared, exit 0 |
 | **missing --key fails loud** | missing `--key` exits non-zero naming the flag |
 | **next-step** | stderr ends `→ universal-plugin config add --key <key> --entry <json>` |
 | **fail-loud + help** | unknown flag exits 1 naming it; `--help` exits 0 with synopsis + example |

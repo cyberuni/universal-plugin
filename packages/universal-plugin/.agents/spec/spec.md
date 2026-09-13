@@ -123,7 +123,7 @@ ADR-0006 corrects that.
 | [`marketplace/validate/`](./marketplace/validate/README.md) | behavioral | `universal-plugin marketplace validate [--claude] [--codex] [--copilot] [--cursor] [--required]` — check the catalogs a repository carries against the schema each vendor's runtime loads, naming the key at fault; reads only |
 | [`config/`](./config/README.md) | group | the `config` command group — read/write plugin-registered keyed config in `.agents/universal-plugin.json` |
 | [`config/add/`](./config/add/README.md) | behavioral | `universal-plugin config add --key <key> --entry '<json>'` — append (or replace by `name`) an entry in the array at `<key>`; idempotent, preserves other keys |
-| [`config/get/`](./config/get/README.md) | behavioral | `universal-plugin config get --key <key> [--format json]` — read the array at `<key>` (TOON default; raw array under `--format json`) |
+| [`config/get/`](./config/get/README.md) | behavioral | `universal-plugin config get --key <key> [--format json]` — read the array at `<key>` (TOON default; raw array under `--format json`), or the `packagePath` string |
 | [`axi/`](./axi/README.md) | reference | the **AXI** output contract — shared token-efficient CLI conventions (TOON default, aggregates, empty states, next-step, fail-loud, content-first, help) every command follows |
 
 ## Placement map
@@ -164,11 +164,12 @@ Where a new concept lives — slot here, do not invent placement (strategy = **c
   `config` group: `config/add/` writes, `config/get/` reads). **Charter note:** a keyed config store is
   broader than "derive/validate/scaffold the manifest", but it lives here deliberately — the file it
   reads and writes is **this CLI's own** `.agents/universal-plugin.json` (already the home of
-  `packagePath`, read by `publish sync-version`), resolved from cwd; owning structured access to its own
+  `packagePath`, read by `plugin version` and `publish sync-version`), resolved from cwd; owning structured access to its own
   config file is not the marketplace/install concern that departs to `cyberplace`. Recorded placement,
   not charter drift. A config op **preserves every other top-level key** on write. **Reserved key:**
-  `packagePath` is the CLI's own **string** config, not a plugin-registered array — both verbs **reject**
-  `--key packagePath` (fail loud, write nothing) rather than coerce it. Entry-shape validation beyond
+  `packagePath` is the CLI's own **string** config, not a plugin-registered array — `config add`
+  **rejects** `--key packagePath` (fail loud, write nothing) rather than coerce it, and `config get`
+  reads it back as a string so skills ask the CLI for it (issue #79). Entry-shape validation beyond
   valid JSON + a required `name` (the `add` merge key) is the **consumer's**, not this CLI's.
 - **a new fast-invocation / package-runner op** (run an installed CLI in place of `npx`) → out of
   scope; that is [`@repobuddy/upx`](https://github.com/repobuddy/upx), a separate package

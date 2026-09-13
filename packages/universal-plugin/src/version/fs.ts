@@ -1,6 +1,7 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 
+import { getPackagePath } from '../config/config.js'
 import { detectIndent } from '../json.js'
 import type { VersionPlan, VersionState } from './version.js'
 
@@ -33,9 +34,7 @@ export interface VersionFs {
 function readPackagePath(root: string, io: JsonIo): string | null {
 	const configPath = path.join(root, '.agents', 'universal-plugin.json')
 	if (!io.exists(configPath)) return null
-	const config = JSON.parse(io.read(configPath)) as Record<string, unknown>
-	const packagePath = config['packagePath']
-	return typeof packagePath === 'string' && packagePath.length > 0 ? packagePath : null
+	return getPackagePath(JSON.parse(io.read(configPath)) as Record<string, unknown>)
 }
 
 /** Writes `value` over `filePath`, keeping whatever indentation that file already used. */

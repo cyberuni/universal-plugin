@@ -25,7 +25,8 @@ version is left behind by the bump. Every command follows the AXI output contrac
 - **`packagePath`** — the CLI's own config key in `.agents/universal-plugin.json` (beside the
   canonical `plugin.json`), naming the directory holding the npm package that ships this plugin, as a
   path relative to the plugin root (`--root`, else cwd). It is not read from the manifest's extensions
-  namespace (ADR-0007, amended for issue #79). Already read by `publish sync-version`.
+  namespace (ADR-0007, amended for issue #79). `config get --key packagePath` reports it through the
+  same reader. Already read by `publish sync-version`.
   Absent when the plugin is not published to npm.
 - **Bump argument** — either a semver **release type** (`major`, `minor`, `patch`, `premajor`,
   `preminor`, `prepatch`, `prerelease`), which is applied to the current version, or an **explicit

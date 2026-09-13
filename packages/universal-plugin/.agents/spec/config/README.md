@@ -16,10 +16,12 @@ schema is owned by its consumer (e.g. the SDD plugin defines what an `sdd-plugin
 Both verbs resolve `.agents/universal-plugin.json` from the current working directory and **preserve
 every other top-level key** on write.
 
-**Reserved key.** `packagePath` is the CLI's own config (a **string**, read by `publish sync-version`),
-not a plugin-registered array. Both verbs **reject** `--key packagePath`, failing loud rather than
-coercing it into config's array shape — a wrong `packagePath` is fixed by editing the file directly,
-never via `config`.
+**Reserved key.** `packagePath` is the CLI's own config (a **string**, read by `plugin version` and
+`publish sync-version`, relative to the plugin root), not a plugin-registered array. `config add`
+**rejects** `--key packagePath`, failing loud rather than coercing it into config's array shape — a
+wrong `packagePath` is fixed by editing the file directly. `config get --key packagePath` **reads** it
+as the string it is (reopened for issue #79), so a skill asks the CLI where the npm package lives
+instead of re-reading the file and drifting from the CLI's reader.
 
 Follows the AXI output contract ([../axi/](../axi/README.md)).
 
