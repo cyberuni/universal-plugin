@@ -48,7 +48,12 @@ if (manifest === null) {
 			'/universal-plugin:init-universal-plugin, adopt route',
 		)
 	} else {
-		add('no-manifest', 'high', 'no root plugin.json — this is not a plugin yet', '/universal-plugin:init-universal-plugin')
+		add(
+			'no-manifest',
+			'high',
+			'no root plugin.json — this is not a plugin yet',
+			'/universal-plugin:init-universal-plugin',
+		)
 	}
 	report({ vendors: [] })
 }
@@ -56,10 +61,19 @@ if (manifest === null) {
 const ext = manifest.extensions?.[UP_NAMESPACE] ?? null
 
 // `packagePath` is the CLI's own config, and the CLI reads it from `.agents/universal-plugin.json`
-// (src/version/fs.ts). It is read here from the same file, so a plugin the CLI treats as npm-shipping
-// is one this script treats the same way. The manifest extension is accepted as a fallback for a
-// repository that put it there.
+// beside `plugin.json`, resolved from the plugin root (src/version/fs.ts, src/publish/sync-version.ts).
+// It is read here from the same file and the same base, so a plugin the CLI treats as npm-shipping is
+// one this script treats the same way. The manifest extension is not a location for it: the CLI never
+// reads one there, so declaring it there silently selects the author-picks release model.
 const packagePath = readPackagePath()
+if (ext !== null && Object.hasOwn(ext, 'packagePath')) {
+	add(
+		'misplaced-package-path',
+		'high',
+		`plugin.json declares extensions["${UP_NAMESPACE}"].packagePath, which the CLI never reads${packagePath === null ? ' — this plugin is treated as not shipping to npm' : ''}`,
+		'move packagePath to .agents/universal-plugin.json, relative to the plugin root',
+	)
+}
 if (!manifest.$schema?.includes('agent-plugins.org') || ext === null) {
 	add(
 		'legacy-manifest',
@@ -381,6 +395,6 @@ function report({ vendors }) {
 /** Where the npm package that ships this plugin lives, or `null` when the plugin ships to no
  *  package. `null` is the author-picks release model of ADR-0010 §2. */
 function readPackagePath() {
-	const declared = readJson(path.join(root, '.agents', 'universal-plugin.json'))?.packagePath ?? ext?.packagePath
+	const declared = readJson(path.join(root, '.agents', 'universal-plugin.json'))?.packagePath
 	return typeof declared === 'string' && declared.length > 0 ? declared : null
 }

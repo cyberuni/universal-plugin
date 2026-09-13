@@ -133,6 +133,20 @@ test('packagePath is read from .agents/universal-plugin.json, where the CLI writ
 	expect(detail('version-drift')).toContain('2.0.0')
 })
 
+test('a packagePath declared in the manifest extension is reported, and not honored', () => {
+	seedRelease()
+	const manifest = JSON.parse(fs.readFileSync(path.join(root, 'plugin.json'), 'utf8'))
+	manifest.extensions['org.cyberuni.universal-plugin'].packagePath = '.'
+	write('plugin.json', `${JSON.stringify(manifest, null, 2)}\n`)
+	write('package.json', '{ "name": "demo", "version": "2.0.0" }\n')
+	commit('declare the package in the manifest')
+
+	const codes = findings()
+	expect(codes).toContain('misplaced-package-path')
+	expect(codes).not.toContain('version-drift')
+	expect(detail('misplaced-package-path')).toContain('never reads')
+})
+
 test('a plugin outside any git repository is skipped rather than guessed at', () => {
 	seedRelease()
 	fs.rmSync(path.join(root, '.git'), { recursive: true, force: true })

@@ -86,6 +86,7 @@ Each `code` below is what the script emits.
 | `shadowing-manifest` | a `.plugin/plugin.json` exists — it outranks root in Copilot CLI's search order and silently shadows the canonical manifest | `/universal-plugin:remove-plugin` |
 | `no-vendors` | no vendor is declared, so the build writes nothing and no runtime reads the plugin. On a repository still on the pre-0.6 layout the build stops rather than reporting an empty result, and the detail says so — read it beside `legacy-manifest` and `shadowing-manifest`, which name the signals | `/universal-plugin:init-universal-plugin`, adopt route on the pre-0.6 layout, else update route |
 | `package-path-missing` | `packagePath` names a directory with no readable `package.json` | fix `packagePath`, or create the package |
+| `misplaced-package-path` | `plugin.json` declares `packagePath` under `extensions["org.cyberuni.universal-plugin"]`, where the CLI never reads it — the plugin is silently treated as not shipping to npm | move it to `.agents/universal-plugin.json`, relative to the plugin root |
 | `unparsable-manifest` | root `plugin.json` is not valid JSON | fix the syntax error |
 | `invalid-catalog` | a marketplace catalog — at the repository root, or at a `--marketplace-root` clone — is not a shape its runtime loads — it is found, read, and refused at install time, in the user's terminal | `/universal-plugin:marketplace` |
 | `marketplace-root-missing` | a `--marketplace-root` path does not exist, so it could not be checked at all | clone the marketplace repository, or fix the path |
@@ -134,8 +135,8 @@ user can run, or ask before running it yourself.
 
 ## Version drift
 
-Two files carry an authored version: the canonical `plugin.json`, and the `package.json` at
-`extensions["org.cyberuni.universal-plugin"].packagePath` when one is declared. The script compares
+Two files carry an authored version: the canonical `plugin.json`, and the `package.json` at the
+`packagePath` that `.agents/universal-plugin.json` declares, resolved from the plugin root. The script compares
 them and emits `version-drift`.
 
 They diverge when someone ran `npm version`, or when changesets released a number that never flowed
