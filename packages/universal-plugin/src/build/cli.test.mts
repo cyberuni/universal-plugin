@@ -101,6 +101,38 @@ test('refreshes the repository catalog entry and reports it', () => {
 	expect(catalog.owner).toEqual({ name: 'pan' })
 })
 
+// Scenario: a build that refreshed a catalog names marketplace validate as the next step
+test('a build that refreshed a catalog points at marketplace validate for that repository', () => {
+	spawnSync('git', ['-C', repo, 'init', '-q'])
+	fs.mkdirSync(path.join(repo, '.claude-plugin'), { recursive: true })
+	fs.writeFileSync(
+		path.join(repo, '.claude-plugin', 'marketplace.json'),
+		`${JSON.stringify({ name: 'pan-repo-local', owner: { name: 'pan' }, plugins: [{ name: 'pods', source: './packages/pods' }] })}\n`,
+	)
+
+	const r = build()
+	expect(r.status).toBe(0)
+	const hint = r.stderr.trimEnd().split('\n').at(-1)
+	expect(hint).toBe(`→ universal-plugin marketplace validate --root ${path.join('..', '..')}`)
+
+	// The hint must run: an agent that follows it cannot land on `unknown command` (issue #80).
+	const follow = spawnSync('node', [bin, 'marketplace', 'validate', '--root', path.join('..', '..')], {
+		cwd: workspacePackage,
+		encoding: 'utf8',
+		env: { ...process.env, NODE_NO_WARNINGS: '1' },
+	})
+	expect(follow.stderr).not.toMatch(/unknown command/)
+	expect(follow.status).toBe(0)
+})
+
+// Scenario: a successful build never names a command the CLI does not ship
+test('a build with no catalog to refresh points at doctor, never plugin validate', () => {
+	const r = build()
+	expect(r.status).toBe(0)
+	expect(r.stderr).not.toMatch(/plugin validate/)
+	expect(r.stderr.trimEnd().split('\n').at(-1)).toMatch(/^→ \/universal-plugin:doctor — /)
+})
+
 // ── issue #61: deriving nothing is reported by cause ──
 
 function writeWorkspaceManifest(manifest: object) {

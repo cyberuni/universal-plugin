@@ -172,6 +172,8 @@ export interface BuildResult {
 	rows: VendorRow[]
 	/** Repository-local marketplace catalogs whose entry for this plugin was re-derived. */
 	catalogs: CatalogRow[]
+	/** Absolute root of the repository those catalogs live in; absent when no catalog was touched. */
+	catalogRoot?: string
 	summary: { built: number; skipped: number; failed: number; canonical: number }
 }
 
@@ -402,9 +404,9 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 		}
 	}
 
-	const catalogs = refreshCatalogs(root, manifest, vendors, opts, written, warnings)
+	const { catalogs, catalogRoot } = refreshCatalogs(root, manifest, vendors, opts, written, warnings)
 
-	return { vendors, written, warnings, rows, catalogs, summary: summarize(rows) }
+	return { vendors, written, warnings, rows, catalogs, catalogRoot, summary: summarize(rows) }
 }
 
 /** Keeps the repository's marketplace catalogs true to the manifest just built. A catalog entry's
@@ -422,9 +424,9 @@ function refreshCatalogs(
 	opts: BuildOptions,
 	written: string[],
 	warnings: string[],
-): CatalogRow[] {
+): { catalogs: CatalogRow[]; catalogRoot?: string } {
 	const repo = gatherCatalogRepo(root)
-	if (!repo) return []
+	if (!repo) return { catalogs: [] }
 
 	const source = repo.pluginPath === '' ? './' : `./${repo.pluginPath}`
 	const plugin = { name: manifest.name, source, metadata: manifest as Record<string, unknown> }
@@ -465,7 +467,7 @@ function refreshCatalogs(
 			warnings.push(`Failed to refresh "${relative}": ${err instanceof Error ? err.message : String(err)}`)
 		}
 	}
-	return rows
+	return rows.length > 0 ? { catalogs: rows, catalogRoot: repo.root } : { catalogs: rows }
 }
 
 function writeSkillArtifacts(
