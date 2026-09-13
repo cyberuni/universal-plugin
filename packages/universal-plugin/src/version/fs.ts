@@ -24,7 +24,9 @@ export interface VersionFs {
 	apply(root: string, plan: VersionPlan): void
 }
 
-/** Reads `packagePath` from `.agents/universal-plugin.json`. Absent file, absent key, or a
+/** Reads `packagePath` from `.agents/universal-plugin.json` beside the canonical `plugin.json`; the
+ *  path it names is relative to the plugin root. The manifest's extensions namespace is not a
+ *  location for it (issue #79). Absent file, absent key, or a
  *  non-string value all mean "this plugin declares no npm package" — the manifest is then the only
  *  authored file. (A *declared* path whose `package.json` is missing is a different case, and the
  *  domain rejects it.) */

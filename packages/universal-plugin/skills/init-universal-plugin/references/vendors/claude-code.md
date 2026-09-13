@@ -10,7 +10,7 @@ npx universal-plugin plugin build --vendor claude-code
 
 The shared metadata from the canonical top level, plus the component paths, plus whatever
 `extensions["org.cyberuni.universal-plugin"].harnesses["claude-code"]` sets. `$schema`, `extensions`,
-`vendors`, `packagePath`, and `harnesses` are universal-plugin's own orchestration — they never
+`vendors`, and `harnesses` are universal-plugin's own orchestration — they never
 appear in a vendor manifest.
 
 An empty `"claude-code": {}` is the normal case: it opts into the build with no overrides.

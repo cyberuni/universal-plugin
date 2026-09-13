@@ -1,8 +1,8 @@
 {
 	"$schema": "https://json-schema.org/draft/2020-12/schema",
 	"title": "universal-plugin extension namespace",
-	"description": "universal-plugin build configuration: the build-target list, per-harness manifest overrides, the plugins depended on, the npm package tracked, and the canonical component input paths the build derives per harness. This is the body of extensions[\"org.cyberuni.universal-plugin\"] in an Agent Plugins Specification v1.0.0 manifest, and nothing else — apply it to the namespace object, not to the manifest.",
-	"$comment": "The manifest envelope around this object belongs to the Agent Plugins Specification and is validated by https://agent-plugins.org/schemas/1.0.0/plugin.schema.json. That specification assigns no semantics to a namespace object's contents (§8), so this schema supplies them for the one namespace universal-plugin owns. It carries no $id: the fields it describes version with the universal-plugin package that ships it.",
+	"description": "universal-plugin build configuration: the build-target list, per-harness manifest overrides, the plugins depended on, and the canonical component input paths the build derives per harness. This is the body of extensions[\"org.cyberuni.universal-plugin\"] in an Agent Plugins Specification v1.0.0 manifest, and nothing else — apply it to the namespace object, not to the manifest.",
+	"$comment": "The manifest envelope around this object belongs to the Agent Plugins Specification and is validated by https://agent-plugins.org/schemas/1.0.0/plugin.schema.json. That specification assigns no semantics to a namespace object's contents (§8), so this schema supplies them for the one namespace universal-plugin owns. packagePath is not here: it is repository release config, read from .agents/universal-plugin.json beside plugin.json and resolved from the plugin root (ADR-0010 §2). It carries no $id: the fields it describes version with the universal-plugin package that ships it.",
 	"type": "object",
 	"additionalProperties": false,
 	"properties": {
@@ -21,10 +21,6 @@
 		"dependencies": {
 			"$ref": "#/$defs/dependencies",
 			"description": "Plugins this plugin needs. Delivered to the harnesses that read a dependency and dropped with a build warning for the rest — only Claude Code reads one (ADR-0013)."
-		},
-		"packagePath": {
-			"type": "string",
-			"description": "Relative path (from repo root) to the npm package folder whose version this plugin tracks."
 		},
 		"skills": {
 			"$ref": "#/$defs/pathValue",
