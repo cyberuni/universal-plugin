@@ -123,7 +123,7 @@ test('a plugin that ships to npm is left alone — the release moves the number 
 	expect(findings()).not.toContain('unreleased-content')
 })
 
-test('packagePath is read from .agents/universal-plugin.json, where the CLI writes it', () => {
+test('packagePath is asked of the CLI, which reads .agents/universal-plugin.json', () => {
 	seedRelease()
 	write('.agents/universal-plugin.json', '{ "packagePath": "." }\n')
 	write('package.json', '{ "name": "demo", "version": "2.0.0" }\n')
@@ -131,6 +131,21 @@ test('packagePath is read from .agents/universal-plugin.json, where the CLI writ
 
 	expect(findings()).toContain('version-drift')
 	expect(detail('version-drift')).toContain('2.0.0')
+})
+
+test('packagePath resolves from the plugin root, so a monorepo package sits beside the plugin', () => {
+	write('plugins/demo/.agents/universal-plugin.json', '{ "packagePath": "../../packages/demo" }\n')
+	write('packages/demo/package.json', '{ "name": "demo", "version": "2.0.0" }\n')
+	const pluginRoot = path.join(root, 'plugins/demo')
+	fs.writeFileSync(
+		path.join(pluginRoot, 'plugin.json'),
+		`${JSON.stringify({ $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json', name: 'demo', version: '1.0.0', extensions: { 'org.cyberuni.universal-plugin': { vendors: ['claude-code'] } } }, null, 2)}\n`,
+	)
+	const result = spawnSync('node', [doctor, '--root', pluginRoot], { encoding: 'utf8' })
+	const report = JSON.parse(result.stdout) as { findings: { code: string; detail: string }[] }
+	const codes = report.findings.map((f) => f.code)
+	expect(codes).not.toContain('package-path-missing')
+	expect(codes).toContain('version-drift')
 })
 
 test('a packagePath declared in the manifest extension is reported, and not honored', () => {
