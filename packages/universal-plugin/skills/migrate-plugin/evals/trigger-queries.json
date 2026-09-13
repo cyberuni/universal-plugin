@@ -20,6 +20,24 @@
 			"split": "val"
 		},
 		{
+			"id": 6,
+			"query": "Convert plugins/cyberlegion to an npm distributed plugin in packages/cyberlegion.",
+			"should_trigger": true,
+			"split": "train"
+		},
+		{
+			"id": 7,
+			"query": "Our plugin's CLI crashes with 'Cannot find package commander' when Claude Code installs the plugin. Bundle it so it runs without node_modules.",
+			"should_trigger": true,
+			"split": "val"
+		},
+		{
+			"id": 8,
+			"query": "Switch this library's build from tsup to tsdown.",
+			"should_trigger": false,
+			"split": "train"
+		},
+		{
 			"id": 4,
 			"query": "Upgrade all npx universal-plugin pins to version 0.3.0.",
 			"should_trigger": false,
