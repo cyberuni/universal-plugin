@@ -48,7 +48,12 @@ if (manifest === null) {
 			'/universal-plugin:init-universal-plugin, adopt route',
 		)
 	} else {
-		add('no-manifest', 'high', 'no root plugin.json — this is not a plugin yet', '/universal-plugin:init-universal-plugin')
+		add(
+			'no-manifest',
+			'high',
+			'no root plugin.json — this is not a plugin yet',
+			'/universal-plugin:init-universal-plugin',
+		)
 	}
 	report({ vendors: [] })
 }
