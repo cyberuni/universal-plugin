@@ -6,6 +6,12 @@
 			"prompt": "Move the top-level universal plugin into packages/universal-plugin so npm distributes it.",
 			"expected_output": "Inventories and relocates only distributable plugin assets, adds them to package.json files, updates version synchronization, verifies npm pack --dry-run, and preserves project-local .agents content.",
 			"files": []
+		},
+		{
+			"id": 2,
+			"prompt": "Convert plugins/my-tool into an npm-distributed plugin inside packages/my-tool. The package already has a CLI built with tsdown that depends on commander.",
+			"expected_output": "Moves the plugin assets with git mv, merges colliding readmes instead of overwriting, removes the old workspace member and its glob, extends package.json files, sets packagePath to '.', repoints plugin build and the marketplace source, splits tsdown.config.ts so the CLI entry inlines commander via alwaysBundle while the library entry keeps it external, and proves the CLI runs from an extracted tarball with no node_modules.",
+			"files": []
 		}
 	]
 }
