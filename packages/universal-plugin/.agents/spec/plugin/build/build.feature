@@ -740,8 +740,17 @@ Feature: plugin build — derive per-vendor manifests
 
   Scenario: a successful build ends with a next-step suggestion
     Given the manifest declares harnesses for "claude-code"
+    And the repository carries no marketplace catalog
     When I run "universal-plugin plugin build"
-    Then stderr ends with "→ universal-plugin plugin validate"
+    Then the last stderr line names "/universal-plugin:doctor"
+    And stderr does not contain "plugin validate"
+
+  Scenario: a build that refreshed a catalog names marketplace validate as the next step
+    Given the project root is a workspace package inside a repository that carries ".claude-plugin/marketplace.json"
+    And the manifest declares harnesses for "claude-code"
+    When I run "universal-plugin plugin build" from the workspace package
+    Then the last stderr line is "→ universal-plugin marketplace validate --root ../.."
+    And running that command from the workspace package does not fail with "unknown command"
 
   Scenario: build never prompts interactively
     Given the manifest declares harnesses for "claude-code"

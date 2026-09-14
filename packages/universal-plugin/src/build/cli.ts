@@ -1,13 +1,26 @@
+import * as path from 'node:path'
+
 import { Command, Option } from 'commander'
 
 import { ROOT_OPTION, resolveRoot } from '../cli-options.js'
 import { output } from '../output.js'
-import { buildPlugin, type VendorRow } from './build.js'
+import { type BuildResult, buildPlugin, type VendorRow } from './build.js'
 
-const NEXT_STEP = '→ universal-plugin plugin validate\n'
-// Validate is no use when nothing was derived — it would only re-confirm a manifest that declares no
-// targets. The natural follow-up is the skill that can say why (AXI #9, issue #61).
+// When nothing was derived, the natural follow-up is the skill that can say why (AXI #9, issue #61).
 const NEXT_STEP_NOTHING_BUILT = '→ /universal-plugin:doctor — diagnose why nothing is declared\n'
+const NEXT_STEP_BUILT = '→ /universal-plugin:doctor — check the built manifests against plugin.json\n'
+
+/** Every hint names a command that exists today: an agent that follows a hint into
+ *  `unknown command` is at a dead end (issue #80). A refreshed catalog is checked by
+ *  `marketplace validate`, pointed at the repository the catalog lives in. */
+function nextStep(result: BuildResult, cwd: string): string {
+	if (result.vendors.length === 0) return NEXT_STEP_NOTHING_BUILT
+	if (result.catalogRoot === undefined) return NEXT_STEP_BUILT
+	const relative = path.relative(cwd, result.catalogRoot)
+	const quoted = /\s/.test(relative) ? JSON.stringify(relative) : relative
+	const root = relative === '' ? '' : ` --root ${quoted}`
+	return `→ universal-plugin marketplace validate${root}\n`
+}
 
 interface BuildCliOptions {
 	vendor?: string
@@ -61,7 +74,7 @@ export function buildCommand(): Command {
 					summary: (canonical > 0 ? `${counts}, served by plugin.json ${canonical}` : counts) + catalogSummary,
 				})
 
-				process.stderr.write(result.vendors.length === 0 ? NEXT_STEP_NOTHING_BUILT : NEXT_STEP)
+				process.stderr.write(nextStep(result, process.cwd()))
 				if (failed > 0) process.exitCode = 1
 			} catch (err) {
 				process.stderr.write(`${err instanceof Error ? err.message : String(err)}\n`)

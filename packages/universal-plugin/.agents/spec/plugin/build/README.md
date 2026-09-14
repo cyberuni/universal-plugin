@@ -173,8 +173,13 @@ Follows the AXI output contract ([../../axi/](../../axi/README.md)).
   as likely a manifest nobody has configured yet as one an upgrade left behind, and erroring on it
   would fail builds this rule has no quarrel with. `doctor` still reports it as `legacy-manifest`,
   which is what the empty state's `doctor` pointer is for.
-- **Next-step suggestion** — a successful build's stderr ends with
-  `→ universal-plugin plugin validate`.
+- **Next-step suggestion** — a successful build's stderr ends with a next step that looks forward
+  and names a command or skill that ships (a hint an agent follows into `unknown command` is a dead
+  end). It is never `plugin validate`: a build already ran those checks before writing, and validate's
+  own next step is `plugin build`, so pointing back at it sends an agent in a circle. When the build refreshed a
+  repository-local marketplace catalog, the line is `→ universal-plugin marketplace validate`, with
+  `--root` pointing at that repository when it is not the working directory. Otherwise it names
+  `/universal-plugin:doctor`, which checks the built manifests against what `plugin.json` declares.
 - **Fail-loud, no prompts, help** — an unknown flag exits 1 naming the flag; the command never
   prompts interactively; `--help` exits 0 with a concise synopsis, flags, and one example.
 
@@ -206,6 +211,6 @@ Every scenario in [`build.feature`](./build.feature) maps to one of these behavi
 | **`--format json` / `--format toon`** | JSON escape hatch with `built` array + counts; `--format toon` names the default |
 | **definitive empty state (#5)** | no targets → exit 0, TOON zero built rows + aggregate `built 0`, stderr "nothing to build", stderr names `/universal-plugin:doctor` |
 | **a declaration this CLI no longer reads (#6)** | zero targets beside a top-level `vendorExtensions` block or a shadowing `.plugin/plugin.json` → exit 1 naming the signal and `/universal-plugin:doctor`, nothing written; the same signal beside deriving harnesses stays exit 0 |
-| **next-step suggestion (#9)** | successful build's stderr ends with `→ universal-plugin plugin validate` |
+| **next-step suggestion (#9)** | successful build's stderr ends with `→ universal-plugin marketplace validate` after a catalog refresh, else `→ /universal-plugin:doctor`; never `plugin validate` |
 | **fail-loud unknown flag (#6)** | unknown flag exits 1, stderr names it |
 | **`--help` (#10)** | exits 0, concise synopsis + flags + one example |
