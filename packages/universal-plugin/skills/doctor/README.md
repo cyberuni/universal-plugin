@@ -29,9 +29,8 @@ The checks are deterministic: same tree, same findings. The one check that is no
 definitive staleness test — rebuild on a clean tree and read the diff — because it writes. The skill
 reports that one as a repair for the user to run.
 
-Manifest validation is chartered as a CLI capability (`plugin validate`, specified but not yet
-shipped). This script stays a thin composition on purpose, so it folds into that command rather than
-competing with it.
+Manifest validation is a CLI capability (`plugin validate`). This script stays a thin composition
+on purpose, so it folds into that command rather than competing with it.
 
 ## Boundaries
 
