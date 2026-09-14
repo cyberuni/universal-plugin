@@ -17,6 +17,7 @@ import {
 } from '../marketplace/marketplace.js'
 import { formatCatalogIssues, validateCatalogContent } from '../marketplace/validation.js'
 import { type McpPinNote, pinMcpServers } from '../pin/pin.js'
+import { vendorRuleViolations } from '../validate/validation.js'
 
 type VendorId = 'claude-code' | 'cursor' | 'codex' | 'copilot-cli'
 
@@ -202,13 +203,8 @@ export function validateManifest(manifest: PluginManifest, targets?: string[]): 
 	const uext = universalPluginExtension(manifest)
 	const harnesses = uext.harnesses ?? {}
 	const checked = targets ?? uext.vendors ?? Object.keys(harnesses)
-	const codexTargeted = checked.includes('codex') && Boolean(harnesses['codex'])
-	if (codexTargeted && !manifest.description) {
-		errors.push('description is required when targeting codex')
-	}
-	if (codexTargeted && !manifest.version) {
-		errors.push('version is required when targeting codex')
-	}
+	// The vendor rules are shared with `plugin validate`, so build and validate never disagree on them.
+	errors.push(...vendorRuleViolations(manifest, harnesses, checked).map((v) => v.message))
 	// Dependency shape is a canonical rule, not a vendor one: a malformed declaration is rejected by
 	// the runtime that reads it whichever vendors this build targets.
 	errors.push(...validateDependencies(uext.dependencies).errors)
