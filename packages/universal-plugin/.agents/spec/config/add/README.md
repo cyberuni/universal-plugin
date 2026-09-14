@@ -37,7 +37,7 @@ Follows the AXI output contract ([../../axi/](../../axi/README.md)).
   top-level fields untouched; only the target key's array changes.
 - **Reject the reserved key** — `--key packagePath` exits non-zero naming the reserved key and writes
   nothing; `packagePath` is the CLI's own string config, not a plugin-registered array, so `config
-  add` never coerces it into an array.
+  add` never coerces it into an array (it is read, as a string, by `config get --key packagePath`).
 - **Require a name** — an `--entry` with no `name` field exits non-zero naming the requirement and
   writes nothing; an `--entry` that is not a JSON object, or not valid JSON, likewise fails and writes
   nothing.

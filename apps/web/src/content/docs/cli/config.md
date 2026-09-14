@@ -38,7 +38,7 @@ operation's own precondition. No other field is inspected; each key's schema is 
 Writing never disturbs the rest of the file: `packagePath`, other plugins' keys, and unknown
 top-level fields are all preserved. A missing file or missing key is created. The reserved key
 `packagePath` (the CLI's own string config) is rejected — `--key packagePath` exits non-zero and
-writes nothing.
+writes nothing. Edit `.agents/universal-plugin.json` directly to change it.
 
 ## config get
 
@@ -55,6 +55,16 @@ universal-plugin config get --key <key> [--format json]
 | `--root <path>` | Repo root to resolve `.agents/universal-plugin.json` from (default: cwd) |
 
 An absent key or absent file prints a definitive empty state; consumers parse the array themselves.
+
+`--key packagePath` is the exception: it reads the CLI's own string config instead of an array.
+`--format json` prints the declared path as a JSON string, relative to the plugin root, or `null`
+when the plugin declares no npm package. Skills use this to learn `packagePath` from the CLI rather
+than reading the file themselves.
+
+```bash
+universal-plugin config get --key packagePath --format json
+# "../../packages/my-plugin"
+```
 
 ## Registering config from an install script
 

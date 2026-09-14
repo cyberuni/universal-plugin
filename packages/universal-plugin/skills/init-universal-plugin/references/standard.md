@@ -36,9 +36,13 @@ lives under one namespaced key, `extensions["org.cyberuni.universal-plugin"]`:
 | --- | --- |
 | `vendors` | the build targets. When absent, the `harnesses` keys are the targets |
 | `harnesses` | per-vendor overrides, keyed by vendor id. `{}` opts in with no overrides |
-| `packagePath` | the npm package whose `package.json` carries the same version |
 | component paths (`skills`, `commands`, `agents`, `hooks`, …) | where each component lives |
 | `dependencies` | the plugins this plugin needs. Only Claude Code reads them; see [`vendors/claude-code.md`](./vendors/claude-code.md) |
+
+`packagePath` does not belong here. The npm package whose `package.json` carries the same version is
+named in `.agents/universal-plugin.json` beside `plugin.json`, as a path relative to the plugin root
+(for example `"packagePath": "."`, or `"../../packages/<name>"` in a monorepo). It is release config
+for the repository, not part of the manifest.
 
 `vendors` and `harnesses` are separate on purpose: `vendors` says what to build, `harnesses` says
 what each build gets. A vendor listed in `vendors` with no `harnesses` entry still builds; a

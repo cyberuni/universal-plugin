@@ -2,7 +2,7 @@ import { Command } from 'commander'
 
 import { ROOT_OPTION, resolveRoot } from '../cli-options.js'
 import { output } from '../output.js'
-import { addEntry, getEntries, isReservedKey } from './config.js'
+import { addEntry, getEntries, getPackagePath, isReservedKey } from './config.js'
 import { type ConfigFs, realConfigFs } from './fs.js'
 
 interface AddCliOptions {
@@ -18,7 +18,9 @@ interface GetCliOptions {
 
 function assertNotReserved(key: string): void {
 	if (isReservedKey(key)) {
-		throw new Error(`error: "${key}" is a reserved key (universal-plugin's own config) — not a plugin-registered array`)
+		throw new Error(
+			`error: "${key}" is a reserved key (universal-plugin's own config) — not a plugin-registered array; edit .agents/universal-plugin.json directly`,
+		)
 	}
 }
 
@@ -65,16 +67,33 @@ function addCommand(fs: ConfigFs): Command {
 
 function getCommand(fs: ConfigFs): Command {
 	return new Command('get')
-		.description('Read the array of entries registered at a config key')
-		.requiredOption('--key <key>', 'The config key whose array to read')
+		.description('Read the array of entries registered at a config key, or the packagePath string')
+		.requiredOption('--key <key>', 'The config key whose array to read (or packagePath)')
 		.option('--format <format>', 'Output format: json or toon (default: toon)')
 		.addOption(ROOT_OPTION)
 		.addHelpText('after', '\nExample:\n  $ universal-plugin config get --key sdd-plugins\n')
 		.action((opts: GetCliOptions) => {
 			try {
-				assertNotReserved(opts.key)
-
 				const root = resolveRoot(opts.root)
+
+				// `packagePath` is the CLI's own string config, not an array: read it as the string it is, so
+				// a skill asks the CLI where the npm package lives instead of re-reading the file (issue #79).
+				if (opts.key === 'packagePath') {
+					const packagePath = getPackagePath(fs.read(root))
+					output(packagePath, {
+						packagePath: packagePath ?? '(none)',
+						relativeTo: 'plugin root',
+						summary: packagePath === null ? 'no npm package declared' : `npm package at ${packagePath}`,
+					})
+					process.stderr.write(
+						packagePath === null
+							? '→ set packagePath in .agents/universal-plugin.json to ship through npm\n'
+							: '→ universal-plugin publish sync-version\n',
+					)
+					return
+				}
+
+				assertNotReserved(opts.key)
 				const entries = getEntries(fs.read(root), opts.key)
 
 				output(entries, {

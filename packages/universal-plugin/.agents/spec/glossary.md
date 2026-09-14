@@ -10,7 +10,7 @@ Terms used across this spec. A flat reference doc (not a scanned node).
   `extensions["org.cyberuni.universal-plugin"]`. Everything the CLI derives comes from this file.
 - **extensions namespace** — `extensions["org.cyberuni.universal-plugin"]`, the one reverse-domain
   block `universal-plugin` owns in the canonical manifest. Holds this CLI's build inputs: the optional
-  `vendors` target list, `packagePath`, component paths (e.g. `skills`), and the `harnesses` overrides.
+  `vendors` target list, component paths (e.g. `skills`), and the `harnesses` overrides.
 - **vendor** (a.k.a. **harness**) — a target AI-agent runtime: `claude-code`, `cursor`, `codex`,
   `copilot-cli`. Each expects its manifest at a different path and shape.
 - **vendor manifest** — the per-vendor output file the build derives from the canonical manifest
@@ -18,7 +18,7 @@ Terms used across this spec. A flat reference doc (not a scanned node).
   reads the canonical root `plugin.json` directly, which shadows every lower-precedence path it
   searches. Having no manifest of its own does not make it a zero-output vendor: its **components**
   are derived, into the spec-mode namespace below. The canonical wrapper (`$schema`, `extensions`)
-  and `universal-plugin`'s own orchestration keys (`vendors`, `packagePath`, `harnesses`) are
+  and `universal-plugin`'s own orchestration keys (`vendors`, `harnesses`) are
   stripped; that vendor's own `harnesses.<vendor>` fields are merged over the shared metadata and
   component paths.
 - **spec-mode namespace** — `com.github.copilot/`, the reverse-domain directory Copilot CLI reads its

@@ -1,11 +1,22 @@
 import { describe, expect, it } from 'vitest'
-import { addEntry, getEntries, isReservedKey } from './config.js'
+import { addEntry, getEntries, getPackagePath, isReservedKey } from './config.js'
 
 describe('isReservedKey', () => {
 	it('treats packagePath as reserved and plugin keys as not', () => {
 		expect(isReservedKey('packagePath')).toBe(true)
 		expect(isReservedKey('sdd-plugins')).toBe(false)
 		expect(isReservedKey('vendors')).toBe(false)
+	})
+})
+
+describe('getPackagePath', () => {
+	it('returns the declared string, relative to the plugin root as written', () => {
+		expect(getPackagePath({ packagePath: '../../packages/demo' })).toBe('../../packages/demo')
+	})
+	it('reads an absent, empty, or non-string value as no npm package', () => {
+		expect(getPackagePath({})).toBeNull()
+		expect(getPackagePath({ packagePath: '' })).toBeNull()
+		expect(getPackagePath({ packagePath: ['packages/demo'] })).toBeNull()
 	})
 })
 

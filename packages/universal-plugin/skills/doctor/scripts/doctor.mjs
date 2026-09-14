@@ -60,11 +60,35 @@ if (manifest === null) {
 
 const ext = manifest.extensions?.[UP_NAMESPACE] ?? null
 
-// `packagePath` is the CLI's own config, and the CLI reads it from `.agents/universal-plugin.json`
-// (src/version/fs.ts). It is read here from the same file, so a plugin the CLI treats as npm-shipping
-// is one this script treats the same way. The manifest extension is accepted as a fallback for a
-// repository that put it there.
+// The shipped CLI, preferring the one this skill ships with. Every question the CLI can answer is asked
+// of it rather than re-derived here, so this script cannot drift from the commands it diagnoses.
+const bin = path.join(packageRoot, 'bin', 'universal-plugin.mjs')
+const runCli = (...args) =>
+	fs.existsSync(bin)
+		? spawnSync(process.execPath, [bin, ...args], { encoding: 'utf8' })
+		: spawnSync('npx', ['universal-plugin', ...args], { encoding: 'utf8' })
+
+// `packagePath` is the CLI's own config. It is asked of the CLI (`config get --key packagePath`), the
+// same reader `plugin version` and `publish sync-version` use, so a plugin the CLI treats as
+// npm-shipping is one this script treats the same way (issue #79). `undefined` means the CLI could not
+// answer — too old to read the key — and every check that depends on it is skipped rather than guessed.
 const packagePath = readPackagePath()
+if (packagePath === undefined) {
+	add(
+		'package-path-unknown',
+		'low',
+		'the CLI could not report packagePath, so version-drift and unreleased-content were not checked',
+		'upgrade universal-plugin',
+	)
+}
+if (ext !== null && Object.hasOwn(ext, 'packagePath')) {
+	add(
+		'misplaced-package-path',
+		'high',
+		`plugin.json declares extensions["${UP_NAMESPACE}"].packagePath, which the CLI never reads${packagePath === null ? ' — this plugin is treated as not shipping to npm' : ''}`,
+		'move packagePath to .agents/universal-plugin.json, relative to the plugin root',
+	)
+}
 if (!manifest.$schema?.includes('agent-plugins.org') || ext === null) {
 	add(
 		'legacy-manifest',
@@ -144,14 +168,7 @@ if (declaredTargets.includes('copilot-cli')) {
 }
 
 // Ask the shipped CLI what it would write, without writing it.
-const bin = path.join(packageRoot, 'bin', 'universal-plugin.mjs')
-const cli = fs.existsSync(bin)
-	? spawnSync(process.execPath, [bin, 'plugin', 'build', '--dry-run', '--format', 'json', '--root', root], {
-			encoding: 'utf8',
-		})
-	: spawnSync('npx', ['universal-plugin', 'plugin', 'build', '--dry-run', '--format', 'json', '--root', root], {
-			encoding: 'utf8',
-		})
+const cli = runCli('plugin', 'build', '--dry-run', '--format', 'json', '--root', root)
 
 const vendors = []
 const build = readJson_stdout(cli.stdout)
@@ -224,7 +241,7 @@ if (build === null) {
 }
 
 // Version drift between the two authored numbers.
-if (packagePath !== null) {
+if (typeof packagePath === 'string') {
 	const pkgPath = path.join(root, packagePath, 'package.json')
 	const pkg = readJson(pkgPath)
 	if (pkg === null) {
@@ -305,13 +322,7 @@ function invalidCatalogs(extraRoots) {
 	const catalogRoot = git('rev-parse', '--show-toplevel') ?? root
 	const targets = [{ catalogRoot, own: true }, ...extraRoots.map((r) => ({ catalogRoot: path.resolve(r), own: false }))]
 	return targets.flatMap(({ catalogRoot, own }) => {
-		const result = fs.existsSync(bin)
-			? spawnSync(process.execPath, [bin, 'marketplace', 'validate', '--format', 'json', '--root', catalogRoot], {
-					encoding: 'utf8',
-				})
-			: spawnSync('npx', ['universal-plugin', 'marketplace', 'validate', '--format', 'json', '--root', catalogRoot], {
-					encoding: 'utf8',
-				})
+		const result = runCli('marketplace', 'validate', '--format', 'json', '--root', catalogRoot)
 		const rows = readJson_stdout(result.stdout)
 		return Array.isArray(rows)
 			? rows.filter((row) => row.status === 'invalid').map((row) => ({ ...row, catalogRoot, own }))
@@ -383,9 +394,16 @@ function report({ vendors }) {
 	process.exit(0)
 }
 
-/** Where the npm package that ships this plugin lives, or `null` when the plugin ships to no
- *  package. `null` is the author-picks release model of ADR-0010 §2. */
+/** Where the npm package that ships this plugin lives, relative to the plugin root, as the CLI reads
+ *  it; `null` when the plugin ships to no package (the author-picks release model of ADR-0010 §2);
+ *  `undefined` when the CLI could not answer. */
 function readPackagePath() {
-	const declared = readJson(path.join(root, '.agents', 'universal-plugin.json'))?.packagePath ?? ext?.packagePath
-	return typeof declared === 'string' && declared.length > 0 ? declared : null
+	const result = runCli('config', 'get', '--key', 'packagePath', '--format', 'json', '--root', root)
+	if (result.status !== 0) return undefined
+	try {
+		const declared = JSON.parse(result.stdout)
+		return typeof declared === 'string' || declared === null ? declared : undefined
+	} catch {
+		return undefined
+	}
 }

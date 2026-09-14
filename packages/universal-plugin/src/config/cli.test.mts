@@ -241,12 +241,46 @@ test('a missing config file is treated as an absent key', () => {
 	expect(r.stdout).toMatch(/0 entries/)
 })
 
-test('get rejects the reserved key packagePath', () => {
-	seed({ packagePath: 'packages/universal-plugin' })
+// ── config get: packagePath, the CLI's own string config ──
+
+test('get --key packagePath returns the declared string', () => {
+	seed({ packagePath: '../../packages/demo' })
 	const r = run('config', 'get', '--key', 'packagePath')
-	expect(r.status).toBe(1)
-	expect(r.stderr).toMatch(/packagePath/)
-	expect(r.stderr).toMatch(/reserved/)
+	expect(r.status).toBe(0)
+	expect(r.stdout).toMatch(/packagePath: \.\.\/\.\.\/packages\/demo/)
+	expect(r.stdout).toMatch(/plugin root/)
+	expect(r.stderr).toMatch(/→ universal-plugin publish sync-version/)
+})
+
+test('get --key packagePath --format json returns the raw string', () => {
+	seed({ packagePath: 'packages/demo' })
+	const r = run('config', 'get', '--key', 'packagePath', '--format', 'json')
+	expect(r.status).toBe(0)
+	expect(JSON.parse(r.stdout)).toBe('packages/demo')
+})
+
+test('get --key packagePath with none declared prints a definitive null', () => {
+	seed({ 'sdd-plugins': [] })
+	const json = run('config', 'get', '--key', 'packagePath', '--format', 'json')
+	expect(json.status).toBe(0)
+	expect(JSON.parse(json.stdout)).toBeNull()
+
+	const toon = run('config', 'get', '--key', 'packagePath')
+	expect(toon.status).toBe(0)
+	expect(toon.stdout).toMatch(/no npm package declared/)
+})
+
+test('get --key packagePath reads a missing config file as none declared', () => {
+	const r = run('config', 'get', '--key', 'packagePath', '--format', 'json')
+	expect(r.status).toBe(0)
+	expect(JSON.parse(r.stdout)).toBeNull()
+})
+
+test('get --key packagePath never writes the file', () => {
+	seed({ packagePath: 'packages/demo' })
+	const before = rawConfig()
+	run('config', 'get', '--key', 'packagePath')
+	expect(rawConfig()).toBe(before)
 })
 
 test('a missing --key on get fails naming the flag', () => {

@@ -130,8 +130,15 @@ Only prepare entries for files that actually exist — do not create new vendor 
 Before writing any entry, decide how the plugin is actually distributed — do not default to a
 root-clone `url`. Read the signals from the plugin's own repository, in this order:
 
-1. **`npm`** — `.agents/universal-plugin.json` carries a `packagePath`, and
-   `<packagePath>/package.json` is not `"private": true`. The plugin ships as an npm package.
+1. **`npm`** — the CLI reports a `packagePath`, and `<packagePath>/package.json` is not
+   `"private": true`. The plugin ships as an npm package. Ask the CLI rather than reading
+   `.agents/universal-plugin.json` yourself; the path it prints is relative to the plugin root:
+
+   ```bash
+   npx universal-plugin config get --key packagePath --format json --root <plugin-root>
+   ```
+
+   `null` means no npm package is declared.
 2. **`git-subdir`** — the plugin's `plugin.json` (or its vendor manifests) live below the
    repository root, e.g. `packages/<name>/plugin.json`, and there is no `packagePath`/npm
    distribution. This is the common monorepo case: the repository root holds no plugin manifest at

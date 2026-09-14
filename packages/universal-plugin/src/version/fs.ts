@@ -1,6 +1,7 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 
+import { getPackagePath } from '../config/config.js'
 import { detectIndent } from '../json.js'
 import type { VersionPlan, VersionState } from './version.js'
 
@@ -24,16 +25,16 @@ export interface VersionFs {
 	apply(root: string, plan: VersionPlan): void
 }
 
-/** Reads `packagePath` from `.agents/universal-plugin.json`. Absent file, absent key, or a
+/** Reads `packagePath` from `.agents/universal-plugin.json` beside the canonical `plugin.json`; the
+ *  path it names is relative to the plugin root. The manifest's extensions namespace is not a
+ *  location for it (issue #79). Absent file, absent key, or a
  *  non-string value all mean "this plugin declares no npm package" — the manifest is then the only
  *  authored file. (A *declared* path whose `package.json` is missing is a different case, and the
  *  domain rejects it.) */
 function readPackagePath(root: string, io: JsonIo): string | null {
 	const configPath = path.join(root, '.agents', 'universal-plugin.json')
 	if (!io.exists(configPath)) return null
-	const config = JSON.parse(io.read(configPath)) as Record<string, unknown>
-	const packagePath = config['packagePath']
-	return typeof packagePath === 'string' && packagePath.length > 0 ? packagePath : null
+	return getPackagePath(JSON.parse(io.read(configPath)) as Record<string, unknown>)
 }
 
 /** Writes `value` over `filePath`, keeping whatever indentation that file already used. */

@@ -1,4 +1,5 @@
 import * as path from 'node:path'
+import { getPackagePath } from '../config/config.js'
 import { applyVersionPlan } from '../version/fs.js'
 import type { VersionPlan } from '../version/version.js'
 import type { SyncVersionFs } from './fs.js'
@@ -23,8 +24,8 @@ export function syncVersion(root: string, syncFs: SyncVersionFs): SyncVersionRes
 	const agentsConfig = syncFs.exists(agentsConfigPath)
 		? (JSON.parse(syncFs.read(agentsConfigPath)) as Record<string, unknown>)
 		: {}
-	const packagePath = agentsConfig['packagePath']
-	if (!packagePath || typeof packagePath !== 'string') {
+	const packagePath = getPackagePath(agentsConfig)
+	if (packagePath === null) {
 		throw new Error('packagePath is required in .agents/universal-plugin.json')
 	}
 

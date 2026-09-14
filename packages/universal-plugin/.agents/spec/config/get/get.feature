@@ -61,13 +61,32 @@ Feature: config get — read a keyed config array
     Then stdout is a TOON result with zero rows and aggregate "0 entries"
     And the exit code is 0
 
-  # ── Reserved key ──
+  # ── Reserved key: packagePath, read as a string ──
 
-  Scenario: rejects the reserved key packagePath
-    Given ".agents/universal-plugin.json" has "packagePath" set to a string
+  Scenario: reads the declared packagePath as a string
+    Given ".agents/universal-plugin.json" has "packagePath" set to "../../packages/demo"
+    When I run "universal-plugin config get --key packagePath --format json"
+    Then stdout is the JSON string "../../packages/demo"
+    And the exit code is 0
+
+  Scenario: the default output names packagePath relative to the plugin root
+    Given ".agents/universal-plugin.json" has "packagePath" set to "packages/demo"
     When I run "universal-plugin config get --key packagePath"
-    Then the exit code is 1
-    And stderr names "packagePath" as reserved
+    Then stdout is a TOON result showing "packagePath" as "packages/demo" relative to the plugin root
+    And stderr ends with "→ universal-plugin publish sync-version"
+    And the exit code is 0
+
+  Scenario: an undeclared packagePath prints a definitive null
+    Given ".agents/universal-plugin.json" has no key "packagePath"
+    When I run "universal-plugin config get --key packagePath --format json"
+    Then stdout is "null"
+    And the exit code is 0
+
+  Scenario: a missing config file reads as no packagePath
+    Given no ".agents/universal-plugin.json" exists at the root
+    When I run "universal-plugin config get --key packagePath --format json"
+    Then stdout is "null"
+    And the exit code is 0
 
   # ── Fail-loud & help ──
 

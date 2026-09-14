@@ -58,6 +58,13 @@ standard while its derivation engine keeps serving the runtimes as they actually
      reverse-domain strings for vendors we don't control. All `universal-plugin` config — the
      build-target list `vendors`, the `harnesses` override map, `packagePath`, and the component input
      paths — now nests under `org.cyberuni.universal-plugin`.)_
+     _(Amended 2026-09-13, issue #79: **`packagePath` is carved back out.** The CLI never read it from
+     the namespace — `plugin version` and `publish sync-version` read `.agents/universal-plugin.json`,
+     which ADR-0010 §2 names as the release-model switch and the `config` group reserves the key in —
+     so a namespace `packagePath` silently selected the author-picks model. It names the repository's
+     npm package, which is release config for the repository, not manifest content, and the manifest
+     travels inside that very package where the path is meaningless. It stays in
+     `.agents/universal-plugin.json` beside `plugin.json`, resolved from the plugin root.)_
    - `schema/v1.json` is **rewritten**, not patched: it validates the closed spec manifest and defines
      the shape *inside* the `org.cyberuni.universal-plugin` namespace — no sibling
      `vendors`/`vendorExtensions`.
