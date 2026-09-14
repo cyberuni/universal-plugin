@@ -1,5 +1,55 @@
 # universal-plugin
 
+## 0.8.0
+
+### Minor Changes
+
+- cbda7c2: `config get --key packagePath` now reads `packagePath` instead of rejecting it. `--format json` prints the declared path as a JSON string, relative to the plugin root, or `null` when no npm package is declared. `plugin version`, `publish sync-version`, and `config get` share one reader, so they cannot disagree about a declaration. `config add --key packagePath` is still rejected: the key is a string, not a plugin-registered array.
+- 1eab810: Move the `upx` runner into its own package, `@repobuddy/upx`.
+  
+  A generic package runner is broader than this package's build/derivation charter — a placement note
+  in the spec has said so since it landed. It also made the wrong trade for `upx` itself: the runner's
+  value is *install once globally, use everywhere*, and that install should be small, so requiring
+  `npm i -g universal-plugin` to get a runner word worked against it.
+  
+  Nothing about `upx`'s behavior changed, and the emitter side stays here: `plugin bundle --runner upx`,
+  the `adopt-upx` skill, and `upgrade-plugin`'s runner-word handling all still live in this package.
+  Their coupling was always to the *word* `upx`, never to its code.
+  
+  **Install `@repobuddy/upx` directly** — `npm i -g @repobuddy/upx`. The `upx` bin on this package now
+  re-exports it so existing global installs keep working, and prints a deprecation notice on `--help`
+  (never on a normal call — `upx` is a transparent exec wrapper). It will be removed in the next major.
+- 49f1036: Add `universal-plugin plugin validate`, which checks the root `plugin.json` without building anything. It reports every problem in one pass, in two groups:
+  
+  - **Schema violations** against the Agent Plugins 1.0.0 schema: `$schema` and `name` are required, `name` must match the schema's pattern, fields must have the right types, and top-level keys the standard does not define are rejected.
+  - **Vendor violations**: for example, Codex requires `description` and `version`. `--vendor <id>` limits these checks to one vendor.
+  
+  An unknown vendor key in `harnesses` is a warning, and `--strict` makes it a violation. Output is TOON by default, with `--format json` and `--full` available. Running `universal-plugin plugin` with no subcommand now validates the current project and lists its declared harnesses, instead of printing help.
+  
+  A manifest without `$schema` now fails `plugin validate`. `plugin build` does not check `$schema` and still accepts it. `plugin init` already writes `$schema`.
+
+### Patch Changes
+
+- a40d5b0: `doctor` now reads `packagePath` only from `.agents/universal-plugin.json`, resolved from the plugin root — the same file and base `plugin version` and `publish sync-version` use. It no longer falls back to `extensions["org.cyberuni.universal-plugin"].packagePath`, which the CLI never honored, so doctor could pass a plugin that `version` still treated as not shipping to npm. A `packagePath` declared in the manifest extension is now reported as `misplaced-package-path`.
+- f0be1fa: `doctor` now accepts a repeatable `--marketplace-root <path>` flag to also validate a separately-cloned shared marketplace repository (e.g. a local clone of `cyberuni/marketplace`) — previously only the plugin's own repository root was checked, so a bad entry that reached the shared catalog another way went unnoticed. A named `--marketplace-root` that does not exist is reported as `marketplace-root-missing` instead of being silently skipped.
+- 0211cae: State the CLI's dependency bundling explicitly in the build config.
+  
+  `dist/cli.mjs` already shipped with its runtime dependencies inlined, and that is what lets the
+  shipped skill launchers run from an installed plugin directory at all — those directories are copies
+  of a source checkout, so their `node_modules` is absent or incomplete. The build now declares that
+  intent through an explicit `deps.alwaysBundle` block rather than relying on it incidentally, so a
+  dependency added later cannot quietly become external and break the launchers.
+  
+  `@repobuddy/upx` is deliberately excluded. It is reachable only from the separate `bin/upx.mjs` shim,
+  which is not a build entry, so the `upx` bin still resolves it at runtime from an installed tree.
+- becd7ef: Fix `plugin build` ending with a next-step hint for `universal-plugin plugin validate`, a command that does not exist yet. A build that refreshed a marketplace catalog now points at `universal-plugin marketplace validate` (with `--root` for that repository), and any other successful build points at `/universal-plugin:doctor`.
+- 2469986: Fix `universal-plugin --version` (and `-V`) always printing `0.0.0` instead of the installed package's actual version.
+- c6304c5: `migrate-plugin` now bundles the package's CLI with tsdown as part of the migration, so the CLI runs from an installed plugin directory that has no `node_modules`. It splits `tsdown.config.ts` into a library config that keeps dependencies external and a CLI config that inlines them through `deps.alwaysBundle`. It then proves the result by running the CLI from an extracted tarball.
+  
+  The skill also covers plugins that live in a sibling workspace member such as `plugins/<name>/`, merges a colliding readme instead of overwriting it, and notes that `publish sync-version` reads `packagePath` from `.agents/universal-plugin.json`, not from the manifest. It also repoints lint excludes, marketplace sources, and spec paths.
+- 1f82ccd: `schema/extension.schema.json` and the `init-universal-plugin` standard reference no longer advertise `packagePath` under `extensions["org.cyberuni.universal-plugin"]`. The CLI never read it there, so a plugin that declared it where the schema said silently fell back to the author-picks release model. `packagePath` lives in `.agents/universal-plugin.json` beside `plugin.json`, as a path relative to the plugin root; a namespace `packagePath` now fails schema validation.
+- 4161472: The `doctor` and `publish-plugin` skills now ask the CLI for `packagePath` (`config get --key packagePath`) instead of reading `.agents/universal-plugin.json` themselves, so they cannot drift from `plugin version`. When the CLI is too old to answer, doctor reports `package-path-unknown` and skips `version-drift` and `unreleased-content` rather than guessing.
+
 ## 0.7.0
 
 ### Minor Changes
