@@ -9,14 +9,19 @@ Follows the AXI output contract ([../../axi/](../../axi/README.md)).
 
 `universal-plugin plugin validate` checks the canonical root `plugin.json` (Agent Plugins
 Specification v1.0.0 form) against the shared schema and each declared vendor's extra rules, without
-deriving any output. It reports **all**
-violations at once so an author fixes them in one pass, and it is the check `plugin build` runs
-eagerly before writing.
+deriving any output. It reports **all** violations at once so an author fixes them in one pass.
+`plugin build` runs the same vendor rules eagerly before writing, from the same module
+(`src/validate/validation.ts`), so the two never disagree about them.
 
-> **Spec-first / impl-deferred.** No `validate` command ships yet (`src/cli.ts` registers no
-> `validate`, there is no `src/validate/` domain). This node is a frozen contract; the impl gate
-> withholds certification until it is built. Its rules mirror the vendor-rule and schema checks
-> `plugin build` already enforces at build time.
+The schema half follows the open standard, not a stricter house rule
+([`agent-plugins.org/schemas/1.0.0/plugin.schema.json`](https://agent-plugins.org/schemas/1.0.0/plugin.schema.json)):
+`$schema` and `name` are required, `name` matches the schema's pattern, the standard's fields carry
+their types, and a top-level key the standard does not define (such as the pre-0.6
+`vendorExtensions` block) is a violation, because tool-specific data belongs under `extensions`.
+`version` is not a schema requirement. Codex requires it, so it is a codex vendor rule. The
+`dependencies` declaration in the `org.cyberuni.universal-plugin` namespace is checked as a schema
+violation too (ADR-0013). The rest of that namespace is not yet checked against
+`schema/extension.schema.json`.
 
 ## Use Cases
 
@@ -27,8 +32,8 @@ eagerly before writing.
 - **Default output is TOON** — with no `--format`, a result carries `valid` plus pre-computed
   `schemaViolations` / `vendorViolations` rows (`field, rule, message`) and their aggregate counts
   on stdout; `--format json` stays the structured escape hatch.
-- **Schema violations are reported together** — a missing required field (e.g. `name`, `version`)
-  fails and names every violation, not just the first.
+- **Schema violations are reported together** — a missing required field (`$schema`, `name`) or a
+  top-level key the standard does not define fails and names every violation, not just the first.
 - **Vendor rules are enforced** — vendor-specific requirements (codex requires `description` and
   `version`) are checked; `--vendor <id>` limits the vendor-rule check to one vendor; an unknown
   `--vendor` value fails.
@@ -57,7 +62,7 @@ Every scenario in [`validate.feature`](./validate.feature) maps to one of these 
 |---|---|
 | **valid manifest passes** | well-formed manifest exits 0 with a definitive TOON `valid: true` result (text + json) |
 | **default output is TOON** | schema/vendor violation rows + aggregate on stdout by default |
-| **schema violations together** | missing name / version reported together on stdout |
+| **schema violations together** | missing `$schema` / `name` reported together on stdout; unknown top-level key rejected |
 | **vendor rules enforced** | codex description+version; `--vendor` scoping; unknown `--vendor` fails |
 | **unknown keys warn / `--strict`** | unknown `harnesses` key warns (stderr) exit 0; `--strict` → exit 1 + violation row |
 | **truncation + `--full`** | large violation list truncates with a size hint; json/`--full` never truncate |

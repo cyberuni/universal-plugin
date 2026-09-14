@@ -29,12 +29,25 @@ Feature: plugin validate — check the canonical manifest
     And stdout contains a schemaViolations row with field "name" and message "required field missing"
 
   Scenario: all violations are reported together
-    Given the manifest is missing "name" and "version"
+    Given the manifest is missing "$schema" and "name"
     When I run "universal-plugin plugin validate"
     Then the exit code is 1
+    And stdout contains a schemaViolations row with field "$schema"
     And stdout contains a schemaViolations row with field "name"
-    And stdout contains a schemaViolations row with field "version"
     And stdout carries the aggregate "2 schema violations, 0 vendor violations"
+
+  Scenario: version is not a schema requirement
+    Given the manifest declares harnesses for "claude-code"
+    And the manifest has no version
+    When I run "universal-plugin plugin validate"
+    Then the exit code is 0
+    And stdout is a TOON result with "valid" equal to true
+
+  Scenario: a top-level key the standard does not define is a schema violation
+    Given the manifest carries a top-level "vendorExtensions" block
+    When I run "universal-plugin plugin validate"
+    Then the exit code is 1
+    And stdout contains a schemaViolations row with field "vendorExtensions"
 
   # ── Vendor rules ──
 

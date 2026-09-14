@@ -16,6 +16,7 @@ import { prepareCommand } from './prepare/cli.js'
 import { publishCommand } from './publish/cli.js'
 import { selfUpdateCommand } from './self-update/cli.js'
 import { syncCommand } from './sync/cli.js'
+import { addValidateOptions, runValidate, validateCommand } from './validate/cli.js'
 import { versionCommand } from './version/cli.js'
 
 const program = new Command()
@@ -30,18 +31,28 @@ program
 	.description('Universal AI agent plugin build tool')
 	.version(resolveOwnVersion(ownPackageJsonPath))
 	.helpCommand(false)
+	// Commander hands a subcommand's arguments to the `plugin` group before the subcommand name unless
+	// every ancestor reads its options positionally, so the group's `--root` would swallow build's.
+	.enablePositionalOptions()
 
-// The `plugin` command group: author the canonical plugin.json.
-// build, bundle, init, install, uninstall, and version are implemented; validate is specced (impl-deferred).
+// The `plugin` command group: author the canonical plugin.json. Bare `plugin` is content-first: it
+// validates the current project and lists the declared harnesses instead of printing help.
 function pluginCommand(): Command {
-	const cmd = new Command('plugin').description(
-		'Author the canonical plugin manifest (build, bundle, init, install, uninstall, version; validate planned)',
+	const cmd = addValidateOptions(
+		new Command('plugin').description(
+			'Author the canonical plugin manifest (build, bundle, init, install, uninstall, validate, version)',
+		),
 	)
+		// The group's own options are read only before a subcommand, so `plugin build --root` stays build's.
+		.enablePositionalOptions()
+		.addHelpText('after', '\nWith no subcommand, validates the current project.\n')
+		.action((opts) => runValidate(opts, { withHarnesses: true }))
 	cmd.addCommand(buildCommand())
 	cmd.addCommand(bundleCommand())
 	cmd.addCommand(initCommand())
 	cmd.addCommand(installCommand())
 	cmd.addCommand(uninstallCommand())
+	cmd.addCommand(validateCommand())
 	cmd.addCommand(versionCommand())
 	return cmd
 }
