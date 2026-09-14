@@ -154,7 +154,7 @@ test('plugin build ends stderr with a next-step suggestion', () => {
 	try {
 		const result = runBuild(root)
 		expect(result.status).toBe(0)
-		expect(result.stderr.trimEnd()).toMatch(/→ \/universal-plugin:doctor — [^\n]*$/)
+		expect(result.stderr.trimEnd()).toMatch(/→ \/universal-plugin:doctor-universal-plugin — [^\n]*$/)
 	} finally {
 		fs.rmSync(root, { recursive: true, force: true })
 	}
