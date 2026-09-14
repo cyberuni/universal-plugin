@@ -64,7 +64,7 @@ location, so you author them there and the build passes them through untouched, 
 
 The vendor reports `built` at `com.github.copilot/` when it derives any of this, and keeps reporting
 `canonical` when the plugin declares none of the moved kinds. If you ship agents at the root and no
-namespace copy exists, Copilot CLI loads none of them and says nothing — `/universal-plugin:doctor`
+namespace copy exists, Copilot CLI loads none of them and says nothing — `/universal-plugin:doctor-universal-plugin`
 reports that as `copilot-root-components`.
 
 ## Build steps

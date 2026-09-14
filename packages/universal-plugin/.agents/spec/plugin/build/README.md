@@ -150,7 +150,7 @@ Follows the AXI output contract ([../../axi/](../../axi/README.md)).
 - **Definitive empty state** — no targets at all (neither `vendors` nor `harnesses`) still emits a
   TOON result on stdout (zero built rows, aggregate `built 0`) with exit 0, plus "nothing to build" on
   stderr. Because deriving nothing is the one result an agent is most likely to read as success, that
-  stderr line also names `/universal-plugin:doctor` as the next step — the skill that can say *why*
+  stderr line also names `/universal-plugin:doctor-universal-plugin` as the next step — the skill that can say *why*
   nothing was declared.
 - **A declaration this CLI no longer reads is a failure, not an empty result** — a repository left on
   the pre-0.6 manifest layout derives nothing for a different reason. Its manifest parses; what it
@@ -159,7 +159,7 @@ Follows the AXI output contract ([../../axi/](../../axi/README.md)).
   so it is an error (AXI #6), not a definitive empty state (AXI #5).
   When the target set resolves to zero **and** the project carries a pre-0.6 signal — a top-level
   `vendorExtensions` block in the root manifest, or a `.plugin/plugin.json` that shadows root — the
-  build exits 1 naming the signal it found and pointing at `/universal-plugin:doctor`, and writes
+  build exits 1 naming the signal it found and pointing at `/universal-plugin:doctor-universal-plugin`, and writes
   nothing.
 
   The rule in closed form: **the build errors if and only if the target set is empty *and* at least
@@ -179,7 +179,7 @@ Follows the AXI output contract ([../../axi/](../../axi/README.md)).
   own next step is `plugin build`, so pointing back at it sends an agent in a circle. When the build refreshed a
   repository-local marketplace catalog, the line is `→ universal-plugin marketplace validate`, with
   `--root` pointing at that repository when it is not the working directory. Otherwise it names
-  `/universal-plugin:doctor`, which checks the built manifests against what `plugin.json` declares.
+  `/universal-plugin:doctor-universal-plugin`, which checks the built manifests against what `plugin.json` declares.
 - **Fail-loud, no prompts, help** — an unknown flag exits 1 naming the flag; the command never
   prompts interactively; `--help` exits 0 with a concise synopsis, flags, and one example.
 
@@ -209,8 +209,8 @@ Every scenario in [`build.feature`](./build.feature) maps to one of these behavi
 | **catalog refresh (ADR-0010 §3)** | this plugin's entry re-derived in each existing repository catalog for the vendors built; other entries and top-level fields untouched; no catalog created; unchanged reported as unchanged; `--dry-run` plans only |
 | **TOON default + aggregate (#1,#2,#4)** | stdout TOON, one row per vendor (`vendor, path, status`), pre-computed `built/skipped/failed` summary |
 | **`--format json` / `--format toon`** | JSON escape hatch with `built` array + counts; `--format toon` names the default |
-| **definitive empty state (#5)** | no targets → exit 0, TOON zero built rows + aggregate `built 0`, stderr "nothing to build", stderr names `/universal-plugin:doctor` |
-| **a declaration this CLI no longer reads (#6)** | zero targets beside a top-level `vendorExtensions` block or a shadowing `.plugin/plugin.json` → exit 1 naming the signal and `/universal-plugin:doctor`, nothing written; the same signal beside deriving harnesses stays exit 0 |
-| **next-step suggestion (#9)** | successful build's stderr ends with `→ universal-plugin marketplace validate` after a catalog refresh, else `→ /universal-plugin:doctor`; never `plugin validate` |
+| **definitive empty state (#5)** | no targets → exit 0, TOON zero built rows + aggregate `built 0`, stderr "nothing to build", stderr names `/universal-plugin:doctor-universal-plugin` |
+| **a declaration this CLI no longer reads (#6)** | zero targets beside a top-level `vendorExtensions` block or a shadowing `.plugin/plugin.json` → exit 1 naming the signal and `/universal-plugin:doctor-universal-plugin`, nothing written; the same signal beside deriving harnesses stays exit 0 |
+| **next-step suggestion (#9)** | successful build's stderr ends with `→ universal-plugin marketplace validate` after a catalog refresh, else `→ /universal-plugin:doctor-universal-plugin`; never `plugin validate` |
 | **fail-loud unknown flag (#6)** | unknown flag exits 1, stderr names it |
 | **`--help` (#10)** | exits 0, concise synopsis + flags + one example |

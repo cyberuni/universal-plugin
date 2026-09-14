@@ -1,5 +1,5 @@
 ---
-name: doctor
+name: doctor-universal-plugin
 description: Use this skill to diagnose a universal agent plugin — when `plugin build` reports "built 0" or "nothing to build", when it warns "No vendors declared in harnesses", when a repository still carries `.plugin/plugin.json` or a top-level `vendorExtensions` block after upgrading universal-plugin across a major, when a released version never reached the vendor manifests, when a runtime loads none of the plugin's skills, when a vendor manifest is missing or looks out of date after a pull, or when checking whether what the canonical plugin.json declares still matches what is on disk for Claude Code, Cursor, Codex, and GitHub Copilot CLI. Trigger on "is my plugin set up right", "why isn't my plugin loading", "the build says built 0", "why did nothing get built", "check the plugin", "are the vendor manifests current", or "what does this plugin declare".
 ---
 

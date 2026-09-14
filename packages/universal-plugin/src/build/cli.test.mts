@@ -130,7 +130,7 @@ test('a build with no catalog to refresh points at doctor, never plugin validate
 	const r = build()
 	expect(r.status).toBe(0)
 	expect(r.stderr).not.toMatch(/plugin validate/)
-	expect(r.stderr.trimEnd().split('\n').at(-1)).toMatch(/^→ \/universal-plugin:doctor — /)
+	expect(r.stderr.trimEnd().split('\n').at(-1)).toMatch(/^→ \/universal-plugin:doctor-universal-plugin — /)
 })
 
 // ── issue #61: deriving nothing is reported by cause ──

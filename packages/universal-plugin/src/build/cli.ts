@@ -7,8 +7,8 @@ import { output } from '../output.js'
 import { type BuildResult, buildPlugin, type VendorRow } from './build.js'
 
 // When nothing was derived, the natural follow-up is the skill that can say why (AXI #9, issue #61).
-const NEXT_STEP_NOTHING_BUILT = '→ /universal-plugin:doctor — diagnose why nothing is declared\n'
-const NEXT_STEP_BUILT = '→ /universal-plugin:doctor — check the built manifests against plugin.json\n'
+const NEXT_STEP_NOTHING_BUILT = '→ /universal-plugin:doctor-universal-plugin — diagnose why nothing is declared\n'
+const NEXT_STEP_BUILT = '→ /universal-plugin:doctor-universal-plugin — check the built manifests against plugin.json\n'
 
 /** Every hint names a command that exists today: an agent that follows a hint into
  *  `unknown command` is at a dead end (issue #80). A refreshed catalog is checked by

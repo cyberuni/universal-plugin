@@ -7,7 +7,7 @@ import { afterEach, beforeEach, expect, test } from 'vitest'
 /** The `doctor` skill's script is the home of the ADR-0010 §6 check: a runtime keys its plugin cache
  *  on the version, so content committed after the commit that set the current one never reaches a
  *  consumer who already installed the plugin. The check reads git, so these cases are git fixtures. */
-const doctor = path.resolve('skills/doctor/scripts/doctor.mjs')
+const doctor = path.resolve('skills/doctor-universal-plugin/scripts/doctor.mjs')
 
 let root: string
 

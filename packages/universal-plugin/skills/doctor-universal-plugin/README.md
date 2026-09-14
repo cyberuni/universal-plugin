@@ -1,4 +1,4 @@
-# doctor skill
+# doctor-universal-plugin skill
 
 Diagnose a universal agent plugin: what the canonical `plugin.json` declares, and whether what is on
 disk still matches it for Claude Code, Cursor, Codex, and GitHub Copilot CLI.
