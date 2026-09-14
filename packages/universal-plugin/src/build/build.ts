@@ -257,7 +257,9 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 			throw new Error(
 				`Nothing was derived, and this project is still on the pre-0.6 manifest layout:\n${signals
 					.map((s) => `  - ${s}`)
-					.join('\n')}\nRun /universal-plugin:doctor-universal-plugin for the full diagnosis and the skill that owns each repair.`,
+					.join(
+						'\n',
+					)}\nRun /universal-plugin:doctor-universal-plugin for the full diagnosis and the skill that owns each repair.`,
 			)
 		}
 		warnings.push('No vendors declared in harnesses — nothing to build')
