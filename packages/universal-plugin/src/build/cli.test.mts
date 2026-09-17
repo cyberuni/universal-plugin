@@ -179,3 +179,52 @@ test('a shadowing .plugin/plugin.json beside deriving harnesses is not a build f
 	expect(r.status).toBe(0)
 	expect(built()).toBe(true)
 })
+
+/** Declares one governance in a skill and has the workspace package own it. */
+function governanceSkill(source: string, copy: string) {
+	fs.mkdirSync(path.join(workspacePackage, 'governances'), { recursive: true })
+	fs.writeFileSync(path.join(workspacePackage, 'governances', 'plugin-design.md'), source)
+	const skillDir = path.join(workspacePackage, 'skills', 'init')
+	fs.mkdirSync(path.join(skillDir, 'references', 'governances'), { recursive: true })
+	fs.writeFileSync(
+		path.join(skillDir, 'SKILL.md'),
+		'---\nname: init\n---\n\n# init\n\n## References\n\n- `references/governances/plugin-design.md`\n',
+	)
+	fs.writeFileSync(path.join(skillDir, 'references', 'governances', 'plugin-design.md'), copy)
+}
+
+const governanceCopy = () =>
+	fs.readFileSync(
+		path.join(workspacePackage, 'skills', 'init', 'references', 'governances', 'plugin-design.md'),
+		'utf8',
+	)
+
+test('--check exits 1 and names the stale copy without repairing it', () => {
+	governanceSkill('# Plugin Design\n\nnew\n', '# Plugin Design\n\nold\n')
+
+	const r = build('--check')
+
+	expect(r.status).toBe(1)
+	expect(r.stderr).toMatch(/stale: skills\/init\/references\/governances\/plugin-design\.md/)
+	expect(r.stderr).toMatch(/→ universal-plugin plugin build/)
+	expect(governanceCopy()).toBe('# Plugin Design\n\nold\n')
+	expect(built()).toBe(false)
+})
+
+test('--check exits 0 once the copy matches its source', () => {
+	governanceSkill('# Plugin Design\n\nsame\n', '# Plugin Design\n\nsame\n')
+
+	const r = build('--check')
+
+	expect(r.status).toBe(0)
+	expect(r.stderr).not.toMatch(/stale:/)
+})
+
+test('build refreshes the stale copy the check reported', () => {
+	governanceSkill('# Plugin Design\n\nnew\n', '# Plugin Design\n\nold\n')
+
+	expect(build().status).toBe(0)
+
+	expect(governanceCopy()).toBe('# Plugin Design\n\nnew\n')
+	expect(build('--check').status).toBe(0)
+})

@@ -6,6 +6,8 @@ import {
 	translateDependencies,
 	validateDependencies,
 } from '../dependencies/dependencies.js'
+import { type GovernanceCopyEntry, syncGovernanceCopies } from '../governance/copy-sync.js'
+import { realGovernanceCopyFs } from '../governance/fs.js'
 import { type CanonicalHooksFile, type HookDrop, type HookTranslation, translateHooks } from '../hooks/hooks.js'
 import { detectIndent } from '../json.js'
 import { gatherCatalogRepo } from '../marketplace/fs.js'
@@ -151,6 +153,8 @@ export interface BuildOptions {
 	dryRun?: boolean
 	verbose?: boolean
 	clean?: boolean
+	/** Write nothing and report every committed governance copy that differs from its source. */
+	check?: boolean
 }
 
 export interface VendorRow {
@@ -174,6 +178,8 @@ export interface BuildResult {
 	catalogs: CatalogRow[]
 	/** Absolute root of the repository those catalogs live in; absent when no catalog was touched. */
 	catalogRoot?: string
+	/** Every governance copy the build refreshed, left alone, or found stale. */
+	governances: GovernanceCopyEntry[]
 	summary: { built: number; skipped: number; failed: number; canonical: number }
 }
 
@@ -214,6 +220,9 @@ export function validateManifest(manifest: PluginManifest, targets?: string[]): 
 }
 
 export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult {
+	// `--check` reports drift; it never repairs it. Every writer below already honours `dryRun`, so
+	// folding the flag in here is what keeps a check run from touching the working tree at all.
+	if (opts.check) opts = { ...opts, dryRun: true }
 	const manifestPath = path.join(root, 'plugin.json')
 	if (!fs.existsSync(manifestPath)) {
 		throw new Error(`No plugin.json found at ${root}`)
@@ -263,7 +272,7 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 			)
 		}
 		warnings.push('No vendors declared in harnesses — nothing to build')
-		return { vendors: [], written: [], warnings, rows, catalogs: [], summary: summarize(rows) }
+		return { vendors: [], written: [], warnings, rows, catalogs: [], governances: [], summary: summarize(rows) }
 	}
 
 	// Eager validation, scoped to the vendors actually being built — a codex block that is not a
@@ -288,6 +297,17 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 	// fix however many vendors are targeted.
 	warnings.push(...validateDependencies(declaredDependencies).warnings)
 	const skills = readSkills(root, manifest, warnings)
+	// Governances are copied into the skills that use them, once, before any vendor is derived: the
+	// copies are vendor-neutral skill content, so deriving them per vendor would write the same file
+	// as many times as there are targets (#122).
+	const governances = syncGovernanceCopies(root, skills, realGovernanceCopyFs, {
+		check: opts.check,
+		dryRun: opts.dryRun,
+	})
+	if (governances.errors.length > 0) {
+		throw new Error(`Governance copies are not buildable:\n${governances.errors.map((e) => `  - ${e}`).join('\n')}`)
+	}
+	written.push(...governances.entries.filter((e) => e.status === 'written').map((e) => e.path))
 	const canonicalHooks = readCanonicalHooks(root, componentConfig['hooks'], warnings)
 	// An MCP invocation's version is known here and nowhere else: `mcp.json` expands only
 	// ${PLUGIN_ROOT} and ${PLUGIN_DATA}, so a runtime placeholder would reach the client literally.
@@ -408,7 +428,16 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 
 	const { catalogs, catalogRoot } = refreshCatalogs(root, manifest, vendors, opts, written, warnings)
 
-	return { vendors, written, warnings, rows, catalogs, catalogRoot, summary: summarize(rows) }
+	return {
+		vendors,
+		written,
+		warnings,
+		rows,
+		catalogs,
+		catalogRoot,
+		governances: governances.entries,
+		summary: summarize(rows),
+	}
 }
 
 /** Keeps the repository's marketplace catalogs true to the manifest just built. A catalog entry's

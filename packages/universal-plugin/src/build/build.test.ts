@@ -1419,3 +1419,83 @@ describe('buildPlugin — the copilot spec-mode namespace (ADR-0015)', () => {
 		expect(fs.existsSync(path.join(dir, NS))).toBe(false)
 	})
 })
+
+describe('buildPlugin governance copies', () => {
+	function governance(name: string, content: string) {
+		const file = path.join(dir, 'governances', `${name}.md`)
+		fs.mkdirSync(path.dirname(file), { recursive: true })
+		fs.writeFileSync(file, content)
+	}
+
+	function declaringSkill(name: string, governances: string[], references?: string) {
+		writeSkill(
+			name,
+			`---\nname: ${name}\n---\n\n# ${name}\n\n## References\n\n${
+				references ?? governances.map((g) => `- \`references/governances/${g}.md\``).join('\n')
+			}\n`,
+		)
+		for (const declared of governances) {
+			const file = path.join(dir, 'skills', name, 'references', 'governances', `${declared}.md`)
+			fs.mkdirSync(path.dirname(file), { recursive: true })
+			fs.writeFileSync(file, '')
+		}
+	}
+
+	function copyPath(skill: string, name: string) {
+		return path.join(dir, 'skills', skill, 'references', 'governances', `${name}.md`)
+	}
+
+	beforeEach(() => {
+		writeManifest({ name: 'p', extensions: up({ harnesses: { 'claude-code': {} }, skills: './skills/' }) })
+	})
+
+	it('refreshes a declared copy from the governance the plugin owns', () => {
+		governance('plugin-design', '# Plugin Design\n')
+		declaringSkill('init', ['plugin-design'])
+
+		const result = buildPlugin(dir)
+
+		expect(result.governances).toEqual([
+			expect.objectContaining({ skill: 'init', name: 'plugin-design', status: 'written' }),
+		])
+		expect(result.written).toContain(copyPath('init', 'plugin-design'))
+		expect(fs.readFileSync(copyPath('init', 'plugin-design'), 'utf8')).toBe('# Plugin Design\n')
+	})
+
+	it('fails the build when a declared file names no governance', () => {
+		declaringSkill('init', ['no-such-rule'])
+
+		expect(() => buildPlugin(dir)).toThrow(/names no governance/)
+	})
+
+	it('fails the build when SKILL.md does not list a copy under References', () => {
+		governance('plugin-design', '# Plugin Design\n')
+		declaringSkill('init', ['plugin-design'], '- Spec: https://x.invalid')
+
+		expect(() => buildPlugin(dir)).toThrow(/does not list/)
+	})
+
+	it('--check reports a stale copy and leaves it on disk', () => {
+		governance('plugin-design', '# Plugin Design\n')
+		declaringSkill('init', ['plugin-design'])
+
+		const result = buildPlugin(dir, { check: true })
+
+		expect(result.governances).toEqual([expect.objectContaining({ name: 'plugin-design', status: 'stale' })])
+		expect(fs.readFileSync(copyPath('init', 'plugin-design'), 'utf8')).toBe('')
+		expect(fs.existsSync(path.join(dir, '.claude-plugin', 'plugin.json'))).toBe(false)
+	})
+
+	it('copies once, not once per vendor', () => {
+		writeManifest({
+			name: 'p',
+			version: '1.0.0',
+			description: 'd',
+			extensions: up({ harnesses: { 'claude-code': {}, cursor: {}, codex: {} }, skills: './skills/' }),
+		})
+		governance('plugin-design', '# Plugin Design\n')
+		declaringSkill('init', ['plugin-design'])
+
+		expect(buildPlugin(dir).governances).toHaveLength(1)
+	})
+})

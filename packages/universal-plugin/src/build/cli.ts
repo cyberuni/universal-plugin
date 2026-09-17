@@ -22,11 +22,17 @@ function nextStep(result: BuildResult, cwd: string): string {
 	return `→ universal-plugin marketplace validate${root}\n`
 }
 
+/** What repairs a stale copy: the same build, without `--check`. */
+function checkNextStep(root: string | undefined): string {
+	return `\u2192 universal-plugin plugin build${root ? ` --root ${root}` : ''} \u2014 refresh the stale governance copies\n`
+}
+
 interface BuildCliOptions {
 	vendor?: string
 	dryRun?: boolean
 	verbose?: boolean
 	clean?: boolean
+	check?: boolean
 	root?: string
 }
 
@@ -38,6 +44,7 @@ export function buildCommand(): Command {
 		.option('--dry-run', 'Print what would be written without writing')
 		.option('--verbose', 'Print field-by-field transformation decisions')
 		.option('--clean', 'Delete generated manifests before building')
+		.option('--check', 'Write nothing; fail when a committed governance copy differs from its source')
 		.option('--format <format>', 'Output format: json or toon (default: toon)')
 		.addOption(new Option('--json').hideHelp())
 		.addOption(ROOT_OPTION)
@@ -50,14 +57,25 @@ export function buildCommand(): Command {
 					dryRun: opts.dryRun,
 					verbose: opts.verbose,
 					clean: opts.clean,
+					check: opts.check,
 				})
 
 				for (const warning of result.warnings) {
 					process.stderr.write(`warn: ${warning}\n`)
 				}
 
+				// A governance copy is committed, so a build machine that finds one stale has found a
+				// commit that never ran the build — a state the author has to repair, not this run.
+				const stale = result.governances.filter((g) => g.status === 'stale')
+				if (opts.check) {
+					for (const copy of stale) {
+						process.stderr.write(`stale: ${path.relative(process.cwd(), copy.path)} (owner ${copy.owner})\n`)
+					}
+				}
+
 				const { built, skipped, failed, canonical } = result.summary
 				const jsonResult = {
+					governances: result.governances,
 					built: result.rows.filter((r) => r.status === 'built'),
 					skipped: result.rows.filter((r) => r.status === 'skipped'),
 					failed: result.rows.filter((r) => r.status === 'failed'),
@@ -68,14 +86,27 @@ export function buildCommand(): Command {
 				}
 				const counts = `built ${built}, skipped ${skipped}, failed ${failed}`
 				const catalogSummary = result.catalogs.length > 0 ? `, catalogs ${result.catalogs.length}` : ''
+				const governanceSummary =
+					result.governances.length > 0 ? `, governance copies ${result.governances.length}` : ''
 				output(jsonResult, {
 					vendors: result.rows.map((r: VendorRow) => ({ vendor: r.vendor, path: r.path, status: r.status })),
 					catalogs: result.catalogs.map((r) => ({ path: r.path, status: r.status })),
-					summary: (canonical > 0 ? `${counts}, served by plugin.json ${canonical}` : counts) + catalogSummary,
+					// Omitted when the plugin declares none: an empty row set is noise on every build that
+					// has no governance copies to report (AXI #5).
+					...(result.governances.length > 0
+						? { governances: result.governances.map((g) => ({ skill: g.skill, name: g.name, status: g.status })) }
+						: {}),
+					summary:
+						(canonical > 0 ? `${counts}, served by plugin.json ${canonical}` : counts) +
+						catalogSummary +
+						governanceSummary,
 				})
 
-				process.stderr.write(nextStep(result, process.cwd()))
+				process.stderr.write(
+					opts.check && stale.length > 0 ? checkNextStep(opts.root) : nextStep(result, process.cwd()),
+				)
 				if (failed > 0) process.exitCode = 1
+				if (opts.check && stale.length > 0) process.exitCode = 1
 			} catch (err) {
 				process.stderr.write(`${err instanceof Error ? err.message : String(err)}\n`)
 				process.exit(1)

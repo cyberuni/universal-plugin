@@ -1,6 +1,6 @@
 ---
 spec-type: behavioral
-concept: [canonical-manifest, axi]
+concept: [canonical-manifest, axi, governance]
 ---
 
 # plugin build — derive per-vendor manifests
@@ -122,6 +122,28 @@ Follows the AXI output contract ([../../axi/](../../axi/README.md)).
   either. The build warns that the pin is not delivered, the same remedy
   [ADR-0011](../../design/decisions/0011-warn-and-drop-unrepresentable-hook-handlers.md) uses for a
   handler the vendor cannot run.
+- **Governances are copied into the skills that use them** ([ADR-0016](../../design/decisions/0016-build-copies-governances-into-skills.md))
+  — a skill reads a governance from `references/governances/<name>.md` inside its own folder rather
+  than by running `governance show` at run time, so no skill needs network or a package runner to
+  read a rule set it was tested against. The `.md` files already in that folder **are** the
+  declaration of which governances the skill uses; nothing is declared in `plugin.json`. Each is
+  rewritten from its owner's current copy — the plugin being built first, then the packages its
+  `package.json` declares, each shipping the document at `governances/<name>.md`. Every governance a
+  copy references is copied too, transitively, and each `governance show <other>` pointer inside a
+  copy becomes "load `references/governances/<other>.md` if it is not already loaded": the Agent
+  Skills specification asks that `SKILL.md` reference every file directly, so a copy must never send
+  an agent back to a command to reach the next document. A fence holding nothing but pointers is
+  unwrapped — prose in a `bash` fence reads as a command to run — and a fence that mixes pointers
+  with real commands keeps it. The copy step runs **once**, before any vendor is derived: a copy is
+  vendor-neutral skill content. Three conditions fail the build, writing nothing: a declared file
+  that names no governance any resolvable package owns, a referenced governance with no copy to
+  point at, and a `SKILL.md` that does not list a copy under References.
+- **`--check` verifies the committed copies** — the copies are committed, which is the exception to
+  keeping build output out of git: a copy is small text, and a git-sourced install needs the skill's
+  default to work offline. `plugin build --check` resolves every copy, writes nothing at all — no
+  manifest, no catalog, no copy — and exits 1 naming each copy that differs from its source and the
+  package that owns it, with `→ universal-plugin plugin build` as the next step. A run whose copies
+  all match exits 0. This repository runs it from `pnpm verify`.
 - **Merge then strip** — per-harness fields from `harnesses.<vendor>` are merged over the shared
   metadata and component paths; the canonical wrapper (`$schema`, `extensions`) and the orchestration
   keys (`vendors`, `packagePath`, `harnesses`) never appear in output.
@@ -202,6 +224,8 @@ Every scenario in [`build.feature`](./build.feature) maps to one of these behavi
 | **MCP invocation pinning** | a marked entry's `args` specifier rewritten to `<pkg>@<version>` under either runner word (`npx`, `upx`), located as the first non-flag argument with or without a leading `-y`/`--yes`; an unmarked entry and an unrelated `npx` invocation left alone; an already-pinned specifier overwritten with a warning; guards (non-runner `command`, no manifest `version`, no specifier in `args`) warn and leave the entry |
 | **marker stripping + delivery** | `pinToPluginVersion` absent from every derived manifest and derived MCP file; nothing marked derives nothing; an inline declaration stays inline, a path declaration gets `<vendor-dir>/mcp.json` and is repointed; the authored `mcp.json` untouched; copilot-cli warned rather than derived for (`mcp.json` does not move) |
 | **the copilot spec-mode namespace (ADR-0015)** | declared agents, commands and rules copied under `com.github.copilot/` with agents renamed to `.agent.md`, resolved from all three `pathValue` forms, the schema default read when the field is absent, a declared-but-missing directory warned and an absent default not; hooks translated to `com.github.copilot/hooks/hooks.json`; a declared `lspServers` path copied to `com.github.copilot/lsp.json`, an inline map warned about; `skills/` and `mcp.json` not copied there; the vendor reported `built` at `com.github.copilot/`; an authored `extensions/` left alone by both the build and `--clean`; the canonical `plugin.json` never written |
+| **governance copies (ADR-0016)** | a declared file rewritten from the governance the plugin owns and from an installed dependency, the plugin winning a name both ship; a referenced governance copied transitively; a `governance show <other>` pointer rewritten to name the sibling copy; an up-to-date copy reported `unchanged` and not rewritten; the copy step run once however many vendors are built; a declared file naming no governance, a referenced governance with no copy, and a `SKILL.md` that does not list a copy each fail the build |
+| **`--check` on committed copies** | a stale copy exits 1 naming the copy and its owner, leaves it on disk and derives no manifest; matching copies exit 0; the build without `--check` refreshes what the check reported |
 | **`--vendor` filters** | filter to one vendor; a `--vendor` not among the targets fails |
 | **eager validation** | missing manifest fails; codex requires description + version |
 | **unknown vendors warn** | unknown vendor key in `harnesses` skipped with warning |
