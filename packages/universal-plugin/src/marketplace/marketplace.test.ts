@@ -5,6 +5,7 @@ import { expect, test } from 'vitest'
 
 import { realMarketplaceFs } from './fs.js'
 import { initializeMarketplace } from './init.js'
+import { mergeCatalogEntry, refreshCatalogEntry } from './marketplace.js'
 
 function fixture(prefix: string): string {
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), prefix))
@@ -318,4 +319,119 @@ test('drops manifest metadata it cannot reduce to the catalog shape', () => {
 	} finally {
 		fs.rmSync(root, { recursive: true, force: true })
 	}
+})
+
+/** Writes `entries` as the Claude catalog's plugin list, leaving its top level as generated. */
+function rewriteClaudeEntries(root: string, entries: unknown[]): void {
+	const file = path.join(root, '.claude-plugin/marketplace.json')
+	const catalog = JSON.parse(fs.readFileSync(file, 'utf8')) as Record<string, unknown>
+	catalog.plugins = entries
+	fs.writeFileSync(file, `${JSON.stringify(catalog, null, 2)}\n`)
+}
+
+test('keeps an entry discovery cannot produce and drops a local one it no longer finds', () => {
+	const root = fixture('universal-plugin-marketplace-foreign-')
+	try {
+		initializeMarketplace(root, { targets: ['claude'] })
+		rewriteClaudeEntries(root, [
+			{ name: 'alpha', source: './plugins/alpha' },
+			{ name: 'repobuddy', source: { source: 'npm', package: 'repobuddy' } },
+			{ name: 'ghost', source: './plugins/ghost' },
+		])
+
+		const result = initializeMarketplace(root, { targets: ['claude'], force: true })
+
+		expect(readJson(root, '.claude-plugin/marketplace.json')).toMatchObject({
+			plugins: [
+				{ name: 'alpha', source: './plugins/alpha' },
+				{ name: 'repobuddy', source: { source: 'npm', package: 'repobuddy' } },
+			],
+		})
+		// The report names what the catalog lists, so a kept entry is visible rather than silent.
+		expect(result[0]?.plugins).toEqual(['alpha', 'repobuddy'])
+	} finally {
+		fs.rmSync(root, { recursive: true, force: true })
+	}
+})
+
+test('a discovered plugin distributed from npm keeps that source and refreshes its metadata', () => {
+	const root = fixture('universal-plugin-marketplace-npm-source-')
+	try {
+		initializeMarketplace(root, { targets: ['claude', 'codex'] })
+		rewriteClaudeEntries(root, [{ name: 'alpha', source: { source: 'npm', package: 'alpha' }, description: 'stale' }])
+		fs.writeFileSync(
+			path.join(root, 'plugins', 'alpha', 'plugin.json'),
+			JSON.stringify({ name: 'alpha', description: 'An alpha plugin', version: '2.0.0' }),
+		)
+
+		initializeMarketplace(root, { targets: ['claude', 'codex'], force: true })
+
+		// The source says where the plugin is distributed from; discovery only re-derives what the
+		// manifest describes. Rewriting it to a path would point at gitignored build output (#86).
+		expect(readJson(root, '.claude-plugin/marketplace.json')).toMatchObject({
+			plugins: [{ name: 'alpha', source: { source: 'npm', package: 'alpha' }, description: 'An alpha plugin' }],
+		})
+		// Codex states a local source as an object, so its own tagged sources survive the same way.
+		expect(readJson(root, '.agents/plugins/marketplace.json')).toMatchObject({
+			plugins: [{ name: 'alpha', version: '2.0.0', source: { source: 'local', path: './plugins/alpha' } }],
+		})
+	} finally {
+		fs.rmSync(root, { recursive: true, force: true })
+	}
+})
+
+test('a rerun that changes nothing is unchanged even once the catalog carries a foreign entry', () => {
+	const root = fixture('universal-plugin-marketplace-foreign-converge-')
+	try {
+		initializeMarketplace(root, { targets: ['claude'] })
+		rewriteClaudeEntries(root, [
+			{ name: 'alpha', source: './plugins/alpha', description: 'An alpha plugin', version: '1.0.0' },
+			{ name: 'repobuddy', source: { source: 'npm', package: 'repobuddy' } },
+		])
+
+		// No --force: a kept entry is not a conflict, so the two commands compose on one repository.
+		const result = initializeMarketplace(root, { targets: ['claude'] })
+		expect(result[0]?.status).toBe('unchanged')
+	} finally {
+		fs.rmSync(root, { recursive: true, force: true })
+	}
+})
+
+test('a catalog that is not JSON is still repairable with force', () => {
+	const root = fixture('universal-plugin-marketplace-unparseable-')
+	try {
+		initializeMarketplace(root, { targets: ['claude'] })
+		fs.writeFileSync(path.join(root, '.claude-plugin/marketplace.json'), 'not json')
+
+		expect(() => initializeMarketplace(root, { targets: ['claude'] })).toThrow(/--force/)
+		initializeMarketplace(root, { targets: ['claude'], force: true })
+		expect(readJson(root, '.claude-plugin/marketplace.json')).toMatchObject({
+			plugins: [{ name: 'alpha', source: './plugins/alpha' }],
+		})
+	} finally {
+		fs.rmSync(root, { recursive: true, force: true })
+	}
+})
+
+test('re-deriving one entry leaves the source it is distributed from alone', () => {
+	const existing = `${JSON.stringify(
+		{
+			name: 'repo-local',
+			owner: { name: 'unional' },
+			plugins: [{ name: 'alpha', source: { source: 'npm', package: 'alpha' }, version: '1.0.0' }],
+		},
+		null,
+		2,
+	)}\n`
+	const plugin = { name: 'alpha', source: './packages/alpha', metadata: { name: 'alpha', version: '2.0.0' } }
+
+	// `plugin build` refreshes an entry on every build; `plugin init` folds one back in on re-run.
+	// Neither was asked to move the plugin's distribution, so neither rewrites the source.
+	const refreshed = JSON.parse(refreshCatalogEntry('claude', plugin, existing).content)
+	expect(refreshed.plugins).toEqual([{ name: 'alpha', source: { source: 'npm', package: 'alpha' }, version: '2.0.0' }])
+
+	const merged = JSON.parse(
+		mergeCatalogEntry('claude', { name: 'repo-local', owner: { name: 'unional' } }, plugin, () => existing).content,
+	)
+	expect(merged.plugins).toEqual([{ name: 'alpha', source: { source: 'npm', package: 'alpha' }, version: '2.0.0' }])
 })

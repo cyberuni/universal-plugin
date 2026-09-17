@@ -87,6 +87,16 @@ function claudeArtifact(metadata: MarketplaceMetadata, plugins: MarketplacePlugi
 	}
 }
 
+/** Whether a catalog entry's `source` names a place inside this repository — a `./`-prefixed path in
+ *  the Claude-shaped catalogs, or Codex's `{ source: "local", path }`. Every other form names a
+ *  plugin distributed from somewhere else: an npm package, a GitHub repository, a URL. Discovery
+ *  walks directories, so it can produce the first kind and can say nothing about the second. */
+export function isLocalCatalogSource(source: unknown): boolean {
+	if (typeof source === 'string') return true
+	if (typeof source !== 'object' || source === null || Array.isArray(source)) return false
+	return (source as Record<string, unknown>).source === 'local'
+}
+
 function codexArtifact(metadata: MarketplaceMetadata, plugins: MarketplacePlugin[]): MarketplaceArtifact {
 	return {
 		path: TARGET_CATALOG_PATHS.codex,
@@ -170,7 +180,7 @@ export function mergeCatalogEntry(
 	for (const [key, value] of Object.entries(generated)) {
 		if (!(key in merged)) merged[key] = value
 	}
-	merged.plugins = mergeEntries(previous, entry)
+	merged.plugins = mergeEntries(previous, entry, { keepForeignSource: true })
 	return { path: artifact.path, content: json(merged) }
 }
 
@@ -187,17 +197,94 @@ function parseCatalog(content: string, path: string): Record<string, unknown> {
 	return parsed as Record<string, unknown>
 }
 
-function mergeEntries(previous: Record<string, unknown>, entry: Record<string, unknown>): Record<string, unknown>[] {
+function mergeEntries(
+	previous: Record<string, unknown>,
+	entry: Record<string, unknown>,
+	{ keepForeignSource = false } = {},
+): Record<string, unknown>[] {
 	const entries = Array.isArray(previous.plugins) ? [...(previous.plugins as unknown[])] : []
 	const index = entries.findIndex(
 		(candidate) =>
 			typeof candidate === 'object' && candidate !== null && (candidate as Record<string, unknown>).name === entry.name,
 	)
 	if (index === -1) return [...entries, entry] as Record<string, unknown>[]
-	const merged = { ...(entries[index] as Record<string, unknown>), ...entry }
+	const existing = entries[index] as Record<string, unknown>
+	const merged = { ...existing, ...entry }
 	if (!('version' in entry)) delete merged.version
+	// A re-derivation describes the plugin, not where it is distributed from. An entry pointing at
+	// an npm package keeps pointing there; only a caller that was asked for a new source replaces one.
+	if (keepForeignSource && !isLocalCatalogSource(existing.source)) merged.source = existing.source
 	entries[index] = merged
 	return entries as Record<string, unknown>[]
+}
+
+/** Re-derives a whole catalog from discovery while keeping the entries discovery cannot see.
+ *
+ *  A repository may list plugins that live somewhere else — an npm package, a GitHub repository —
+ *  put there by `marketplace add`. Nothing on disk produces those, so a regeneration that trusted
+ *  discovery alone would report every one of them as a deletion, and `--force` would carry it out.
+ *  Two things survive instead: an entry whose source is not local stays even though discovery never
+ *  saw it, and a discovered plugin whose existing entry names a non-local source keeps that source
+ *  with only its derived metadata refreshed.
+ *
+ *  That second case is the loss in issue #86 — a plugin shipped through npm, whose repository path
+ *  holds only gitignored build output, rewritten to that path on every regeneration.
+ *
+ *  What discovery owns, it still owns: a local-path entry it no longer finds is dropped, so the
+ *  catalog keeps mirroring the repository for the part of the repository it describes. */
+export function mergeDiscoveredCatalog(
+	generated: MarketplaceArtifact,
+	existing: string | undefined,
+): MarketplaceArtifact {
+	if (existing === undefined) return generated
+	let previous: Record<string, unknown>
+	try {
+		previous = parseCatalog(existing, generated.path)
+	} catch {
+		// A catalog that is not JSON has nothing to preserve, and refusing here would take away the
+		// one command that repairs it: the conflict check stops the run, and `--force` rewrites it.
+		return generated
+	}
+
+	const foreign = new Map<string, Record<string, unknown>>()
+	for (const candidate of Array.isArray(previous.plugins) ? (previous.plugins as unknown[]) : []) {
+		if (typeof candidate !== 'object' || candidate === null || Array.isArray(candidate)) continue
+		const entry = candidate as Record<string, unknown>
+		if (typeof entry.name !== 'string' || isLocalCatalogSource(entry.source)) continue
+		foreign.set(entry.name, entry)
+	}
+	if (foreign.size === 0) return generated
+
+	const catalog = JSON.parse(generated.content) as Record<string, unknown>
+	const discovered = (catalog.plugins ?? []) as Record<string, unknown>[]
+	const merged = discovered.map((entry) => {
+		const kept = typeof entry.name === 'string' ? foreign.get(entry.name) : undefined
+		return kept === undefined ? entry : { ...entry, source: kept.source }
+	})
+	// Discovered entries keep their name order and the kept ones follow in the order the catalog
+	// already had them, so a second run of the same command produces the same file.
+	const discoveredNames = new Set(discovered.map((entry) => entry.name))
+	for (const [name, entry] of foreign) {
+		if (!discoveredNames.has(name)) merged.push(entry)
+	}
+	catalog.plugins = merged
+	return { path: generated.path, content: json(catalog) }
+}
+
+/** The plugin names a catalog lists, so a result row can report what the file ends up saying rather
+ *  than only what discovery contributed to it. */
+export function catalogEntryNames(content: string): string[] {
+	try {
+		const parsed = JSON.parse(content) as Record<string, unknown>
+		if (!Array.isArray(parsed.plugins)) return []
+		return parsed.plugins
+			.map((entry) =>
+				typeof entry === 'object' && entry !== null ? (entry as Record<string, unknown>).name : undefined,
+			)
+			.filter((name): name is string => typeof name === 'string')
+	} catch {
+		return []
+	}
 }
 
 /** The catalog's own top-level identity, read back from the file the repository already carries, so
@@ -224,7 +311,10 @@ export function refreshCatalogEntry(
 	const previous = parseCatalog(existing, catalogPath)
 	const generated = JSON.parse(serializeTarget(target, existingMetadata(previous), [plugin])[0]?.content ?? '{}')
 	const entry = (generated.plugins as Record<string, unknown>[])[0] as Record<string, unknown>
-	return { path: catalogPath, content: json({ ...previous, plugins: mergeEntries(previous, entry) }) }
+	return {
+		path: catalogPath,
+		content: json({ ...previous, plugins: mergeEntries(previous, entry, { keepForeignSource: true }) }),
+	}
 }
 
 /** Whether two catalogs say the same thing. Key order and whitespace do not change a catalog's
