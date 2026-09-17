@@ -81,8 +81,13 @@ resolves to a real plugin.
   neither stops the command.
 - A marketplace that carries no `marketplace.json`, a catalog that is not JSON, a plugin the catalog
   does not list, and an entry naming no source each stop the command with a message naming the cause.
-- An entry whose source is local is refused: it resolves against that marketplace's root, which this
-  repository is not.
+- An entry whose source is local is **rewritten** against that marketplace's own origin rather than
+  copied, because the path resolves against a root this repository does not share. A subdirectory
+  becomes `git-subdir` carrying the origin URL and that path; the marketplace root itself becomes
+  `github` when the origin names an `owner/repo`, and `url` otherwise.
+- The origin is what the runtime recorded for that marketplace — a `github` repo slug or a `git`/`url`
+  clone URL — falling back to the clone's own git remote, which is also how a `--from` directory
+  supplies one. A marketplace with neither stops the command: there is nothing to rewrite against.
 
 ### Write and safety decisions
 
@@ -175,7 +180,10 @@ flowchart TD
 | from override | the marketplace is not installed; `--from` given | `--from names a marketplace that is not installed` |
 | unknown marketplace | neither installed nor `--from` | `an unresolvable marketplace fails before writes` |
 | missing entry | the catalog lists no such plugin | `a plugin the marketplace does not list fails before writes` |
-| local source refusal | the copied entry's source is a local path | `a local source in another marketplace is refused` |
+| subdirectory rewrite | the copied entry's source is a path below that marketplace's root | `a source local to another marketplace is rewritten against its origin` |
+| root rewrite | the copied entry's source is that marketplace's root | `a plugin at the marketplace root takes the plainer source form` |
+| origin fallback | the runtime recorded no origin; the clone has a remote | `a clone's own remote supplies the origin` |
+| no origin | neither a recorded origin nor a remote | `a marketplace with no remote cannot have its paths rewritten` |
 
 ### `marketplace add` — writes and rendering
 

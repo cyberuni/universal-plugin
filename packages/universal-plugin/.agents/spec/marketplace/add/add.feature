@@ -103,10 +103,29 @@ Feature: marketplace add — list a plugin that lives elsewhere
     Then the error names the plugin and the marketplace
     And the exit code is 1
 
-  Scenario: a local source in another marketplace is refused
-    Given marketplace "cyberplace" lists "local-only" with a "./" source
+  Scenario: a source local to another marketplace is rewritten against its origin
+    Given marketplace "cyberplace" originates at "https://github.com/cyberuni/cyberplace.git"
+    And it lists "aced" with source "./plugins/aced"
+    When I run "universal-plugin marketplace add aced@cyberplace --claude --root <root>"
+    Then the entry carries a git-subdir source naming that URL and path "plugins/aced"
+
+  Scenario: a plugin at the marketplace root takes the plainer source form
+    Given marketplace "unional" originates at "https://github.com/unional/skills.git"
+    And it lists "unional-skills" with source "./"
+    When I run "universal-plugin marketplace add unional-skills@unional --claude --root <root>"
+    Then the entry carries a github source naming repository "unional/skills"
+
+  Scenario: a clone's own remote supplies the origin
+    Given a checkout reached through --from whose origin remote is known
+    And it lists a plugin with a "./" source
+    When I run "universal-plugin marketplace add" against it
+    Then the entry carries a git-subdir source naming that remote
+
+  Scenario: a marketplace with no remote cannot have its paths rewritten
+    Given marketplace "cyberplace" has no recorded origin and no git remote
+    And it lists "local-only" with a "./" source
     When I run "universal-plugin marketplace add local-only@cyberplace --claude --root <root>"
-    Then the error says that source resolves only in that marketplace
+    Then the error says there is no remote to rewrite the source against
     And the exit code is 1
 
   Scenario: a repository with no catalog gets one
