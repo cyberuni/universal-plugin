@@ -130,9 +130,19 @@ from `--description`, `--version`, `--homepage`, `--repository`, `--license`, an
 
 `<plugin>@<marketplace>` has no source type in the schema, so the entry is resolved and copied. The
 marketplace has to be readable: one the runtime has already added is found under
-`~/.claude/plugins`, and `--from <dir>` names a checkout of one that is not installed. An entry whose
-source is a `./` path is refused, because it resolves against that marketplace's root rather than
-this repository.
+`~/.claude/plugins`, and `--from <dir>` names a checkout of one that is not installed.
+
+An entry whose source is a `./` path is **rewritten** rather than copied. That path resolves against
+the other marketplace's root, which your repository is not — but it names a location inside a
+repository whose URL is known:
+
+| Entry in the other marketplace | Written into your catalog |
+|---|---|
+| `./plugins/aced` in `cyberuni/cyberplace` | `{ "source": "git-subdir", "url": "https://github.com/cyberuni/cyberplace.git", "path": "plugins/aced" }` |
+| `./` in `unional/skills` | `{ "source": "github", "repo": "unional/skills" }` |
+
+The origin comes from what the runtime recorded for that marketplace, falling back to the clone's own
+git remote. One with neither stops the run rather than writing a path that resolves nowhere.
 
 The catalog is created if the repository has none, named and owned the way `init` names it —
 `--owner` is usually what a curating repository needs, since it has no plugin manifest of its own.

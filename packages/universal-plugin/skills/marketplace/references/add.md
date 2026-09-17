@@ -95,9 +95,22 @@ rather than referenced. The marketplace has to be readable:
 A marketplace that is not installed stops the run and says so. Ask the user to add it in their
 runtime, or to point `--from` at a clone; do not guess a URL.
 
-An entry whose source is a `./` path **cannot** be copied: it resolves against that marketplace's
-root, which this repository is not. The command refuses it rather than writing a path that does not
-exist here.
+An entry whose source is a `./` path is **rewritten**, not copied. That path resolves against the
+other marketplace's root, which this repository is not — but it is a location inside a repository
+whose URL is known, so it becomes an absolute source:
+
+| Entry in the other marketplace | Written here |
+| --- | --- |
+| `./plugins/aced` in `cyberuni/cyberplace` | `{ "source": "git-subdir", "url": "https://github.com/cyberuni/cyberplace.git", "path": "plugins/aced" }` |
+| `./` in `unional/skills` | `{ "source": "github", "repo": "unional/skills" }` |
+
+The origin comes from what the runtime recorded for that marketplace, falling back to the clone's
+own git remote — which is also how `--from` resolves one. A marketplace with neither stops the run:
+there is no URL to rewrite against, and a bare path would name a directory this repository does not
+have.
+
+Both rewritten forms are Claude Code source types, so expect Codex, Copilot CLI, and Cursor to be
+skipped for a subdirectory plugin.
 
 ## 6. Validate
 
