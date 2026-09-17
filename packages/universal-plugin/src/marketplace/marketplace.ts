@@ -9,9 +9,15 @@ export interface MarketplaceOwner {
 	url?: string
 }
 
+/** A source a catalog entry may name other than a path in this repository, in the tagged shape the
+ *  official schema states: `{ source: "npm", package }`, `{ source: "github", repo }`,
+ *  `{ source: "url", url }`, or `{ source: "git-subdir", url, path }`. */
+export type CatalogSource = { source: string } & Record<string, unknown>
+
 export interface MarketplacePlugin {
 	name: string
-	source: string
+	/** A `./`-prefixed repository-relative path, or a tagged remote source. */
+	source: string | CatalogSource
 	metadata: Record<string, unknown>
 }
 
@@ -97,6 +103,12 @@ export function isLocalCatalogSource(source: unknown): boolean {
 	return (source as Record<string, unknown>).source === 'local'
 }
 
+/** Codex states a source as an object either way: a repository path is tagged `local`, and a source
+ *  that already carries its own tag passes through as it stands. */
+function codexSource(source: string | CatalogSource): CatalogSource {
+	return typeof source === 'string' ? { source: 'local', path: source } : source
+}
+
 function codexArtifact(metadata: MarketplaceMetadata, plugins: MarketplacePlugin[]): MarketplaceArtifact {
 	return {
 		path: TARGET_CATALOG_PATHS.codex,
@@ -110,7 +122,7 @@ function codexArtifact(metadata: MarketplaceMetadata, plugins: MarketplacePlugin
 				// E-CODEX-M15, E-CODEX-M16). This is derived from the canonical manifest so the two
 				// agree (ADR-0010 §3), and is absent when the manifest declares no version.
 				version: plugin.metadata.version,
-				source: { source: 'local', path: plugin.source },
+				source: codexSource(plugin.source),
 				policy: { installation: 'AVAILABLE', authentication: 'ON_INSTALL' },
 				category: 'Productivity',
 			})),
@@ -152,6 +164,21 @@ export const VENDOR_TARGETS: Record<string, MarketplaceTarget> = {
 	'copilot-cli': 'copilot',
 }
 
+/** The source forms each runtime installs from.
+ *
+ *  Every runtime takes a repository path. Beyond that they diverge, and the divergence is not
+ *  cosmetic: a catalog is read at install time in someone else's terminal, so a source a runtime
+ *  cannot resolve is a failure far from here. Claude Code's schema documents the full tagged set
+ *  (<https://json.schemastore.org/claude-code-marketplace.json>). Codex documents npm alongside a
+ *  local path. Copilot CLI and Cursor document local paths only, which is why an npm entry reaches
+ *  two catalogs rather than four (`.research/local-marketplaces`, and issue #86). */
+export const TARGET_SOURCE_KINDS: Record<MarketplaceTarget, readonly string[]> = {
+	claude: ['path', 'npm', 'github', 'url', 'git-subdir'],
+	codex: ['path', 'npm'],
+	copilot: ['path'],
+	cursor: ['path'],
+}
+
 /** Folds one plugin's entry into a catalog that may already exist, and returns the artifact to
  *  write. An existing catalog keeps its own top-level fields — its name, its owner, a description
  *  someone wrote — and every entry it lists for other plugins, in place. Only this plugin's entry is
@@ -166,6 +193,7 @@ export function mergeCatalogEntry(
 	plugin: MarketplacePlugin,
 	/** Reads the catalog already at that target's path, keyed the way the artifact names it. */
 	readExisting: (path: string) => string | undefined,
+	{ keepForeignSource = true } = {},
 ): MarketplaceArtifact {
 	const artifact = serializeTarget(target, metadata, [plugin])[0] as MarketplaceArtifact
 	const existing = readExisting(artifact.path)
@@ -180,7 +208,7 @@ export function mergeCatalogEntry(
 	for (const [key, value] of Object.entries(generated)) {
 		if (!(key in merged)) merged[key] = value
 	}
-	merged.plugins = mergeEntries(previous, entry, { keepForeignSource: true })
+	merged.plugins = mergeEntries(previous, entry, { keepForeignSource })
 	return { path: artifact.path, content: json(merged) }
 }
 

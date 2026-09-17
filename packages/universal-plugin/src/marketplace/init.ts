@@ -82,7 +82,10 @@ function manifestOwner(manifest: Record<string, unknown>): MarketplaceOwner | un
 	return undefined
 }
 
-function deriveMetadata(root: string, fs: MarketplaceFs, opts: MarketplaceInitOptions): RootMetadata {
+/** The catalog's own identity: its name and its owner, from the root manifest unless overridden.
+ *  Exported because `marketplace add` creates a catalog in a repository that has no plugins of its
+ *  own to discover, and the two commands must name that catalog the same way. */
+export function deriveMetadata(root: string, fs: MarketplaceFs, opts: MarketplaceInitOptions): RootMetadata {
 	const rootManifest = path.join(root, 'plugin.json')
 	if (fs.exists(rootManifest)) assertContained(root, rootManifest, fs, 'root plugin.json')
 	const manifest = fs.exists(rootManifest) ? parseManifest(fs, rootManifest) : {}
