@@ -81,6 +81,17 @@ proving a discovered plugin will install successfully in every vendor runtime.
   (see [`validate/`](../validate/README.md)). A planned catalog that would be refused stops the whole
   command; generation never emits one.
 - Catalog sources are `./`-prefixed paths relative to `--root`.
+- A regeneration keeps what discovery cannot produce. An existing entry whose source is not local —
+  not a `./` string, not Codex's `{ source: "local" }` — survives even though nothing on disk
+  produced it, and a discovered plugin whose existing entry names a non-local source keeps that
+  source with only its derived metadata refreshed. That is what lets [`add/`](../add/README.md) and
+  this command run on one repository, and it stops a plugin distributed through npm from being
+  rewritten to a repository path holding gitignored build output. What discovery owns it still owns:
+  a local-path entry it no longer finds is dropped. An existing catalog that is not JSON has nothing
+  to preserve and is regenerated whole under `--force`.
+- Folding reads the existing catalog, so it happens only after that path is proved to resolve within
+  `--root`.
+- A result row's plugin list names what the catalog ends up listing, discovered and kept alike.
 - Generation is deterministic: candidates sort by plugin name and equivalent existing JSON is
   `unchanged` regardless of object-key order or whitespace.
 - The command validates metadata and plans every selected artifact before changing any of them. A
@@ -116,7 +127,8 @@ flowchart TD
   H -- yes --> J[Derive deterministic selected artifacts]
   J --> J1{Selected output paths contained?}
   J1 -- no --> E1
-  J1 -- yes --> K{Any selected artifact differs?}
+  J1 -- yes --> J2[Fold each artifact into the catalog already on disk]
+  J2 --> K{Any selected artifact differs?}
   K -- no --> L{Dry run?}
   K -- yes --> M{Force?}
   M -- no --> E1
@@ -173,6 +185,11 @@ flowchart TD
 | dry-run branch | selected targets have eligible plugins; `--dry-run` | `dry run reports every selected artifact without writing it` |
 | equivalent convergence | selected artifacts contain semantically equivalent JSON | `an equivalent rerun is unchanged` |
 | conflict guard | a selected artifact differs; no `--force` | `a differing selected artifact fails without changing any selected artifact` |
+| foreign entry kept | the catalog lists an entry with a non-local source | `an entry discovery cannot produce survives a regeneration` |
+| stale local dropped | the catalog lists a `./` entry discovery no longer finds | `a local entry discovery no longer finds is dropped` |
+| foreign source kept | a discovered plugin's entry names a non-local source | `a discovered plugin distributed elsewhere keeps that source` |
+| foreign convergence | the catalog already carries a kept entry | `a kept entry is not a conflict on rerun` |
+| unparseable existing | the existing catalog is not JSON | `a catalog that is not JSON is regenerated under force` |
 | force branch | a selected artifact differs; `--force` | `force replaces only selected differing artifacts` |
 | write-error branch | a selected artifact write fails | `a selected-artifact write failure reports an error` |
 | output link guard | selected output parent is a link outside `--root` | `an external selected-output symlink fails before writes` |

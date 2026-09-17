@@ -321,3 +321,33 @@ Feature: marketplace init — derive local marketplace metadata
     Then the exit code is 1
     And stderr names "--format"
     And no selected marketplace artifact is changed
+
+  Scenario: an entry discovery cannot produce survives a regeneration
+    Given the Claude catalog also lists "repobuddy" with an npm source
+    When I run "universal-plugin marketplace init --claude --force --root <root>"
+    Then the catalog still lists "repobuddy" with that source
+    And the result row names both "alpha" and "repobuddy"
+
+  Scenario: a local entry discovery no longer finds is dropped
+    Given the Claude catalog also lists "ghost" with a "./" source that is not on disk
+    When I run "universal-plugin marketplace init --claude --force --root <root>"
+    Then the catalog no longer lists "ghost"
+
+  Scenario: a discovered plugin distributed elsewhere keeps that source
+    Given the Claude catalog lists "alpha" with an npm source
+    And the "alpha" manifest declares a newer version
+    When I run "universal-plugin marketplace init --claude --force --root <root>"
+    Then the "alpha" entry still carries the npm source
+    And its derived metadata is refreshed
+
+  Scenario: a kept entry is not a conflict on rerun
+    Given the Claude catalog carries a kept entry and is otherwise current
+    When I run "universal-plugin marketplace init --claude --root <root>"
+    Then the Claude target is reported unchanged
+    And the exit code is 0
+
+  Scenario: a catalog that is not JSON is regenerated under force
+    Given the Claude catalog contains text that is not JSON
+    When I run "universal-plugin marketplace init --claude --root <root>"
+    Then the command fails naming the --force remedy
+    And rerunning it with "--force" writes a catalog listing "alpha"
