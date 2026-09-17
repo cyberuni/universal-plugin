@@ -81,7 +81,7 @@ export function gatherCatalogRepo(root: string): CatalogRepo | undefined {
  *  This is read, never written. It is the one place on the machine that already knows what
  *  `<plugin>@<marketplace>` refers to, so resolving through it asks the user for nothing and reaches
  *  no network. A marketplace they have not added is simply not found, and `--from` names it instead. */
-export function claudePluginsHome(home: string = os.homedir()): string {
+function claudePluginsHome(home: string = os.homedir()): string {
 	return path.join(home, '.claude', 'plugins')
 }
 

@@ -9,8 +9,6 @@ import type { CatalogSource } from './marketplace.js'
  *  than a source to write. */
 export type SourceKind = 'path' | 'npm' | 'github' | 'url' | 'marketplace'
 
-export const SOURCE_KINDS: SourceKind[] = ['path', 'npm', 'github', 'url', 'marketplace']
-
 export interface PluginSpec {
 	kind: SourceKind
 	/** The entry name the spec implies, before `--name` overrides it. */
