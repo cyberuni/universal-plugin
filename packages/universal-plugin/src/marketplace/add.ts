@@ -1,8 +1,15 @@
 import * as path from 'node:path'
 
-import { type MarketplaceFs, readMarketplaceCatalog, realMarketplaceFs, resolveKnownMarketplace } from './fs.js'
+import {
+	gitRemoteUrl,
+	type MarketplaceFs,
+	readMarketplaceCatalog,
+	realMarketplaceFs,
+	resolveKnownMarketplace,
+} from './fs.js'
 import { deriveMetadata } from './init.js'
 import {
+	absoluteSource,
 	assertMarketplaceName,
 	type CatalogSource,
 	isLocalCatalogSource,
@@ -10,6 +17,7 @@ import {
 	type MarketplacePlugin,
 	type MarketplaceTarget,
 	mergeCatalogEntry,
+	originFromUrl,
 	sameCatalogContent,
 	TARGET_CATALOG_PATHS,
 	TARGET_SOURCE_KINDS,
@@ -110,12 +118,13 @@ function resolveFromMarketplace(
 	fs: MarketplaceFs,
 ): { source: string | CatalogSource; metadata: Record<string, unknown> } {
 	const marketplace = spec.marketplace as string
-	const dir = opts.from ?? resolveKnownMarketplace(marketplace, fs)
-	if (dir === undefined) {
+	const known = opts.from === undefined ? resolveKnownMarketplace(marketplace, fs) : { dir: opts.from }
+	if (known === undefined) {
 		throw new Error(
 			`error: marketplace "${marketplace}" is not installed; add it in the runtime first, or pass --from <path>`,
 		)
 	}
+	const dir = known.dir
 	const content = readMarketplaceCatalog(dir, fs)
 	if (content === undefined) throw new Error(`error: no marketplace.json found under "${dir}"`)
 
@@ -136,14 +145,23 @@ function resolveFromMarketplace(
 
 	const source = found.source
 	if (source === undefined) throw new Error(`error: the "${spec.plugin}" entry in "${marketplace}" names no source`)
-	// A relative source resolves against the other marketplace's own root, which this repository is
-	// not. Copying it would point at a directory that does not exist here.
-	if (isLocalCatalogSource(source)) {
+	if (!isLocalCatalogSource(source)) return { source: source as CatalogSource, metadata: found }
+
+	// A relative source resolves against the other marketplace's root, which this repository is not,
+	// so carrying it across unchanged would name a directory that does not exist here. It is still a
+	// location inside a repository whose URL is known, which `git-subdir` states exactly.
+	const remote = gitRemoteUrl(dir)
+	const origin = known.origin ?? (remote === undefined ? undefined : originFromUrl(remote))
+	if (origin === undefined) {
 		throw new Error(
-			`error: "${spec.plugin}" is a local plugin of marketplace "${marketplace}"; its source resolves only there`,
+			`error: "${spec.plugin}" is local to marketplace "${marketplace}", and that marketplace has no remote to rewrite its source against`,
 		)
 	}
-	return { source: source as CatalogSource, metadata: found }
+	const rewritten = absoluteSource(origin, source as string | CatalogSource)
+	if (rewritten === undefined) {
+		throw new Error(`error: the "${spec.plugin}" entry in "${marketplace}" names a source this command cannot read`)
+	}
+	return { source: rewritten, metadata: found }
 }
 
 function selectedTargets(targets?: MarketplaceTarget[]): MarketplaceTarget[] {

@@ -1,9 +1,11 @@
+import { execFileSync } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import { expect, test } from 'vitest'
 
 import { addToMarketplace } from './add.js'
+import { resolveKnownMarketplace } from './fs.js'
 import { initializeMarketplace } from './init.js'
 
 function fixture(prefix: string): string {
@@ -20,14 +22,20 @@ function entries(root: string, relative: string): Record<string, unknown>[] {
 	return (readJson(root, relative).plugins ?? []) as Record<string, unknown>[]
 }
 
-/** A marketplace as the runtime would have cloned it, for the `<plugin>@<marketplace>` path. */
-function installedMarketplace(home: string, name: string, plugins: unknown[]): void {
+/** A marketplace as the runtime would have cloned it, for the `<plugin>@<marketplace>` path.
+ *  `remote` gives the clone an origin, which is what a relative source is rewritten against. */
+function installedMarketplace(home: string, name: string, plugins: unknown[], remote?: string): string {
 	const dir = path.join(home, '.claude', 'plugins', 'marketplaces', name)
 	fs.mkdirSync(path.join(dir, '.claude-plugin'), { recursive: true })
 	fs.writeFileSync(
 		path.join(dir, '.claude-plugin', 'marketplace.json'),
 		JSON.stringify({ name, owner: { name: 'someone' }, plugins }),
 	)
+	if (remote !== undefined) {
+		execFileSync('git', ['-C', dir, 'init', '-q'])
+		execFileSync('git', ['-C', dir, 'remote', 'add', 'origin', remote])
+	}
+	return dir
 }
 
 test('creates a catalog for a repository that develops no plugins of its own', () => {
@@ -125,10 +133,9 @@ test('copies the source another marketplace already publishes for the plugin', (
 	const home = fixture('universal-plugin-add-home-')
 	const root = fixture('universal-plugin-add-from-marketplace-')
 	try {
-		installedMarketplace(home, 'cyberplace', [
+		const from = installedMarketplace(home, 'cyberplace', [
 			{ name: 'repobuddy', source: { source: 'npm', package: 'repobuddy' }, description: 'Repo automation' },
 		])
-		const from = path.join(home, '.claude', 'plugins', 'marketplaces', 'cyberplace')
 
 		addToMarketplace(root, 'repobuddy@cyberplace', { targets: ['claude'], from })
 
@@ -147,17 +154,89 @@ test('reports what went wrong when a marketplace entry cannot be copied', () => 
 	const home = fixture('universal-plugin-add-home-bad-')
 	const root = fixture('universal-plugin-add-from-bad-')
 	try {
-		installedMarketplace(home, 'cyberplace', [{ name: 'local-only', source: './plugins/local-only' }])
-		const from = path.join(home, '.claude', 'plugins', 'marketplaces', 'cyberplace')
+		const from = installedMarketplace(home, 'cyberplace', [
+			{ name: 'local-only', source: './plugins/local-only' },
+			{ name: 'sourceless' },
+		])
 
 		expect(() => addToMarketplace(root, 'ghost@nowhere', { targets: ['claude'] })).toThrow(/is not installed/)
 		expect(() => addToMarketplace(root, 'ghost@cyberplace', { targets: ['claude'], from })).toThrow(
 			/lists no plugin "ghost"/,
 		)
-		// A `./` source resolves against that marketplace's root, which this repository is not.
-		expect(() => addToMarketplace(root, 'local-only@cyberplace', { targets: ['claude'], from })).toThrow(
-			/resolves only there/,
+		expect(() => addToMarketplace(root, 'sourceless@cyberplace', { targets: ['claude'], from })).toThrow(
+			/names no source/,
 		)
+		// A `./` source can only be rewritten against a remote, and this clone has none.
+		expect(() => addToMarketplace(root, 'local-only@cyberplace', { targets: ['claude'], from })).toThrow(
+			/no remote to rewrite its source against/,
+		)
+	} finally {
+		fs.rmSync(home, { recursive: true, force: true })
+		fs.rmSync(root, { recursive: true, force: true })
+	}
+})
+
+test('rewrites a source relative to the other marketplace into one that resolves anywhere', () => {
+	const home = fixture('universal-plugin-add-home-rewrite-')
+	const root = fixture('universal-plugin-add-rewrite-')
+	try {
+		const from = installedMarketplace(
+			home,
+			'cyberplace',
+			[
+				{ name: 'aced', source: './plugins/aced', description: 'Agent config evals' },
+				{ name: 'whole-repo', source: './' },
+			],
+			'https://github.com/cyberuni/cyberplace.git',
+		)
+
+		addToMarketplace(root, 'aced@cyberplace', { targets: ['claude'], from })
+		addToMarketplace(root, 'whole-repo@cyberplace', { targets: ['claude'], from })
+
+		// A plugin in a subdirectory of the marketplace's own repository is exactly git-subdir.
+		expect(entries(root, '.claude-plugin/marketplace.json')[0]).toMatchObject({
+			name: 'aced',
+			source: { source: 'git-subdir', url: 'https://github.com/cyberuni/cyberplace.git', path: 'plugins/aced' },
+			description: 'Agent config evals',
+		})
+		// One at the repository root needs no subdirectory, so it takes the plainer form.
+		expect(entries(root, '.claude-plugin/marketplace.json')[1]).toMatchObject({
+			name: 'whole-repo',
+			source: { source: 'github', repo: 'cyberuni/cyberplace' },
+		})
+	} finally {
+		fs.rmSync(home, { recursive: true, force: true })
+		fs.rmSync(root, { recursive: true, force: true })
+	}
+})
+
+test('a rewritten source reaches only the runtimes that resolve it', () => {
+	const home = fixture('universal-plugin-add-home-rewrite-targets-')
+	const root = fixture('universal-plugin-add-rewrite-targets-')
+	try {
+		const from = installedMarketplace(
+			home,
+			'palo',
+			[{ name: 'pods', source: './plugins/pods' }],
+			'https://code.pan.run/ui-platform/palo/marketplace.git',
+		)
+
+		const result = addToMarketplace(root, 'pods@palo', { from })
+
+		// git-subdir is a Claude Code source form; the other three document local paths only.
+		expect(result.map((row) => [row.target, row.status])).toEqual([
+			['claude', 'added'],
+			['codex', 'skipped'],
+			['copilot', 'skipped'],
+			['cursor', 'skipped'],
+		])
+		expect(entries(root, '.claude-plugin/marketplace.json')[0]).toMatchObject({
+			source: {
+				source: 'git-subdir',
+				url: 'https://code.pan.run/ui-platform/palo/marketplace.git',
+				path: 'plugins/pods',
+			},
+		})
 	} finally {
 		fs.rmSync(home, { recursive: true, force: true })
 		fs.rmSync(root, { recursive: true, force: true })
@@ -229,5 +308,38 @@ test('an entry an owner cannot be derived for fails before anything is written',
 		expect(readJson(root, '.claude-plugin/marketplace.json')).toMatchObject({ owner: { name: 'unional' } })
 	} finally {
 		fs.rmSync(root, { recursive: true, force: true })
+	}
+})
+
+test('reads a marketplace origin from what the runtime recorded, not only from its clone', () => {
+	const home = fixture('universal-plugin-add-registry-')
+	try {
+		installedMarketplace(home, 'cyberplace', [])
+		installedMarketplace(home, 'palo', [])
+		fs.writeFileSync(
+			path.join(home, '.claude', 'plugins', 'known_marketplaces.json'),
+			JSON.stringify({
+				cyberplace: {
+					source: { source: 'github', repo: 'cyberuni/cyberplace' },
+					installLocation: path.join(home, '.claude', 'plugins', 'marketplaces', 'cyberplace'),
+				},
+				palo: {
+					source: { source: 'git', url: 'https://code.pan.run/ui-platform/palo/marketplace.git' },
+					installLocation: path.join(home, '.claude', 'plugins', 'marketplaces', 'palo'),
+				},
+			}),
+		)
+
+		// The runtime records a github repo for one and a clone URL for the other; both become an origin.
+		expect(resolveKnownMarketplace('cyberplace', undefined, home)?.origin).toEqual({
+			url: 'https://github.com/cyberuni/cyberplace.git',
+			repo: 'cyberuni/cyberplace',
+		})
+		expect(resolveKnownMarketplace('palo', undefined, home)?.origin).toEqual({
+			url: 'https://code.pan.run/ui-platform/palo/marketplace.git',
+		})
+		expect(resolveKnownMarketplace('nosuchplace', undefined, home)).toBeUndefined()
+	} finally {
+		fs.rmSync(home, { recursive: true, force: true })
 	}
 })

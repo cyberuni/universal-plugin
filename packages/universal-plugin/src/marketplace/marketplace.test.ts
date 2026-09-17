@@ -5,7 +5,7 @@ import { expect, test } from 'vitest'
 
 import { realMarketplaceFs } from './fs.js'
 import { initializeMarketplace } from './init.js'
-import { mergeCatalogEntry, refreshCatalogEntry } from './marketplace.js'
+import { absoluteSource, mergeCatalogEntry, originFromRepo, originFromUrl, refreshCatalogEntry } from './marketplace.js'
 
 function fixture(prefix: string): string {
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), prefix))
@@ -434,4 +434,54 @@ test('re-deriving one entry leaves the source it is distributed from alone', () 
 		mergeCatalogEntry('claude', { name: 'repo-local', owner: { name: 'unional' } }, plugin, () => existing).content,
 	)
 	expect(merged.plugins).toEqual([{ name: 'alpha', source: { source: 'npm', package: 'alpha' }, version: '2.0.0' }])
+})
+
+test('reads a git URL as an origin, recognizing a GitHub one', () => {
+	expect(originFromUrl('https://github.com/cyberuni/cyberplace.git')).toEqual({
+		url: 'https://github.com/cyberuni/cyberplace.git',
+		repo: 'cyberuni/cyberplace',
+	})
+	expect(originFromUrl('git@github.com:cyberuni/cyberplace.git')).toMatchObject({ repo: 'cyberuni/cyberplace' })
+	expect(originFromUrl('https://github.com/cyberuni/cyberplace')).toMatchObject({ repo: 'cyberuni/cyberplace' })
+	// A host with no `owner/repo` convention to read carries the URL alone.
+	expect(originFromUrl('https://code.pan.run/ui-platform/palo/marketplace.git')).toEqual({
+		url: 'https://code.pan.run/ui-platform/palo/marketplace.git',
+	})
+	expect(originFromRepo('cyberuni/cyberplace')).toEqual({
+		url: 'https://github.com/cyberuni/cyberplace.git',
+		repo: 'cyberuni/cyberplace',
+	})
+})
+
+test('rewrites a source local to another marketplace against that marketplace origin', () => {
+	const github = originFromRepo('cyberuni/cyberplace')
+	const plain = originFromUrl('https://code.pan.run/ui-platform/palo/marketplace.git')
+
+	// A subdirectory of a known repository is what git-subdir states.
+	expect(absoluteSource(github, './plugins/aced')).toEqual({
+		source: 'git-subdir',
+		url: 'https://github.com/cyberuni/cyberplace.git',
+		path: 'plugins/aced',
+	})
+	expect(absoluteSource(plain, './plugins/pods')).toEqual({
+		source: 'git-subdir',
+		url: 'https://code.pan.run/ui-platform/palo/marketplace.git',
+		path: 'plugins/pods',
+	})
+	// Codex states a local source as an object; the path inside it rewrites the same way.
+	expect(absoluteSource(github, { source: 'local', path: './plugins/aced' })).toMatchObject({
+		source: 'git-subdir',
+		path: 'plugins/aced',
+	})
+
+	// At the repository root there is no subdirectory, so the plainer form applies.
+	expect(absoluteSource(github, './')).toEqual({ source: 'github', repo: 'cyberuni/cyberplace' })
+	expect(absoluteSource(github, '.')).toEqual({ source: 'github', repo: 'cyberuni/cyberplace' })
+	expect(absoluteSource(plain, './')).toEqual({
+		source: 'url',
+		url: 'https://code.pan.run/ui-platform/palo/marketplace.git',
+	})
+
+	expect(absoluteSource(github, './plugins/aced/')).toMatchObject({ path: 'plugins/aced' })
+	expect(absoluteSource(github, { source: 'npm' })).toBeUndefined()
 })

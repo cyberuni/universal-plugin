@@ -3,7 +3,7 @@ import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 
-import { TARGET_CATALOG_PATHS } from './marketplace.js'
+import { type MarketplaceOrigin, originFromRepo, originFromUrl, TARGET_CATALOG_PATHS } from './marketplace.js'
 
 export interface MarketplaceFs {
 	exists(file: string): boolean
@@ -85,12 +85,46 @@ function claudePluginsHome(home: string = os.homedir()): string {
 	return path.join(home, '.claude', 'plugins')
 }
 
-/** The directory holding a marketplace the user has already added, or `undefined`. */
+/** A marketplace the user has already added: where its clone sits, and where that clone came from.
+ *  The origin is what lets a copied entry's relative source be rewritten into one that resolves
+ *  outside that marketplace. */
+export interface KnownMarketplace {
+	dir: string
+	origin?: MarketplaceOrigin
+}
+
+/** The origin the runtime recorded for a marketplace, in the vocabulary it records it in: a
+ *  `github` repo slug, or a `git`/`url` clone URL. */
+function registryOrigin(source: unknown): MarketplaceOrigin | undefined {
+	if (typeof source !== 'object' || source === null || Array.isArray(source)) return undefined
+	const record = source as Record<string, unknown>
+	if (record.source === 'github' && typeof record.repo === 'string') return originFromRepo(record.repo)
+	if ((record.source === 'git' || record.source === 'url') && typeof record.url === 'string') {
+		return originFromUrl(record.url)
+	}
+	return undefined
+}
+
+/** The URL a checkout was cloned from, which is the origin for a marketplace the registry does not
+ *  describe — one reached through `--from`, or added before the runtime recorded a source. */
+export function gitRemoteUrl(dir: string): string | undefined {
+	try {
+		const url = execFileSync('git', ['-C', dir, 'remote', 'get-url', 'origin'], {
+			encoding: 'utf8',
+			stdio: ['ignore', 'pipe', 'ignore'],
+		}).trim()
+		return url === '' ? undefined : url
+	} catch {
+		return undefined
+	}
+}
+
+/** The marketplace a name refers to, or `undefined` when the user has not added it. */
 export function resolveKnownMarketplace(
 	name: string,
 	marketplaceFs: MarketplaceFs = realMarketplaceFs,
 	home: string = os.homedir(),
-): string | undefined {
+): KnownMarketplace | undefined {
 	const pluginsHome = claudePluginsHome(home)
 	const registry = path.join(pluginsHome, 'known_marketplaces.json')
 	if (marketplaceFs.exists(registry)) {
@@ -103,14 +137,17 @@ export function resolveKnownMarketplace(
 		if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
 			const entry = (parsed as Record<string, unknown>)[name]
 			if (typeof entry === 'object' && entry !== null) {
-				const location = (entry as Record<string, unknown>).installLocation
-				if (typeof location === 'string' && marketplaceFs.exists(location)) return location
+				const record = entry as Record<string, unknown>
+				const location = record.installLocation
+				if (typeof location === 'string' && marketplaceFs.exists(location)) {
+					return { dir: location, origin: registryOrigin(record.source) }
+				}
 			}
 		}
 	}
 	// A clone can be on disk before the registry mentions it, and the layout is conventional.
 	const conventional = path.join(pluginsHome, 'marketplaces', name)
-	return marketplaceFs.exists(conventional) ? conventional : undefined
+	return marketplaceFs.exists(conventional) ? { dir: conventional } : undefined
 }
 
 /** The catalog a marketplace directory carries, tried in the order the runtimes agree on: the Claude

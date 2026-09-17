@@ -164,7 +164,51 @@ export const VENDOR_TARGETS: Record<string, MarketplaceTarget> = {
 	'copilot-cli': 'copilot',
 }
 
-/** The source forms each runtime installs from.
+/** Where a marketplace itself came from, reduced to what rewriting one of its entries needs: a git
+ *  URL, plus the `owner/repo` when the origin named one. */
+export interface MarketplaceOrigin {
+	url: string
+	repo?: string
+}
+
+const GITHUB_URL = /^(?:https?:\/\/(?:www\.)?github\.com\/|git@github\.com:)([^/]+\/[^/]+?)(?:\.git)?\/?$/
+
+/** A git URL read as an origin, recognizing a GitHub one so an entry at the repository root can use
+ *  the tidier `github` form. */
+export function originFromUrl(url: string): MarketplaceOrigin {
+	const match = GITHUB_URL.exec(url.trim())
+	return match ? { url, repo: match[1] as string } : { url }
+}
+
+/** An `owner/repo` slug as an origin. */
+export function originFromRepo(repo: string): MarketplaceOrigin {
+	return { url: `https://github.com/${repo}.git`, repo }
+}
+
+/** The path part of a local source, `./` stripped, empty at the marketplace root. */
+function localSourcePath(source: string | CatalogSource): string | undefined {
+	const raw = typeof source === 'string' ? source : source.path
+	if (typeof raw !== 'string') return undefined
+	return raw.replace(/^\.\/?/, '').replace(/\/+$/, '')
+}
+
+/** Rewrites a source that is local to *another* marketplace into one that resolves from anywhere.
+ *
+ *  A copied entry's `./plugins/aced` is relative to the marketplace it came from, so carrying it
+ *  across unchanged would point at a directory this repository does not have. The path is not
+ *  useless, though — it is a location inside a repository whose URL is known, which is exactly what
+ *  `git-subdir` states. An entry at that repository's root needs no subdirectory and takes the
+ *  plainer `github` or `url` form. */
+export function absoluteSource(origin: MarketplaceOrigin, source: string | CatalogSource): CatalogSource | undefined {
+	const subdir = localSourcePath(source)
+	if (subdir === undefined) return undefined
+	if (subdir === '' || subdir === '.') {
+		return origin.repo ? { source: 'github', repo: origin.repo } : { source: 'url', url: origin.url }
+	}
+	return { source: 'git-subdir', url: origin.url, path: subdir }
+}
+
+/** The source forms each runtime installs from./** The source forms each runtime installs from.
  *
  *  Every runtime takes a repository path. Beyond that they diverge, and the divergence is not
  *  cosmetic: a catalog is read at install time in someone else's terminal, so a source a runtime
