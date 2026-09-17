@@ -111,7 +111,7 @@ ADR-0006 corrects that.
 |---|---|---|
 | [`cli/`](./cli/README.md) | behavioral | the root program's own identity — `--version`/`-V` reports the installed `universal-plugin` package's version |
 | [`plugin/`](./plugin/README.md) | group | the `plugin` command group — build / bundle / validate / init / install / version |
-| [`plugin/build/`](./plugin/build/README.md) | behavioral | `universal-plugin plugin build [--vendor] [--dry-run] [--clean]` — derive per-vendor manifests from the canonical `plugin.json` (dev-consumable form; no skill pins, but it stamps a marked `mcpServers` invocation with the plugin version) |
+| [`plugin/build/`](./plugin/build/README.md) | behavioral | `universal-plugin plugin build [--vendor] [--dry-run] [--clean] [--check]` — derive per-vendor manifests from the canonical `plugin.json` (dev-consumable form; no skill pins, but it stamps a marked `mcpServers` invocation with the plugin version) and copy each governance a skill declares into that skill, `--check` failing on a committed copy that differs from its source (ADR-0016) |
 | [`plugin/bundle/`](./plugin/bundle/README.md) | behavioral | `universal-plugin plugin bundle [--dry-run] [--full] [--format] [--runner]` — materialize the release form: pin the `npx`/`upx <cli>@<version>` references in the plugin's skills to their shipping workspace versions (`--runner` selects the emitted runner word) |
 | [`plugin/validate/`](./plugin/validate/README.md) | behavioral | `universal-plugin plugin validate [--vendor] [--strict] [--full] [--format]` — check the canonical manifest against the Agent Plugins schema + vendor rules; bare `universal-plugin plugin` runs it too |
 | [`plugin/version/`](./plugin/version/README.md) | behavioral | `universal-plugin plugin version <major\|minor\|patch\|pre*\|x.y.z> [--preid] [--force] [--no-build] [--dry-run]` — move the plugin's version: write the two **authored** numbers (canonical `plugin.json`, and the `packagePath` `package.json` when declared), then re-derive the vendor manifests through `build`'s own writer |
@@ -155,6 +155,12 @@ Where a new concept lives — slot here, do not invent placement (strategy = **c
   **manifest** it already derives. The dividing line is the object, not the word "pin".
 - **a new name→document resolution op** (resolve or list governance by name across scopes) →
   `governance/`.
+- **a new op putting a governance _where a skill reads it_** (copy a governance into the skills that
+  declare it, follow the pointers inside a copy, verify the committed copies) → **`plugin/build/`**
+  ([ADR-0016](./design/decisions/0016-build-copies-governances-into-skills.md)). It does not
+  contradict the `governance/` rule above: `governance/` owns resolving a **name** for a caller that
+  asks at run time, build owns **placing the document** in the skill folder at build time, beside the
+  other skill content it already writes. The dividing line is the moment, not the word "governance".
 - **a new repository-local marketplace metadata derivation** (discover eligible plugin roots and
   emit each vendor's catalog) → `marketplace/init/`. This is
   deterministic file generation only: publishing, registration, installation, authentication,
@@ -217,7 +223,7 @@ scanned node).
 | `axi` | `axi/` (reference) · `config/add/` (behavior) · `config/get/` (behavior) · `governance/` (behavior) · `marketplace/init/` (behavior) · `plugin/build/` (behavior) · `plugin/bundle/` (behavior) · `plugin/init/` (behavior) · `plugin/install/` (behavior) · `plugin/validate/` (behavior) · `plugin/version/` (behavior) |
 | `canonical-manifest` | `plugin/build/` (behavior) · `plugin/init/` (behavior) · `plugin/install/` (behavior) · `plugin/validate/` (behavior) · `plugin/version/` (behavior) |
 | `config` | `config/add/` (behavior) · `config/get/` (behavior) |
-| `governance` | `governance/` (behavior) |
+| `governance` | `governance/` (behavior) · `plugin/build/` (behavior) |
 | `marketplace` | `marketplace/init/` (behavior) |
 | `release` | `plugin/bundle/` (behavior) · `plugin/version/` (behavior) |
 

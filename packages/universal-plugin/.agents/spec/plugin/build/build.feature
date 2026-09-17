@@ -794,6 +794,112 @@ Feature: plugin build — derive per-vendor manifests
     Then the catalog is reported as planned
     And the catalog file is unchanged
 
+  # ── Governance copies (ADR-0016) ──
+  # The .md files in <skill>/references/governances/ declare which governances a skill uses; the
+  # build rewrites each from its owning package, follows the pointers inside, and commits the result.
+
+  Scenario: a declared file is rewritten from the governance the plugin owns
+    Given a skill "init" declaring "references/governances/plugin-design.md"
+    And its SKILL.md lists that copy under References
+    And the plugin ships "governances/plugin-design.md"
+    When I run "universal-plugin plugin build"
+    Then "skills/init/references/governances/plugin-design.md" holds the owner's current text
+    And the copy is reported with owner "." and status "written"
+    And the exit code is 0
+
+  Scenario: a governance resolves from an installed dependency
+    Given a skill "init" declaring "references/governances/skill-design.md"
+    And its SKILL.md lists that copy under References
+    And a dev dependency "cyberplace" ships "governances/skill-design.md"
+    When I run "universal-plugin plugin build"
+    Then the copy is reported with owner "cyberplace" and status "written"
+    And the exit code is 0
+
+  Scenario: the plugin wins a name it and a dependency both ship
+    Given a skill "init" declaring "references/governances/plugin-design.md"
+    And its SKILL.md lists that copy under References
+    And the plugin ships "governances/plugin-design.md"
+    And a dev dependency "cyberplace" also ships "governances/plugin-design.md"
+    When I run "universal-plugin plugin build"
+    Then the copy holds the plugin's text, not the dependency's
+
+  Scenario: a governance a copy references is copied too
+    Given a skill "init" declaring "references/governances/plugin-design.md"
+    And "plugin-design" references "governance show skill-design"
+    And "skill-design" references "governance show agent-tool-output"
+    And its SKILL.md lists all three copies under References
+    When I run "universal-plugin plugin build"
+    Then "skills/init/references/governances/skill-design.md" is written
+    And "skills/init/references/governances/agent-tool-output.md" is written
+    And the exit code is 0
+
+  Scenario: a pointer inside a copy is rewritten to name the sibling copy
+    Given a skill "init" declaring "references/governances/plugin-design.md"
+    And "plugin-design" references "npx cyberplace@1 governance show skill-design"
+    And its SKILL.md lists both copies under References
+    When I run "universal-plugin plugin build"
+    Then the copy of "plugin-design" reads "Load `references/governances/skill-design.md` if it is not already loaded."
+    And it carries no "governance show" command
+
+  Scenario: an up-to-date copy is reported unchanged and is not rewritten
+    Given a skill whose governance copy already matches its source
+    When I run "universal-plugin plugin build"
+    Then the copy is reported with status "unchanged"
+    And the file on disk is untouched
+
+  Scenario: the copy step runs once however many vendors are built
+    Given a skill "init" declaring one governance the plugin owns
+    And the manifest declares harnesses for "claude-code", "cursor", and "codex"
+    When I run "universal-plugin plugin build"
+    Then exactly one governance copy is reported
+
+  Scenario: a declared file that names no governance fails the build
+    Given a skill "init" declaring "references/governances/no-such-rule.md"
+    And no resolvable package owns "no-such-rule"
+    When I run "universal-plugin plugin build"
+    Then the exit code is 1
+    And stderr names the declared file and says it names no governance
+    And no vendor manifest is written
+
+  Scenario: a referenced governance with no copy to point at fails the build
+    Given a skill "init" declaring "references/governances/plugin-design.md"
+    And "plugin-design" references "governance show skill-design"
+    And no resolvable package owns "skill-design"
+    When I run "universal-plugin plugin build"
+    Then the exit code is 1
+    And stderr names "plugin-design" as the governance that references it
+
+  Scenario: a SKILL.md that does not list a copy fails the build
+    Given a skill "init" declaring "references/governances/plugin-design.md"
+    And the plugin ships "governances/plugin-design.md"
+    And its SKILL.md References section does not name that copy
+    When I run "universal-plugin plugin build"
+    Then the exit code is 1
+    And stderr says SKILL.md does not list "references/governances/plugin-design.md" under References
+
+  # ── --check on the committed copies ──
+
+  Scenario: --check exits 1 naming a stale copy and repairs nothing
+    Given a skill whose committed governance copy differs from its source
+    When I run "universal-plugin plugin build --check"
+    Then the exit code is 1
+    And stderr names the stale copy and the package that owns it
+    And stderr ends with "→ universal-plugin plugin build"
+    And the copy on disk is unchanged
+    And no vendor manifest is written
+
+  Scenario: --check exits 0 when every copy matches its source
+    Given a skill whose committed governance copy matches its source
+    When I run "universal-plugin plugin build --check"
+    Then the exit code is 0
+    And stderr names no stale copy
+
+  Scenario: the build without --check refreshes what the check reported
+    Given a skill whose committed governance copy differs from its source
+    When I run "universal-plugin plugin build"
+    And I run "universal-plugin plugin build --check"
+    Then the second run's exit code is 0
+
   Scenario: --help prints a concise reference
     When I run "universal-plugin plugin build --help"
     Then the exit code is 0
