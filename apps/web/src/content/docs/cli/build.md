@@ -19,6 +19,7 @@ universal-plugin plugin build [options]
 | `--dry-run` | Print what would be written without writing |
 | `--verbose` | Print field-by-field transformation decisions |
 | `--clean` | Delete generated manifests before building |
+| `--check` | Write nothing; fail when a committed governance copy differs from its source |
 | `--root <path>` | Plugin root directory (default: current directory) |
 | `--format json` | Output as JSON |
 
@@ -85,6 +86,45 @@ has this plugin's entry re-derived, for the vendors just built, so a catalog ent
 the canonical manifest instead of drifting. No catalog is created — that stays with
 [`plugin init --vendor` and `marketplace init`](../marketplace/) — and nothing else in the file
 changes. `--dry-run` reports the refresh as planned and writes nothing.
+
+## Governance copies
+
+A skill that follows a rule set — `plugin-design`, `skill-design`, and their kind — reads it from
+its own folder, at `references/governances/<name>.md`. Nothing runs from the network while the skill
+works, and the skill reads the version it was tested against.
+
+The `.md` files already in that folder **are** the declaration of which governances the skill uses.
+To use one, add its file:
+
+```
+skills/init/references/governances/plugin-design.md
+```
+
+The file's content does not matter — `plugin build` rewrites it from the package that owns the
+document, which ships it at `governances/<name>.md`. The build resolves a name against the plugin
+being built first, then the packages its `package.json` declares, so a governance owner is installed
+as a dev dependency of the repository being built. Nothing is declared in `plugin.json`.
+
+Governances reference each other, and the Agent Skills specification asks that `SKILL.md` reference
+every file the agent needs directly, without chains. So the build also:
+
+- copies every governance a copy references, transitively, into the same folder;
+- rewrites each `governance show <other>` pointer inside a copy into "load
+  `references/governances/<other>.md` if it is not already loaded";
+- requires `SKILL.md` to list every copy under References.
+
+Three things fail the build, writing nothing: a declared file that names no governance any
+resolvable package owns, a referenced governance with no copy to point at, and a `SKILL.md` that
+does not list a copy.
+
+**Commit the copies.** They are small text, and a plugin installed from git — every Copilot CLI and
+Cursor install — has no build step to generate them. `plugin build --check` writes nothing at all
+and exits 1 naming each copy that differs from its source, so CI catches a commit that skipped the
+build:
+
+```bash
+universal-plugin plugin build --check
+```
 
 ## Pinning an MCP server to the plugin version
 
