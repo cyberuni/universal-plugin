@@ -27,6 +27,24 @@ Two shapes collide, and both have a flag that settles them:
 
 `--path`, `--npm`, `--github`, `--url`, and `--from-marketplace` each force the reading. Pass one.
 
+### One plugin out of a monorepo
+
+`owner/repo` and a git URL both name a whole repository, and neither source form can say which
+directory inside it is the plugin. `--subdir` says it, which turns the source into `git-subdir`:
+
+```bash
+node scripts/add.mjs cyberuni/cyber-sdd --subdir plugins/aced
+# { "source": "git-subdir", "url": "https://github.com/cyberuni/cyber-sdd.git", "path": "plugins/aced" }
+```
+
+The entry is named for that directory — `aced` — not for the repository. Ask for `--subdir` whenever
+the user names a repository you know publishes more than one plugin; without it the entry points at
+the repository root, which installs the wrong thing rather than failing.
+
+`--ref <branch-or-tag>` and `--sha <commit>` pin a git source. Both apply to `url`, `github`, and
+`git-subdir` only: an npm package is pinned by version and a path is whatever is on disk. A `--sha`
+must be the full 40-character hash, which the schema requires.
+
 ## 2. Choose targets, and know what will be skipped
 
 Not every runtime installs from every source. Only a repository path reaches all four:

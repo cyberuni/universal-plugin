@@ -109,6 +109,19 @@ different directories — write `./plugins/alpha` or pass `--path`. And a leadin
 `@cyberuni/upx` is a package while `upx@cyberplace` is a marketplace entry. `--path`, `--npm`,
 `--github`, `--url`, and `--from-marketplace` each force the reading.
 
+`owner/repo` and a git URL name a whole repository. For a monorepo that publishes several plugins,
+`--subdir` says which directory is the one, turning the source into `git-subdir` and naming the entry
+after that directory:
+
+```bash
+universal-plugin marketplace add cyberuni/cyber-sdd --subdir plugins/aced
+# aced -> { "source": "git-subdir", "url": "https://github.com/cyberuni/cyber-sdd.git", "path": "plugins/aced" }
+```
+
+`--ref` and `--sha` pin a git source to a branch, tag, or commit. Both apply to `url`, `github`, and
+`git-subdir` only — an npm package is pinned by version, a path by what is on disk — and a `--sha`
+must be the full 40-character hash the schema requires.
+
 Only a repository path installs everywhere. Claude Code takes the schema's full tagged set, Codex
 takes npm, and Copilot CLI and Cursor take neither:
 
