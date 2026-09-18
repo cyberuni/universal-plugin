@@ -51,6 +51,13 @@ resolves to a real plugin.
   or the plugin half of a marketplace spec. `--name` overrides it, and every name must match the
   catalog name grammar.
 - A spec matching no rule fails naming the flags that would settle it.
+- `--subdir` narrows a whole-repository source to one directory inside it, which is the only way to
+  state a monorepo's plugin: the source becomes `git-subdir` carrying the repository URL and that
+  path, and the entry is named for the directory rather than the repository. It applies to a
+  `github` or `url` spec only; an npm package, a path, and a marketplace entry each fail naming that.
+- `--ref` and `--sha` pin a git source and apply to `url`, `github`, and `git-subdir` only. A `--sha`
+  must be the 40-character hash the schema requires, checked at input rather than left to fail
+  against the catalog schema.
 
 ### Source and target decisions
 
@@ -160,6 +167,11 @@ flowchart TD
 | unreadable spec | a spec matching no rule | `an unrecognized spec names the flags that settle it` |
 | name override | `--name` supplied | `an explicit entry name overrides the derived one` |
 | name grammar | a derived name violating the grammar | `an invalid entry name fails before writes` |
+| monorepo subdir | a repository spec plus `--subdir` | `--subdir narrows a repository source to one plugin directory` |
+| subdir misuse | `--subdir` on a non-repository spec | `--subdir on a source that names no repository fails before writes` |
+| git pin | a git spec plus `--ref` or `--sha` | `--ref and --sha pin a git source` |
+| pin misuse | `--ref` or `--sha` on a non-git spec | `a pin on a source that carries none fails before writes` |
+| sha grammar | a `--sha` that is not a full hash | `a short commit hash fails before writes` |
 
 ### `marketplace add` — sources, targets, and metadata
 

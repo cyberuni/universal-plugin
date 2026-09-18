@@ -62,6 +62,30 @@ Feature: marketplace add — list a plugin that lives elsewhere
     When I run "universal-plugin marketplace add" with it
     Then the command fails before any catalog is written
 
+  Scenario: --subdir narrows a repository source to one plugin directory
+    When I run "universal-plugin marketplace add cyberuni/cyber-sdd --subdir plugins/aced --claude --root <root>"
+    Then the entry carries a git-subdir source naming that repository URL and path "plugins/aced"
+    And the entry is named "aced"
+
+  Scenario: --subdir on a source that names no repository fails before writes
+    When I run "universal-plugin marketplace add npm:repobuddy --subdir plugins/aced --root <root>"
+    Then the error says --subdir applies to a repository source
+    And the exit code is 1
+
+  Scenario: --ref and --sha pin a git source
+    When I run "universal-plugin marketplace add cyberuni/r --ref main --claude --root <root>"
+    Then the entry source carries ref "main"
+
+  Scenario: a pin on a source that carries none fails before writes
+    When I run "universal-plugin marketplace add npm:repobuddy --ref main --root <root>"
+    Then the error says --ref and --sha apply to a git source
+    And the exit code is 1
+
+  Scenario: a short commit hash fails before writes
+    When I run "universal-plugin marketplace add cyberuni/r --sha abc123 --claude --root <root>"
+    Then the error says a full 40-character commit hash is required
+    And the exit code is 1
+
   Scenario: a path source takes its metadata from the plugin manifest
     Given "./vendor/beta" contains a plugin.json with a description, version, and license
     When I run "universal-plugin marketplace add ./vendor/beta --claude --root <root>"
