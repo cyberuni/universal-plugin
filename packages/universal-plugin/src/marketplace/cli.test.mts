@@ -85,3 +85,65 @@ test('validate treats an absent catalog as missing, or as a failure under --requ
 	expect(runValidate('--cursor').stdout).toMatch(/missing/)
 	expect(runValidate('--cursor', '--required').status).toBe(1)
 })
+
+function runAdd(...args: string[]) {
+	return spawnSync('node', [bin, 'marketplace', 'add', ...args, '--root', root], {
+		encoding: 'utf8',
+		env: { ...process.env, NODE_NO_WARNINGS: '1' },
+	})
+}
+
+test('add lists a plugin the repository does not hold, and says what it skipped and why', () => {
+	const result = runAdd('npm:repobuddy', '--description', 'Repo automation', '--version', '1.4.0')
+	expect(result.status).toBe(0)
+	expect(result.stdout).toMatch(/repobuddy/)
+	expect(result.stderr).toMatch(/skipped copilot: npm source is not supported/)
+	expect(result.stderr).toMatch(/no marketplace publication/i)
+
+	const catalog = JSON.parse(fs.readFileSync(path.join(root, '.claude-plugin/marketplace.json'), 'utf8'))
+	expect(catalog.plugins).toContainEqual({
+		name: 'repobuddy',
+		source: { source: 'npm', package: 'repobuddy' },
+		description: 'Repo automation',
+		version: '1.4.0',
+	})
+})
+
+test('add reports rows as JSON, previews with --dry-run, and guards a replacement', () => {
+	const preview = runAdd('cyberuni/universal-plugin', '--claude', '--dry-run', '--format', 'json')
+	expect(preview.status).toBe(0)
+	expect(JSON.parse(preview.stdout)).toMatchObject([{ target: 'claude', status: 'planned', entry: 'universal-plugin' }])
+	expect(preview.stderr).toMatch(/Planned repository metadata only/)
+	expect(fs.existsSync(path.join(root, '.claude-plugin/marketplace.json'))).toBe(false)
+
+	expect(runAdd('npm:alpha', '--claude', '--name', 'alpha').status).toBe(0)
+	const conflict = runAdd('cyberuni/alpha', '--claude', '--name', 'alpha')
+	expect(conflict.status).toBe(1)
+	expect(conflict.stderr).toMatch(/already listed differently/)
+	expect(runAdd('cyberuni/alpha', '--claude', '--name', 'alpha', '--force').status).toBe(0)
+})
+
+test('add refuses a spec it cannot read and names the flags that settle it', () => {
+	const unreadable = runAdd('not a spec', '--claude')
+	expect(unreadable.status).toBe(1)
+	expect(unreadable.stderr).toMatch(/--path, --npm, --github, --url, or --from-marketplace/)
+
+	const twoKinds = runAdd('repobuddy', '--claude', '--npm', '--github')
+	expect(twoKinds.status).toBe(1)
+	expect(twoKinds.stderr).toMatch(/pass one source kind/)
+})
+
+test('add narrows a monorepo repository to one plugin directory', () => {
+	const result = runAdd('cyberuni/cyber-sdd', '--subdir', 'plugins/aced', '--claude')
+	expect(result.status).toBe(0)
+
+	const catalog = JSON.parse(fs.readFileSync(path.join(root, '.claude-plugin/marketplace.json'), 'utf8'))
+	expect(catalog.plugins).toContainEqual({
+		name: 'aced',
+		source: { source: 'git-subdir', url: 'https://github.com/cyberuni/cyber-sdd.git', path: 'plugins/aced' },
+	})
+
+	const badPin = runAdd('npm:repobuddy', '--ref', 'main', '--claude')
+	expect(badPin.status).toBe(1)
+	expect(badPin.stderr).toMatch(/apply to a git source/)
+})

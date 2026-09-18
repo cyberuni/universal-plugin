@@ -7,9 +7,10 @@ A repository can carry its own marketplace catalog. Users then add the repositor
 and install the plugin from it — no service, no submission, no account. During development it is how
 you install the plugin the way a user eventually will.
 
-Two commands write these catalogs. [`plugin init`](#plugin-init-registers-one-plugin) registers the
-plugin it scaffolds, and `marketplace init` derives a catalog for every plugin a repository holds.
-Both write the same files; neither publishes anything. A third,
+Three commands write these catalogs. [`plugin init`](#plugin-init-registers-one-plugin) registers the
+plugin it scaffolds, `marketplace init` derives a catalog for every plugin a repository holds, and
+[`marketplace add`](#marketplace-add-lists-a-plugin-that-lives-elsewhere) lists a plugin that lives
+somewhere else. All three write the same files; none publishes anything. A fourth,
 [`marketplace validate`](#marketplace-validate-checks-what-the-repository-carries), checks that what
 they wrote is what each runtime will load.
 
@@ -77,6 +78,89 @@ below `plugins/`, or below each `--plugin-scan-dir` you name. With no target fla
 four catalogs. `--dry-run` prints the plan, and a catalog that differs from what would be generated
 stops the run until you pass `--force`, so a hand-edited file is never replaced silently.
 
+Discovery walks directories, so it only speaks for plugins that are in them. An entry whose source
+is **not** a local path survives a regeneration untouched, and a discovered plugin whose entry names
+a non-local source keeps that source with its derived metadata refreshed around it. So a plugin
+shipped through npm keeps pointing at npm, and an entry `marketplace add` wrote is not a deletion
+waiting for the next `--force`. What discovery owns it still owns: a local-path entry it no longer
+finds is dropped.
+
+## `marketplace add` lists a plugin that lives elsewhere
+
+```bash
+universal-plugin marketplace add npm:repobuddy --description "Repo automation"
+```
+
+`init` describes the repository. `add` describes everything else, which is what turns a repository
+into a curated marketplace rather than only its own plugins' home. One positional says where the
+plugin lives, and the command reads it by shape:
+
+| Spec | Source written |
+|---|---|
+| `./plugins/alpha` | `"./plugins/alpha"` |
+| `cyberuni/universal-plugin` | `{ "source": "github", "repo": "cyberuni/universal-plugin" }` |
+| `https://example.com/o/r.git` | `{ "source": "url", "url": "…" }` |
+| `npm:repobuddy`, `@cyberuni/upx` | `{ "source": "npm", "package": "…" }` |
+| `repobuddy@cyberplace` | whatever source that marketplace publishes |
+
+Two shapes collide. `plugins/alpha` reads as a GitHub repository, because `owner/repo` and a relative
+path are the same string and reaching for the filesystem would make it mean different things in
+different directories — write `./plugins/alpha` or pass `--path`. And a leading `@` is a scope, so
+`@cyberuni/upx` is a package while `upx@cyberplace` is a marketplace entry. `--path`, `--npm`,
+`--github`, `--url`, and `--from-marketplace` each force the reading.
+
+`owner/repo` and a git URL name a whole repository. For a monorepo that publishes several plugins,
+`--subdir` says which directory is the one, turning the source into `git-subdir` and naming the entry
+after that directory:
+
+```bash
+universal-plugin marketplace add cyberuni/cyber-sdd --subdir plugins/aced
+# aced -> { "source": "git-subdir", "url": "https://github.com/cyberuni/cyber-sdd.git", "path": "plugins/aced" }
+```
+
+`--ref` and `--sha` pin a git source to a branch, tag, or commit. Both apply to `url`, `github`, and
+`git-subdir` only — an npm package is pinned by version, a path by what is on disk — and a `--sha`
+must be the full 40-character hash the schema requires.
+
+Only a repository path installs everywhere. Claude Code takes the schema's full tagged set, Codex
+takes npm, and Copilot CLI and Cursor take neither:
+
+```
+target   status   entry      reason
+claude   added    repobuddy
+codex    added    repobuddy
+copilot  skipped  repobuddy  npm source is not supported by copilot
+cursor   skipped  repobuddy  npm source is not supported by cursor
+```
+
+A target that cannot resolve the source gets no entry at all. That is the same rule as validation:
+a catalog is read in someone else's terminal, so a source a runtime refuses is a failure far from
+here.
+
+Nothing is fetched. Metadata comes from the plugin's own `plugin.json` for a path, from an installed
+`node_modules` copy for a package, from the entry being copied for a marketplace spec, and otherwise
+from `--description`, `--version`, `--homepage`, `--repository`, `--license`, and `--keywords`.
+
+`<plugin>@<marketplace>` has no source type in the schema, so the entry is resolved and copied. The
+marketplace has to be readable: one the runtime has already added is found under
+`~/.claude/plugins`, and `--from <dir>` names a checkout of one that is not installed.
+
+An entry whose source is a `./` path is **rewritten** rather than copied. That path resolves against
+the other marketplace's root, which your repository is not — but it names a location inside a
+repository whose URL is known:
+
+| Entry in the other marketplace | Written into your catalog |
+|---|---|
+| `./plugins/aced` in `cyberuni/cyberplace` | `{ "source": "git-subdir", "url": "https://github.com/cyberuni/cyberplace.git", "path": "plugins/aced" }` |
+| `./` in `unional/skills` | `{ "source": "github", "repo": "unional/skills" }` |
+
+The origin comes from what the runtime recorded for that marketplace, falling back to the clone's own
+git remote. One with neither stops the run rather than writing a path that resolves nowhere.
+
+The catalog is created if the repository has none, named and owned the way `init` names it —
+`--owner` is usually what a curating repository needs, since it has no plugin manifest of its own.
+An entry already listed differently stops the run until you pass `--force`.
+
 ## `marketplace validate` checks what the repository carries
 
 ```bash
@@ -119,7 +203,8 @@ it. See [ADR-0010](https://github.com/cyberuni/universal-plugin/blob/main/packag
 
 `plugin build` keeps it that way. Every build re-derives this plugin's entry in each catalog the
 repository already carries, for the vendors it is building, so a version move reaches the catalogs
-without a second command — `plugin version` re-derives through `plugin build`, and so does the
+without a second command. It re-derives the metadata, not the distribution: an entry pointing at an
+npm package still points there after a build — `plugin version` re-derives through `plugin build`, and so does the
 `changeset version → publish sync-version → plugin build` release script. The build creates no
 catalog: it refreshes the ones the repository chose to carry and leaves everything else in them
 alone. See [ADR-0014](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/design/decisions/0014-build-refreshes-catalogs.md).

@@ -1,8 +1,9 @@
 import { execFileSync } from 'node:child_process'
 import * as fs from 'node:fs'
+import * as os from 'node:os'
 import * as path from 'node:path'
 
-import { TARGET_CATALOG_PATHS } from './marketplace.js'
+import { type MarketplaceOrigin, originFromRepo, originFromUrl, TARGET_CATALOG_PATHS } from './marketplace.js'
 
 export interface MarketplaceFs {
 	exists(file: string): boolean
@@ -73,4 +74,91 @@ export function gatherCatalogRepo(root: string): CatalogRepo | undefined {
 		if (fs.existsSync(file)) catalogs[catalog] = fs.readFileSync(file, 'utf8')
 	}
 	return { root: repoRoot, pluginPath: relative.split(path.sep).join('/'), catalogs }
+}
+
+/** Where Claude Code records the marketplaces a user has added, and clones each one.
+ *
+ *  This is read, never written. It is the one place on the machine that already knows what
+ *  `<plugin>@<marketplace>` refers to, so resolving through it asks the user for nothing and reaches
+ *  no network. A marketplace they have not added is simply not found, and `--from` names it instead. */
+function claudePluginsHome(home: string = os.homedir()): string {
+	return path.join(home, '.claude', 'plugins')
+}
+
+/** A marketplace the user has already added: where its clone sits, and where that clone came from.
+ *  The origin is what lets a copied entry's relative source be rewritten into one that resolves
+ *  outside that marketplace. */
+export interface KnownMarketplace {
+	dir: string
+	origin?: MarketplaceOrigin
+}
+
+/** The origin the runtime recorded for a marketplace, in the vocabulary it records it in: a
+ *  `github` repo slug, or a `git`/`url` clone URL. */
+function registryOrigin(source: unknown): MarketplaceOrigin | undefined {
+	if (typeof source !== 'object' || source === null || Array.isArray(source)) return undefined
+	const record = source as Record<string, unknown>
+	if (record.source === 'github' && typeof record.repo === 'string') return originFromRepo(record.repo)
+	if ((record.source === 'git' || record.source === 'url') && typeof record.url === 'string') {
+		return originFromUrl(record.url)
+	}
+	return undefined
+}
+
+/** The URL a checkout was cloned from, which is the origin for a marketplace the registry does not
+ *  describe — one reached through `--from`, or added before the runtime recorded a source. */
+export function gitRemoteUrl(dir: string): string | undefined {
+	try {
+		const url = execFileSync('git', ['-C', dir, 'remote', 'get-url', 'origin'], {
+			encoding: 'utf8',
+			stdio: ['ignore', 'pipe', 'ignore'],
+		}).trim()
+		return url === '' ? undefined : url
+	} catch {
+		return undefined
+	}
+}
+
+/** The marketplace a name refers to, or `undefined` when the user has not added it. */
+export function resolveKnownMarketplace(
+	name: string,
+	marketplaceFs: MarketplaceFs = realMarketplaceFs,
+	home: string = os.homedir(),
+): KnownMarketplace | undefined {
+	const pluginsHome = claudePluginsHome(home)
+	const registry = path.join(pluginsHome, 'known_marketplaces.json')
+	if (marketplaceFs.exists(registry)) {
+		let parsed: unknown
+		try {
+			parsed = JSON.parse(marketplaceFs.read(registry))
+		} catch {
+			parsed = undefined
+		}
+		if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+			const entry = (parsed as Record<string, unknown>)[name]
+			if (typeof entry === 'object' && entry !== null) {
+				const record = entry as Record<string, unknown>
+				const location = record.installLocation
+				if (typeof location === 'string' && marketplaceFs.exists(location)) {
+					return { dir: location, origin: registryOrigin(record.source) }
+				}
+			}
+		}
+	}
+	// A clone can be on disk before the registry mentions it, and the layout is conventional.
+	const conventional = path.join(pluginsHome, 'marketplaces', name)
+	return marketplaceFs.exists(conventional) ? { dir: conventional } : undefined
+}
+
+/** The catalog a marketplace directory carries, tried in the order the runtimes agree on: the Claude
+ *  path first, because three of the four read it. */
+export function readMarketplaceCatalog(
+	dir: string,
+	marketplaceFs: MarketplaceFs = realMarketplaceFs,
+): string | undefined {
+	for (const relative of Object.values(TARGET_CATALOG_PATHS)) {
+		const file = path.join(dir, relative)
+		if (marketplaceFs.exists(file)) return marketplaceFs.read(file)
+	}
+	return undefined
 }

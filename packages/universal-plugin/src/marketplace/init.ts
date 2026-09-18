@@ -3,10 +3,12 @@ import * as path from 'node:path'
 import { type MarketplaceFs, realMarketplaceFs } from './fs.js'
 import {
 	assertMarketplaceName,
+	catalogEntryNames,
 	type MarketplaceOwner,
 	type MarketplacePlugin,
 	type MarketplaceStatus,
 	type MarketplaceTarget,
+	mergeDiscoveredCatalog,
 	serializeTarget,
 } from './marketplace.js'
 import { formatCatalogIssues, validateCatalogContent } from './validation.js'
@@ -80,7 +82,10 @@ function manifestOwner(manifest: Record<string, unknown>): MarketplaceOwner | un
 	return undefined
 }
 
-function deriveMetadata(root: string, fs: MarketplaceFs, opts: MarketplaceInitOptions): RootMetadata {
+/** The catalog's own identity: its name and its owner, from the root manifest unless overridden.
+ *  Exported because `marketplace add` creates a catalog in a repository that has no plugins of its
+ *  own to discover, and the two commands must name that catalog the same way. */
+export function deriveMetadata(root: string, fs: MarketplaceFs, opts: MarketplaceInitOptions): RootMetadata {
 	const rootManifest = path.join(root, 'plugin.json')
 	if (fs.exists(rootManifest)) assertContained(root, rootManifest, fs, 'root plugin.json')
 	const manifest = fs.exists(rootManifest) ? parseManifest(fs, rootManifest) : {}
@@ -142,6 +147,10 @@ function selectedTargets(targets?: MarketplaceTarget[]): MarketplaceTarget[] {
 	return targets && targets.length > 0 ? [...new Set(targets)] : ['claude', 'codex', 'copilot', 'cursor']
 }
 
+function readCatalog(fs: MarketplaceFs, file: string): string | undefined {
+	return fs.exists(file) ? fs.read(file) : undefined
+}
+
 function sameArtifact(fs: MarketplaceFs, file: string, content: string): boolean {
 	if (!fs.exists(file)) return false
 	const existing = fs.read(file)
@@ -174,10 +183,25 @@ export function initializeMarketplace(
 	const metadata = deriveMetadata(root, fs, opts)
 	const plugins = discoverPlugins(root, fs, opts.scanDirs)
 	const targets = selectedTargets(opts.targets)
-	const planned = targets.map((target) => ({ target, artifacts: serializeTarget(target, metadata, plugins) }))
-	for (const { target, artifacts } of planned) {
+	const derived = targets.map((target) => ({ target, artifacts: serializeTarget(target, metadata, plugins) }))
+	for (const { artifacts } of derived) {
 		for (const artifact of artifacts) {
 			assertContained(root, path.join(root, artifact.path), fs, 'selected artifact')
+		}
+	}
+
+	// Discovery describes the plugins this repository holds; a catalog may also list plugins that
+	// live elsewhere, which only `marketplace add` puts there. Each artifact is folded into the file
+	// already on disk so a regeneration never reports those as deletions. Folding reads that file,
+	// so it runs only once the path has been proved to resolve inside --root.
+	const planned = derived.map(({ target, artifacts }) => ({
+		target,
+		artifacts: artifacts.map((artifact) =>
+			mergeDiscoveredCatalog(artifact, readCatalog(fs, path.join(root, artifact.path))),
+		),
+	}))
+	for (const { target, artifacts } of planned) {
+		for (const artifact of artifacts) {
 			// A catalog the runtime would reject is worse than no catalog: it is discovered, read, and
 			// refused at install time, far from here. Check before anything is written, so a manifest
 			// this command cannot reduce to a valid entry stops the whole run.
@@ -206,7 +230,9 @@ export function initializeMarketplace(
 			target,
 			status: opts.dryRun ? 'planned' : unchanged ? 'unchanged' : 'generated',
 			paths: artifacts.map((artifact) => artifact.path),
-			plugins: plugins.map((plugin) => plugin.name),
+			// What the catalog ends up listing, not only what discovery contributed, so an entry kept
+			// from the existing file is visible in the report rather than silently present.
+			plugins: [...new Set(artifacts.flatMap((artifact) => catalogEntryNames(artifact.content)))],
 		}
 	})
 

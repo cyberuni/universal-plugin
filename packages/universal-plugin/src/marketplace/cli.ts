@@ -2,8 +2,10 @@ import { Command, Option } from 'commander'
 
 import { ROOT_OPTION, resolveRoot } from '../cli-options.js'
 import { output } from '../output.js'
+import { addToMarketplace, ENTRY_METADATA_FIELDS, type MarketplaceAddOptions } from './add.js'
 import { initializeMarketplace, type MarketplaceInitOptions } from './init.js'
 import type { MarketplaceTarget } from './marketplace.js'
+import type { SourceKind } from './spec.js'
 import { validateMarketplace } from './validate.js'
 import { formatCatalogIssues } from './validation.js'
 
@@ -20,6 +22,141 @@ interface MarketplaceCliOptions extends MarketplaceInitOptions {
 function targetsFromOptions(opts: MarketplaceCliOptions): MarketplaceTarget[] | undefined {
 	const targets = (['claude', 'codex', 'copilot', 'cursor'] as const).filter((target) => opts[target])
 	return targets.length > 0 ? targets : undefined
+}
+
+interface AddCliOptions extends MarketplaceCliOptions {
+	path?: boolean
+	npm?: boolean
+	github?: boolean
+	url?: boolean
+	fromMarketplace?: boolean
+	from?: string
+	subdir?: string
+	ref?: string
+	sha?: string
+	description?: string
+	version?: string
+	homepage?: string
+	repository?: string
+	license?: string
+	keywords?: string
+	marketplaceName?: string
+	owner?: string
+}
+
+/** The kind flags, as one map, so a second one is an error rather than a silent precedence rule. */
+const KIND_FLAGS: Record<string, SourceKind> = {
+	path: 'path',
+	npm: 'npm',
+	github: 'github',
+	url: 'url',
+	fromMarketplace: 'marketplace',
+}
+
+function kindFromOptions(opts: AddCliOptions): SourceKind | undefined {
+	const named = Object.keys(KIND_FLAGS).filter((flag) => opts[flag as keyof AddCliOptions])
+	if (named.length > 1) throw new Error(`error: pass one source kind, not ${named.length}`)
+	return named.length === 1 ? KIND_FLAGS[named[0] as string] : undefined
+}
+
+function metadataFromOptions(opts: AddCliOptions): MarketplaceAddOptions['metadata'] {
+	const metadata: Record<string, unknown> = {}
+	for (const field of ENTRY_METADATA_FIELDS) {
+		const value = opts[field as keyof AddCliOptions]
+		if (typeof value !== 'string') continue
+		metadata[field] =
+			field === 'keywords'
+				? value
+						.split(',')
+						.map((keyword) => keyword.trim())
+						.filter((keyword) => keyword !== '')
+				: value
+	}
+	return metadata
+}
+
+function addCommand(): Command {
+	return new Command('add')
+		.description("List a plugin that lives elsewhere in this repository's marketplace catalogs")
+		.argument(
+			'<spec>',
+			'What to list: ./path, owner/repo, a git URL, an npm package (npm:<pkg>), or <plugin>@<marketplace>',
+		)
+		.option('--claude', 'Write the Claude marketplace catalog')
+		.option('--codex', 'Write the Codex marketplace catalog')
+		.option('--copilot', 'Write the Copilot marketplace catalog')
+		.option('--cursor', 'Write the Cursor marketplace catalog')
+		.option('--path', 'Read the spec as a repository-relative path')
+		.option('--npm', 'Read the spec as an npm package name')
+		.option('--github', 'Read the spec as an owner/repo GitHub repository')
+		.option('--url', 'Read the spec as a git or https URL')
+		.option('--from-marketplace', 'Read the spec as <plugin>@<marketplace>')
+		.option('--from <dir>', 'Directory holding the marketplace to copy an entry from')
+		.option('--subdir <path>', "The plugin's directory inside the repository, for a monorepo")
+		.option('--ref <ref>', 'Branch or tag to pin a git source to')
+		.option('--sha <sha>', 'Commit to pin a git source to (full 40-character hash)')
+		.option('--name <name>', 'Entry name, when it differs from the one the spec implies')
+		.option('--description <text>', 'Entry description')
+		.option('--version <version>', 'Entry version')
+		.option('--homepage <url>', 'Entry homepage')
+		.option('--repository <url>', 'Entry repository URL')
+		.option('--license <id>', 'Entry license')
+		.option('--keywords <list>', 'Entry keywords, comma-separated')
+		.option('--marketplace-name <name>', 'Name for the catalog, when this command has to create one')
+		.option('--owner <name>', 'Owner for the catalog, when this command has to create one')
+		.option('--dry-run', 'Preview the entry without writing it')
+		.option('--force', 'Replace an entry of this name that is already listed differently')
+		.option('--format <format>', 'Output format: toon or json (default: toon)')
+		.addOption(ROOT_OPTION)
+		.addHelpText(
+			'after',
+			'\nExamples:\n' +
+				'  $ universal-plugin marketplace add npm:repobuddy\n' +
+				'  $ universal-plugin marketplace add cyberuni/universal-plugin\n' +
+				'  $ universal-plugin marketplace add cyberuni/cyber-sdd --subdir plugins/aced\n' +
+				'  $ universal-plugin marketplace add repobuddy@cyberplace --dry-run\n',
+		)
+		.action((spec: string, opts: AddCliOptions) => {
+			try {
+				if (opts.format !== undefined && opts.format !== 'toon' && opts.format !== 'json') {
+					throw new Error('error: --format must be "toon" or "json"')
+				}
+				const results = addToMarketplace(resolveRoot(opts.root), spec, {
+					targets: targetsFromOptions(opts),
+					kind: kindFromOptions(opts),
+					name: opts.name,
+					from: opts.from,
+					subdir: opts.subdir,
+					ref: opts.ref,
+					sha: opts.sha,
+					metadata: metadataFromOptions(opts),
+					marketplaceName: opts.marketplaceName,
+					owner: opts.owner,
+					dryRun: opts.dryRun,
+					force: opts.force,
+				})
+				output(results, {
+					targets: results.map((row) => ({
+						target: row.target,
+						status: row.status,
+						entry: row.entry,
+						source: row.source,
+						path: row.path,
+						reason: row.reason ?? '-',
+					})),
+					summary: `${results.filter((row) => row.status === 'skipped').length} skipped of ${results.length}`,
+				})
+				for (const row of results.filter((row) => row.status === 'skipped')) {
+					process.stderr.write(`skipped ${row.target}: ${row.reason}\n`)
+				}
+				process.stderr.write(
+					`${opts.dryRun ? 'Planned' : 'Wrote'} repository metadata only; no marketplace publication, registration, installation, authentication, or provisioning occurred.\n`,
+				)
+			} catch (err) {
+				process.stderr.write(`${err instanceof Error ? err.message : String(err)}\n`)
+				process.exitCode = 1
+			}
+		})
 }
 
 function initCommand(): Command {
@@ -119,6 +256,7 @@ function validateCommand(): Command {
 export function marketplaceCommand(): Command {
 	return new Command('marketplace')
 		.description('Generate repository-local marketplace metadata')
+		.addCommand(addCommand())
 		.addCommand(initCommand())
 		.addCommand(validateCommand())
 }

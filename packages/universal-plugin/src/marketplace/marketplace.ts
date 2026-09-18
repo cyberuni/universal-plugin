@@ -9,9 +9,15 @@ export interface MarketplaceOwner {
 	url?: string
 }
 
+/** A source a catalog entry may name other than a path in this repository, in the tagged shape the
+ *  official schema states: `{ source: "npm", package }`, `{ source: "github", repo }`,
+ *  `{ source: "url", url }`, or `{ source: "git-subdir", url, path }`. */
+export type CatalogSource = { source: string } & Record<string, unknown>
+
 export interface MarketplacePlugin {
 	name: string
-	source: string
+	/** A `./`-prefixed repository-relative path, or a tagged remote source. */
+	source: string | CatalogSource
 	metadata: Record<string, unknown>
 }
 
@@ -87,6 +93,22 @@ function claudeArtifact(metadata: MarketplaceMetadata, plugins: MarketplacePlugi
 	}
 }
 
+/** Whether a catalog entry's `source` names a place inside this repository — a `./`-prefixed path in
+ *  the Claude-shaped catalogs, or Codex's `{ source: "local", path }`. Every other form names a
+ *  plugin distributed from somewhere else: an npm package, a GitHub repository, a URL. Discovery
+ *  walks directories, so it can produce the first kind and can say nothing about the second. */
+export function isLocalCatalogSource(source: unknown): boolean {
+	if (typeof source === 'string') return true
+	if (typeof source !== 'object' || source === null || Array.isArray(source)) return false
+	return (source as Record<string, unknown>).source === 'local'
+}
+
+/** Codex states a source as an object either way: a repository path is tagged `local`, and a source
+ *  that already carries its own tag passes through as it stands. */
+function codexSource(source: string | CatalogSource): CatalogSource {
+	return typeof source === 'string' ? { source: 'local', path: source } : source
+}
+
 function codexArtifact(metadata: MarketplaceMetadata, plugins: MarketplacePlugin[]): MarketplaceArtifact {
 	return {
 		path: TARGET_CATALOG_PATHS.codex,
@@ -100,7 +122,7 @@ function codexArtifact(metadata: MarketplaceMetadata, plugins: MarketplacePlugin
 				// E-CODEX-M15, E-CODEX-M16). This is derived from the canonical manifest so the two
 				// agree (ADR-0010 §3), and is absent when the manifest declares no version.
 				version: plugin.metadata.version,
-				source: { source: 'local', path: plugin.source },
+				source: codexSource(plugin.source),
 				policy: { installation: 'AVAILABLE', authentication: 'ON_INSTALL' },
 				category: 'Productivity',
 			})),
@@ -142,6 +164,65 @@ export const VENDOR_TARGETS: Record<string, MarketplaceTarget> = {
 	'copilot-cli': 'copilot',
 }
 
+/** Where a marketplace itself came from, reduced to what rewriting one of its entries needs: a git
+ *  URL, plus the `owner/repo` when the origin named one. */
+export interface MarketplaceOrigin {
+	url: string
+	repo?: string
+}
+
+const GITHUB_URL = /^(?:https?:\/\/(?:www\.)?github\.com\/|git@github\.com:)([^/]+\/[^/]+?)(?:\.git)?\/?$/
+
+/** A git URL read as an origin, recognizing a GitHub one so an entry at the repository root can use
+ *  the tidier `github` form. */
+export function originFromUrl(url: string): MarketplaceOrigin {
+	const match = GITHUB_URL.exec(url.trim())
+	return match ? { url, repo: match[1] as string } : { url }
+}
+
+/** An `owner/repo` slug as an origin. */
+export function originFromRepo(repo: string): MarketplaceOrigin {
+	return { url: `https://github.com/${repo}.git`, repo }
+}
+
+/** The path part of a local source, `./` stripped, empty at the marketplace root. */
+function localSourcePath(source: string | CatalogSource): string | undefined {
+	const raw = typeof source === 'string' ? source : source.path
+	if (typeof raw !== 'string') return undefined
+	return raw.replace(/^\.\/?/, '').replace(/\/+$/, '')
+}
+
+/** Rewrites a source that is local to *another* marketplace into one that resolves from anywhere.
+ *
+ *  A copied entry's `./plugins/aced` is relative to the marketplace it came from, so carrying it
+ *  across unchanged would point at a directory this repository does not have. The path is not
+ *  useless, though — it is a location inside a repository whose URL is known, which is exactly what
+ *  `git-subdir` states. An entry at that repository's root needs no subdirectory and takes the
+ *  plainer `github` or `url` form. */
+export function absoluteSource(origin: MarketplaceOrigin, source: string | CatalogSource): CatalogSource | undefined {
+	const subdir = localSourcePath(source)
+	if (subdir === undefined) return undefined
+	if (subdir === '' || subdir === '.') {
+		return origin.repo ? { source: 'github', repo: origin.repo } : { source: 'url', url: origin.url }
+	}
+	return { source: 'git-subdir', url: origin.url, path: subdir }
+}
+
+/** The source forms each runtime installs from./** The source forms each runtime installs from.
+ *
+ *  Every runtime takes a repository path. Beyond that they diverge, and the divergence is not
+ *  cosmetic: a catalog is read at install time in someone else's terminal, so a source a runtime
+ *  cannot resolve is a failure far from here. Claude Code's schema documents the full tagged set
+ *  (<https://json.schemastore.org/claude-code-marketplace.json>). Codex documents npm alongside a
+ *  local path. Copilot CLI and Cursor document local paths only, which is why an npm entry reaches
+ *  two catalogs rather than four (`.research/local-marketplaces`, and issue #86). */
+export const TARGET_SOURCE_KINDS: Record<MarketplaceTarget, readonly string[]> = {
+	claude: ['path', 'npm', 'github', 'url', 'git-subdir'],
+	codex: ['path', 'npm'],
+	copilot: ['path'],
+	cursor: ['path'],
+}
+
 /** Folds one plugin's entry into a catalog that may already exist, and returns the artifact to
  *  write. An existing catalog keeps its own top-level fields — its name, its owner, a description
  *  someone wrote — and every entry it lists for other plugins, in place. Only this plugin's entry is
@@ -156,6 +237,7 @@ export function mergeCatalogEntry(
 	plugin: MarketplacePlugin,
 	/** Reads the catalog already at that target's path, keyed the way the artifact names it. */
 	readExisting: (path: string) => string | undefined,
+	{ keepForeignSource = true } = {},
 ): MarketplaceArtifact {
 	const artifact = serializeTarget(target, metadata, [plugin])[0] as MarketplaceArtifact
 	const existing = readExisting(artifact.path)
@@ -170,7 +252,7 @@ export function mergeCatalogEntry(
 	for (const [key, value] of Object.entries(generated)) {
 		if (!(key in merged)) merged[key] = value
 	}
-	merged.plugins = mergeEntries(previous, entry)
+	merged.plugins = mergeEntries(previous, entry, { keepForeignSource })
 	return { path: artifact.path, content: json(merged) }
 }
 
@@ -187,17 +269,94 @@ function parseCatalog(content: string, path: string): Record<string, unknown> {
 	return parsed as Record<string, unknown>
 }
 
-function mergeEntries(previous: Record<string, unknown>, entry: Record<string, unknown>): Record<string, unknown>[] {
+function mergeEntries(
+	previous: Record<string, unknown>,
+	entry: Record<string, unknown>,
+	{ keepForeignSource = false } = {},
+): Record<string, unknown>[] {
 	const entries = Array.isArray(previous.plugins) ? [...(previous.plugins as unknown[])] : []
 	const index = entries.findIndex(
 		(candidate) =>
 			typeof candidate === 'object' && candidate !== null && (candidate as Record<string, unknown>).name === entry.name,
 	)
 	if (index === -1) return [...entries, entry] as Record<string, unknown>[]
-	const merged = { ...(entries[index] as Record<string, unknown>), ...entry }
+	const existing = entries[index] as Record<string, unknown>
+	const merged = { ...existing, ...entry }
 	if (!('version' in entry)) delete merged.version
+	// A re-derivation describes the plugin, not where it is distributed from. An entry pointing at
+	// an npm package keeps pointing there; only a caller that was asked for a new source replaces one.
+	if (keepForeignSource && !isLocalCatalogSource(existing.source)) merged.source = existing.source
 	entries[index] = merged
 	return entries as Record<string, unknown>[]
+}
+
+/** Re-derives a whole catalog from discovery while keeping the entries discovery cannot see.
+ *
+ *  A repository may list plugins that live somewhere else — an npm package, a GitHub repository —
+ *  put there by `marketplace add`. Nothing on disk produces those, so a regeneration that trusted
+ *  discovery alone would report every one of them as a deletion, and `--force` would carry it out.
+ *  Two things survive instead: an entry whose source is not local stays even though discovery never
+ *  saw it, and a discovered plugin whose existing entry names a non-local source keeps that source
+ *  with only its derived metadata refreshed.
+ *
+ *  That second case is the loss in issue #86 — a plugin shipped through npm, whose repository path
+ *  holds only gitignored build output, rewritten to that path on every regeneration.
+ *
+ *  What discovery owns, it still owns: a local-path entry it no longer finds is dropped, so the
+ *  catalog keeps mirroring the repository for the part of the repository it describes. */
+export function mergeDiscoveredCatalog(
+	generated: MarketplaceArtifact,
+	existing: string | undefined,
+): MarketplaceArtifact {
+	if (existing === undefined) return generated
+	let previous: Record<string, unknown>
+	try {
+		previous = parseCatalog(existing, generated.path)
+	} catch {
+		// A catalog that is not JSON has nothing to preserve, and refusing here would take away the
+		// one command that repairs it: the conflict check stops the run, and `--force` rewrites it.
+		return generated
+	}
+
+	const foreign = new Map<string, Record<string, unknown>>()
+	for (const candidate of Array.isArray(previous.plugins) ? (previous.plugins as unknown[]) : []) {
+		if (typeof candidate !== 'object' || candidate === null || Array.isArray(candidate)) continue
+		const entry = candidate as Record<string, unknown>
+		if (typeof entry.name !== 'string' || isLocalCatalogSource(entry.source)) continue
+		foreign.set(entry.name, entry)
+	}
+	if (foreign.size === 0) return generated
+
+	const catalog = JSON.parse(generated.content) as Record<string, unknown>
+	const discovered = (catalog.plugins ?? []) as Record<string, unknown>[]
+	const merged = discovered.map((entry) => {
+		const kept = typeof entry.name === 'string' ? foreign.get(entry.name) : undefined
+		return kept === undefined ? entry : { ...entry, source: kept.source }
+	})
+	// Discovered entries keep their name order and the kept ones follow in the order the catalog
+	// already had them, so a second run of the same command produces the same file.
+	const discoveredNames = new Set(discovered.map((entry) => entry.name))
+	for (const [name, entry] of foreign) {
+		if (!discoveredNames.has(name)) merged.push(entry)
+	}
+	catalog.plugins = merged
+	return { path: generated.path, content: json(catalog) }
+}
+
+/** The plugin names a catalog lists, so a result row can report what the file ends up saying rather
+ *  than only what discovery contributed to it. */
+export function catalogEntryNames(content: string): string[] {
+	try {
+		const parsed = JSON.parse(content) as Record<string, unknown>
+		if (!Array.isArray(parsed.plugins)) return []
+		return parsed.plugins
+			.map((entry) =>
+				typeof entry === 'object' && entry !== null ? (entry as Record<string, unknown>).name : undefined,
+			)
+			.filter((name): name is string => typeof name === 'string')
+	} catch {
+		return []
+	}
 }
 
 /** The catalog's own top-level identity, read back from the file the repository already carries, so
@@ -224,7 +383,10 @@ export function refreshCatalogEntry(
 	const previous = parseCatalog(existing, catalogPath)
 	const generated = JSON.parse(serializeTarget(target, existingMetadata(previous), [plugin])[0]?.content ?? '{}')
 	const entry = (generated.plugins as Record<string, unknown>[])[0] as Record<string, unknown>
-	return { path: catalogPath, content: json({ ...previous, plugins: mergeEntries(previous, entry) }) }
+	return {
+		path: catalogPath,
+		content: json({ ...previous, plugins: mergeEntries(previous, entry, { keepForeignSource: true }) }),
+	}
 }
 
 /** Whether two catalogs say the same thing. Key order and whitespace do not change a catalog's
