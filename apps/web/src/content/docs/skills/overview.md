@@ -14,116 +14,25 @@ them from competing for the same request.
 
 | Skill | Owns | Fronts |
 |---|---|---|
-| `init` | what the manifest declares | `plugin init`, `plugin build` |
-| `doctor` | nothing; it only reads | `plugin build --dry-run` |
-| `version` | the released number | `plugin version`, `publish sync-version` |
-| `remove-plugin` | the artifacts | `plugin build --clean` |
+| [`init`](../init/) | what the manifest declares | `plugin init`, `plugin build` |
+| [`doctor`](../doctor/) | nothing; it only reads | `plugin build --dry-run` |
+| [`version`](../version/) | the released number | `plugin version`, `publish sync-version` |
+| [`remove-plugin`](../remove-plugin/) | the artifacts | `plugin build --clean` |
 
 Exactly one of them writes the canonical `plugin.json`. That is `init`.
-
-### init
-
-Creates a plugin, adopts an existing one onto the open standard, or changes what an existing one
-declares. It runs five phases: survey, classify, confirm, apply, verify.
-
-The confirm phase is the one that matters. Adoption turns hand-written vendor manifests into build
-output, so the skill states the plan and waits for approval before it rewrites anything you
-authored. Creating a file that does not exist yet needs no approval.
-
-Adoption is lossless by contract. After the build, `git diff` over the vendor manifest paths should
-show formatting churn and nothing else. A field that disappeared is a regression.
-
-### doctor
-
-Diagnoses a plugin and repairs nothing. It reports what is declared, unbuilt, stale, drifting, or
-shadowing, then names the skill that owns each repair.
-
-The checks run as a script rather than a prose checklist, because they are deterministic. It emits
-one JSON object:
-
-```json
-{
-  "manifest": { "name": "my-plugin", "version": "1.0.0" },
-  "vendors": [{ "vendor": "claude-code", "path": ".claude-plugin/plugin.json", "status": "built", "exists": true, "stale": false }],
-  "findings": [{ "code": "unbuilt", "severity": "high", "detail": "…", "repair": "…" }],
-  "ok": false
-}
-```
-
-Exit status is `0` whether or not findings exist. A finding is a result, not a failure, so the
-script is safe to run from a session-start hook.
-
-One check stays out of the script. Comparing a derived manifest against what the build would write
-today requires rebuilding on a clean tree, and that writes. `doctor` reports it as a repair for you
-to run.
-
-One check reads git rather than the filesystem. A runtime keys its plugin cache on the version, so
-content committed after the commit that set the current version never reaches anyone who already
-installed the plugin. `doctor` reports that as `unreleased-content`. It stays quiet for a plugin that
-declares `packagePath`, where the release moves the number, and on a tree with no history.
-
-### version
-
-Moves the number a plugin releases under. Its first question is whether the repository uses
-changesets, because that decides who owns the number.
-
-With changesets, the release decides it and `publish sync-version` carries it into the canonical
-manifest. Without changesets, `plugin version <bump>` does the whole move. Running `plugin version`
-in a changesets repository would pick a number changesets is about to pick again.
-
-Which release type to use is not the skill's call. A version is a promise about what broke, so the
-skill offers the semver reading and asks.
-
-### remove-plugin
-
-Removes artifacts. Cleaning build output, dropping one vendor, and removing the plugin are three
-different asks, and only the last is irreversible.
-
-Root `plugin.json` is never deleted as cleanup. It is the canonical source of truth, and it is also
-the manifest GitHub Copilot CLI reads.
 
 ## Distribution
 
 | Skill | Use it to |
 |---|---|
-| `marketplace` | generate the catalogs that let users install from this repository, and write the README install section |
-| `migrate-plugin` | move a repository-root plugin into the npm package that ships it |
-| `publish-plugin` | list a packaged plugin in the shared marketplace repository |
-| `upgrade-plugin` | bump the pinned `universal-plugin@<version>` a project calls |
-| `adopt-upx` | rewrite `npx` pins in your skills to the `upx` runner |
+| [`marketplace`](../marketplace/) | generate the catalogs that let users install from this repository, and write the README install section |
+| [`migrate-plugin`](../migrate-plugin/) | move a repository-root plugin into the npm package that ships it |
+| [`publish-plugin`](../publish-plugin/) | list a packaged plugin in the shared marketplace repository |
+| [`upgrade-plugin`](../upgrade-plugin/) | bump the pinned `universal-plugin@<version>` a project calls |
+| [`adopt-upx`](../adopt-upx/) | rewrite `npx` pins in your skills to the `upx` runner |
 
 `upgrade-plugin` moves the version your project *calls*. `version` moves the version your plugin
 *publishes*. They are different numbers.
-
-### Which runtimes a local marketplace reaches
-
-All four runtimes read a catalog the repository carries. Each has its own path, and
-`.claude-plugin/marketplace.json` is read by the three that install from one directly, so that file
-covers them if you want fewer.
-
-| Runtime | Catalog it reads | The user runs |
-|---|---|---|
-| Claude Code | `.claude-plugin/marketplace.json` | `/plugin marketplace add`, then `/plugin install` |
-| Codex | `.agents/plugins/marketplace.json`, or the Claude path | `codex plugin marketplace add`, then `codex plugin add` |
-| GitHub Copilot CLI | `.github/plugin/marketplace.json`, or the Claude path | `copilot plugin marketplace add`, then `copilot plugin install` |
-| Cursor | `.cursor-plugin/marketplace.json` | nothing; a team admin imports the repository |
-
-Two traps are worth knowing before you write install instructions by hand. Codex installs with
-`plugin add` while Copilot CLI uses `plugin install`. And Codex publishes neither verb in its
-documentation, so the commands above come from the shipped CLI.
-
-A shared catalog has to satisfy the strictest reader. Claude Code rejects one without an `owner`
-field, while Codex requires no `owner` and accepts extra fields, so the Claude shape is the portable
-one. Codex also finds a catalog only when it is named `marketplace.json`.
-
-Cursor is the fourth runtime and the exception. It reads a repository catalog, but no command adds
-one from a local path: a developer tests through `~/.cursor/plugins/local/<name>`, and users get the
-plugin when an admin imports the repository as a team marketplace. So the skill generates the file
-and writes no install command for it. Every command it does emit carries an evidence ID in
-[the research record](https://github.com/cyberuni/universal-plugin/blob/main/.research/local-marketplaces/conclusion.md).
-
-The README section is generated from the catalogs on disk, so the marketplace name, the plugin
-names, and the repository slug come from the repository rather than from a model retyping them.
 
 ## Bundled launchers
 
@@ -141,9 +50,9 @@ for the four requirements that make the pattern work.
 
 ## Why four skills and not one
 
-These four started as a single gateway skill with a route table. No one name covered create, adopt,
-update, inspect, version, and delete, and one description that has to match all six matches each of
-them weakly.
+The authoring four started as a single gateway skill with a route table. No one name covered create,
+adopt, update, inspect, version, and delete, and one description that has to match all six matches
+each of them weakly.
 
 The rule that replaced it: a new verb earns a route on the skill whose object it shares, and a skill
 of its own only when its object differs. Competing writers on one object are what fragments a

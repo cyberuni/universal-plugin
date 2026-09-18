@@ -25,7 +25,18 @@ export default defineConfig({
 				},
 				{
 					label: 'Skills',
-					items: [{ label: 'Overview', slug: 'skills/overview' }],
+					items: [
+						{ label: 'Overview', slug: 'skills/overview' },
+						{ label: 'init', slug: 'skills/init' },
+						{ label: 'doctor', slug: 'skills/doctor' },
+						{ label: 'version', slug: 'skills/version' },
+						{ label: 'remove-plugin', slug: 'skills/remove-plugin' },
+						{ label: 'marketplace', slug: 'skills/marketplace' },
+						{ label: 'migrate-plugin', slug: 'skills/migrate-plugin' },
+						{ label: 'publish-plugin', slug: 'skills/publish-plugin' },
+						{ label: 'upgrade-plugin', slug: 'skills/upgrade-plugin' },
+						{ label: 'adopt-upx', slug: 'skills/adopt-upx' },
+					],
 				},
 				{
 					label: 'CLI Reference',
