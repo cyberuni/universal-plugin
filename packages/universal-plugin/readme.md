@@ -79,11 +79,15 @@ keep their previous version.
 
 ```sh
 npx universal-plugin marketplace init --codex --root .
+npx universal-plugin marketplace add npm:repobuddy --description "Repo automation"
 npx universal-plugin marketplace validate --root .
 ```
 
-`validate` checks each catalog against the schema its runtime loads and names the key at fault, so a
-catalog that would be refused at install time is caught in the repository.
+`init` derives a catalog from the plugins a repository holds. `add` lists a plugin that lives
+elsewhere — a path, a GitHub repo (`--subdir` for a monorepo, `--ref`/`--sha` to pin it), an npm
+package, or another marketplace's entry — so a curating repository never needs a hand-written
+catalog. `validate` checks each catalog against the schema its runtime loads and names the key at
+fault, so a catalog that would be refused at install time is caught in the repository.
 
 Codex caches a local plugin install by its marketplace entry version. After you change packaged
 plugin files: update the canonical `plugin.json` version, regenerate the catalog (add `--force` to
