@@ -31,6 +31,9 @@ interface AddCliOptions extends MarketplaceCliOptions {
 	url?: boolean
 	fromMarketplace?: boolean
 	from?: string
+	subdir?: string
+	ref?: string
+	sha?: string
 	description?: string
 	version?: string
 	homepage?: string
@@ -89,6 +92,9 @@ function addCommand(): Command {
 		.option('--url', 'Read the spec as a git or https URL')
 		.option('--from-marketplace', 'Read the spec as <plugin>@<marketplace>')
 		.option('--from <dir>', 'Directory holding the marketplace to copy an entry from')
+		.option('--subdir <path>', "The plugin's directory inside the repository, for a monorepo")
+		.option('--ref <ref>', 'Branch or tag to pin a git source to')
+		.option('--sha <sha>', 'Commit to pin a git source to (full 40-character hash)')
 		.option('--name <name>', 'Entry name, when it differs from the one the spec implies')
 		.option('--description <text>', 'Entry description')
 		.option('--version <version>', 'Entry version')
@@ -107,6 +113,7 @@ function addCommand(): Command {
 			'\nExamples:\n' +
 				'  $ universal-plugin marketplace add npm:repobuddy\n' +
 				'  $ universal-plugin marketplace add cyberuni/universal-plugin\n' +
+				'  $ universal-plugin marketplace add cyberuni/cyber-sdd --subdir plugins/aced\n' +
 				'  $ universal-plugin marketplace add repobuddy@cyberplace --dry-run\n',
 		)
 		.action((spec: string, opts: AddCliOptions) => {
@@ -119,6 +126,9 @@ function addCommand(): Command {
 					kind: kindFromOptions(opts),
 					name: opts.name,
 					from: opts.from,
+					subdir: opts.subdir,
+					ref: opts.ref,
+					sha: opts.sha,
 					metadata: metadataFromOptions(opts),
 					marketplaceName: opts.marketplaceName,
 					owner: opts.owner,

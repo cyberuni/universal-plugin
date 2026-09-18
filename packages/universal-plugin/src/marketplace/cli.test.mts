@@ -132,3 +132,18 @@ test('add refuses a spec it cannot read and names the flags that settle it', () 
 	expect(twoKinds.status).toBe(1)
 	expect(twoKinds.stderr).toMatch(/pass one source kind/)
 })
+
+test('add narrows a monorepo repository to one plugin directory', () => {
+	const result = runAdd('cyberuni/cyber-sdd', '--subdir', 'plugins/aced', '--claude')
+	expect(result.status).toBe(0)
+
+	const catalog = JSON.parse(fs.readFileSync(path.join(root, '.claude-plugin/marketplace.json'), 'utf8'))
+	expect(catalog.plugins).toContainEqual({
+		name: 'aced',
+		source: { source: 'git-subdir', url: 'https://github.com/cyberuni/cyber-sdd.git', path: 'plugins/aced' },
+	})
+
+	const badPin = runAdd('npm:repobuddy', '--ref', 'main', '--claude')
+	expect(badPin.status).toBe(1)
+	expect(badPin.stderr).toMatch(/apply to a git source/)
+})

@@ -343,3 +343,35 @@ test('reads a marketplace origin from what the runtime recorded, not only from i
 		fs.rmSync(home, { recursive: true, force: true })
 	}
 })
+
+test('lists one plugin out of a monorepo, pinned to a tag', () => {
+	const root = fixture('universal-plugin-add-subdir-')
+	try {
+		const result = addToMarketplace(root, 'cyberuni/cyber-sdd', {
+			subdir: 'plugins/aced',
+			ref: 'v1.2.0',
+			metadata: { description: 'Agent config evals' },
+		})
+
+		// git-subdir is a Claude Code source form, so the other three cannot resolve it.
+		expect(result.map((row) => [row.target, row.status])).toEqual([
+			['claude', 'added'],
+			['codex', 'skipped'],
+			['copilot', 'skipped'],
+			['cursor', 'skipped'],
+		])
+		// The entry is named for the plugin's directory, not for the repository holding it.
+		expect(entries(root, '.claude-plugin/marketplace.json')[0]).toEqual({
+			name: 'aced',
+			source: {
+				source: 'git-subdir',
+				url: 'https://github.com/cyberuni/cyber-sdd.git',
+				path: 'plugins/aced',
+				ref: 'v1.2.0',
+			},
+			description: 'Agent config evals',
+		})
+	} finally {
+		fs.rmSync(root, { recursive: true, force: true })
+	}
+})

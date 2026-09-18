@@ -42,6 +42,11 @@ export interface MarketplaceAddOptions {
 	targets?: MarketplaceTarget[]
 	/** Overrides the guess `parsePluginSpec` would make about what the spec names. */
 	kind?: SourceKind
+	/** The plugin's directory inside the repository the spec names, for a monorepo. */
+	subdir?: string
+	/** A branch, tag, or commit to pin a git source to. */
+	ref?: string
+	sha?: string
 	/** The entry name, when it should differ from the one the spec implies. */
 	name?: string
 	/** Where to read a `<plugin>@<marketplace>` entry from when that marketplace is not installed. */
@@ -207,7 +212,7 @@ export function addToMarketplace(
 	fs: MarketplaceFs = realMarketplaceFs,
 ): MarketplaceAddResult[] {
 	const root = path.resolve(rootInput)
-	const parsed = parsePluginSpec(spec, opts.kind)
+	const parsed = parsePluginSpec(spec, { kind: opts.kind, subdir: opts.subdir, ref: opts.ref, sha: opts.sha })
 	const name = opts.name ?? parsed.name
 	assertMarketplaceName(name, 'plugin name')
 
