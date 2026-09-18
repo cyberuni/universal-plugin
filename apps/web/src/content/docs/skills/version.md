@@ -3,8 +3,8 @@ title: version
 description: Move the number a plugin releases under.
 ---
 
-Fronts `plugin version` and `publish sync-version`. It moves the number a plugin releases under. Its
-first question is whether the repository uses changesets, because that decides who owns the number.
+Moves the number a plugin releases under. Its first question is whether the repository uses
+changesets, because that decides who owns the number.
 
 With changesets, the release decides it and `publish sync-version` carries it into the canonical
 manifest. Without changesets, `plugin version <bump>` does the whole move. Running `plugin version`

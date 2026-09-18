@@ -3,9 +3,8 @@ title: init-universal-plugin
 description: Create a plugin, adopt an existing one onto the open standard, or change what it declares.
 ---
 
-Fronts `plugin init` and `plugin build`. It creates a plugin, adopts an existing one onto the open
-standard, or changes what an existing one declares. It is the only skill of the four that writes the
-canonical `plugin.json`.
+Creates a plugin, adopts an existing one onto the open standard, or changes what an existing one
+declares. It is the only skill of the four that writes the canonical `plugin.json`.
 
 It runs five phases: survey, classify, confirm, apply, verify.
 
@@ -22,5 +21,5 @@ else. A field that disappeared is a regression.
 
 ## See also
 
-- [`plugin build`](../../cli/build/) — the command this skill drives
 - [`doctor-universal-plugin`](../doctor-universal-plugin/) — diagnoses a plugin without writing anything
+- [`plugin build`](../../cli/build/) — the CLI command that runs under the hood, for scripting and CI

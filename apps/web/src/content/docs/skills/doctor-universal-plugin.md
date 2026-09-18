@@ -3,8 +3,8 @@ title: doctor-universal-plugin
 description: Diagnose a plugin and repair nothing.
 ---
 
-Fronts `plugin build --dry-run`. It diagnoses a plugin and repairs nothing: it reports what is
-declared, unbuilt, stale, drifting, or shadowing, then names the skill that owns each repair.
+Diagnoses a plugin and repairs nothing: it reports what is declared, unbuilt, stale, drifting, or
+shadowing, then names the skill that owns each repair.
 
 ## Output
 
@@ -37,4 +37,4 @@ that declares `packagePath`, where the release moves the number, and on a tree w
 ## See also
 
 - [`init-universal-plugin`](../init-universal-plugin/) — owns the repairs this skill names
-- [`plugin build`](../../cli/build/) — the command behind `--dry-run`
+- [`plugin build`](../../cli/build/) — the CLI command behind `--dry-run`, for scripting and CI

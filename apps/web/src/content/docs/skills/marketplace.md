@@ -3,9 +3,8 @@ title: marketplace
 description: Generate the catalogs that let users install this plugin from the repository, and write the README install section.
 ---
 
-Fronts [`marketplace init`, `marketplace add`, and `marketplace validate`](../../cli/marketplace/). It
-generates the catalogs that let users install from this repository, and writes the README install
-section from what those catalogs carry.
+Generates the catalogs that let users install this plugin from the repository, and writes the README
+install section from what those catalogs carry.
 
 ## Which runtimes a local marketplace reaches
 
@@ -39,5 +38,5 @@ names, and the repository slug come from the repository rather than from a model
 
 ## See also
 
-- [Local marketplace](../../cli/marketplace/) — the full command reference for `marketplace init`, `add`, and `validate`
 - [`publish-plugin`](../publish-plugin/) — lists a packaged plugin in a *shared* marketplace repository instead of the repository's own catalog
+- [Local marketplace](../../cli/marketplace/) — the CLI command reference for `marketplace init`, `add`, and `validate`, for scripting and CI
