@@ -97,7 +97,7 @@ The `.md` files already in that folder **are** the declaration of which governan
 To use one, add its file:
 
 ```
-skills/init/references/governances/plugin-design.md
+skills/init-universal-plugin/references/governances/plugin-design.md
 ```
 
 The file's content does not matter — `plugin build` rewrites it from the package that owns the

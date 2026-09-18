@@ -1,5 +1,5 @@
 ---
-title: doctor
+title: doctor-universal-plugin
 description: Diagnose a plugin and repair nothing.
 ---
 
@@ -26,15 +26,15 @@ script is safe to run from a session-start hook.
 ## What it can't check inline
 
 One check stays out of the script. Comparing a derived manifest against what the build would write
-today requires rebuilding on a clean tree, and that writes. `doctor` reports it as a repair for you
+today requires rebuilding on a clean tree, and that writes. The skill reports it as a repair for you
 to run.
 
 One check reads git rather than the filesystem. A runtime keys its plugin cache on the version, so
 content committed after the commit that set the current version never reaches anyone who already
-installed the plugin. `doctor` reports that as `unreleased-content`. It stays quiet for a plugin that
-declares `packagePath`, where the release moves the number, and on a tree with no history.
+installed the plugin. The skill reports that as `unreleased-content`. It stays quiet for a plugin
+that declares `packagePath`, where the release moves the number, and on a tree with no history.
 
 ## See also
 
-- [`init`](../init/) — owns the repairs `doctor` names
+- [`init-universal-plugin`](../init-universal-plugin/) — owns the repairs this skill names
 - [`plugin build`](../../cli/build/) — the command behind `--dry-run`

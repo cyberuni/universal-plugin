@@ -11,4 +11,4 @@ the manifest GitHub Copilot CLI reads.
 
 ## See also
 
-- [`init`](../init/) — the skill that writes the canonical manifest this one never deletes
+- [`init-universal-plugin`](../init-universal-plugin/) — the skill that writes the canonical manifest this one never deletes

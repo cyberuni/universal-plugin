@@ -27,8 +27,8 @@ export default defineConfig({
 					label: 'Skills',
 					items: [
 						{ label: 'Overview', slug: 'skills/overview' },
-						{ label: 'init', slug: 'skills/init' },
-						{ label: 'doctor', slug: 'skills/doctor' },
+						{ label: 'init-universal-plugin', slug: 'skills/init-universal-plugin' },
+						{ label: 'doctor-universal-plugin', slug: 'skills/doctor-universal-plugin' },
 						{ label: 'version', slug: 'skills/version' },
 						{ label: 'remove-plugin', slug: 'skills/remove-plugin' },
 						{ label: 'marketplace', slug: 'skills/marketplace' },

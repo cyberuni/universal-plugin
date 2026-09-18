@@ -14,12 +14,12 @@ them from competing for the same request.
 
 | Skill | Owns | Fronts |
 |---|---|---|
-| [`init`](../init/) | what the manifest declares | `plugin init`, `plugin build` |
-| [`doctor`](../doctor/) | nothing; it only reads | `plugin build --dry-run` |
+| [`init-universal-plugin`](../init-universal-plugin/) | what the manifest declares | `plugin init`, `plugin build` |
+| [`doctor-universal-plugin`](../doctor-universal-plugin/) | nothing; it only reads | `plugin build --dry-run` |
 | [`version`](../version/) | the released number | `plugin version`, `publish sync-version` |
 | [`remove-plugin`](../remove-plugin/) | the artifacts | `plugin build --clean` |
 
-Exactly one of them writes the canonical `plugin.json`. That is `init`.
+Exactly one of them writes the canonical `plugin.json`. That is `init-universal-plugin`.
 
 ## Distribution
 
@@ -36,7 +36,8 @@ Exactly one of them writes the canonical `plugin.json`. That is `init`.
 
 ## Bundled launchers
 
-`init`, `doctor`, `version`, and `marketplace` each ship a launcher in their own `scripts/` directory. The launcher
+`init-universal-plugin`, `doctor-universal-plugin`, `version`, and `marketplace` each ship a launcher
+in their own `scripts/` directory. The launcher
 imports the CLI that shipped beside it, so a scaffold or a diagnosis needs no network fetch and
 cannot resolve a different version than the one you installed.
 

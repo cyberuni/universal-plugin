@@ -1,5 +1,5 @@
 ---
-title: init
+title: init-universal-plugin
 description: Create a plugin, adopt an existing one onto the open standard, or change what it declares.
 ---
 
@@ -23,4 +23,4 @@ else. A field that disappeared is a regression.
 ## See also
 
 - [`plugin build`](../../cli/build/) — the command this skill drives
-- [`doctor`](../doctor/) — diagnoses a plugin without writing anything
+- [`doctor-universal-plugin`](../doctor-universal-plugin/) — diagnoses a plugin without writing anything
