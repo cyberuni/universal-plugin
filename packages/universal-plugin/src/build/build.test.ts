@@ -776,6 +776,28 @@ describe('buildPlugin — repository-local catalogs', () => {
 		expect(result.written).toContain(path.join(repoRoot, '.agents', 'plugins', 'marketplace.json'))
 	})
 
+	it('keeps an npm source while re-deriving the entry (issue #86)', () => {
+		writeCatalog('.claude-plugin/marketplace.json', {
+			name: 'pan-repo-local',
+			owner: { name: 'pan' },
+			plugins: [{ name: 'my-plugin', source: { source: 'npm', package: 'my-plugin' }, version: '0.9.0' }],
+		})
+		writeCatalog('.agents/plugins/marketplace.json', {
+			name: 'pan-repo-local',
+			plugins: [{ name: 'my-plugin', version: '0.9.0', source: { source: 'npm', package: 'my-plugin' } }],
+		})
+		writePluginManifest('1.2.0')
+
+		buildPlugin(pluginRoot, {})
+		for (const catalog of ['.claude-plugin/marketplace.json', '.agents/plugins/marketplace.json']) {
+			expect(entries(catalog)[0]).toMatchObject({
+				name: 'my-plugin',
+				version: '1.2.0',
+				source: { source: 'npm', package: 'my-plugin' },
+			})
+		}
+	})
+
 	it('reports an already-current catalog as unchanged and rewrites nothing', () => {
 		writeCatalog('.agents/plugins/marketplace.json', {
 			name: 'pan-repo-local',
