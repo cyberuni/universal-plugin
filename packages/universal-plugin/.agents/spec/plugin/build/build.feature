@@ -775,6 +775,15 @@ Feature: plugin build — derive per-vendor manifests
     And the other plugin's entry and the catalog's own fields are unchanged
     And the exit code is 0
 
+  Scenario: a refresh keeps an entry's npm source
+    Given the project root is inside a repository that carries ".claude-plugin/marketplace.json"
+    And that catalog lists this plugin with an npm source and an older version
+    And the manifest declares harnesses for "claude-code"
+    When I run "universal-plugin plugin build"
+    Then the catalog entry for this plugin still carries the npm source
+    And the catalog entry for this plugin carries the canonical manifest version
+    And the exit code is 0
+
   Scenario: a catalog the repository does not carry is not created
     Given the project root is inside a repository that carries no marketplace catalog
     And the manifest declares harnesses for "codex"
