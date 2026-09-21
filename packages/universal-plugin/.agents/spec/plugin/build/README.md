@@ -164,6 +164,13 @@ Follows the AXI output contract ([../../axi/](../../axi/README.md)).
   catalog the repository does not carry is not created — that choice belongs to `plugin init --vendor`
   and `marketplace init`. Outside a repository there is nothing to refresh. `--dry-run` reports the
   refresh as planned and writes nothing.
+- **A refresh keeps where the plugin is distributed from** — the re-derivation describes the plugin,
+  not its source. An entry whose source is not local, such as `{ "source": "npm", "package": … }`,
+  keeps that source, and only its derived fields change. A plugin shipped through npm often has
+  gitignored build output in its repository path, so rewriting the entry to that path would install
+  a plugin with no scripts (issue #86). The build never *chooses* a non-local source: an author
+  opts in once with `marketplace add npm:<pkg> --force`, which writes the npm entry to the Claude
+  and Codex catalogs and skips Copilot CLI and Cursor, which document local paths only.
 - **TOON by default, `--format json` escape hatch** — a successful build prints a TOON result to
   stdout, one row per vendor (`vendor, path, status`), plus a pre-computed aggregate summary
   (`built N, skipped M, failed K`, with `served by plugin.json N` appended when any vendor is
@@ -230,7 +237,7 @@ Every scenario in [`build.feature`](./build.feature) maps to one of these behavi
 | **eager validation** | missing manifest fails; codex requires description + version |
 | **unknown vendors warn** | unknown vendor key in `harnesses` skipped with warning |
 | **`--dry-run` / `--clean`** | dry-run writes nothing; clean removes stale output before rewrite |
-| **catalog refresh (ADR-0010 §3)** | this plugin's entry re-derived in each existing repository catalog for the vendors built; other entries and top-level fields untouched; no catalog created; unchanged reported as unchanged; `--dry-run` plans only |
+| **catalog refresh (ADR-0010 §3)** | this plugin's entry re-derived in each existing repository catalog for the vendors built; other entries and top-level fields untouched; no catalog created; a non-local source (npm) kept while its version is re-derived; unchanged reported as unchanged; `--dry-run` plans only |
 | **TOON default + aggregate (#1,#2,#4)** | stdout TOON, one row per vendor (`vendor, path, status`), pre-computed `built/skipped/failed` summary |
 | **`--format json` / `--format toon`** | JSON escape hatch with `built` array + counts; `--format toon` names the default |
 | **definitive empty state (#5)** | no targets → exit 0, TOON zero built rows + aggregate `built 0`, stderr "nothing to build", stderr names `/universal-plugin:doctor-universal-plugin` |
