@@ -30,6 +30,7 @@ export default defineConfig({
 						{ label: 'init-universal-plugin', slug: 'skills/init-universal-plugin' },
 						{ label: 'doctor-universal-plugin', slug: 'skills/doctor-universal-plugin' },
 						{ label: 'version', slug: 'skills/version' },
+						{ label: 'build-plugin', slug: 'skills/build-plugin' },
 						{ label: 'remove-plugin', slug: 'skills/remove-plugin' },
 						{ label: 'marketplace', slug: 'skills/marketplace' },
 						{ label: 'migrate-plugin', slug: 'skills/migrate-plugin' },

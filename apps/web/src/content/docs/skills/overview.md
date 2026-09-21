@@ -3,14 +3,14 @@ title: Skills
 description: The skills universal-plugin ships and what each one owns.
 ---
 
-The npm package ships nine skills. They are the main way to work with universal-plugin — each owns
+The npm package ships ten skills. They are the main way to work with universal-plugin — each owns
 one job in the life of a plugin, from scaffolding it through publishing it, and the CLI underneath
 it is there for scripting and CI, not the primary interface. In Claude Code they are invoked as
 `/universal-plugin:<name>`; other runtimes match them against your request.
 
 ## Authoring a plugin
 
-Four skills cover the life of a plugin. Each is scoped by the thing it touches, which is what keeps
+Five skills cover the life of a plugin. Each is scoped by the thing it touches, which is what keeps
 them from competing for the same request.
 
 | Skill | Owns |
@@ -18,7 +18,8 @@ them from competing for the same request.
 | [`init-universal-plugin`](../init-universal-plugin/) | what the manifest declares |
 | [`doctor-universal-plugin`](../doctor-universal-plugin/) | nothing; it only reads |
 | [`version`](../version/) | the released number |
-| [`remove-plugin`](../remove-plugin/) | the artifacts |
+| [`build-plugin`](../build-plugin/) | the derived manifests, written |
+| [`remove-plugin`](../remove-plugin/) | the artifacts, deleted |
 
 Exactly one of them writes the canonical `plugin.json`. That is `init-universal-plugin`.
 
@@ -37,8 +38,8 @@ Exactly one of them writes the canonical `plugin.json`. That is `init-universal-
 
 ## Bundled launchers
 
-`init-universal-plugin`, `doctor-universal-plugin`, `version`, and `marketplace` each ship a launcher
-in their own `scripts/` directory. The launcher imports the CLI that shipped beside it, so a scaffold
+`init-universal-plugin`, `doctor-universal-plugin`, `version`, `build-plugin`, and `marketplace` each
+ship a launcher in their own `scripts/` directory. The launcher imports the CLI that shipped beside it, so a scaffold
 or a diagnosis needs no network fetch and cannot resolve a different version than the one you
 installed.
 
