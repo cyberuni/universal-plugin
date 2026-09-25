@@ -675,7 +675,7 @@ test('publish sync-version writes version from packagePath into plugin.json', ()
 	}
 })
 
-test('publish sync-version exits 1 when packagePath is missing from manifest', () => {
+test('publish sync-version exits 1 when neither packagePath nor a root package.json exists', () => {
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-syncver-'))
 	try {
 		fs.writeFileSync(
@@ -687,7 +687,7 @@ test('publish sync-version exits 1 when packagePath is missing from manifest', (
 			env: { ...process.env, NODE_NO_WARNINGS: '1' },
 		})
 		expect(result.status).toBe(1)
-		expect(result.stderr).toMatch(/packagePath is required/)
+		expect(result.stderr).toMatch(/packagePath is not set in .agents\/universal-plugin.json and the plugin root has no package.json/)
 	} finally {
 		fs.rmSync(root, { recursive: true, force: true })
 	}

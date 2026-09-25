@@ -10,7 +10,7 @@ export interface SyncVersionResult {
 }
 
 /** The changesets-driven direction of the version flow: the number is decided by
- *  `changeset version` in `<packagePath>/package.json`, and this copies it into the canonical
+ *  `changeset version` in `<packagePath>/package.json` (the plugin root's when none is declared), and this copies it into the canonical
  *  manifest. `plugin version` is the other direction — the number decided here, flowing out to
  *  `package.json`. The two differ **only** in where the version comes from, so they share
  *  `applyVersionPlan` and cannot drift; `package.json` is the source here, never rewritten. */
@@ -24,16 +24,21 @@ export function syncVersion(root: string, syncFs: SyncVersionFs): SyncVersionRes
 	const agentsConfig = syncFs.exists(agentsConfigPath)
 		? (JSON.parse(syncFs.read(agentsConfigPath)) as Record<string, unknown>)
 		: {}
-	const packagePath = getPackagePath(agentsConfig)
-	if (packagePath === null) {
-		throw new Error('packagePath is required in .agents/universal-plugin.json')
-	}
+	// With no `packagePath`, the plugin root is the package: the usual single-package layout, where
+	// `package.json` sits beside `plugin.json`. Same base directory an explicit `packagePath` resolves
+	// against (#79), so `"packagePath": "."` and no key at all read the same file.
+	const declared = getPackagePath(agentsConfig)
+	const packagePath = declared ?? '.'
 
 	const manifest = JSON.parse(syncFs.read(manifestPath)) as Record<string, unknown>
 
 	const pkgJsonPath = path.join(root, packagePath, 'package.json')
 	if (!syncFs.exists(pkgJsonPath)) {
-		throw new Error(`No package.json found at ${packagePath}`)
+		throw new Error(
+			declared === null
+				? 'No package.json to sync from: packagePath is not set in .agents/universal-plugin.json and the plugin root has no package.json'
+				: `No package.json found at ${packagePath}`,
+		)
 	}
 
 	const pkg = JSON.parse(syncFs.read(pkgJsonPath)) as Record<string, unknown>
