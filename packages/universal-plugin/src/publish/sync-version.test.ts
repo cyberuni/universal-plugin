@@ -43,9 +43,34 @@ describe('syncVersion', () => {
 		}
 	})
 
-	it('throws when packagePath is missing from .agents/universal-plugin.json', () => {
+	it('reads the plugin root package.json when packagePath is not set', () => {
 		writeManifest({ name: 'my-plugin' })
-		expect(() => syncVersion(dir, realSyncVersionFs)).toThrow(/packagePath is required/)
+		writePackage('.', { name: 'my-plugin', version: '1.4.0' })
+		const result = syncVersion(dir, realSyncVersionFs)
+		expect(result.version).toBe('1.4.0')
+		expect(readManifest().version).toBe('1.4.0')
+	})
+
+	it('reads the plugin root package.json when .agents/universal-plugin.json is absent', () => {
+		fs.rmSync(path.join(dir, '.agents'), { recursive: true })
+		writeManifest({ name: 'my-plugin' })
+		writePackage('.', { version: '0.8.0' })
+		expect(syncVersion(dir, realSyncVersionFs).version).toBe('0.8.0')
+	})
+
+	it('names both places it looked when packagePath is not set and the root has no package.json', () => {
+		writeManifest({ name: 'my-plugin' })
+		expect(() => syncVersion(dir, realSyncVersionFs)).toThrow(
+			/No package\.json to sync from: packagePath is not set in \.agents\/universal-plugin\.json and the plugin root has no package\.json/,
+		)
+	})
+
+	it('prefers an explicit packagePath over the plugin root package.json', () => {
+		writeManifest({ name: 'my-plugin' })
+		writePackage('.', { version: '9.9.9' })
+		writeAgentsConfig({ packagePath: 'packages/mypkg' })
+		writePackage('packages/mypkg', { version: '1.2.3' })
+		expect(syncVersion(dir, realSyncVersionFs).version).toBe('1.2.3')
 	})
 
 	it('throws when packagePath/package.json does not exist', () => {

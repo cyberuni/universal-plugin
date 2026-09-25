@@ -175,9 +175,10 @@ Point every version and build step at the new plugin root:
 
 - Set the manifest extension's `packagePath` to `"."`.
 - `universal-plugin publish sync-version --root <pkg>` reads `packagePath` from
-  `<pkg>/.agents/universal-plugin.json`, not from the manifest extension. To use
-  it, create that file with `{ "packagePath": "." }`. If the repository instead
-  runs its own sync script, repoint that script's manifest path and leave it.
+  `<pkg>/.agents/universal-plugin.json`, not from the manifest extension. With
+  no `packagePath` it reads `<pkg>/package.json`, so a package that holds its
+  own plugin needs no config file for it. If the repository instead runs its
+  own sync script, repoint that script's manifest path and leave it.
 - Change every `universal-plugin plugin build --root <old>` in `package.json`
   scripts to the package directory, then run it and confirm it reports the
   vendor manifests as built and the catalog as unchanged or refolded.
