@@ -33,7 +33,7 @@ entry in both `vendors` and `harnesses` under
 ## Step 3 — Choose components
 
 Infer from context; ask only if ambiguous. [`standard.md`](./standard.md) has the component table and
-the layout they go in; `governance show plugin-design` decides which component a given need calls
+the layout they go in; the `plugin-design` reference decides which component a given need calls
 for. The universal minimum is `skills/<name>/SKILL.md` plus `.mcp.json`.
 
 ## Step 4 — Scaffold

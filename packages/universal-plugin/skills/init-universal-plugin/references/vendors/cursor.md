@@ -34,7 +34,7 @@ into the shared `SKILL.md`.
 
 `rules/<name>.mdc` reaches Cursor and nothing else. Reach for a rule only when the plugin genuinely
 needs always-on guidance in Cursor; anything a task can load on demand belongs in a skill, where every
-runtime sees it. `governance show plugin-design` is the authority on that call.
+runtime sees it. The `plugin-design` reference is the authority on that call.
 
 `.mdc` and `.md` are not interchangeable, and path-scoping has no equivalent in the other runtimes —
 never generate rules from a skill or a skill from a rule.
