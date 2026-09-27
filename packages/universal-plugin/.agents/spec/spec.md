@@ -1,5 +1,5 @@
 ---
-status: approved
+status: implemented
 name: universal-plugin
 project-path: packages/universal-plugin
 approval:
@@ -12,6 +12,16 @@ approval:
       blast: medium — the governance/ node is rewritten to the retirement contract, plugin/build/ loses its copy-step and --check scenarios, ADR-0017 supersedes 0002 and 0016, and the root map, glossary, tooling, and AXI node follow.
       novelty: low — a retirement pointer and a deletion; the replacement lives in buddy-agent-harness.
       confidence: high — cold spec-judge ALIGNED true on round 4 (oracle, builder, architect pass) after three rounds of fixes, each logged as a correction; check-spec-state OK.
+      cr: github-95
+  impl:
+    verdict: approve
+    by: agent
+    cause: dimension
+    why:
+      floor: none beyond the spec gate's pre-authorized clearance — the implementation weakens no scenario the frozen suite keeps.
+      blast: medium — governance/cli.ts becomes a retirement shim; the governance resolver, the copy step, and --check are deleted; governances/ moves to references/; skills and docs follow.
+      novelty: low — deletion plus a commander shim that accepts any flag.
+      confidence: high — cold impl-judge re-derived and hand-ran all 11 frozen scenarios (9 governance, 2 build) against the built CLI, each with a matching test; package verify 679 tests and root turbo verify green on the rebased tree.
       cr: github-95
 ---
 
