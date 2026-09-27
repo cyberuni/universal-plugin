@@ -1,6 +1,6 @@
 # 0002 — Governance scope model: freeze the shipped resolution order
 
-**Status:** accepted
+**Status:** superseded by [0017](./0017-retire-governance-for-reference.md)
 **Date:** 2026-07-04
 
 ## Context

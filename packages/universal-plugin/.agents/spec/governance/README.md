@@ -1,72 +1,49 @@
 ---
 spec-type: behavioral
-concept: [governance, axi]
+concept: [governance]
 ---
 
-# governance — resolve governance documents by name
+# governance — retired, pointing at `reference`
 
-> **Impl trails the AXI contract.** The shipped `governance show` / `list` predates the AXI adoption
-> (ADR-0003): resolution across the scope precedence is live and correct, but the output is
-> prose + `--format json`, not the frozen TOON default / aggregate / `show` truncation / content-first
-> / next-step behavior. The impl gate withholds certification until a follow-up mission re-implements
-> it against this frozen suite.
+`universal-plugin governance` no longer resolves documents. `buddy-agent-harness reference
+show|list|search` resolves them now, and a skill loads one with the `load-reference` skill in the
+`buddy-agent-harness` plugin ([ADR-0017](../design/decisions/0017-retire-governance-for-reference.md)).
+For one release every form of the command but `--help` prints where to go and exits 1. The release
+after that removes the command.
 
-`universal-plugin governance show <name>` and `governance list` let an agent reference a governance
-document by **name** rather than a fragile filesystem path. Names resolve across a fixed scope
-precedence, so the same reference works whether the document ships in the package, is installed at the
-user or project level, or is pinned by an OS-managed policy.
-
-Follows the AXI output contract ([../../axi/](../../axi/README.md)).
+The documents this package owns ship under `references/` at the package root, where the plugin tier
+of `reference` reads them for any project that declares `universal-plugin` as a dependency or dev
+dependency.
 
 ## Use Cases
 
-**Subject** — resolving and listing governance documents by name across scopes, output per the AXI
-contract:
+**Actors** — an agent or a script still running `governance show <name>` or `governance list`, most
+often from a skill written before the retirement, and the person who maintains that skill.
 
-- **Scope precedence (plain name)** — `governance show <name>` searches, in order,
-  `managed` → `project` (`<root>/governances/`) → `local` (`<root>/.agents/governances/`) → `user`
-  (`~/.agents/governances/`) → `package` (the dir shipped in `universal-plugin`); the
-  highest-precedence match wins and prints its content.
-- **Namespaced lookup adds the store scope** — `governance show <plugin>/<asset>` checks the
-  override scopes (`managed` → `project` → `user`), then the local **asset-store** (`store` scope) for
-  the named plugin's installed asset.
-- **Not found is a clean failure** — a name absent at every scope exits 1 with
-  `Governance "<name>" not found`.
-- **`list` enumerates by name and scope** — `governance list` lists every resolvable governance with
-  its winning scope, de-duplicated by name (highest scope wins), sorted alphabetically; with no
-  project/user governances it falls back to the package defaults.
-- **TOON by default, `--format json` escape hatch** — `list` prints a TOON result to stdout, one row
-  per governance (`name, scope`), plus a pre-computed aggregate (`N governances across C scopes`);
-  `show` prints the document body; `--format json` returns the same structured shape (`show` →
-  `{scope, content}`; `list` → an array of `{name, scope}`), never truncated.
-- **Truncation + `--full`** — `show` truncates a large document body on stdout with a size hint
-  (`… +N lines — rerun with --full`); `--full` suppresses truncation; small documents print in full
-  either way.
-- **Definitive empty state** — `list` with nothing resolvable at any scope, including package,
-  prints `0 governances found` on stdout with exit 0.
-- **Content-first** — bare `governance` with no subcommand runs `list`.
-- **Next-step suggestions** — `show`'s stderr ends with `→ universal-plugin governance list`;
-  `list`'s stderr ends with `→ universal-plugin governance show <name>`.
-- **Fail-loud, no prompts, help** — an unknown flag exits 1 naming the flag; neither verb prompts
-  interactively; `--help` exits 0 with a concise synopsis, flags, and one example.
+**Subject** — every form of the retired command points at its replacement; all but `--help` fail:
 
-**Non-goals** — authoring or editing governance documents; installing governance into a scope (the
-`cyberplace` package / the asset-store sync engine); the `plugin` manifest verbs; the shared
-output-contract mechanics themselves ([`../../axi/`](../../axi/README.md) owns those).
+- **`show` names its replacement** — `governance show <name>` resolves nothing, prints nothing on
+  stdout, and writes on stderr that the command is retired, then `→ buddy-agent-harness reference
+  show <name>`, and the `load-reference` skill for use from a skill. It exits 1, so a caller that
+  checks the exit code notices. With no name it names `<name>` as a placeholder.
+- **`list` and bare `governance` name theirs** — each prints the same retirement line and `→
+  buddy-agent-harness reference list`, and exits 1.
+- **Old flags do not mask the message** — a caller passing the flags the command used to take
+  (`--root`, `--format json`, `--json`) or any other flag gets the same retirement message and exit
+  1, not an unknown-flag error, so an old skill is told where to go instead of what it typed wrong.
+  The value after `--root` or `--format` is never read as the document name.
+- **Help says it is retired** — `governance --help` exits 0 and says the command is retired and what
+  replaces it.
+
+**Non-goals** — resolving, listing, or searching documents (`buddy-agent-harness reference` owns
+that); a fallback that still reads the old scopes; the removal itself, which is a later release's
+change.
 
 Every scenario in [`governance.feature`](./governance.feature) maps to one of these behaviors:
 
 | Behavior | What it covers |
 |---|---|
-| **scope precedence (plain name)** | project / local / user / package resolution; project > local > user precedence |
-| **namespaced store scope** | `<plugin>/<asset>` resolves from the asset-store when no override scope has it |
-| **not found** | absent name → exit 1 with the not-found message |
-| **list by name and scope** | list enumerates; dedup highest-scope-wins; alphabetical; package defaults fallback |
-| **`--format json`** | structured `show` object and `list` array |
-| **TOON default + aggregate (#1,#2,#4)** | `list` stdout TOON, one row per governance (`name, scope`), pre-computed `N governances across C scopes` |
-| **truncation + `--full` (#3)** | `show` truncates a large body with a size hint; `--full` untruncated; small docs and `--format json` never truncated |
-| **definitive empty state (#5)** | `list` with nothing resolvable anywhere → exit 0, `0 governances found` |
-| **content-first (#8)** | bare `governance` with no subcommand runs `list` |
-| **next-step suggestion (#9)** | `show` → `→ universal-plugin governance list`; `list` → `→ universal-plugin governance show <name>` |
-| **fail-loud unknown flag (#6)** | unknown flag exits 1, stderr names it |
-| **`--help` (#10)** | exits 0, concise synopsis + flags + one example |
+| **`show` names its replacement** | stdout empty, stderr retirement line and `→ buddy-agent-harness reference show <name>`, the `load-reference` skill named, exit 1; a document present at a former scope is not printed; no name gives the `<name>` placeholder |
+| **`list` and bare `governance`** | retirement line and `→ buddy-agent-harness reference list`, exit 1 |
+| **old flags** | `--root` before the name, `--format json`, the hidden `--json`, and an unknown flag each still get the retirement message and exit 1, the name read past a flag's value |
+| **help** | `governance --help` exits 0 and names the replacement |
