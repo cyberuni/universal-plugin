@@ -8,10 +8,8 @@ import { applySyncAction } from './sync.js'
 const cursorRegistry: VendorRegistry = {
 	cursor: {
 		sessionStartEvent: 'sessionStart',
-		globalManifest: null,
 		projectManifest: null,
 		hookGlob: null,
-		globalPluginDir: null,
 		pluginRootSuffix: '.cursor-plugin/plugin.json',
 		localPluginDir: null,
 		localPluginLink: false,

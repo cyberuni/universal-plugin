@@ -55,6 +55,14 @@ override from `~/.agents/universal-plugin-vendors.json`. So a vendor moving its 
 line here rather than a stale command in every downstream readme, and an author whose configuration
 directory is not in the default place fixes it locally without waiting for a release.
 
+_(Amended 2026-09-28, issue #97: **`localPluginDir` now has two sources.** Where
+`@cyberuni/agent-harness` knows a harness's `local-plugins` folder (Cursor's
+`~/.cursor/plugins/local`), `loadRegistry()` takes it from `pluginStorage()`, which honors the
+harness's config-directory override, and `vendors.json` no longer carries it. Claude Code's
+`~/.claude/skills/` is a skills-dir adoption rather than a plugin-storage fact, so it stays in
+`vendors.json`. `localPluginLink` and `localReload` stay there too. The user override still wins
+over both.)_
+
 ### 3. The install mode resolves per vendor, and is never silently downgraded
 
 `--link` and `--copy` name the two forms. The default is **neither**: it links where the vendor

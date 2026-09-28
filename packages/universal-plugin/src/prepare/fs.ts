@@ -2,15 +2,20 @@ import * as fsNode from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 
-function expandHome(p: string): string {
-	return p.startsWith('~') ? path.join(os.homedir(), p.slice(1)) : p
-}
+import { type HarnessEnvironment, type HarnessId, pluginStorage } from '@cyberuni/agent-harness'
 
 import { globalStorePath, storeEntryPath } from '../asset-store/asset-store.js'
 import { entryExists, populateEntry } from '../asset-store/fs.js'
 import type { StateFile } from '../state/state.js'
 import { emptyState, mergeSafeState } from '../state/state.js'
-import type { VendorConfig } from '../vendor-registry/vendor-registry.js'
+import {
+	type InstalledPlugin,
+	type InstallScope,
+	latestVersion,
+	parseClaudeInstallRecord,
+	toRoots,
+	toVersions,
+} from './installed-plugins.js'
 
 export interface PrepareFs {
 	readManifest(): Record<string, string>
@@ -43,40 +48,18 @@ function writeStateFile(filePath: string, state: StateFile): void {
 	fsNode.writeFileSync(filePath, JSON.stringify(state, null, 2) + '\n', 'utf8')
 }
 
-export function realPrepareFs(vendor: VendorConfig, projectRoot?: string): PrepareFs {
+/** `environment` locates the harness's plugin folders; it defaults to the current process. */
+export function realPrepareFs(
+	harness: HarnessId,
+	installScope: InstallScope,
+	environment: HarnessEnvironment = {},
+): PrepareFs {
+	const projectRoot = installScope.projectRoot
+	let installed: InstalledPlugin[] | undefined
+	const readInstalled = () => (installed ??= readInstalledPlugins(harness, installScope, environment))
 	return {
-		readManifest(): Record<string, string> {
-			if (!vendor.globalManifest) return {}
-			const manifestPath = expandHome(vendor.globalManifest)
-			try {
-				const raw = JSON.parse(fsNode.readFileSync(manifestPath, 'utf8')) as Record<string, unknown>
-				// Claude Code installed_plugins.json: keys are plugin names, values are objects with a version field
-				return Object.fromEntries(
-					Object.entries(raw).map(([k, v]) => [
-						k,
-						typeof v === 'object' && v !== null && 'version' in v
-							? String((v as Record<string, unknown>).version)
-							: String(v),
-					]),
-				)
-			} catch (err: unknown) {
-				if ((err as NodeJS.ErrnoException).code === 'ENOENT') return {}
-				throw err
-			}
-		},
-		readPluginRoots(): Record<string, string> {
-			if (!vendor.globalPluginDir) return {}
-			const pluginDir = expandHome(vendor.globalPluginDir)
-			const manifest = this.readManifest()
-			const home = os.homedir()
-			return Object.fromEntries(
-				Object.keys(manifest).map((name) => {
-					const absPath = path.join(pluginDir, name)
-					const relPath = absPath.startsWith(home) ? '~' + absPath.slice(home.length) : absPath
-					return [name, relPath]
-				}),
-			)
-		},
+		readManifest: () => toVersions(readInstalled()),
+		readPluginRoots: () => toRoots(readInstalled(), environment.homedir ?? os.homedir()),
 		readGlobalState: () => readStateFile(globalStatePath()) ?? emptyState(),
 		readProjectState: () => (projectRoot ? readStateFile(projectStatePath(projectRoot)) : null),
 		writeGlobalState: (s) => writeStateFile(globalStatePath(), s),
@@ -96,6 +79,97 @@ export function populateStoreFromVendorCache(
 		const segment = `npm/${pluginName}@${version}`
 		const entryPath = storeEntryPath(storePath, segment)
 		if (entryExists(entryPath)) continue
-		populateEntry(entryPath, pluginRoot)
+		populateEntry(entryPath, expandHome(pluginRoot))
+	}
+}
+
+function expandHome(p: string): string {
+	return p.startsWith('~') ? path.join(os.homedir(), p.slice(1)) : p
+}
+
+/** Lists what a harness has installed, the way that harness records it: Claude Code in its install
+ *  record, Copilot CLI and Codex only in the layout of their plugin folders. Cursor keeps no record
+ *  of installed plugins. */
+function readInstalledPlugins(
+	harness: HarnessId,
+	installScope: InstallScope,
+	environment: HarnessEnvironment,
+): InstalledPlugin[] {
+	const storage = pluginStorage(harness, environment)
+	const location = (kind: string) => storage.locations.find((l) => l.kind === kind)?.path
+	switch (harness) {
+		case 'claude-code': {
+			const record = location('install-record')
+			const raw = record ? readJson(record) : null
+			return raw === null ? [] : parseClaudeInstallRecord(raw, installScope)
+		}
+		case 'copilot-cli': {
+			// Copilot CLI installs are user-level only.
+			const dir = location('installed-plugins')
+			return dir && installScope.scope === 'global' ? readCopilotInstalls(dir) : []
+		}
+		case 'codex': {
+			const dir = location('plugin-cache')
+			return dir && installScope.scope === 'global' ? readCodexCache(dir) : []
+		}
+		default:
+			return []
+	}
+}
+
+/** `<dir>/<marketplace>/<plugin>/` for marketplace installs, `<dir>/_direct/<source-id>/` for
+ *  direct ones; the plugin's own manifest carries its name and version. */
+function readCopilotInstalls(dir: string): InstalledPlugin[] {
+	return subdirs(dir).flatMap((marketplace) =>
+		subdirs(path.join(dir, marketplace)).map((folder) => {
+			const root = path.join(dir, marketplace, folder)
+			const manifest = readPluginManifest(root)
+			return {
+				name: typeof manifest['name'] === 'string' ? manifest['name'] : folder,
+				version: typeof manifest['version'] === 'string' ? manifest['version'] : 'unknown',
+				root,
+			}
+		}),
+	)
+}
+
+/** `<dir>/<marketplace>/<plugin>/<version>/`; the newest cached version is the installed one. */
+function readCodexCache(dir: string): InstalledPlugin[] {
+	return subdirs(dir).flatMap((marketplace) =>
+		subdirs(path.join(dir, marketplace)).flatMap((name) => {
+			const version = latestVersion(subdirs(path.join(dir, marketplace, name)))
+			return version ? [{ name, version, root: path.join(dir, marketplace, name, version) }] : []
+		}),
+	)
+}
+
+const PLUGIN_MANIFESTS = ['plugin.json', '.github/plugin/plugin.json', '.claude-plugin/plugin.json']
+
+function readPluginManifest(root: string): Record<string, unknown> {
+	for (const file of PLUGIN_MANIFESTS) {
+		const raw = readJson(path.join(root, file))
+		if (typeof raw === 'object' && raw !== null) return raw as Record<string, unknown>
+	}
+	return {}
+}
+
+function readJson(filePath: string): unknown {
+	try {
+		return JSON.parse(fsNode.readFileSync(filePath, 'utf8'))
+	} catch (err: unknown) {
+		if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null
+		throw err
+	}
+}
+
+function subdirs(dir: string): string[] {
+	try {
+		return fsNode
+			.readdirSync(dir, { withFileTypes: true })
+			.filter((e) => e.isDirectory())
+			.map((e) => e.name)
+	} catch (err: unknown) {
+		if ((err as NodeJS.ErrnoException).code === 'ENOENT') return []
+		throw err
 	}
 }
