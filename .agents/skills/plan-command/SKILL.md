@@ -25,16 +25,9 @@ Read two files before writing anything:
 
 These are the canonical patterns. Do not deviate without cause.
 
-### 2. Check cli-command governance
+### 2. Apply the CLI command conventions
 
-Run:
-```bash
-universal-plugin governance show cli-command
-```
-
-If it returns nothing, read `packages/universal-plugin/governances/cli-command.md` directly.
-
-Key rules to carry into the spec:
+Carry these rules into the spec:
 - Output flag is `--format <format>` (values: `text`, `json`, `agent`). `--json` is a hidden alias only — never document it as a primary flag.
 - Exit 0 = success (possibly with warnings), 1 = error.
 - Errors → stderr. Data → stdout.
@@ -50,7 +43,6 @@ Use this structure exactly:
 
 **Status:** Planned
 **Commands:** `universal-plugin <command> [options]`
-**Governance:** [cli-command](../../governances/cli-command.md)
 
 ---
 
@@ -177,7 +169,6 @@ Never batch unrelated domains into one commit.
 
 - Writing `--json` as a primary flag in any spec or feature file
 - Omitting the `--format json` scenario when a command produces output
-- Omitting the `Governance:` header line from the spec frontmatter
 - Adding a `## Why` section to design decisions subsections (prose rationale belongs in `## Why` at the top, not inside decisions)
 - Forgetting to update the main `specs/spec.md` domain index
 - Committing spec and feature file in the same commit
