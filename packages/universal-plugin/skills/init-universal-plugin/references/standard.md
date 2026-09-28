@@ -62,7 +62,7 @@ what each build gets. A vendor listed in `vendors` with no `harnesses` entry sti
 └── README.md
 ```
 
-`plugin init --scaffold` creates the standard `skills/`, `agents/`, `governances/`, and `commands/`
+`plugin init --scaffold` creates the standard `skills/`, `agents/`, `references/`, and `commands/`
 directories. Create the rest only when the plugin has content for them.
 
 ## Components

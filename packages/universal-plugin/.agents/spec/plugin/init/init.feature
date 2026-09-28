@@ -39,7 +39,7 @@ Feature: plugin init — scaffold a plugin project, and wire an npm package to s
     Then the exit code is 0
     And directory "skills/" is created
     And directory "agents/" is created
-    And directory "governances/" is created
+    And directory "references/" is created
     And directory "commands/" is created
 
   Scenario: without --scaffold only the manifest is written

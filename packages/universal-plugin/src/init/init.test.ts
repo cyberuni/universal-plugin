@@ -82,7 +82,7 @@ describe('planInit scaffold half', () => {
 
 	it('--scaffold plans the four standard directories', () => {
 		const plan = planInit(empty, { vendors: [], scaffold: true, force: false, npm: false }, 'root', resolve)
-		expect(plan.dirs).toEqual(['skills', 'agents', 'governances', 'commands'])
+		expect(plan.dirs).toEqual(['skills', 'agents', 'references', 'commands'])
 	})
 
 	it('without --scaffold plans no directories', () => {

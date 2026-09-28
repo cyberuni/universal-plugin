@@ -108,7 +108,7 @@ graph TD
   VN -->|yes| vn1[record vendors in extensions org.cyberuni.universal-plugin]
   VN -->|no| vn2[no vendors list recorded · build falls back to harnesses keys]
   W --> SC{--scaffold?}
-  SC -->|yes| sc1[create skills/ agents/ governances/ commands/]
+  SC -->|yes| sc1[create skills/ agents/ references/ commands/]
   SC -->|no| sc2[manifest only]
   W --> NP{--npm?}
   NP -->|yes| wire[add plugin.json + skills/ base, then each vendor's derived manifest path]
