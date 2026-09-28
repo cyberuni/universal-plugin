@@ -25,10 +25,3 @@ export function output(data: unknown, view?: unknown) {
 	if (isJsonOutput()) printJson(data)
 	else console.log(encode(view ?? data))
 }
-
-/** Print a result whose default rendering is a document body rather than a record.
- * `--format json` still emits the structured payload. */
-export function outputText(data: unknown, text: () => void) {
-	if (isJsonOutput()) printJson(data)
-	else text()
-}

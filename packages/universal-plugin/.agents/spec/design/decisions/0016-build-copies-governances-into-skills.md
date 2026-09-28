@@ -1,6 +1,6 @@
 # 0016 — `plugin build` copies governances into the skills that use them
 
-**Status:** accepted
+**Status:** superseded by [0017](./0017-retire-governance-for-reference.md)
 **Date:** 2026-09-17
 **Builds on:** [0002](./0002-governance-scope-model.md) — its resolution order, which answers where a
 governance is *found*; this answers when a skill *reads* one.

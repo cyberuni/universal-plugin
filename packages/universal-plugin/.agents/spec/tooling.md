@@ -11,7 +11,7 @@ scanned node).
 - **Lint / format** — **biome**.
 - **Dead-code** — **knip**.
 - **Release** — **changesets** (the package is published; `publishConfig` set).
-- **Publish allowlist** — `package.json` `files: ["bin","dist","governances"]`. This is the sole
+- **Publish allowlist** — `package.json` `files`, which lists `bin`, `dist`, `references`, and the plugin assets. This is the sole
   safeguard keeping the colocated `.agents/spec/` out of the published tarball; it must stay an
   allowlist, never regress to an `.npmignore`-style denylist.
 

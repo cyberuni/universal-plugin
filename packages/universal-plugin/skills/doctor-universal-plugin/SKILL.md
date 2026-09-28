@@ -152,7 +152,7 @@ pushed without a bump reaches nobody who already installed the plugin, and neith
 ([ADR-0010](../../.agents/spec/design/decisions/0010-version-policy.md) §6).
 
 The script compares the shipped paths — the canonical manifest, the skills directory, `agents/`,
-`governances/`, `mcp.json` — against the commit that set the version the manifest carries now, and
+`governances/`, `references/`, `mcp.json` — against the commit that set the version the manifest carries now, and
 emits `unreleased-content` for anything committed since. Uncommitted work is not reported; it has not
 shipped.
 

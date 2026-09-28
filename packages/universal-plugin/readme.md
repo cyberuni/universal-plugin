@@ -106,14 +106,14 @@ npx universal-plugin config add --key sdd-plugins --entry '{"name":"aces","handl
 `add` appends the entry, or replaces the existing entry with the same `name`. Both commands print
 TOON by default; pass `--format json` for JSON.
 
-### governance
+### governance (retired)
 
-Version-pinned agent-tool contracts, read at runtime.
+`governance list` and `governance show` are retired. They print the replacement and exit 1 for one
+release, then go away. Read the documents with `buddy-agent-harness reference show <name>`, or, from a
+skill, with the `load-reference` skill in the `buddy-agent-harness` plugin.
 
-```sh
-npx universal-plugin governance list
-npx universal-plugin governance show plugin-design
-```
+This package ships its own documents (`plugin-design`, `slash-invocation`, `universal-plugin`) under
+`references/`, so `reference show` finds them in any project that depends on `universal-plugin`.
 
 ### Housekeeping
 

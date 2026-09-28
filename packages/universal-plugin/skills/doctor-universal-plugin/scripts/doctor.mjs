@@ -365,7 +365,7 @@ function commitThatSetVersion(current) {
  *  change twice. */
 function shippedPaths() {
 	const skills = typeof ext?.skills === 'string' ? ext.skills : './skills/'
-	const paths = ['plugin.json', skills, 'agents', 'governances', 'mcp.json']
+	const paths = ['plugin.json', skills, 'agents', 'governances', 'references', 'mcp.json']
 	return paths.filter((rel) => fs.existsSync(path.join(root, rel)))
 }
 

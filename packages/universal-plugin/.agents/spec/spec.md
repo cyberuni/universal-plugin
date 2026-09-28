@@ -6,23 +6,23 @@ approval:
   spec:
     verdict: approve
     by: agent
-    cause: dimension
+    cause: clearance
     why:
-      floor: none — new node (cli/), no frozen scenario anywhere in the corpus touched.
-      blast: small — one new behavioral node (cli/) plus a capability-map row and a placement-map bullet on this root spec.md; no existing node's contract changed.
-      novelty: low — applies the corpus's own pattern (a node scoped by object) to a gap the placement map did not yet name: the root Command's own identity, distinct from every verb node and from axi/'s cross-command contract.
-      confidence: high — cold spec-judge (general-purpose subagent standing in for the spec-judge role) returned ALIGNED true: placement defensible and disjoint from plugin/version/ and axi/, structure matches the sibling template, Gherkin scenarios pin observable behavior (exit code, exact stdout) with no redundancy, and one scenario directly forecloses silent reintroduction of the reported 0.0.0 placeholder.
-      cr: github-76
+      floor: clearance — frozen governance.feature and build.feature scenarios are deleted (the governance scope-resolution suite and the governance-copy and --check scenarios). Pre-authorized by the CR itself, owner-authored #95, which names both removals.
+      blast: medium — the governance/ node is rewritten to the retirement contract, plugin/build/ loses its copy-step and --check scenarios, ADR-0017 supersedes 0002 and 0016, and the root map, glossary, tooling, and AXI node follow.
+      novelty: low — a retirement pointer and a deletion; the replacement lives in buddy-agent-harness.
+      confidence: high — cold spec-judge ALIGNED true on round 4 (oracle, builder, architect pass) after three rounds of fixes, each logged as a correction; check-spec-state OK.
+      cr: github-95
   impl:
     verdict: approve
     by: agent
     cause: dimension
     why:
-      floor: none — no frozen scenario weakened; all four new scenarios in cli.feature verify against the compiled binary.
-      blast: small — cli.ts gains a resolveOwnVersion call reading the CLI's own package.json via import.meta.url; cli-options.ts gains one pure, injectable helper; two new test files (unit + integration). No other command's contract changed.
-      novelty: low — reuses the resolveRoot module's existing shape (a pure function with an injectable dependency) rather than inventing a new pattern.
-      confidence: high — verified manually against the compiled bin/universal-plugin.mjs from both the package root and an unrelated empty cwd, both matching the real package.json version and never 0.0.0; full package suite (604 tests), typecheck, and lint all green on the rebased tree.
-      cr: github-76
+      floor: none beyond the spec gate's pre-authorized clearance — the implementation weakens no scenario the frozen suite keeps.
+      blast: medium — governance/cli.ts becomes a retirement shim; the governance resolver, the copy step, and --check are deleted; governances/ moves to references/; skills and docs follow.
+      novelty: low — deletion plus a commander shim that accepts any flag.
+      confidence: high — cold impl-judge re-derived and hand-ran all 11 frozen scenarios (9 governance, 2 build) against the built CLI, each with a matching test; package verify 679 tests and root turbo verify green on the rebased tree.
+      cr: github-95
 ---
 
 # universal-plugin — the cross-vendor plugin build/derivation engine (CLI)
@@ -39,8 +39,8 @@ approval:
 One canonical `plugin.json` at the project root — Agent Plugins Specification v1.0.0 form, a **closed**
 field set with tool-specific data under `extensions` (ADR-0007) — is the single source of truth for a
 plugin. The `universal-plugin` CLI turns that canonical manifest into what each AI-agent runtime
-(Claude Code, Cursor, Codex, Copilot CLI) expects, and resolves shared governance documents by name.
-Two concerns:
+(Claude Code, Cursor, Codex, Copilot CLI) expects. It also ships the reference documents it owns under
+`references/`, for `buddy-agent-harness reference` to serve. Two concerns:
 
 - **The `plugin` command group** — `universal-plugin plugin build` **derives** per-vendor manifests
   from the canonical one; `plugin bundle` **materializes** the release form (pins the plugin's skill
@@ -50,9 +50,8 @@ Two concerns:
   manifests ship on `npm publish` — the one **publish-side** setup op in charter (ADR-0006). Setting a
   directory up to *consume* skills (the `skills/` layout, per-harness compatibility artifacts, the
   enabled-harness record) is **not** here — that is `repobuddy/buddy-agent-harness`.
-- **`governance`** — `universal-plugin governance show <name>` / `list` **resolves** governance
-  documents by name across a fixed scope precedence, so agents reference governance by name, not by a
-  fragile filesystem path.
+- **`governance`** — **retired** (ADR-0017). `buddy-agent-harness reference` resolves documents by
+  name now; for one release `governance show` / `list` print that replacement and exit 1.
 
 Everything here is deterministic CLI behavior (SDD-default + a script harness — boolean scenarios,
 no rubric).
@@ -94,7 +93,7 @@ plugin-install, hook, marketplace). The repo's concern split broke that apart:
   **`repobuddy/buddy-agent-harness`**, not here (ADR-0006).
 
 What remains here — deriving, validating, and scaffolding the canonical manifest (including wiring a
-package to ship it via `plugin init --npm`), plus resolving governance by name — is the deterministic
+package to ship it via `plugin init --npm`) — is the deterministic
 engine. It ships to npm as one `universal-plugin` bin and is a peer of the `cyberfleet` CLI.
 
 **What decides whether something belongs here is the object it operates on** (ADR-0006): a concern is
@@ -111,13 +110,13 @@ ADR-0006 corrects that.
 |---|---|---|
 | [`cli/`](./cli/README.md) | behavioral | the root program's own identity — `--version`/`-V` reports the installed `universal-plugin` package's version |
 | [`plugin/`](./plugin/README.md) | group | the `plugin` command group — build / bundle / validate / init / install / version |
-| [`plugin/build/`](./plugin/build/README.md) | behavioral | `universal-plugin plugin build [--vendor] [--dry-run] [--clean] [--check]` — derive per-vendor manifests from the canonical `plugin.json` (dev-consumable form; no skill pins, but it stamps a marked `mcpServers` invocation with the plugin version) and copy each governance a skill declares into that skill, `--check` failing on a committed copy that differs from its source (ADR-0016) |
+| [`plugin/build/`](./plugin/build/README.md) | behavioral | `universal-plugin plugin build [--vendor] [--dry-run] [--clean]` — derive per-vendor manifests from the canonical `plugin.json` (dev-consumable form; no skill pins, but it stamps a marked `mcpServers` invocation with the plugin version) |
 | [`plugin/bundle/`](./plugin/bundle/README.md) | behavioral | `universal-plugin plugin bundle [--dry-run] [--full] [--format] [--runner]` — materialize the release form: pin the `npx`/`upx <cli>@<version>` references in the plugin's skills to their shipping workspace versions (`--runner` selects the emitted runner word) |
 | [`plugin/validate/`](./plugin/validate/README.md) | behavioral | `universal-plugin plugin validate [--vendor] [--strict] [--full] [--format]` — check the canonical manifest against the Agent Plugins schema + vendor rules; bare `universal-plugin plugin` runs it too |
 | [`plugin/version/`](./plugin/version/README.md) | behavioral | `universal-plugin plugin version <major\|minor\|patch\|pre*\|x.y.z> [--preid] [--force] [--no-build] [--dry-run]` — move the plugin's version: write the two **authored** numbers (canonical `plugin.json`, and the `packagePath` `package.json` when declared), then re-derive the vendor manifests through `build`'s own writer |
 | [`plugin/init/`](./plugin/init/README.md) | behavioral | `universal-plugin plugin init [--name] [--vendor] [--scaffold] [--force] [--yes] [--npm]` — scaffold the canonical `plugin.json`; `--npm` also wires an npm package's `files` to ship the derived vendor manifests (ADR-0006). Consuming-side harness setup → `repobuddy/buddy-agent-harness` |
 | [`plugin/install/`](./plugin/install/README.md) | behavioral | `universal-plugin plugin install [--vendor] [--link\|--copy] [--force] [--list]` and `plugin uninstall` — put the working copy into the local plugin directory of each runtime the manifest declares, and take it back out. Local development only; a marketplace or registry install stays the runtime's own job (ADR-0012) |
-| [`governance/`](./governance/README.md) | behavioral | `universal-plugin governance show <name>` / `list` — resolve governance documents by name across scopes |
+| [`governance/`](./governance/README.md) | behavioral | `universal-plugin governance show <name>` / `list` — retired: prints `buddy-agent-harness reference` as the replacement and exits 1 |
 | [`marketplace/`](./marketplace/README.md) | group | the repository-local marketplace metadata command group |
 | [`marketplace/init/`](./marketplace/init/README.md) | behavioral | `universal-plugin marketplace init [--claude] [--codex] [--copilot] [--cursor]` — generate each vendor's local marketplace catalog; no remote marketplace operation |
 | [`marketplace/validate/`](./marketplace/validate/README.md) | behavioral | `universal-plugin marketplace validate [--claude] [--codex] [--copilot] [--cursor] [--required]` — check the catalogs a repository carries against the schema each vendor's runtime loads, naming the key at fault; reads only |
@@ -153,14 +152,10 @@ Where a new concept lives — slot here, do not invent placement (strategy = **c
   **`plugin/build/`**. It does not contradict the `plugin/bundle/` rule above: bundle owns the pins
   in the plugin's **skills** (prose files build never rewrites), build owns the pins in the
   **manifest** it already derives. The dividing line is the object, not the word "pin".
-- **a new name→document resolution op** (resolve or list governance by name across scopes) →
-  `governance/`.
-- **a new op putting a governance _where a skill reads it_** (copy a governance into the skills that
-  declare it, follow the pointers inside a copy, verify the committed copies) → **`plugin/build/`**
-  ([ADR-0016](./design/decisions/0016-build-copies-governances-into-skills.md)). It does not
-  contradict the `governance/` rule above: `governance/` owns resolving a **name** for a caller that
-  asks at run time, build owns **placing the document** in the skill folder at build time, beside the
-  other skill content it already writes. The dividing line is the moment, not the word "governance".
+- **a new name→document resolution op, or a governance copy step** → **out of charter**
+  ([ADR-0017](./design/decisions/0017-retire-governance-for-reference.md)).
+  `buddy-agent-harness reference` resolves documents by name, and its `load-reference` skill is how a
+  skill loads one. `governance/` holds only the retired command's pointer to them.
 - **a new repository-local marketplace metadata derivation** (discover eligible plugin roots and
   emit each vendor's catalog) → `marketplace/init/`. This is
   deterministic file generation only: publishing, registration, installation, authentication,
@@ -220,10 +215,10 @@ scanned node).
 
 | Concept | Facets |
 |---|---|
-| `axi` | `axi/` (reference) · `config/add/` (behavior) · `config/get/` (behavior) · `governance/` (behavior) · `marketplace/init/` (behavior) · `plugin/build/` (behavior) · `plugin/bundle/` (behavior) · `plugin/init/` (behavior) · `plugin/install/` (behavior) · `plugin/validate/` (behavior) · `plugin/version/` (behavior) |
+| `axi` | `axi/` (reference) · `config/add/` (behavior) · `config/get/` (behavior) · `marketplace/init/` (behavior) · `plugin/build/` (behavior) · `plugin/bundle/` (behavior) · `plugin/init/` (behavior) · `plugin/install/` (behavior) · `plugin/validate/` (behavior) · `plugin/version/` (behavior) |
 | `canonical-manifest` | `plugin/build/` (behavior) · `plugin/init/` (behavior) · `plugin/install/` (behavior) · `plugin/validate/` (behavior) · `plugin/version/` (behavior) |
 | `config` | `config/add/` (behavior) · `config/get/` (behavior) |
-| `governance` | `governance/` (behavior) · `plugin/build/` (behavior) |
+| `governance` | `governance/` (behavior) |
 | `marketplace` | `marketplace/init/` (behavior) |
 | `release` | `plugin/bundle/` (behavior) · `plugin/version/` (behavior) |
 

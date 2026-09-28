@@ -540,119 +540,94 @@ test('plugin bundle --runner yarn fails loud naming the value', () => {
 	}
 })
 
-test('governance list includes packaged defaults when project root has no governances', () => {
-	const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-gov-'))
-	try {
-		const result = spawnSync('node', [bin, 'governance', 'list', '--root', empty], {
-			encoding: 'utf8',
-			env: { ...process.env, NODE_NO_WARNINGS: '1' },
-		})
-		expect(result.status).toBe(0)
-		expect(result.stdout).toMatch("plugin-design")
-	} finally {
-		fs.rmSync(empty, { recursive: true, force: true })
-	}
+function governance(...args: string[]) {
+	return spawnSync('node', [bin, 'governance', ...args], {
+		encoding: 'utf8',
+		env: { ...process.env, NODE_NO_WARNINGS: '1' },
+	})
+}
+
+// Scenario: show names its replacement and fails
+test('governance show names its replacement and exits 1', () => {
+	const result = governance('show', 'plugin-design')
+	expect(result.status).toBe(1)
+	expect(result.stdout).toBe('')
+	expect(result.stderr).toMatch(/governance is retired/)
+	expect(result.stderr).toContain('→ buddy-agent-harness reference show plugin-design')
+	expect(result.stderr).toMatch(/load-reference skill in the buddy-agent-harness plugin/)
 })
 
-test('governance list returns governance name and scope', () => {
+// Scenario: show prints no document even where one used to resolve
+test('governance show prints no document even where one used to resolve', () => {
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-gov-'))
 	try {
-		fs.mkdirSync(path.join(root, 'governances'))
-		fs.writeFileSync(path.join(root, 'governances', 'plugin-design.md'), '# Plugin Design')
-		const result = spawnSync('node', [bin, 'governance', 'list', '--root', root], {
-			encoding: 'utf8',
-			env: { ...process.env, NODE_NO_WARNINGS: '1' },
-		})
-		expect(result.status).toBe(0)
-		expect(result.stdout).toMatch(/plugin-design/)
-		expect(result.stdout).toMatch(/project/)
-	} finally {
-		fs.rmSync(root, { recursive: true, force: true })
-	}
-})
-
-test('governance show outputs content for a known governance', () => {
-	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-gov-'))
-	try {
-		fs.mkdirSync(path.join(root, 'governances'))
-		fs.writeFileSync(path.join(root, 'governances', 'plugin-design.md'), '# Plugin Design\ncontent here')
-		const result = spawnSync('node', [bin, 'governance', 'show', 'plugin-design', '--root', root], {
-			encoding: 'utf8',
-			env: { ...process.env, NODE_NO_WARNINGS: '1' },
-		})
-		expect(result.status).toBe(0)
-		expect(result.stdout).toMatch(/# Plugin Design/)
-	} finally {
-		fs.rmSync(root, { recursive: true, force: true })
-	}
-})
-
-test('governance show exits 1 for unknown governance', () => {
-	const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-gov-'))
-	try {
-		const result = spawnSync('node', [bin, 'governance', 'show', 'missing', '--root', empty], {
-			encoding: 'utf8',
-			env: { ...process.env, NODE_NO_WARNINGS: '1' },
-		})
+		fs.mkdirSync(path.join(root, '.agents', 'governances'), { recursive: true })
+		fs.writeFileSync(path.join(root, '.agents', 'governances', 'plugin-design.md'), '# Plugin Design\ncontent here')
+		const result = governance('show', 'plugin-design', '--root', root)
 		expect(result.status).toBe(1)
-		expect(result.stderr).toMatch(/not found/)
-	} finally {
-		fs.rmSync(empty, { recursive: true, force: true })
-	}
-})
-
-test('governance show --json returns structured output', () => {
-	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-gov-'))
-	try {
-		fs.mkdirSync(path.join(root, 'governances'))
-		fs.writeFileSync(path.join(root, 'governances', 'test-gov.md'), 'content')
-		const result = spawnSync('node', [bin, 'governance', 'show', 'test-gov', '--json', '--root', root], {
-			encoding: 'utf8',
-			env: { ...process.env, NODE_NO_WARNINGS: '1' },
-		})
-		expect(result.status).toBe(0)
-		const parsed = JSON.parse(result.stdout)
-		expect(parsed.scope).toBe('project')
-		expect(parsed.content).toBe('content')
+		expect(result.stdout).toBe('')
+		expect(result.stderr).toContain('→ buddy-agent-harness reference show plugin-design')
 	} finally {
 		fs.rmSync(root, { recursive: true, force: true })
 	}
 })
 
-test('governance show --format json returns structured output (frozen invocation)', () => {
-	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-gov-'))
-	try {
-		fs.mkdirSync(path.join(root, 'governances'))
-		fs.writeFileSync(path.join(root, 'governances', 'test-gov.md'), 'content')
-		const result = spawnSync('node', [bin, 'governance', 'show', 'test-gov', '--format', 'json', '--root', root], {
-			encoding: 'utf8',
-			env: { ...process.env, NODE_NO_WARNINGS: '1' },
-		})
-		expect(result.status).toBe(0)
-		const parsed = JSON.parse(result.stdout)
-		expect(parsed.scope).toBe('project')
-		expect(parsed.content).toBe('content')
-	} finally {
-		fs.rmSync(root, { recursive: true, force: true })
-	}
+// Scenario: show with no name names the replacement with a placeholder
+test('governance show with no name names the replacement with a placeholder', () => {
+	const result = governance('show')
+	expect(result.status).toBe(1)
+	expect(result.stdout).toBe('')
+	expect(result.stderr).toContain('→ buddy-agent-harness reference show <name>')
 })
 
-test('governance list --format json returns array of entries (frozen invocation)', () => {
-	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-gov-'))
-	try {
-		fs.mkdirSync(path.join(root, 'governances'))
-		fs.writeFileSync(path.join(root, 'governances', 'plugin-design.md'), '# Plugin Design')
-		const result = spawnSync('node', [bin, 'governance', 'list', '--format', 'json', '--root', root], {
-			encoding: 'utf8',
-			env: { ...process.env, NODE_NO_WARNINGS: '1' },
-		})
-		expect(result.status).toBe(0)
-		const parsed = JSON.parse(result.stdout)
-		expect(Array.isArray(parsed)).toBe(true)
-		expect(parsed.every((e: { name: string; scope: string }) => 'name' in e && 'scope' in e)).toBe(true)
-	} finally {
-		fs.rmSync(root, { recursive: true, force: true })
-	}
+// Scenario: list names its replacement and fails
+test('governance list names its replacement and exits 1', () => {
+	const result = governance('list')
+	expect(result.status).toBe(1)
+	expect(result.stdout).toBe('')
+	expect(result.stderr).toMatch(/governance is retired/)
+	expect(result.stderr).toContain('→ buddy-agent-harness reference list')
+	expect(result.stderr).toMatch(/load-reference skill in the buddy-agent-harness plugin/)
+})
+
+// Scenario: bare governance names the list replacement and fails
+test('bare governance names the list replacement and exits 1', () => {
+	const result = governance()
+	expect(result.status).toBe(1)
+	expect(result.stdout).toBe('')
+	expect(result.stderr).toContain('→ buddy-agent-harness reference list')
+	expect(result.stderr).toMatch(/load-reference skill in the buddy-agent-harness plugin/)
+})
+
+// Scenario: the flags the command used to take still get the retirement message
+test('governance show with its old flags still gets the retirement message', () => {
+	const result = governance('show', '--root', '/tmp', 'plugin-design', '--format', 'json')
+	expect(result.status).toBe(1)
+	expect(result.stdout).toBe('')
+	expect(result.stderr).toContain('→ buddy-agent-harness reference show plugin-design')
+})
+
+// Scenario: the hidden --json flag still gets the retirement message
+test('governance list --json still gets the retirement message', () => {
+	const result = governance('list', '--json')
+	expect(result.status).toBe(1)
+	expect(result.stdout).toBe('')
+	expect(result.stderr).toContain('→ buddy-agent-harness reference list')
+})
+
+// Scenario: an unknown flag still gets the retirement message
+test('governance list with an unknown flag still gets the retirement message', () => {
+	const result = governance('list', '--frobnicate')
+	expect(result.status).toBe(1)
+	expect(result.stderr).toContain('→ buddy-agent-harness reference list')
+})
+
+// Scenario: help says the command is retired
+test('governance --help says the command is retired', () => {
+	const result = governance('--help')
+	expect(result.status).toBe(0)
+	expect(result.stdout).toMatch(/retired/i)
+	expect(result.stdout).toContain('buddy-agent-harness reference')
 })
 
 test('publish sync-version writes version from packagePath into plugin.json', () => {

@@ -32,14 +32,5 @@ Terms used across this spec. A flat reference doc (not a scanned node).
 - **vendors** — the optional target list under the extensions namespace. When present, `plugin build`
   derives exactly those vendors; when absent, it falls back to every key in `harnesses`.
 - **governance** — a named, version-pinned contract document (a `<name>.md`) that agents resolve by
-  name rather than by path. `governance show` / `list` resolve these.
-- **scope** — a location a governance document may live, resolved in a fixed precedence. For a plain
-  name: `managed` → `project` → `local` → `user` → `package`. A namespaced `plugin/asset` lookup adds
-  the `store` scope (the local asset-store) after the override scopes. Highest-precedence match wins.
-  - **managed** — an OS-level, write-protected system dir (`/etc/universal-plugin/governances`, or the
-    platform equivalent).
-  - **project** — `<root>/governances/`.
-  - **local** — `<root>/.agents/governances/`.
-  - **user** — `~/.agents/governances/`.
-  - **package** — the `governances/` dir shipped inside the `universal-plugin` package.
-  - **store** — the local asset-store, reached only for a namespaced `plugin/asset` lookup.
+  name rather than by path. `buddy-agent-harness reference` resolves these now; the documents this
+  package owns ship under `references/` (ADR-0017). `governance show` / `list` are retired.

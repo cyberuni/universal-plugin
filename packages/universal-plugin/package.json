@@ -28,8 +28,8 @@
 		"LICENSE",
 		"bin",
 		"dist",
-		"governances",
 		"plugin.json",
+		"references",
 		"schema",
 		".claude-plugin",
 		".cursor-plugin",
@@ -40,7 +40,6 @@
 	],
 	"scripts": {
 		"build": "tsdown",
-		"check:governances": "tsx src/cli.ts plugin build --check --root .",
 		"dev": "tsx src/cli.ts",
 		"knip": "knip",
 		"lint": "biome check .",
@@ -48,7 +47,7 @@
 		"test": "pnpm build && vitest run src",
 		"test:watch": "vitest",
 		"typecheck": "tsc --noEmit",
-		"verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm check:governances"
+		"verify": "pnpm typecheck && pnpm lint && pnpm test"
 	},
 	"dependencies": {
 		"@repobuddy/upx": "^0.1.0",

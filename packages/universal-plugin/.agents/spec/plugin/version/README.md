@@ -92,7 +92,7 @@ nobody can find ships unreachable however little judgment it needs. Measured:
   script, and no pin, so a scaffolded plugin repo does **not** have this CLI installed.
 - The package is published, so the verb is reachable with no install as
   `npx universal-plugin plugin version <bump>` — that is the same unpinned invocation the gateway
-  skill already uses for `governance show`.
+  skill used for `governance show` before ADR-0017 retired it.
 - The skill surface is this package's discoverability surface for exactly this class of ask, and it
   covered create / adopt / inspect / update / delete. **None of them is "move the version"**, and the
   update route is scoped to what a plugin *declares* — vendors and components — not to what it

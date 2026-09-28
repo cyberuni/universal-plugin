@@ -80,7 +80,7 @@ directories. Create the rest only when the plugin has content for them.
 
 The universal minimum — reaching every runtime with no vendor manifest at all — is
 `skills/<name>/SKILL.md` plus `.mcp.json`. Reach for a narrower component only when the plugin needs
-what only that component does; `governance show plugin-design` is the authority on that choice.
+what only that component does; the `plugin-design` reference is the authority on that choice.
 
 ## Constraints
 

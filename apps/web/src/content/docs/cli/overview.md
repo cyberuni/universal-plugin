@@ -34,7 +34,7 @@ Manifest authoring lives under the `plugin` command group. The other groups sit 
 | [`marketplace init`](../marketplace/) | Generate repository-local marketplace metadata |
 | [`marketplace add`](../marketplace/#marketplace-add-lists-a-plugin-that-lives-elsewhere) | List a plugin that lives elsewhere — a path, a GitHub repo, an npm package, or another marketplace's entry |
 | [`marketplace validate`](../marketplace/#marketplace-validate-checks-what-the-repository-carries) | Check those catalogs against the schema each runtime loads |
-| `governance` | List and show the version-pinned agent-tool contracts |
+| `governance` | Retired: prints `buddy-agent-harness reference` as its replacement and exits 1 |
 | `clean` | Remove the asset store |
 | `self-update` | Update the version pin in `universal-plugin` hook files |
 
@@ -68,8 +68,7 @@ vendors[2]{vendor,path,status}:
 summary: "built 2, skipped 0, failed 0"
 ```
 
-`--format json` returns more than the default view, including every warning. `governance show`
-prints the governance document itself, so its default stays plain text.
+`--format json` returns more than the default view, including every warning.
 
 stdout carries the result and nothing else. Next-step lines, warnings, and errors go to stderr, so
 piping stdout into a parser stays clean.
