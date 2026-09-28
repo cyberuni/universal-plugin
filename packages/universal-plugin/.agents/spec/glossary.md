@@ -33,4 +33,4 @@ Terms used across this spec. A flat reference doc (not a scanned node).
   derives exactly those vendors; when absent, it falls back to every key in `harnesses`.
 - **governance** — a named, version-pinned contract document (a `<name>.md`) that agents resolve by
   name rather than by path. `buddy-agent-harness reference` resolves these now; the documents this
-  package owns ship under `references/` (ADR-0017). `governance show` / `list` are retired.
+  package owns ship under `references/` (ADR-0017). The `governance` command is removed.

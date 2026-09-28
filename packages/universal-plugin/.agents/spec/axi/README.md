@@ -12,9 +12,7 @@ a first-class constraint. This node states the cross-cutting conventions **once*
 node ([`plugin/build/`](../plugin/build/README.md), [`plugin/bundle/`](../plugin/bundle/README.md),
 [`plugin/validate/`](../plugin/validate/README.md), [`plugin/init/`](../plugin/init/README.md),
 [`config/add/`](../config/add/README.md), [`config/get/`](../config/get/README.md)) references this
-contract and carries the concrete scenarios that exercise it. The retired `governance` command
-([`governance/`](../governance/README.md)) is the one exception: every form of it but `--help`
-prints its replacement and exits 1, whatever flags it is given.
+contract and carries the concrete scenarios that exercise it.
 
 ## Subject
 

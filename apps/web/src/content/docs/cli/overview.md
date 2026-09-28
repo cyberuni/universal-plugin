@@ -34,7 +34,6 @@ Manifest authoring lives under the `plugin` command group. The other groups sit 
 | [`marketplace init`](../marketplace/) | Generate repository-local marketplace metadata |
 | [`marketplace add`](../marketplace/#marketplace-add-lists-a-plugin-that-lives-elsewhere) | List a plugin that lives elsewhere — a path, a GitHub repo, an npm package, or another marketplace's entry |
 | [`marketplace validate`](../marketplace/#marketplace-validate-checks-what-the-repository-carries) | Check those catalogs against the schema each runtime loads |
-| `governance` | Retired: prints `buddy-agent-harness reference` as its replacement and exits 1 |
 | `clean` | Remove the asset store |
 | `self-update` | Update the version pin in `universal-plugin` hook files |
 
