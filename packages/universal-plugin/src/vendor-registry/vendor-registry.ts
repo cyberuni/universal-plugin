@@ -1,12 +1,11 @@
 export interface VendorConfig {
 	sessionStartEvent: string
-	globalManifest: string | null
 	projectManifest: string | null
 	hookGlob: string | null
-	globalPluginDir: string | null
 	pluginRootSuffix: string | null
 	/** Directory a runtime scans for locally developed plugins, one entry per plugin, or `null` when
-	 *  it has none. `plugin install` writes into it. */
+	 *  it has none. `plugin install` writes into it. Where `@cyberuni/agent-harness` knows a
+	 *  harness's `local-plugins` folder, that value is used (see `withLocalPluginDirs`). */
 	localPluginDir: string | null
 	/** Whether that directory's scan follows a symlink whose target sits outside it. When false,
 	 *  `plugin install` has to copy. */
@@ -30,4 +29,19 @@ export function mergeRegistries(base: VendorRegistry, override: VendorRegistry):
 		result[id] = { ...(base[id] ?? {}), ...config } as VendorConfig
 	}
 	return result
+}
+
+/** Fills each vendor's `localPluginDir` from `locate`, which returns the harness's `local-plugins`
+ *  folder when `@cyberuni/agent-harness` knows one. A vendor it knows nothing about keeps its
+ *  registry value, or `null`. */
+export function withLocalPluginDirs(
+	registry: Record<string, Omit<VendorConfig, 'localPluginDir'> & { localPluginDir?: string | null }>,
+	locate: (vendorId: string) => string | undefined,
+): VendorRegistry {
+	return Object.fromEntries(
+		Object.entries(registry).map(([id, config]) => [
+			id,
+			{ ...config, localPluginDir: locate(id) ?? config.localPluginDir ?? null },
+		]),
+	)
 }
