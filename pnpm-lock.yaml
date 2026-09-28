@@ -48,6 +48,9 @@ importers:
 
   packages/universal-plugin:
     dependencies:
+      '@cyberuni/agent-harness':
+        specifier: ^0.1.0
+        version: 0.1.0
       '@repobuddy/upx':
         specifier: ^0.1.0
         version: 0.1.1
@@ -413,6 +416,10 @@ packages:
   '@ctrl/tinycolor@4.2.0':
     resolution: {integrity: sha512-kzyuwOAQnXJNLS9PSyrk0CWk35nWJW/zl/6KvnTBMFK65gm7U1/Z5BqjxeapjZCIhQcM/DsrEmcbRwDyXyXK4A==}
     engines: {node: '>=14'}
+
+  '@cyberuni/agent-harness@0.1.0':
+    resolution: {integrity: sha512-EFi1GZpZ2ziQ+GoE7Fyu0dIn881IVUdxQNXSMDkSCsliz2O8P3hnCxBinLaJYtgN4CuqeE0o9twSLzqD1OIrgQ==}
+    engines: {node: '>=22'}
 
   '@emmetio/abbreviation@2.3.3':
     resolution: {integrity: sha512-mgv58UrU3rh4YgbE/TzgLQwJ3pFsHHhCLqY20aJq+9comytTXUDNGG/SMtSeMJdkpxgXSXunBGLD8Boka3JyVA==}
@@ -3943,6 +3950,8 @@ snapshots:
       conventional-commits-parser: 6.4.0
 
   '@ctrl/tinycolor@4.2.0': {}
+
+  '@cyberuni/agent-harness@0.1.0': {}
 
   '@emmetio/abbreviation@2.3.3':
     dependencies:

@@ -50,6 +50,7 @@
 		"verify": "pnpm typecheck && pnpm lint && pnpm test"
 	},
 	"dependencies": {
+		"@cyberuni/agent-harness": "^0.1.0",
 		"@repobuddy/upx": "^0.1.0",
 		"@toon-format/toon": "^4.1.1",
 		"commander": "^14.0.3",
