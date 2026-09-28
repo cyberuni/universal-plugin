@@ -52,7 +52,7 @@ which copy wins.
   loaded unless it carries its own copy.
 - The replacement ships in a `buddy-agent-harness` release. Merging this before that release is on
   npm would leave the deprecation message pointing at a command no one can install.
-- `plugin init --scaffold` still creates `governances/`. Scaffolding `references/` instead is a
-  separate change.
+- `plugin init --scaffold` still created `governances/`. Scaffolding `references/` instead was a
+  separate change (#100).
 - Readers in other repositories that run `governance show` or read `references/governances/` copies
   migrate in those repositories.

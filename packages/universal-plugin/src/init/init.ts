@@ -18,7 +18,7 @@ import { formatCatalogIssues, validateCatalogContent } from '../marketplace/vali
 
 const SCHEMA_URL = 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json'
 const UP_NAMESPACE = 'org.cyberuni.universal-plugin'
-const SCAFFOLD_DIRS = ['skills', 'agents', 'governances', 'commands'] as const
+const SCAFFOLD_DIRS = ['skills', 'agents', 'references', 'commands'] as const
 
 export interface InitOptions {
 	name?: string

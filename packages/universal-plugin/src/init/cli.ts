@@ -33,7 +33,7 @@ export function initCommand(deps: { fs: InitFs } = { fs: realInitFs }): Command 
 	cmd
 		.option('--name <name>', 'Plugin name (default: the root directory name)')
 		.option('--vendor <id>', 'Target vendor; repeatable', collect, [])
-		.option('--scaffold', 'Create the standard skills/ agents/ governances/ commands/ directories')
+		.option('--scaffold', 'Create the standard skills/ agents/ references/ commands/ directories')
 		.option('--force', 'Overwrite an existing plugin.json')
 		.option('--yes', 'Non-interactive (compatibility no-op; init never prompts)')
 		.option('--npm', "Wire package.json 'files' to ship the derived vendor manifests")
