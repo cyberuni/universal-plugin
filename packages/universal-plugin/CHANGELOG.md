@@ -1,5 +1,26 @@
 # universal-plugin
 
+## 0.10.0
+
+### Minor Changes
+
+- e0b672d: A new `build-plugin` skill is the entry point for `plugin build`. It runs the project's own build script when one exists, and otherwise the CLI shipped beside it through `scripts/build.mjs`, so nothing is downloaded. It reads the vendor and catalog rows back, reports each warning about something a vendor cannot represent, and hands a `built 0` result to `doctor-universal-plugin`.
+- 738df81: `marketplace add` lists a plugin the repository does not hold, so a repository can curate a marketplace instead of only publishing its own plugins. One positional says where the plugin lives and is read by shape: a `./` path, an `owner/repo` slug, a git URL, an npm package (`npm:pkg` or `@scope/pkg`), or `<plugin>@<marketplace>` — with `--path`, `--npm`, `--github`, `--url`, and `--from-marketplace` to force the reading where `owner/repo` and a relative path collide. Nothing is fetched: metadata comes from a path's own `plugin.json`, an installed `node_modules` copy, the entry being copied, or the `--description`/`--version`/`--homepage`/`--repository`/`--license`/`--keywords` flags. A `<plugin>@<marketplace>` entry is resolved from a marketplace the runtime has already added, or from `--from <dir>`. A source that is relative to *that* marketplace is rewritten rather than copied, against the origin the runtime recorded for it or its clone's own git remote: `./plugins/aced` in `cyberuni/cyberplace` becomes `{ "source": "git-subdir", "url": "https://github.com/cyberuni/cyberplace.git", "path": "plugins/aced" }`, and an entry at the marketplace root becomes `github` or `url`. An entry only reaches a catalog whose runtime resolves that source — npm goes to Claude Code and Codex, and Copilot CLI and Cursor are reported `skipped` with the reason rather than written a source they refuse.
+  
+  A regeneration no longer discards the entries it did not derive. `marketplace init`, `plugin build`, and `plugin init` keep an entry whose source is not a local path, and keep a non-local source on a plugin they *do* discover while refreshing its derived metadata — so a plugin distributed through npm is not rewritten to a repository path holding gitignored build output, and `add` and `init` compose on one repository. A local-path entry discovery no longer finds is still dropped.
+  
+  The `marketplace` skill is now a gateway over three routes (`init`, `add`, `validate`), each with its own reference, and ships a `scripts/add.mjs` wrapper.
+- 2ba0e9c: Retire `governance` and the build's governance copies in favor of `buddy-agent-harness reference` and its `load-reference` skill.
+  
+  - `governance show` and `governance list` no longer read documents. For this release they print the replacement (`buddy-agent-harness reference show <name>`, or the `load-reference` skill in the `buddy-agent-harness` plugin) and exit 1. The next release removes the command.
+  - `plugin build` no longer copies governances into `skills/*/references/governances/`, and `plugin build --check` is gone. Remove `--check` from CI; it now fails as an unknown option.
+  - The documents this package owns (`plugin-design`, `slash-invocation`, and a `universal-plugin` pointer to `plugin-design`) ship under `references/` instead of `governances/`, so `reference show` finds them in any project that depends on `universal-plugin`.
+  - The `init-universal-plugin` skill loads `plugin-design` through the `load-reference` skill.
+
+### Patch Changes
+
+- c430c4a: `publish sync-version` no longer requires `packagePath`. With none set in `.agents/universal-plugin.json`, it reads the `package.json` at the plugin root, so a single-package repository where `package.json` sits beside `plugin.json` needs no config file. It fails only when that file is missing too, and the error names both places it looked. An explicit `packagePath` still wins.
+
 ## 0.9.0
 
 ### Minor Changes
