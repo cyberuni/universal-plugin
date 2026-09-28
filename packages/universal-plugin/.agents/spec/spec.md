@@ -40,7 +40,8 @@ One canonical `plugin.json` at the project root — Agent Plugins Specification 
 field set with tool-specific data under `extensions` (ADR-0007) — is the single source of truth for a
 plugin. The `universal-plugin` CLI turns that canonical manifest into what each AI-agent runtime
 (Claude Code, Cursor, Codex, Copilot CLI) expects. It also ships the reference documents it owns under
-`references/`, for `buddy-agent-harness reference` to serve. Two concerns:
+`references/`, for `buddy-agent-harness reference` to serve; the `governance` command that once
+resolved them was retired (ADR-0017) and then removed. Its core concern:
 
 - **The `plugin` command group** — `universal-plugin plugin build` **derives** per-vendor manifests
   from the canonical one; `plugin bundle` **materializes** the release form (pins the plugin's skill
@@ -50,8 +51,6 @@ plugin. The `universal-plugin` CLI turns that canonical manifest into what each 
   manifests ship on `npm publish` — the one **publish-side** setup op in charter (ADR-0006). Setting a
   directory up to *consume* skills (the `skills/` layout, per-harness compatibility artifacts, the
   enabled-harness record) is **not** here — that is `repobuddy/buddy-agent-harness`.
-- **`governance`** — **retired** (ADR-0017). `buddy-agent-harness reference` resolves documents by
-  name now; for one release `governance show` / `list` print that replacement and exit 1.
 
 Everything here is deterministic CLI behavior (SDD-default + a script harness — boolean scenarios,
 no rubric).
@@ -116,7 +115,6 @@ ADR-0006 corrects that.
 | [`plugin/version/`](./plugin/version/README.md) | behavioral | `universal-plugin plugin version <major\|minor\|patch\|pre*\|x.y.z> [--preid] [--force] [--no-build] [--dry-run]` — move the plugin's version: write the two **authored** numbers (canonical `plugin.json`, and the `packagePath` `package.json` when declared), then re-derive the vendor manifests through `build`'s own writer |
 | [`plugin/init/`](./plugin/init/README.md) | behavioral | `universal-plugin plugin init [--name] [--vendor] [--scaffold] [--force] [--yes] [--npm]` — scaffold the canonical `plugin.json`; `--npm` also wires an npm package's `files` to ship the derived vendor manifests (ADR-0006). Consuming-side harness setup → `repobuddy/buddy-agent-harness` |
 | [`plugin/install/`](./plugin/install/README.md) | behavioral | `universal-plugin plugin install [--vendor] [--link\|--copy] [--force] [--list]` and `plugin uninstall` — put the working copy into the local plugin directory of each runtime the manifest declares, and take it back out. Local development only; a marketplace or registry install stays the runtime's own job (ADR-0012) |
-| [`governance/`](./governance/README.md) | behavioral | `universal-plugin governance show <name>` / `list` — retired: prints `buddy-agent-harness reference` as the replacement and exits 1 |
 | [`marketplace/`](./marketplace/README.md) | group | the repository-local marketplace metadata command group |
 | [`marketplace/init/`](./marketplace/init/README.md) | behavioral | `universal-plugin marketplace init [--claude] [--codex] [--copilot] [--cursor]` — generate each vendor's local marketplace catalog; no remote marketplace operation |
 | [`marketplace/validate/`](./marketplace/validate/README.md) | behavioral | `universal-plugin marketplace validate [--claude] [--codex] [--copilot] [--cursor] [--required]` — check the catalogs a repository carries against the schema each vendor's runtime loads, naming the key at fault; reads only |
@@ -155,7 +153,7 @@ Where a new concept lives — slot here, do not invent placement (strategy = **c
 - **a new name→document resolution op, or a governance copy step** → **out of charter**
   ([ADR-0017](./design/decisions/0017-retire-governance-for-reference.md)).
   `buddy-agent-harness reference` resolves documents by name, and its `load-reference` skill is how a
-  skill loads one. `governance/` holds only the retired command's pointer to them.
+  skill loads one.
 - **a new repository-local marketplace metadata derivation** (discover eligible plugin roots and
   emit each vendor's catalog) → `marketplace/init/`. This is
   deterministic file generation only: publishing, registration, installation, authentication,
@@ -218,7 +216,6 @@ scanned node).
 | `axi` | `axi/` (reference) · `config/add/` (behavior) · `config/get/` (behavior) · `marketplace/init/` (behavior) · `plugin/build/` (behavior) · `plugin/bundle/` (behavior) · `plugin/init/` (behavior) · `plugin/install/` (behavior) · `plugin/validate/` (behavior) · `plugin/version/` (behavior) |
 | `canonical-manifest` | `plugin/build/` (behavior) · `plugin/init/` (behavior) · `plugin/install/` (behavior) · `plugin/validate/` (behavior) · `plugin/version/` (behavior) |
 | `config` | `config/add/` (behavior) · `config/get/` (behavior) |
-| `governance` | `governance/` (behavior) |
 | `marketplace` | `marketplace/init/` (behavior) |
 | `release` | `plugin/bundle/` (behavior) · `plugin/version/` (behavior) |
 

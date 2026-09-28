@@ -7,7 +7,7 @@ concept: [release]
 
 The root `universal-plugin` program (`src/cli.ts`), before any subcommand dispatch: its name,
 description, and `--version`/`-V` output. Distinct from every command node under `plugin/`,
-`governance/`, `marketplace/`, and `config/` — those specify a verb's behavior; this specifies the
+`marketplace/`, and `config/` — those specify a verb's behavior; this specifies the
 bootstrap `Command` instance itself.
 
 ## Use Cases
