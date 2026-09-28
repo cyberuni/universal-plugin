@@ -540,94 +540,14 @@ test('plugin bundle --runner yarn fails loud naming the value', () => {
 	}
 })
 
-function governance(...args: string[]) {
-	return spawnSync('node', [bin, 'governance', ...args], {
+test('governance is no longer a command', () => {
+	const result = spawnSync('node', [bin, 'governance', 'list'], {
 		encoding: 'utf8',
 		env: { ...process.env, NODE_NO_WARNINGS: '1' },
 	})
-}
-
-// Scenario: show names its replacement and fails
-test('governance show names its replacement and exits 1', () => {
-	const result = governance('show', 'plugin-design')
 	expect(result.status).toBe(1)
 	expect(result.stdout).toBe('')
-	expect(result.stderr).toMatch(/governance is retired/)
-	expect(result.stderr).toContain('→ buddy-agent-harness reference show plugin-design')
-	expect(result.stderr).toMatch(/load-reference skill in the buddy-agent-harness plugin/)
-})
-
-// Scenario: show prints no document even where one used to resolve
-test('governance show prints no document even where one used to resolve', () => {
-	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-gov-'))
-	try {
-		fs.mkdirSync(path.join(root, '.agents', 'governances'), { recursive: true })
-		fs.writeFileSync(path.join(root, '.agents', 'governances', 'plugin-design.md'), '# Plugin Design\ncontent here')
-		const result = governance('show', 'plugin-design', '--root', root)
-		expect(result.status).toBe(1)
-		expect(result.stdout).toBe('')
-		expect(result.stderr).toContain('→ buddy-agent-harness reference show plugin-design')
-	} finally {
-		fs.rmSync(root, { recursive: true, force: true })
-	}
-})
-
-// Scenario: show with no name names the replacement with a placeholder
-test('governance show with no name names the replacement with a placeholder', () => {
-	const result = governance('show')
-	expect(result.status).toBe(1)
-	expect(result.stdout).toBe('')
-	expect(result.stderr).toContain('→ buddy-agent-harness reference show <name>')
-})
-
-// Scenario: list names its replacement and fails
-test('governance list names its replacement and exits 1', () => {
-	const result = governance('list')
-	expect(result.status).toBe(1)
-	expect(result.stdout).toBe('')
-	expect(result.stderr).toMatch(/governance is retired/)
-	expect(result.stderr).toContain('→ buddy-agent-harness reference list')
-	expect(result.stderr).toMatch(/load-reference skill in the buddy-agent-harness plugin/)
-})
-
-// Scenario: bare governance names the list replacement and fails
-test('bare governance names the list replacement and exits 1', () => {
-	const result = governance()
-	expect(result.status).toBe(1)
-	expect(result.stdout).toBe('')
-	expect(result.stderr).toContain('→ buddy-agent-harness reference list')
-	expect(result.stderr).toMatch(/load-reference skill in the buddy-agent-harness plugin/)
-})
-
-// Scenario: the flags the command used to take still get the retirement message
-test('governance show with its old flags still gets the retirement message', () => {
-	const result = governance('show', '--root', '/tmp', 'plugin-design', '--format', 'json')
-	expect(result.status).toBe(1)
-	expect(result.stdout).toBe('')
-	expect(result.stderr).toContain('→ buddy-agent-harness reference show plugin-design')
-})
-
-// Scenario: the hidden --json flag still gets the retirement message
-test('governance list --json still gets the retirement message', () => {
-	const result = governance('list', '--json')
-	expect(result.status).toBe(1)
-	expect(result.stdout).toBe('')
-	expect(result.stderr).toContain('→ buddy-agent-harness reference list')
-})
-
-// Scenario: an unknown flag still gets the retirement message
-test('governance list with an unknown flag still gets the retirement message', () => {
-	const result = governance('list', '--frobnicate')
-	expect(result.status).toBe(1)
-	expect(result.stderr).toContain('→ buddy-agent-harness reference list')
-})
-
-// Scenario: help says the command is retired
-test('governance --help says the command is retired', () => {
-	const result = governance('--help')
-	expect(result.status).toBe(0)
-	expect(result.stdout).toMatch(/retired/i)
-	expect(result.stdout).toContain('buddy-agent-harness reference')
+	expect(result.stderr).toMatch(/unknown command 'governance'/)
 })
 
 test('publish sync-version writes version from packagePath into plugin.json', () => {

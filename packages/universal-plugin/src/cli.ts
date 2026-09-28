@@ -8,7 +8,6 @@ import { buildCommand } from './build/cli.js'
 import { bundleCommand } from './bundle/cli.js'
 import { resolveOwnVersion } from './cli-options.js'
 import { configCommand } from './config/cli.js'
-import { governanceCommand } from './governance/cli.js'
 import { initCommand } from './init/cli.js'
 import { installCommand, uninstallCommand } from './install/cli.js'
 import { marketplaceCommand } from './marketplace/cli.js'
@@ -60,7 +59,6 @@ function pluginCommand(): Command {
 program.addCommand(pluginCommand())
 program.addCommand(cleanCommand())
 program.addCommand(configCommand())
-program.addCommand(governanceCommand())
 program.addCommand(marketplaceCommand())
 program.addCommand(prepareCommand())
 program.addCommand(publishCommand())

@@ -6,7 +6,6 @@
 
 Folders are named after **domain concepts**, not technical roles. A new reader should be able to guess what the package does just from the directory names.
 
-- `src/governance/` — governance file handling
 - `src/build/` — plugin build logic
 
 Add new top-level folders only when a new domain concept warrants it. Do **not** create generic folders like `src/utils/`, `src/helpers/`, `src/services/`, or `src/common/`.
