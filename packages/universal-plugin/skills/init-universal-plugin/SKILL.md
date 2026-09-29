@@ -38,7 +38,7 @@ This skill owns the **authoring** side: the plugin a project ships. Setting a re
 
 ## Prerequisites
 
-Before any work that adds or removes components, load `plugin-design` with the `load-reference`
+Before any work that adds or removes components, load `plugin-design` with the `reference`
 skill in the `buddy-agent-harness` plugin.
 
 It is the authoritative source for which component to reach for and which anti-patterns to avoid.
@@ -233,7 +233,7 @@ This skill is not a formatter. If the project has one, run it over the written f
 
 ## References
 
-- Reference: `plugin-design`, loaded with the `load-reference` skill in the `buddy-agent-harness` plugin
+- Reference: `plugin-design`, loaded with the `reference` skill in the `buddy-agent-harness` plugin
 - Spec: https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/spec.md
 - Manifest schema (Agent Plugins Specification v1.0.0): https://agent-plugins.org/schemas/1.0.0/plugin.schema.json
 - Extension schema (the body of `extensions["org.cyberuni.universal-plugin"]`), shipped in the package at
