@@ -1,5 +1,17 @@
 # universal-plugin
 
+## 0.11.0
+
+### Minor Changes
+
+- 55fdc24: Remove the retired `governance` command. `governance show` and `governance list` are now unknown commands. Use `buddy-agent-harness reference show|list|search`, or the `load-reference` skill in the `buddy-agent-harness` plugin, to read the same documents.
+
+### Patch Changes
+
+- dd275ba: `plugin init --scaffold` creates `references/` instead of `governances/`, the folder `buddy-agent-harness reference` reads.
+- 4ad2dc8: `prepare` now reads installed plugins the way each harness records them. It reads Claude Code's version 2 `installed_plugins.json` by plugin name and scope, and it reads Copilot CLI's `installed-plugins` folders and the Codex plugin cache. Plugin paths come from `@cyberuni/agent-harness`, which honors `CLAUDE_CONFIG_DIR`, `CODEX_HOME`, and `COPILOT_HOME`.
+- 4ad2dc8: The vendor registry no longer carries `globalManifest` or `globalPluginDir`, and Cursor's local plugin folder now comes from `@cyberuni/agent-harness`. `plugin install` for Cursor therefore honors the harness's config directory. A `localPluginDir` in `~/.agents/universal-plugin-vendors.json` still wins.
+
 ## 0.10.0
 
 ### Minor Changes
