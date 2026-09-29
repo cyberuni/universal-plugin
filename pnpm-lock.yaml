@@ -52,8 +52,8 @@ importers:
         specifier: ^0.1.0
         version: 0.1.0
       '@repobuddy/upx':
-        specifier: ^0.1.0
-        version: 0.1.1
+        specifier: ^0.2.0
+        version: 0.2.0
       '@toon-format/toon':
         specifier: ^4.1.1
         version: 4.1.1
@@ -1220,8 +1220,8 @@ packages:
     peerDependencies:
       '@biomejs/biome': '>= 2'
 
-  '@repobuddy/upx@0.1.1':
-    resolution: {integrity: sha512-WBLoxQFQN41VmhX/GZ5PNZl8G54VmUL1ovHO1/w5RqOxVSFyOd8RhXrIITq7SVnQMaWJE7GvCmHoDsV+tqf2Cw==}
+  '@repobuddy/upx@0.2.0':
+    resolution: {integrity: sha512-uoiPhl9RkZGH9DqIZbsFDdcljmmZEemLNwSB0ZJFcqYs/rq86kFZEb//YFw9NNmHt+jlHtSCwIoAGAaIe4q0Vw==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -4587,7 +4587,7 @@ snapshots:
     dependencies:
       '@biomejs/biome': 2.4.16
 
-  '@repobuddy/upx@0.1.1':
+  '@repobuddy/upx@0.2.0':
     dependencies:
       semver: 7.8.1
 
