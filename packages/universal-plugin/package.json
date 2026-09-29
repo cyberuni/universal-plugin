@@ -1,6 +1,6 @@
 {
 	"name": "universal-plugin",
-	"version": "0.11.0",
+	"version": "0.11.1",
 	"description": "Universal AI agent plugin build tool",
 	"keywords": [
 		"agent-plugin",
@@ -51,7 +51,7 @@
 	},
 	"dependencies": {
 		"@cyberuni/agent-harness": "^0.1.0",
-		"@repobuddy/upx": "^0.1.0",
+		"@repobuddy/upx": "^0.2.0",
 		"@toon-format/toon": "^4.1.1",
 		"commander": "^14.0.3",
 		"semver": "^7.8.1"
@@ -61,12 +61,12 @@
 		"@types/semver": "^7.7.1",
 		"ajv": "^8.20.0",
 		"knip": "^6.14.1",
-		"tsdown": "^0.22.0",
+		"tsdown": "^0.23.0",
 		"tsx": "^4.22.3",
 		"typescript": "^6.0.0",
 		"vitest": "^4.1.7"
 	},
-	"packageManager": "pnpm@11.0.0",
+	"packageManager": "pnpm@11.28.1",
 	"engines": {
 		"node": ">=22"
 	},

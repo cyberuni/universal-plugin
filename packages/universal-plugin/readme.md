@@ -110,7 +110,7 @@ TOON by default; pass `--format json` for JSON.
 
 This package ships its own documents (`plugin-design`, `slash-invocation`, `universal-plugin`) under
 `references/`. Read one with `buddy-agent-harness reference show <name>` in any project that depends
-on `universal-plugin`, or, from a skill, with the `load-reference` skill in the `buddy-agent-harness`
+on `universal-plugin`, or, from a skill, with the `reference` skill in the `buddy-agent-harness`
 plugin.
 
 ### Housekeeping

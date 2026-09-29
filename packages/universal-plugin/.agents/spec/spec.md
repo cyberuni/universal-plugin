@@ -152,7 +152,7 @@ Where a new concept lives — slot here, do not invent placement (strategy = **c
   **manifest** it already derives. The dividing line is the object, not the word "pin".
 - **a new name→document resolution op, or a governance copy step** → **out of charter**
   ([ADR-0017](./design/decisions/0017-retire-governance-for-reference.md)).
-  `buddy-agent-harness reference` resolves documents by name, and its `load-reference` skill is how a
+  `buddy-agent-harness reference` resolves documents by name, and its `reference` skill is how a
   skill loads one.
 - **a new repository-local marketplace metadata derivation** (discover eligible plugin roots and
   emit each vendor's catalog) → `marketplace/init/`. This is

@@ -123,7 +123,7 @@ Follows the AXI output contract ([../../axi/](../../axi/README.md)).
   [ADR-0011](../../design/decisions/0011-warn-and-drop-unrepresentable-hook-handlers.md) uses for a
   handler the vendor cannot run.
 - **The build copies no governance** ([ADR-0017](../../design/decisions/0017-retire-governance-for-reference.md),
-  superseding ADR-0016) — a skill loads a reference through the `load-reference` skill in the
+  superseding ADR-0016) — a skill loads a reference through the `reference` skill in the
   `buddy-agent-harness` plugin, which resolves the name at run time from the project, user, and
   plugin tiers and falls back to the skill's own `references/<name>.md`. A folder a skill commits at
   `references/governances/` is skill content like any other: the build neither reads nor rewrites it.

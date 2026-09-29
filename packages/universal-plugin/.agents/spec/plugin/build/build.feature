@@ -805,7 +805,7 @@ Feature: plugin build — derive per-vendor manifests
 
   # ── Governance copies retired (ADR-0017) ──
   # The build no longer copies governances into skills; a skill loads a reference through the
-  # load-reference skill. A committed references/governances/ folder is skill content like any other.
+  # reference skill. A committed references/governances/ folder is skill content like any other.
 
   Scenario: the build leaves a skill's references/governances/ folder as it is
     Given a skill "init" with "references/governances/plugin-design.md" whose text differs from the plugin's "references/plugin-design.md"
