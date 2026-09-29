@@ -26,7 +26,7 @@
 		"husky": "^9.1.7",
 		"turbo": "^2.9.16"
 	},
-	"packageManager": "pnpm@11.5.3+sha512.7ac1c919341c213a34dc0d02afb7143c5c26ac26ee8c4782deea821b8ac64d2134a081fd8941dae6e29bbb48f58dfc2b7fbceeccc07cb2f09d219d342a4969ed",
+	"packageManager": "pnpm@11.28.1+sha512.e02bdf7ef766bfcfd5ba05cccb7bef99391cc8e0dc666f80292e5e21320332250770c532af6e600675045eaed98a49b03ed4abc13ac6fb14a3d1875cf22fbd60",
 	"engines": {
 		"node": ">=22"
 	}
