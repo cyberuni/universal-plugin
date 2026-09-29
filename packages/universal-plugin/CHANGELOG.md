@@ -1,5 +1,11 @@
 # universal-plugin
 
+## 0.11.1
+
+### Patch Changes
+
+- d8bfd5b: Skills now load references with the `reference` skill in the `buddy-agent-harness` plugin, which replaces its `load-reference` skill. The line reads "Load `plugin-design` with the `reference` skill in the `buddy-agent-harness` plugin."
+
 ## 0.11.0
 
 ### Minor Changes
