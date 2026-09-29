@@ -21,7 +21,10 @@ export default defineConfig({
 				},
 				{
 					label: 'Concepts',
-					items: [{ label: 'Choosing a runner', slug: 'concepts/npx-and-upx' }],
+					items: [
+						{ label: 'Choosing a runner', slug: 'concepts/npx-and-upx' },
+						{ label: 'Reference chain depth', slug: 'concepts/reference-chain-depth' },
+					],
 				},
 				{
 					label: 'Skills',
