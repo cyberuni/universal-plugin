@@ -104,6 +104,7 @@ Read `conclusion.md` first.
 | [`prepare-skill-design`](.research/prepare-skill-design/conclusion.md) | How to sync an installed plugin across runtimes without npm in the user project |
 | [`skill-description-guidelines`](.research/skill-description-guidelines/conclusion.md) | What a skill description must contain for a runtime to trigger it |
 | [`copilot-spec-mode-namespace`](.research/copilot-spec-mode-namespace/conclusion.md) | Where Copilot CLI loads its native components from once a plugin declares the canonical `$schema` |
+| [`reference-chain-depth-reliability`](.research/reference-chain-depth-reliability/conclusion.md) | Whether agents actually follow a skill's deep (up to 5-hop) reference files, and whether that changes under a full context window |
 
 ## License
 
