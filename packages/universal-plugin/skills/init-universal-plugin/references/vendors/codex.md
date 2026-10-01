@@ -35,19 +35,26 @@ Codex's presentation metadata goes under its `harnesses` entry:
 
 ## Components
 
-Codex reads these component paths from `.codex-plugin/plugin.json`: `skills`, `commands`, `hooks`,
-`mcpServers`, and `apps`. It reads `commands` by migrating each command into a skill on install, and
-falls back to `./commands/` when the field is absent.
+What Codex reads from `.codex-plugin/plugin.json` depends on the root `plugin.json`:
 
-Codex has no `agents`, `rules`, `lspServers`, `outputStyles`, `themes`, `channels`, or `monitors`.
-`plugin build` leaves any of those out of `.codex-plugin/plugin.json` and warns
+- **Root declares the canonical `$schema`** (`https://agent-plugins.org/schemas/1.0.0/plugin.schema.json`,
+  the normal universal-plugin layout). Codex reads root `plugin.json` as an Agent Plugins manifest,
+  takes skills from `./skills` and MCP servers from `./mcp.json`, and uses `.codex-plugin/plugin.json`
+  only as an overlay for `apps`, `hooks`, and `interface`. Any other key there is ignored, and
+  commands are not read at all.
+- **Root has no `$schema`**. `.codex-plugin/plugin.json` is the manifest. Codex reads `skills`,
+  `commands`, `hooks`, `mcpServers`, and `apps` from it, and migrates each command into a skill on
+  install, falling back to `./commands/` when `commands` is absent.
+
+Codex has no `agents`, `rules`, `lspServers`, `outputStyles`, `themes`, `channels`, or `monitors` in
+either case. `plugin build` leaves any of those out of `.codex-plugin/plugin.json` and warns
 (`codex has no "agents" component — the path is left out of .codex-plugin/plugin.json`); the other
 vendors still get the path. Set the path under `harnesses.codex` only if you mean Codex to see it
 anyway — a harness override is never filtered.
 
-The plugin-creator validator Codex ships (`validate_plugin.py`) is narrower than the runtime: it
-also rejects `commands` and `hooks`. That only matters if you submit the plugin through OpenAI's
-ingestion flow.
+The Codex runtime ignores keys it does not read. The plugin-creator validator Codex ships
+(`validate_plugin.py`) is stricter: it rejects any field outside its allowlist, including `commands`
+and `hooks`. That matters only if you submit the plugin through OpenAI's ingestion flow.
 
 ## Skills
 

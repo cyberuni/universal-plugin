@@ -75,7 +75,9 @@ const COPILOT_AUTHORED_DIR = 'extensions'
  *  Each row is what the runtime reads: Claude Code's SchemaStore manifest schema, Cursor's published
  *  `plugin.schema.json`, and Codex's manifest loader, which reads `commands` too (migrated into
  *  skills on install). Codex's plugin-creator validator is narrower — it rejects `hooks` and
- *  `commands` — and is not what the row follows (`.research/plugin-schema/evidence.md` E28).
+ *  `commands` — and is not what the row follows. With a root Agent Plugins `$schema`, Codex reads only
+ *  `apps`, `hooks` and `interface` from its manifest and ignores the rest, so the Codex row is the
+ *  superset its legacy (no-`$schema`) mode reads (`.research/plugin-schema/evidence.md` E28).
  *  Copilot CLI is absent: it reads the canonical manifest and derives no manifest of its own. */
 const VENDOR_COMPONENTS: Partial<Record<VendorId, ReadonlySet<string>>> = {
 	'claude-code': new Set([
