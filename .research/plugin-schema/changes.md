@@ -45,6 +45,6 @@
 
 - **What changed**: Recorded which component paths each derived manifest's runtime reads (E28), checked against current vendor source and schemas rather than the June notes.
 - **Why**: [Issue #132](https://github.com/cyberuni/universal-plugin/issues/132) — the build copied every component path into every derived manifest. The fix needs a per-vendor support table.
-- **Conclusion changes**: Codex **does** read `commands` now (openai/codex#33411, July 2026), contradicting the June "Codex drops commands" note and the issue's own example. Codex's plugin-creator validator still rejects `commands` and `hooks`, so runtime and validator disagree; the table follows the runtime. Codex also reads the root Agent Plugins `plugin.json` with `.codex-plugin/plugin.json` as an overlay.
+- **Conclusion changes**: Codex **does** read `commands` now (openai/codex#33411, July 2026), contradicting the June "Codex drops commands" note and the issue's own example. Codex's plugin-creator validator still rejects `commands` and `hooks`, so runtime and validator disagree; the table follows the runtime. Codex also reads the root Agent Plugins `plugin.json` when it declares the 1.0.0 `$schema`. In that mode `.codex-plugin/plugin.json` is only an overlay for `apps`, `hooks`, and `interface`, skills and MCP come from the fixed `./skills` and `./mcp.json`, and commands are not migrated. `commands` is read only when root carries no Agent Plugins `$schema`.
 - **Evidence added**: E28.
 - **Triggered by**: Issue #132; Council directive to verify against the latest Codex sources.

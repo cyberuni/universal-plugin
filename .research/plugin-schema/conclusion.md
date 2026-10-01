@@ -52,7 +52,7 @@ Only Claude Code and Cursor publish schemas at stable, authoritative URLs (Schem
 - Windsurf uses separate files, not a bundle manifest — confirmed from official docs (E14)
 - Zed's `extension.toml` required fields are documented; no schema published (GitHub issue #21994 open) (E15)
 - MCP is confirmed as the cross-vendor convergence layer: every active runtime supports it (E21)
-- Component paths each runtime reads (re-verified 2026-10-01, E28): Claude Code — skills, commands, agents, hooks, mcpServers, lspServers, outputStyles, themes, channels, monitors; Cursor — skills, commands, agents, rules, hooks, mcpServers; Codex — skills, commands, apps, hooks, mcpServers (its plugin-creator validator is narrower and rejects commands and hooks)
+- Component paths each runtime reads (re-verified 2026-10-01, E28): Claude Code — skills, commands, agents, hooks, mcpServers, lspServers, outputStyles, themes, channels, monitors; Cursor — skills, commands, agents, rules, hooks, mcpServers; Codex — skills, commands, apps, hooks, mcpServers when `.codex-plugin/plugin.json` is the primary manifest, but only apps, hooks, interface as an overlay once root `plugin.json` declares the Agent Plugins 1.0.0 `$schema` (its plugin-creator validator is narrower still and rejects commands and hooks)
 
 ## Strongest counterevidence / caveats
 
