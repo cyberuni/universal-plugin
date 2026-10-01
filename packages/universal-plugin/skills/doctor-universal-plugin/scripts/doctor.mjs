@@ -232,6 +232,13 @@ if (build === null) {
 				'no vendor is declared — the build writes nothing, so no runtime reads this plugin',
 				'/universal-plugin:init-universal-plugin, update route',
 			)
+		} else if (/has no "[^"]+" component/.test(warning)) {
+			add(
+				'unsupported-component',
+				'low',
+				warning,
+				'declare the path under harnesses.<vendor> for the vendors that read it, or leave it — the build already drops it',
+			)
 		} else if (/^Unknown vendor/.test(warning)) {
 			add('unknown-vendor', 'medium', warning, 'fix the vendor id in plugin.json')
 		} else {

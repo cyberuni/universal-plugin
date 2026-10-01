@@ -77,6 +77,7 @@ Each `code` below is what the script emits.
 | `stale` | a derived manifest older than `plugin.json` | `universal-plugin plugin build` |
 | `hand-edited` | a derived manifest that `build` would rewrite — the edit is already lost, it just has not been overwritten yet | move the field to the canonical manifest or to `harnesses.<vendor>`, then rebuild |
 | `unknown-vendor` | a `vendors` entry no build target matches; reported as `skipped` plus a warning | fix the id in `plugin.json` |
+| `unsupported-component` | a component path on the shared extension names a component one targeted vendor has none of (`agents` for Codex, `rules` for Claude Code, …); the build leaves it out of that vendor's manifest | declare the path under `harnesses.<vendor>` for the vendors that read it, or leave it — nothing is lost |
 | `undeliverable-override` | `harnesses["copilot-cli"]` sets fields that reach nothing | `/universal-plugin:init-universal-plugin`, update route — move them to a vendor that has a derived manifest, or drop them |
 | `codex-fields-missing` | Codex is targeted without `version` or `description`; the build fails and writes **nothing at all**, including for the other vendors | add both to the canonical top level |
 | `version-drift` | the `packagePath` `package.json` and the canonical manifest carry different versions | `/universal-plugin:version` |

@@ -67,6 +67,47 @@ Feature: plugin build — derive per-vendor manifests
     And the output file does not contain "vendors"
     And the output file does not contain "packagePath"
 
+  # ── Component support per vendor (issue #132) ──
+
+  Scenario: a component the vendor has none of is left out of its manifest, with a warning
+    Given the manifest has version "1.0.0" and description "d"
+    And the extensions namespace declares agents "./agents/" and apps "./.app.json"
+    And harnesses.codex is declared
+    When I run "universal-plugin plugin build"
+    Then ".codex-plugin/plugin.json" does not contain "agents"
+    And ".codex-plugin/plugin.json" contains apps "./.app.json"
+    And a warning reads 'codex has no "agents" component — the path is left out of .codex-plugin/plugin.json'
+
+  Scenario: the path still reaches the vendors that read the component
+    Given the extensions namespace declares agents "./agents/"
+    And harnesses.claude-code, harnesses.cursor, and harnesses.codex are declared
+    When I run "universal-plugin plugin build"
+    Then ".claude-plugin/plugin.json" contains agents "./agents/"
+    And ".cursor-plugin/plugin.json" contains agents "./agents/"
+    And ".codex-plugin/plugin.json" does not contain "agents"
+
+  Scenario: codex keeps commands, which its runtime reads
+    Given the extensions namespace declares commands "./commands/"
+    And harnesses.codex is declared
+    When I run "universal-plugin plugin build"
+    Then ".codex-plugin/plugin.json" contains commands "./commands/"
+    And no warning names "commands"
+
+  Scenario: each vendor drops only the components it lacks
+    Given the extensions namespace declares rules "./rules/", lspServers "./lsp.json", and outputStyles "./output-styles/"
+    And harnesses.claude-code and harnesses.cursor are declared
+    When I run "universal-plugin plugin build"
+    Then ".claude-plugin/plugin.json" does not contain "rules"
+    And ".claude-plugin/plugin.json" contains lspServers "./lsp.json"
+    And ".cursor-plugin/plugin.json" contains rules "./rules/"
+    And ".cursor-plugin/plugin.json" does not contain "lspServers" or "outputStyles"
+
+  Scenario: a harness override still sets a component the vendor's table leaves out
+    Given harnesses.codex has agents "./agents/"
+    When I run "universal-plugin plugin build"
+    Then ".codex-plugin/plugin.json" contains agents "./agents/"
+    And no warning names "agents"
+
   # ── Component path resolution (the extension's pathValue contract) ──
   #
   # `skills`, like every pathValue-typed field in extensions["org.cyberuni.universal-plugin"], is a

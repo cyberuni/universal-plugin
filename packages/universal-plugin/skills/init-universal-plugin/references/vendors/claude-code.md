@@ -8,7 +8,8 @@ npx universal-plugin plugin build --vendor claude-code
 
 ## What lands in the derived manifest
 
-The shared metadata from the canonical top level, plus the component paths, plus whatever
+The shared metadata from the canonical top level, plus the component paths Claude Code reads (every
+one except `rules` and Codex's `apps`; the build drops those with a warning), plus whatever
 `extensions["org.cyberuni.universal-plugin"].harnesses["claude-code"]` sets. `$schema`, `extensions`,
 `vendors`, and `harnesses` are universal-plugin's own orchestration — they never
 appear in a vendor manifest.

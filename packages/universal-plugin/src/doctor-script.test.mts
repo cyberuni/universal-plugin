@@ -352,3 +352,23 @@ test('reports nothing when the plugin declares no component of a moved kind', ()
 
 	expect(findings()).not.toContain('copilot-root-components')
 })
+
+test('a component path a targeted vendor has none of is reported as unsupported-component', () => {
+	write(
+		'plugin.json',
+		`${JSON.stringify(
+			{
+				$schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json',
+				name: 'demo',
+				version: '1.0.0',
+				description: 'a demo plugin',
+				extensions: { 'org.cyberuni.universal-plugin': { vendors: ['codex'], agents: './agents/' } },
+			},
+			null,
+			2,
+		)}\n`,
+	)
+
+	expect(findings()).toContain('unsupported-component')
+	expect(detail('unsupported-component')).toContain('codex has no "agents" component')
+})
