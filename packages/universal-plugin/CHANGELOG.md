@@ -1,5 +1,12 @@
 # universal-plugin
 
+## 0.11.2
+
+### Patch Changes
+
+- c8b81c8: `plugin build` no longer writes Codex custom prompts to `~/.codex/prompts/`. Codex invokes plugin skills natively with `$name` or `/skills`, and its custom prompts are deprecated and no longer read, so the build now writes nothing outside the plugin tree. You can delete prompts that an earlier build left in `~/.codex/prompts/`.
+- 642f70e: `plugin build` now leaves a component path out of a vendor's derived manifest when that vendor has no such component, and warns: `codex has no "agents" component — the path is left out of .codex-plugin/plugin.json`. Codex reads `skills`, `commands`, `apps`, `hooks`, and `mcpServers`; Cursor reads `skills`, `commands`, `agents`, `rules`, `hooks`, and `mcpServers`; Claude Code reads every component except `rules` and `apps`. A `harnesses.<vendor>` override is never filtered. `doctor` reports the case as `unsupported-component`.
+
 ## 0.11.1
 
 ### Patch Changes
