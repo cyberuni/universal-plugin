@@ -701,6 +701,98 @@ describe('buildPlugin — dependencies', () => {
 	})
 })
 
+describe('buildPlugin — component support per vendor', () => {
+	function readJson(relPath: string) {
+		return JSON.parse(fs.readFileSync(path.join(dir, relPath), 'utf8'))
+	}
+
+	it('drops an agents path from the codex manifest and warns (issue #132)', () => {
+		writeManifest({
+			name: 'my-plugin',
+			version: '1.0.0',
+			description: 'd',
+			extensions: up({ agents: './agents/', apps: './.app.json', harnesses: { codex: {} } }),
+		})
+		const result = buildPlugin(dir)
+		const codex = readJson('.codex-plugin/plugin.json')
+		expect('agents' in codex).toBe(false)
+		expect(codex.apps).toBe('./.app.json')
+		expect(result.warnings).toEqual([
+			'codex has no "agents" component — the path is left out of .codex-plugin/plugin.json',
+		])
+	})
+
+	it('keeps commands for codex, whose runtime reads them', () => {
+		writeManifest({
+			name: 'my-plugin',
+			version: '1.0.0',
+			description: 'd',
+			extensions: up({ commands: './commands/', harnesses: { codex: {} } }),
+		})
+		const result = buildPlugin(dir)
+		expect(readJson('.codex-plugin/plugin.json').commands).toBe('./commands/')
+		expect(result.warnings).toEqual([])
+	})
+
+	it('keeps the path for the vendors that read the component', () => {
+		writeManifest({
+			name: 'my-plugin',
+			version: '1.0.0',
+			description: 'd',
+			extensions: up({ agents: './agents/', harnesses: { 'claude-code': {}, cursor: {}, codex: {} } }),
+		})
+		const result = buildPlugin(dir)
+		expect(readJson('.claude-plugin/plugin.json').agents).toBe('./agents/')
+		expect(readJson('.cursor-plugin/plugin.json').agents).toBe('./agents/')
+		expect('agents' in readJson('.codex-plugin/plugin.json')).toBe(false)
+		expect(result.warnings).toHaveLength(1)
+		expect(result.summary).toMatchObject({ built: 3, failed: 0 })
+	})
+
+	it('drops each component a vendor lacks: rules from claude-code, lspServers and outputStyles from cursor', () => {
+		writeManifest({
+			name: 'my-plugin',
+			extensions: up({
+				rules: './rules/',
+				lspServers: './lsp.json',
+				outputStyles: './output-styles/',
+				harnesses: { 'claude-code': {}, cursor: {} },
+			}),
+		})
+		const result = buildPlugin(dir)
+		const claude = readJson('.claude-plugin/plugin.json')
+		const cursor = readJson('.cursor-plugin/plugin.json')
+		expect('rules' in claude).toBe(false)
+		expect(claude.lspServers).toBe('./lsp.json')
+		expect(cursor.rules).toBe('./rules/')
+		expect('lspServers' in cursor).toBe(false)
+		expect('outputStyles' in cursor).toBe(false)
+		expect(result.warnings).toEqual([
+			'claude-code has no "rules" component — the path is left out of .claude-plugin/plugin.json',
+			'cursor has no "lspServers" component — the path is left out of .cursor-plugin/plugin.json',
+			'cursor has no "outputStyles" component — the path is left out of .cursor-plugin/plugin.json',
+		])
+	})
+
+	it('lets a harnesses override still set a component the table drops', () => {
+		writeManifest({
+			name: 'my-plugin',
+			version: '1.0.0',
+			description: 'd',
+			extensions: up({ harnesses: { codex: { agents: './agents/' } } }),
+		})
+		const result = buildPlugin(dir)
+		expect(readJson('.codex-plugin/plugin.json').agents).toBe('./agents/')
+		expect(result.warnings).toEqual([])
+	})
+
+	it('does not warn for copilot-cli, which derives no manifest', () => {
+		writeManifest({ name: 'my-plugin', extensions: up({ apps: './.app.json', harnesses: { 'copilot-cli': {} } }) })
+		const result = buildPlugin(dir)
+		expect(result.warnings.filter((w) => w.includes('component'))).toEqual([])
+	})
+})
+
 /** A build keeps the repository's marketplace catalogs true: the entry for the plugin being built is
  *  re-derived from the canonical manifest, so its version follows a bump instead of drifting
  *  (ADR-0010 §3). Only catalogs the repository already carries are touched — creating one is

@@ -68,6 +68,53 @@ const COPILOT_LSP_PATH = 'lsp.json'
  *  location to derive from, so `--clean` must leave this subtree alone. */
 const COPILOT_AUTHORED_DIR = 'extensions'
 
+/** The component paths each derived manifest accepts. A path on the shared extension reaches every
+ *  derived manifest unless the vendor is listed here without it — then the build leaves it out and
+ *  warns, as it does for `dependencies` (issue #132). A harness override is applied after this
+ *  filter, so `harnesses.<vendor>` can still set any key on purpose.
+ *  Each row is what the runtime reads: Claude Code's SchemaStore manifest schema, Cursor's published
+ *  `plugin.schema.json`, and Codex's manifest loader, which reads `commands` too (migrated into
+ *  skills on install). Codex's plugin-creator validator is narrower — it rejects `hooks` and
+ *  `commands` — and is not what the row follows (`.research/plugin-schema/evidence.md` E28).
+ *  Copilot CLI is absent: it reads the canonical manifest and derives no manifest of its own. */
+const VENDOR_COMPONENTS: Partial<Record<VendorId, ReadonlySet<string>>> = {
+	'claude-code': new Set([
+		'skills',
+		'commands',
+		'agents',
+		'hooks',
+		'mcpServers',
+		'lspServers',
+		'outputStyles',
+		'themes',
+		'channels',
+		'monitors',
+	]),
+	cursor: new Set(['skills', 'commands', 'agents', 'rules', 'hooks', 'mcpServers']),
+	codex: new Set(['skills', 'commands', 'apps', 'hooks', 'mcpServers']),
+}
+
+/** Every component key some vendor reads. Only these are filtered; any other key on the extension is
+ *  not a component and passes through as before. */
+const COMPONENT_KEYS = new Set(Object.values(VENDOR_COMPONENTS).flatMap((set) => [...(set ?? [])]))
+
+/** Splits the shared component config into what `vendor` reads and the component keys it has none
+ *  of. A vendor without a table entry keeps everything. */
+export function vendorComponentConfig(
+	componentConfig: Record<string, unknown>,
+	vendor: VendorId,
+): { config: Record<string, unknown>; dropped: string[] } {
+	const supported = VENDOR_COMPONENTS[vendor]
+	if (!supported) return { config: componentConfig, dropped: [] }
+	const config: Record<string, unknown> = {}
+	const dropped: string[] = []
+	for (const [key, value] of Object.entries(componentConfig)) {
+		if (COMPONENT_KEYS.has(key) && !supported.has(key)) dropped.push(key)
+		else config[key] = value
+	}
+	return { config, dropped }
+}
+
 /** What each vendor's build output occupies in the published package, for `plugin init --npm`'s
  *  `package.json` `files` wiring. */
 export const VENDOR_SHIPPED_PATHS: Record<VendorId, string[]> = {
@@ -300,7 +347,8 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 		const outputPath = path.join(root, relPath)
 		const outputDir = path.dirname(outputPath)
 		const vendorFields = harnesses[vendor] ?? {}
-		const vendorManifest: Record<string, unknown> = { ...metadata, ...componentConfig, ...vendorFields }
+		const components = vendorComponentConfig(componentConfig, vendor)
+		const vendorManifest: Record<string, unknown> = { ...metadata, ...components.config, ...vendorFields }
 		const hooks = canonicalHooks ? translateHooks(canonicalHooks, vendor) : null
 		const dependencies = translateDependencies(declaredDependencies ?? [], vendor)
 		warnings.push(...dependencies.warnings)
@@ -341,6 +389,10 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 					: { vendor, path: relPath, status: 'canonical' },
 			)
 			continue
+		}
+
+		for (const key of components.dropped.filter((k) => !(k in vendorFields))) {
+			warnings.push(`${vendor} has no "${key}" component — the path is left out of ${relPath}`)
 		}
 
 		for (const drop of dedupeDrops(hooks?.drops ?? [])) {

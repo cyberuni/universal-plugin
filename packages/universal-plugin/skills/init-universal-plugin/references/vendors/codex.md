@@ -33,6 +33,22 @@ Codex's presentation metadata goes under its `harnesses` entry:
 }
 ```
 
+## Components
+
+Codex reads these component paths from `.codex-plugin/plugin.json`: `skills`, `commands`, `hooks`,
+`mcpServers`, and `apps`. It reads `commands` by migrating each command into a skill on install, and
+falls back to `./commands/` when the field is absent.
+
+Codex has no `agents`, `rules`, `lspServers`, `outputStyles`, `themes`, `channels`, or `monitors`.
+`plugin build` leaves any of those out of `.codex-plugin/plugin.json` and warns
+(`codex has no "agents" component — the path is left out of .codex-plugin/plugin.json`); the other
+vendors still get the path. Set the path under `harnesses.codex` only if you mean Codex to see it
+anyway — a harness override is never filtered.
+
+The plugin-creator validator Codex ships (`validate_plugin.py`) is narrower than the runtime: it
+also rejects `commands` and `hooks`. That only matters if you submit the plugin through OpenAI's
+ingestion flow.
+
 ## Skills
 
 Codex reaches a plugin's skills natively. A user invokes one with `$name` or `/skills`, so the

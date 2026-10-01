@@ -132,6 +132,14 @@ Follows the AXI output contract ([../../axi/](../../axi/README.md)).
 - **Merge then strip** — per-harness fields from `harnesses.<vendor>` are merged over the shared
   metadata and component paths; the canonical wrapper (`$schema`, `extensions`) and the orchestration
   keys (`vendors`, `packagePath`, `harnesses`) never appear in output.
+- **Component support per vendor** — a component path on the shared extension reaches a derived
+  manifest only when that vendor's runtime reads the component (issue #132). Claude Code reads every
+  component except `rules` and `apps`; Cursor reads `skills`, `commands`, `agents`, `rules`, `hooks`,
+  `mcpServers`; Codex reads `skills`, `commands`, `apps`, `hooks`, `mcpServers`. Any other component
+  path is left out of that vendor's manifest with the warning
+  `<vendor> has no "<component>" component — the path is left out of <manifest path>`. A key that is no
+  vendor's component passes through. A `harnesses.<vendor>` override is applied after the filter, so
+  an author can still set the key on purpose. Copilot CLI derives no manifest, so it is not filtered.
 - **`--vendor` filters** — restricts the build to one selected vendor; a vendor not among the
   selected targets fails.
 - **Validation is eager** — the manifest is validated before any file is written; codex requires
@@ -210,6 +218,7 @@ Every scenario in [`build.feature`](./build.feature) maps to one of these behavi
 |---|---|
 | **target selection (`vendors ?? harnesses`)** | builds the `vendors` list, else all `harnesses` keys; correct per-vendor output paths; copilot-cli reported `canonical` when it declares no moving component kind |
 | **merge then strip** | harness fields merged; canonical wrapper (`$schema`, `extensions`) + orchestration keys (`vendors`, `packagePath`, `harnesses`) stripped |
+| **component support per vendor** | a component the vendor has none of left out of its manifest with a warning, kept for the vendors that read it; Codex keeps `commands`; a harness override not filtered |
 | **component path resolution** | `skills` resolved from a path string, a path array, and a `{ paths }` object; every declared directory searched; `./skills/` used only when nothing is declared; a declared-but-missing directory warned, an absent default not; a declaration in none of the three forms warned and read as nothing |
 | **hook translation** | canonical PascalCase kept for claude-code and codex; camelCase, `version: 1`, and flattened matcher groups for cursor; derived file written beside the vendor manifest and pointed at; inline hooks translated; `--dry-run` derives nothing |
 | **unrepresentable handlers (ADR-0011)** | per-drop warning naming vendor, event, and type; emptied event omitted; emptied file not written and the `hooks` field dropped; copilot-cli's drop removed from its derived namespace file |

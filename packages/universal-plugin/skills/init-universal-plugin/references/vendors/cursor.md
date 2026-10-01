@@ -22,6 +22,12 @@ Cursor's catalog metadata goes under its `harnesses` entry, not at the canonical
 }
 ```
 
+## Components
+
+Cursor reads `skills`, `commands`, `agents`, `rules`, `hooks`, and `mcpServers`. Its manifest schema
+is closed, so the build leaves `lspServers`, `outputStyles`, `apps`, and Claude Code's other
+components out of `.cursor-plugin/plugin.json` and warns.
+
 ## Skills
 
 Cursor reads `SKILL.md` straight from the path the manifest's `skills` field names, and lets the user
