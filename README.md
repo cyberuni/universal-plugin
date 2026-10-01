@@ -102,6 +102,7 @@ Read `conclusion.md` first.
 | [`hook-event-survey`](.research/hook-event-survey/conclusion.md) | Which hook events each runtime supports, and how it cases their names |
 | [`plugin-consumption-leveling`](.research/plugin-consumption-leveling/conclusion.md) | Whether a plugin installed through one vendor can be reached from the others |
 | [`prepare-skill-design`](.research/prepare-skill-design/conclusion.md) | How to sync an installed plugin across runtimes without npm in the user project |
+| [`codex-skill-invocation`](.research/codex-skill-invocation/conclusion.md) | How Codex reaches a plugin's skills, and whether a plugin can ship Codex prompts or commands |
 | [`skill-description-guidelines`](.research/skill-description-guidelines/conclusion.md) | What a skill description must contain for a runtime to trigger it |
 | [`copilot-spec-mode-namespace`](.research/copilot-spec-mode-namespace/conclusion.md) | Where Copilot CLI loads its native components from once a plugin declares the canonical `$schema` |
 | [`reference-chain-depth-reliability`](.research/reference-chain-depth-reliability/conclusion.md) | Whether agents actually follow a skill's deep (up to 5-hop) reference files, and whether that changes under a full context window |
