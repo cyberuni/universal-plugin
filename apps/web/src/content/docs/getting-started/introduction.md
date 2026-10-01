@@ -51,7 +51,7 @@ Build merges and strips. It does not rewrite the contents of the files a compone
 - **Vendor-specific fields** in `extensions["org.cyberuni.universal-plugin"].harnesses.<vendor>` are merged over that metadata, and the harness value wins on conflict.
 - **Orchestration keys** never reach a vendor: `$schema`, `extensions`, `vendors`, and `harnesses` are stripped.
 - **Required fields** are enforced per target. Codex requires `version` and `description`, and the build fails before writing anything for any vendor when either is missing.
-- **Skill invocation policy** is projected. A skill declaring `invocation-policy` gets the matching Claude Code frontmatter flag written into its `SKILL.md`, and Codex prompts are written for skills a user can invoke.
+- **Skill invocation policy** is projected. A skill declaring `invocation-policy` gets the matching Claude Code frontmatter flag written into its `SKILL.md`. Codex invokes skills natively, so it needs nothing extra, and the build writes nothing outside the plugin tree.
 
 - **Plugin dependencies** declared under `extensions["org.cyberuni.universal-plugin"].dependencies` reach Claude Code, the only runtime that reads one. Every other vendor's manifest is built without them, and the build says which ones it dropped. See [build](../../cli/build/#plugin-dependencies).
 

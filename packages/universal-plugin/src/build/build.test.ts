@@ -241,22 +241,20 @@ describe('buildPlugin', () => {
 		expect(fs.existsSync(path.join(dir, '.cursor'))).toBe(false)
 	})
 
-	it('derives a best-effort Codex prompt from a both-invocable skill', () => {
-		writeManifest({ name: 'x', version: '1.0.0', description: 'x', extensions: up({ harnesses: { codex: {} } }) })
+	it('writes nothing outside the plugin tree — the home directory stays empty (#133)', () => {
+		writeManifest({
+			name: 'x',
+			version: '1.0.0',
+			description: 'x',
+			extensions: up({ harnesses: { 'claude-code': {}, cursor: {}, codex: {}, 'copilot-cli': {} } }),
+		})
 		writeSkill('review', '---\ninvocation-policy: both\n---\nReview the current diff.')
-
-		buildPlugin(dir)
-
-		expect(fs.readFileSync(path.join(home, '.codex', 'prompts', 'review.md'), 'utf8')).toBe('Review the current diff.')
-	})
-
-	it('does not derive a Codex prompt from a model-only skill', () => {
-		writeManifest({ name: 'x', version: '1.0.0', description: 'x', extensions: up({ harnesses: { codex: {} } }) })
+		writeSkill('deploy', '---\ninvocation-policy: user\n---\nDeploy $ARGUMENTS.')
 		writeSkill('context', '---\ninvocation-policy: model\n---\nBackground context.')
 
 		buildPlugin(dir)
 
-		expect(fs.existsSync(path.join(home, '.codex', 'prompts', 'context.md'))).toBe(false)
+		expect(fs.readdirSync(home)).toEqual([])
 	})
 
 	it('maps canonical invocation policies to Claude frontmatter', () => {

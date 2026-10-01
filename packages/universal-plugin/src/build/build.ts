@@ -1,5 +1,4 @@
 import * as fs from 'node:fs'
-import * as os from 'node:os'
 import * as path from 'node:path'
 import {
 	type DependencyDeclaration,
@@ -332,7 +331,7 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 					`harnesses.${vendor} sets ${overrides.join(', ')}, but ${vendor} reads the canonical plugin.json directly — these fields are not delivered`,
 				)
 			}
-			writeSkillArtifacts(vendor, skills, opts, written, warnings)
+			writeSkillArtifacts(vendor, skills, opts, written)
 			const derived = deriveCopilotNamespace(root, componentConfig, hooks, indent, opts, written, warnings)
 			// Nothing to derive is still the old result, and still correct for the plugin that has no
 			// component of a moved kind: root plugin.json serves it whole.
@@ -398,7 +397,7 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 			if (mcp?.changed && declaredMcp && !declaredMcp.inline) {
 				writeArtifact(derivedMcpPath, `${JSON.stringify({ mcpServers: mcp.servers }, null, indent)}\n`, opts, written)
 			}
-			writeSkillArtifacts(vendor, skills, opts, written, warnings)
+			writeSkillArtifacts(vendor, skills, opts, written)
 			rows.push({ vendor, path: relPath, status: 'built' })
 		} catch (err) {
 			warnings.push(`Failed to write "${vendor}" → ${relPath}: ${err instanceof Error ? err.message : String(err)}`)
@@ -480,38 +479,16 @@ function refreshCatalogs(
 	return rows.length > 0 ? { catalogs: rows, catalogRoot: repo.root } : { catalogs: rows }
 }
 
-function writeSkillArtifacts(
-	vendor: VendorId,
-	skills: Skill[],
-	opts: BuildOptions,
-	written: string[],
-	warnings: string[],
-) {
-	for (const skill of skills) {
-		if (vendor === 'claude-code') {
-			writeClaudeSkill(skill, opts, written)
-			continue
-		}
-
-		// Cursor reads SKILL.md straight from the manifest's `skills` path and lets the user invoke a
-		// skill by typing `/` and searching for it (cursor.com/docs/skills), so a mirrored
-		// .cursor/commands/*.md is a redundant second copy of the same body. Cursor also expresses
-		// explicit-only invocation natively via `disable-model-invocation`, which writeClaudeSkill
-		// already writes into the shared SKILL.md — nothing to derive here.
-		if (vendor === 'cursor') continue
-
-		if (skill.invocationPolicy === 'model') continue
-
-		if (vendor === 'codex') {
-			try {
-				writeArtifact(path.join(os.homedir(), '.codex', 'prompts', `${skill.name}.md`), skill.body, opts, written)
-			} catch (err) {
-				warnings.push(
-					`Failed to write Codex prompt for skill "${skill.name}" (best-effort): ${err instanceof Error ? err.message : String(err)}`,
-				)
-			}
-		}
-	}
+function writeSkillArtifacts(vendor: VendorId, skills: Skill[], opts: BuildOptions, written: string[]) {
+	// Only Claude Code takes a per-skill artifact: the invocation flag written into the shared SKILL.md.
+	// Cursor reads SKILL.md straight from the manifest's `skills` path and lets the user invoke a
+	// skill by typing `/` and searching for it (cursor.com/docs/skills), and it expresses
+	// explicit-only invocation natively via `disable-model-invocation`, which writeClaudeSkill
+	// already writes. Codex reaches plugin skills natively too — `$name` or `/skills` — and its
+	// custom prompts are deprecated and load only from the user's home directory, so build derives
+	// none: a build never writes outside the plugin tree (#133).
+	if (vendor !== 'claude-code') return
+	for (const skill of skills) writeClaudeSkill(skill, opts, written)
 }
 
 /** Resolves a `pathValue` declaration — a single "./" path, an array of them, or a { paths: [...] }
