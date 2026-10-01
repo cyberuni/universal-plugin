@@ -23,7 +23,7 @@ Deploy $ARGUMENTS.
 
 - Claude Code uses the same `SKILL.md` and adds its native invocation flag.
 - Cursor receives a thin `.cursor/commands/<skill>.md` prompt insert for `user` and `both` skills.
-- Codex receives a best-effort, local-only `~/.codex/prompts/<skill>.md` for `user` and `both` skills. Codex has deprecated custom prompts, so the skill remains the primary integration.
+- Codex uses the skill itself. A user invokes it with `$skill` or `/skills`, so no command is derived. Codex custom prompts are deprecated and home-only, and `plugin build` never writes outside the plugin tree.
 - Copilot CLI receives no derived command. Its `/skill-name` form is only a prompt hint, not deterministic invocation.
 
 If a workflow requires deterministic user-triggered invocation, document Copilot

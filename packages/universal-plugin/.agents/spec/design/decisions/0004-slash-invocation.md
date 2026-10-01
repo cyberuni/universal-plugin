@@ -1,6 +1,6 @@
 # 0004 — Slash invocation: skills are canonical, commands are an invocation policy
 
-**Status:** superseded in part — the Copilot CLI premise, by [0015](./0015-copilot-spec-mode-namespace.md)
+**Status:** superseded in part — the Copilot CLI premise, by [0015](./0015-copilot-spec-mode-namespace.md); the Codex row, by [#133](https://github.com/cyberuni/universal-plugin/issues/133)
 **Date:** 2026-07-21
 
 ## Context
@@ -64,6 +64,12 @@ separate command mechanism into skills; the fourth never shipped file-based user
    - **Codex** → emit `~/.codex/prompts/*.md` — with the caveat that Codex prompts are local-only and
      deprecated; prefer the skill and treat the prompt as best-effort.
    - **Copilot CLI** → skill only; there is no user-command surface to derive.
+
+> **The Codex row is withdrawn ([#133](https://github.com/cyberuni/universal-plugin/issues/133)).**
+> Codex invokes plugin skills natively (`$name`, `/skills`), and its custom prompts are deprecated,
+> home-only, and no longer read by current Codex. Writing them made every build install files into
+> the builder's home directory. The build derives nothing for Codex; the skill is the whole
+> integration. See `.research/codex-skill-invocation/`.
 
 > **The Copilot CLI row's premise no longer holds ([ADR-0015](./0015-copilot-spec-mode-namespace.md)).**
 > Copilot CLI does have a commands surface — `com.github.copilot/commands/`, which the build derives

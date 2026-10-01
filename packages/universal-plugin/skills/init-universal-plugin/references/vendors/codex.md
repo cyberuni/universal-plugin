@@ -35,12 +35,10 @@ Codex's presentation metadata goes under its `harnesses` entry:
 
 ## Skills
 
-For every skill that is not `invocation-policy: model`, the build also writes
-`~/.codex/prompts/<name>.md` — the skill body, as a Codex prompt.
-
-Two things follow. It writes **outside the repository**, into the current machine's home directory,
-so it is not part of the plugin's tracked output and does not travel with a clone. And it is
-**best-effort**: a failure there becomes a build warning, not a failed build. Read the warnings.
+Codex reaches a plugin's skills natively. A user invokes one with `$name` or `/skills`, so the
+build derives nothing per skill for Codex. Codex custom prompts (`~/.codex/prompts/`) are deprecated
+and load only from the user's home directory, and the build never writes there. See
+[`codex-skill-invocation`](https://github.com/cyberuni/universal-plugin/blob/main/.research/codex-skill-invocation/conclusion.md).
 
 ## Hooks
 
