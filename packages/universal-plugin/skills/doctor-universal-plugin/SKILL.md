@@ -74,7 +74,7 @@ Each `code` below is what the script emits.
 | `legacy-manifest` | root `plugin.json` with neither `$schema` nor `extensions` — a single-vendor manifest on the canonical path | `/universal-plugin:init-universal-plugin`, adopt route |
 | `vendor-only` | a vendor manifest with no canonical manifest above it | `/universal-plugin:init-universal-plugin`, adopt route |
 | `unbuilt` | a declared vendor whose output path holds no file — that runtime sees no plugin | `universal-plugin plugin build` |
-| `stale` | a derived manifest older than `plugin.json` | `universal-plugin plugin build` |
+| `stale` | a derived manifest older than `plugin.json`; for a derived directory (`com.github.copilot/`), its newest file is what is compared | `universal-plugin plugin build` |
 | `hand-edited` | a derived manifest that `build` would rewrite — the edit is already lost, it just has not been overwritten yet | move the field to the canonical manifest or to `harnesses.<vendor>`, then rebuild |
 | `unknown-vendor` | a `vendors` entry no build target matches; reported as `skipped` plus a warning | fix the id in `plugin.json` |
 | `unsupported-component` | a component path on the shared extension names a component one targeted vendor has none of (`agents` for Codex, `rules` for Claude Code, …); the build leaves it out of that vendor's manifest | declare the path under `harnesses.<vendor>` for the vendors that read it, or leave it — nothing is lost |
@@ -126,7 +126,7 @@ the diff:
 ```bash
 git status --short          # must be clean first, or the diff proves nothing
 npx universal-plugin plugin build
-git diff -- .claude-plugin .cursor-plugin .codex-plugin
+git diff -- .claude-plugin .cursor-plugin .codex-plugin com.github.copilot
 ```
 
 An empty diff means the derived manifests match what the canonical manifest says. Any hunk is drift —

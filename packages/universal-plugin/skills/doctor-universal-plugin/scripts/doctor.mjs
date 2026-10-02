@@ -30,6 +30,15 @@ const readJson = (file) => {
 	}
 }
 const mtime = (file) => (fs.existsSync(file) ? fs.statSync(file).mtimeMs : null)
+// A derived directory (copilot-cli's com.github.copilot/) is as fresh as the newest file in it. The
+// directory's own mtime moves only when an entry is added, removed or renamed, so a rebuild that
+// rewrites its files in place leaves it as old as the first build (issue #144).
+const contentMtime = (abs) => {
+	const stat = fs.statSync(abs)
+	if (!stat.isDirectory()) return stat.mtimeMs
+	const files = fs.readdirSync(abs).map((entry) => contentMtime(path.join(abs, entry)))
+	return files.length === 0 ? stat.mtimeMs : Math.max(...files)
+}
 
 const VENDOR_MANIFESTS = ['.claude-plugin/plugin.json', '.cursor-plugin/plugin.json', '.codex-plugin/plugin.json']
 
@@ -207,7 +216,7 @@ if (build === null) {
 		const abs = path.join(root, row.path)
 		const exists = fs.existsSync(abs)
 		// `canonical` means the vendor reads root plugin.json; no derived file is expected.
-		const stale = row.status === 'built' && exists && manifestMtime !== null && mtime(abs) < manifestMtime
+		const stale = row.status === 'built' && exists && manifestMtime !== null && contentMtime(abs) < manifestMtime
 		vendors.push({ vendor: row.vendor, path: row.path, status: row.status, exists, stale })
 
 		if (row.status === 'built' && !exists) {
