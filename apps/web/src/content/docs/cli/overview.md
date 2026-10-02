@@ -30,7 +30,7 @@ Manifest authoring lives under the `plugin` command group. The other groups sit 
 | `plugin bundle` | Pin skill `npx` references to workspace versions |
 | [`config`](../config/) | Read and write plugin-registered config in `.agents/universal-plugin.json` |
 | `prepare` / `sync` | Detect and apply cross-vendor sync actions for an installed plugin |
-| `publish sync-version` | Copy the package version into the canonical `plugin.json` |
+| `publish sync-version` | Copy the package version into the canonical `plugin.json` and rebuild the vendor manifests |
 | [`marketplace init`](../marketplace/) | Generate repository-local marketplace metadata |
 | [`marketplace add`](../marketplace/#marketplace-add-lists-a-plugin-that-lives-elsewhere) | List a plugin that lives elsewhere — a path, a GitHub repo, an npm package, or another marketplace's entry |
 | [`marketplace validate`](../marketplace/#marketplace-validate-checks-what-the-repository-carries) | Check those catalogs against the schema each runtime loads |

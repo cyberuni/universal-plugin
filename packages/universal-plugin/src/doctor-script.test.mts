@@ -372,3 +372,60 @@ test('a component path a targeted vendor has none of is reported as unsupported-
 	expect(findings()).toContain('unsupported-component')
 	expect(detail('unsupported-component')).toContain('codex has no "agents" component')
 })
+
+// A directory's own mtime moves only when an entry is added, removed or renamed — never when a file
+// inside it is rewritten in place — so a rebuild that rewrites com.github.copilot/'s files leaves the
+// directory looking as old as its first build (issue #144).
+test('a rebuilt com.github.copilot/ is not stale even when the directory itself is older than plugin.json', () => {
+	write(
+		'plugin.json',
+		`${JSON.stringify({
+			$schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json',
+			name: 'demo',
+			version: '1.0.0',
+			description: 'a demo plugin',
+			extensions: { 'org.cyberuni.universal-plugin': { vendors: ['copilot-cli'] } },
+		})}\n`,
+	)
+	write('agents/reviewer.md', '---\nname: reviewer\ndescription: reviews\n---\nreview\n')
+	const build = spawnSync('node', [path.resolve('bin/universal-plugin.mjs'), 'plugin', 'build', '--root', root], {
+		encoding: 'utf8',
+	})
+	expect(build.status).toBe(0)
+	const past = new Date(Date.now() - 60_000)
+	fs.utimesSync(path.join(root, 'com.github.copilot'), past, past)
+
+	const result = spawnSync('node', [doctor, '--root', root], { encoding: 'utf8' })
+	const report = JSON.parse(result.stdout) as {
+		vendors: { vendor: string; stale: boolean }[]
+		findings: { code: string }[]
+	}
+	expect(report.vendors.find((v) => v.vendor === 'copilot-cli')?.stale).toBe(false)
+	expect(report.findings.map((f) => f.code)).not.toContain('stale')
+})
+
+test('a com.github.copilot/ whose files predate plugin.json is still stale', () => {
+	write(
+		'plugin.json',
+		`${JSON.stringify({
+			$schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json',
+			name: 'demo',
+			version: '1.0.0',
+			description: 'a demo plugin',
+			extensions: { 'org.cyberuni.universal-plugin': { vendors: ['copilot-cli'] } },
+		})}\n`,
+	)
+	write('agents/reviewer.md', '---\nname: reviewer\ndescription: reviews\n---\nreview\n')
+	const build = spawnSync('node', [path.resolve('bin/universal-plugin.mjs'), 'plugin', 'build', '--root', root], {
+		encoding: 'utf8',
+	})
+	expect(build.status).toBe(0)
+	const past = new Date(Date.now() - 60_000)
+	const touch = (abs: string) => {
+		if (fs.statSync(abs).isDirectory()) for (const entry of fs.readdirSync(abs)) touch(path.join(abs, entry))
+		fs.utimesSync(abs, past, past)
+	}
+	touch(path.join(root, 'com.github.copilot'))
+
+	expect(findings()).toContain('stale')
+})

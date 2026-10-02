@@ -69,7 +69,7 @@ npx universal-plugin sync apply <action-id>
 ### publish
 
 ```sh
-npx universal-plugin publish sync-version             # copy packagePath/package.json version into plugin.json
+npx universal-plugin publish sync-version             # copy packagePath/package.json version into plugin.json, then rebuild
 ```
 
 This writes the canonical `plugin.json` only. Run `plugin build` afterwards, or the vendor manifests

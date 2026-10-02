@@ -62,9 +62,10 @@ unchanged and puts the drift check in `doctor`. Also out of scope: deriving the 
   it right after `changeset version`.
 - The two directions differ **only in where the new number comes from** — computed here, read from
   `package.json` there. They therefore share **one applier**: the code that writes a resolved version
-  into the authored files is the same in both paths, so they cannot drift. `sync-version`'s own
-  observable behavior is unchanged — it re-derives nothing, because its caller is a release script
-  that already drives `build` itself (this repo's root `plugin:build` script does exactly that).
+  into the authored files is the same in both paths, so they cannot drift. Both then re-derive the
+  vendor manifests through the same `build` writer, so neither path leaves them carrying the old
+  number (#143). `sync-version --no-build` skips that step for a release script that runs `build`
+  itself.
 
 Stated as a rule for authors: **if your repo uses changesets, keep using it** and let
 `publish sync-version` carry the number into the manifest. **If it does not**, `plugin version` is

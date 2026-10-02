@@ -621,3 +621,49 @@ test('plugin build pins a marked mcpServers invocation and warns about the versi
 		fs.rmSync(root, { recursive: true, force: true })
 	}
 })
+
+function seedBuiltPlugin(root: string) {
+	fs.writeFileSync(
+		path.join(root, 'plugin.json'),
+		JSON.stringify({
+			$schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json',
+			name: 'test-plugin',
+			version: '1.0.0',
+			description: 'a test plugin',
+			extensions: { 'org.cyberuni.universal-plugin': { vendors: ['claude-code'] } },
+		}),
+	)
+	fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ version: '1.1.0' }))
+	expect(run('plugin', 'build', '--root', root).status).toBe(0)
+}
+
+function vendorVersion(root: string): unknown {
+	return JSON.parse(fs.readFileSync(path.join(root, '.claude-plugin', 'plugin.json'), 'utf8')).version
+}
+
+test('publish sync-version re-derives the vendor manifests with the synced version', () => {
+	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-syncver-'))
+	try {
+		seedBuiltPlugin(root)
+		expect(vendorVersion(root)).toBe('1.0.0')
+
+		const result = run('publish', 'sync-version', '--root', root)
+		expect(result.status).toBe(0)
+		expect(vendorVersion(root)).toBe('1.1.0')
+	} finally {
+		fs.rmSync(root, { recursive: true, force: true })
+	}
+})
+
+test('publish sync-version --no-build leaves the vendor manifests for the caller to build', () => {
+	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-syncver-'))
+	try {
+		seedBuiltPlugin(root)
+
+		const result = run('publish', 'sync-version', '--no-build', '--root', root)
+		expect(result.status).toBe(0)
+		expect(vendorVersion(root)).toBe('1.0.0')
+	} finally {
+		fs.rmSync(root, { recursive: true, force: true })
+	}
+})
