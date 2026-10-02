@@ -22,11 +22,16 @@ test -d .changeset && echo "changesets"
 
 **If it does**, the version number is decided by changesets, not by you. Add a changeset and let the
 release run — the repo's `version` script should already call `publish sync-version`, which carries
-the released number from `package.json` into the canonical manifest:
+the released number from `package.json` into the canonical manifest and re-derives the vendor
+manifests, the same way `plugin version` does:
 
 ```bash
 npx universal-plugin publish sync-version
 ```
+
+If the script passes `--no-build`, it must run `plugin build` next (`/universal-plugin:build-plugin`);
+otherwise the vendor manifests and `com.github.copilot/` keep the old version, and a consumer's
+plugin cache never re-extracts.
 
 Do **not** run `plugin version` in a changesets repo — it would decide a number changesets is about
 to decide again.
@@ -109,6 +114,7 @@ Every guard resolves before the first write, so a failed run leaves the tree unt
 | Task | Skill |
 |------|-------|
 | Create, adopt, or change what the plugin declares | `init-universal-plugin` |
+| Re-derive the vendor manifests by hand | `build-plugin` |
 | Check whether the two authored versions agree | `doctor` |
 | Add a changeset for the change being released | `add-changeset` |
 | Refresh the repository's own marketplace catalogs after a bump | `marketplace` |

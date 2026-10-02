@@ -18,7 +18,7 @@ The first question the skill asks is whether the repository uses changesets.
 
 - **With changesets** — the number is decided by the release, not by this skill. Add a changeset, let
   the release run, and `publish sync-version` carries the released number into the canonical
-  manifest.
+  manifest and re-derives the vendor manifests. With `--no-build`, `plugin build` is the next step.
 - **Without** — `plugin version <bump>` is the whole step. `scripts/version.mjs` runs it from the CLI
   shipped beside the skill, so nothing is downloaded.
 
