@@ -19,6 +19,7 @@ universal-plugin plugin build [options]
 | `--dry-run` | Print what would be written without writing |
 | `--verbose` | Print field-by-field transformation decisions |
 | `--clean` | Delete generated manifests before building |
+| `--strict-dependencies` | Fail when a refreshed catalog cannot resolve a declared dependency |
 | `--root <path>` | Plugin root directory (default: current directory) |
 | `--format json` | Output as JSON |
 
@@ -181,6 +182,7 @@ constraint beside it:
 | `marketplace` | Which marketplace to resolve `name` in. A bare name resolves against the declaring plugin's own marketplace. |
 | `version` | Semver range, checked against the installed plugin's version. |
 | `sha` | Commit sha to pin a git-sourced dependency to. |
+| `source` | Where the dependency is distributed from, as a catalog source such as `{ "source": "npm", "package": "cyber-asana" }`. Used to list it in your catalog; never reaches a vendor manifest. |
 
 Claude Code is the only runtime that reads a dependency, and it acts on one: it installs a missing
 dependency, enables it alongside the plugin that needs it, and refuses to load a plugin whose declared
@@ -195,6 +197,32 @@ is not a legal name and fails the build, as does an npm-style `{"cyber-asana": "
 
 The build checks the shape of a declaration, not whether the plugin it names exists. Resolving,
 fetching, and installing a dependency is the runtime's job.
+
+### Dependencies and your repository's catalog
+
+A bare dependency name resolves only against the marketplace your plugin is installed from. If your
+repository carries `.claude-plugin/marketplace.json` and that catalog does not list the dependency,
+nobody can install your plugin from it. So while the build refreshes that catalog, it checks each
+dependency against it, reading only files already on disk:
+
+- A bare name the catalog does not list warns. Fix it by listing the dependency there
+  (`universal-plugin marketplace add npm:<package>`), or by qualifying it with the marketplace that
+  does list it and adding that marketplace to the catalog's `allowCrossMarketplaceDependenciesOn`.
+- A name qualified with another marketplace warns unless the catalog lists that marketplace in
+  `allowCrossMarketplaceDependenciesOn`. Claude Code refuses the dependency otherwise.
+
+The build stays green on these warnings. Pass `--strict-dependencies` to fail it instead, for
+example in CI.
+
+Give the dependency a `source` and the build lists it in the catalog for you, the same way it keeps
+your plugin's own entry current:
+
+```json
+{ "name": "cyber-asana", "source": { "source": "npm", "package": "cyber-asana" } }
+```
+
+Without a `source` the build never adds an entry, because it cannot know where the dependency comes
+from.
 
 ## Examples
 
