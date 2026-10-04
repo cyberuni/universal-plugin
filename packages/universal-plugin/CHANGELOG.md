@@ -1,5 +1,12 @@
 # universal-plugin
 
+## 0.11.3
+
+### Patch Changes
+
+- 4a0e9ac: `doctor` no longer reports `com.github.copilot/` as stale after a rebuild. It compares the newest file in the directory against `plugin.json`, because a directory's own mtime does not move when its files are rewritten in place.
+- 4a0e9ac: `publish sync-version` now re-derives the vendor manifests after it moves the version, the same way `plugin version` does, so they no longer keep the old number. Pass `--no-build` to skip that step when your release script runs `plugin build` itself. The `version` and `doctor-universal-plugin` skills now name `build-plugin` as the follow-up step.
+
 ## 0.11.2
 
 ### Patch Changes
