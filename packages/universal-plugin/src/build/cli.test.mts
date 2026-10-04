@@ -208,3 +208,48 @@ test('--check fails loud as an unknown flag and writes nothing', () => {
 	expect(r.stderr).toMatch(/--check/)
 	expect(built()).toBe(false)
 })
+
+// Issue #147: a bare dependency the catalog does not list ships a plugin nobody can install. The
+// build warns by default and fails under --strict-dependencies.
+function writeDependentPlugin() {
+	spawnSync('git', ['-C', repo, 'init', '-q'])
+	fs.mkdirSync(path.join(repo, '.claude-plugin'), { recursive: true })
+	fs.writeFileSync(
+		path.join(repo, '.claude-plugin', 'marketplace.json'),
+		`${JSON.stringify(
+			{
+				name: 'uip-pods-local',
+				owner: { name: 'pan' },
+				plugins: [{ name: 'pods', source: './packages/pods', version: '1.0.0', description: 'a workspace plugin' }],
+			},
+			null,
+			2,
+		)}\n`,
+	)
+	fs.writeFileSync(
+		path.join(workspacePackage, 'plugin.json'),
+		`${JSON.stringify({
+			name: 'pods',
+			version: '1.0.0',
+			description: 'a workspace plugin',
+			extensions: {
+				'org.cyberuni.universal-plugin': { harnesses: { 'claude-code': {} }, dependencies: ['cyber-asana'] },
+			},
+		})}\n`,
+	)
+}
+
+test('warns about a dependency the refreshed catalog cannot resolve, and stays green', () => {
+	writeDependentPlugin()
+	const r = build('--json')
+	expect(r.status).toBe(0)
+	expect(r.stderr).toContain('warn: dependency "cyber-asana" is not listed in ".claude-plugin/marketplace.json"')
+	expect(JSON.parse(r.stdout).dependencyIssues).toHaveLength(1)
+})
+
+test('--strict-dependencies fails the build on a dependency the catalog cannot resolve', () => {
+	writeDependentPlugin()
+	const r = build('--strict-dependencies')
+	expect(r.status).toBe(1)
+	expect(r.stderr).toContain('dependency "cyber-asana" is not listed')
+})

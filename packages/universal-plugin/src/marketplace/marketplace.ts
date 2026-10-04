@@ -359,6 +359,45 @@ export function catalogEntryNames(content: string): string[] {
 	}
 }
 
+/** What a catalog says about resolving a dependency through it: its own name, the plugins it lists,
+ *  and the marketplaces it lets a dependency be qualified with (`allowCrossMarketplaceDependenciesOn`,
+ *  Claude Code's root-catalog field). */
+export interface CatalogResolution {
+	name: string
+	plugins: string[]
+	allowedMarketplaces?: string[]
+}
+
+export function catalogResolution(content: string): CatalogResolution {
+	const previous = parseCatalog(content, 'catalog')
+	const name = typeof previous.name === 'string' ? previous.name : ''
+	const allowed = previous.allowCrossMarketplaceDependenciesOn
+	const resolution: CatalogResolution = { name, plugins: catalogEntryNames(content) }
+	if (Array.isArray(allowed)) {
+		resolution.allowedMarketplaces = allowed.filter((item): item is string => typeof item === 'string')
+	}
+	return resolution
+}
+
+/** Lists a dependency in a catalog the repository already carries, from the source its declaration
+ *  names (issue #147). The entry is a name and a source and nothing more: the rest of a catalog
+ *  entry is derived from the plugin's own manifest, which is the dependency's and not here. A listed
+ *  entry takes the declared source — the declaration is the authored record of where the dependency
+ *  comes from — and keeps every other field it already carries. */
+export function foldDependencyEntry(existing: string, dependency: { name: string; source: CatalogSource }): string {
+	const previous = parseCatalog(existing, 'catalog')
+	const entries = Array.isArray(previous.plugins) ? [...(previous.plugins as unknown[])] : []
+	const index = entries.findIndex(
+		(candidate) =>
+			typeof candidate === 'object' &&
+			candidate !== null &&
+			(candidate as Record<string, unknown>).name === dependency.name,
+	)
+	if (index === -1) entries.push({ name: dependency.name, source: dependency.source })
+	else entries[index] = { ...(entries[index] as Record<string, unknown>), source: dependency.source }
+	return json({ ...previous, plugins: entries })
+}
+
 /** The catalog's own top-level identity, read back from the file the repository already carries, so
  *  a refresh re-derives one entry without proposing a name or an owner of its own. */
 function existingMetadata(previous: Record<string, unknown>): MarketplaceMetadata {

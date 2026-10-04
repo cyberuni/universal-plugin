@@ -27,6 +27,7 @@ interface BuildCliOptions {
 	dryRun?: boolean
 	verbose?: boolean
 	clean?: boolean
+	strictDependencies?: boolean
 	root?: string
 }
 
@@ -38,6 +39,7 @@ export function buildCommand(): Command {
 		.option('--dry-run', 'Print what would be written without writing')
 		.option('--verbose', 'Print field-by-field transformation decisions')
 		.option('--clean', 'Delete generated manifests before building')
+		.option('--strict-dependencies', 'Fail when a refreshed catalog cannot resolve a declared dependency')
 		.option('--format <format>', 'Output format: json or toon (default: toon)')
 		.addOption(new Option('--json').hideHelp())
 		.addOption(ROOT_OPTION)
@@ -63,6 +65,7 @@ export function buildCommand(): Command {
 					failed: result.rows.filter((r) => r.status === 'failed'),
 					canonical: result.rows.filter((r) => r.status === 'canonical'),
 					catalogs: result.catalogs,
+					dependencyIssues: result.dependencyIssues,
 					summary: result.summary,
 					warnings: result.warnings,
 				}
@@ -76,6 +79,13 @@ export function buildCommand(): Command {
 
 				process.stderr.write(nextStep(result, process.cwd()))
 				if (failed > 0) process.exitCode = 1
+				// The issues were already printed as warnings; strict mode only changes what they cost.
+				if (opts.strictDependencies && result.dependencyIssues.length > 0) {
+					process.stderr.write(
+						`error: ${result.dependencyIssues.length} declared ${result.dependencyIssues.length === 1 ? 'dependency' : 'dependencies'} cannot be resolved through the refreshed catalogs (--strict-dependencies)\n`,
+					)
+					process.exitCode = 1
+				}
 			} catch (err) {
 				process.stderr.write(`${err instanceof Error ? err.message : String(err)}\n`)
 				process.exit(1)

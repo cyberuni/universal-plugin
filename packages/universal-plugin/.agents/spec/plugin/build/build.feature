@@ -844,6 +844,52 @@ Feature: plugin build — derive per-vendor manifests
     Then the catalog is reported as planned
     And the catalog file is unchanged
 
+  # ── Dependencies against the refreshed catalogs (ADR-0018) ──
+
+  Scenario: a bare dependency the catalog does not list warns and names both fixes
+    Given the project root is inside a repository that carries ".claude-plugin/marketplace.json"
+    And that catalog lists only this plugin
+    And the manifest declares harnesses for "claude-code" and the dependency "cyber-asana"
+    When I run "universal-plugin plugin build"
+    Then stderr contains "dependency \"cyber-asana\" is not listed in \".claude-plugin/marketplace.json\""
+    And that warning names "marketplace add" and "allowCrossMarketplaceDependenciesOn"
+    And the exit code is 0
+
+  Scenario: --strict-dependencies fails on a dependency the catalog cannot resolve
+    Given the project root is inside a repository that carries ".claude-plugin/marketplace.json"
+    And that catalog lists only this plugin
+    And the manifest declares harnesses for "claude-code" and the dependency "cyber-asana"
+    When I run "universal-plugin plugin build --strict-dependencies"
+    Then the exit code is 1
+
+  Scenario: a dependency qualified with another marketplace needs that marketplace allowed
+    Given the project root is inside a repository that carries ".claude-plugin/marketplace.json"
+    And the manifest declares harnesses for "claude-code" and the dependency "cyber-asana@cyberuni"
+    When the catalog does not list "cyberuni" in allowCrossMarketplaceDependenciesOn
+    Then the build warns that the dependency is refused at install
+    When the catalog lists "cyberuni" in allowCrossMarketplaceDependenciesOn
+    Then the build reports no dependency issue
+
+  Scenario: a dependency that names its source is listed in the catalog
+    Given the project root is inside a repository that carries ".claude-plugin/marketplace.json"
+    And the manifest declares the dependency { "name": "cyber-asana", "source": { "source": "npm", "package": "cyber-asana" } }
+    When I run "universal-plugin plugin build"
+    Then the catalog lists "cyber-asana" with that npm source
+    And the build reports no dependency issue
+    And the derived Claude Code manifest declares the dependency without "source"
+
+  Scenario: a dependency without a source is never added to the catalog
+    Given the project root is inside a repository that carries ".claude-plugin/marketplace.json"
+    And the manifest declares harnesses for "claude-code" and the dependency "cyber-asana"
+    When I run "universal-plugin plugin build"
+    Then the catalog does not list "cyber-asana"
+
+  Scenario: a catalog of a runtime that reads no dependency is not checked
+    Given the project root is inside a repository that carries ".agents/plugins/marketplace.json"
+    And the manifest declares harnesses for "codex" and the dependency "cyber-asana"
+    When I run "universal-plugin plugin build"
+    Then the build reports no dependency issue
+
   # ── Governance copies retired (ADR-0017) ──
   # The build no longer copies governances into skills; a skill loads a reference through the
   # reference skill. A committed references/governances/ folder is skill content like any other.

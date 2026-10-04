@@ -1,17 +1,23 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {
+	catalogDependencyIssues,
 	type DependencyDeclaration,
+	dependencyCatalogEntries,
 	translateDependencies,
 	validateDependencies,
+	vendorResolvesDependencies,
 } from '../dependencies/dependencies.js'
 import { type CanonicalHooksFile, type HookDrop, type HookTranslation, translateHooks } from '../hooks/hooks.js'
 import { detectIndent } from '../json.js'
 import { gatherCatalogRepo } from '../marketplace/fs.js'
 import {
+	catalogResolution,
+	foldDependencyEntry,
 	refreshCatalogEntry,
 	sameCatalogContent,
 	TARGET_CATALOG_PATHS,
+	TARGET_SOURCE_KINDS,
 	VENDOR_TARGETS,
 } from '../marketplace/marketplace.js'
 import { formatCatalogIssues, validateCatalogContent } from '../marketplace/validation.js'
@@ -222,6 +228,9 @@ export interface BuildResult {
 	catalogs: CatalogRow[]
 	/** Absolute root of the repository those catalogs live in; absent when no catalog was touched. */
 	catalogRoot?: string
+	/** Declared dependencies a refreshed catalog cannot resolve (issue #147). Each is also a warning;
+	 *  kept apart so `--strict-dependencies` can fail on them alone. */
+	dependencyIssues: string[]
 	summary: { built: number; skipped: number; failed: number; canonical: number }
 }
 
@@ -311,7 +320,15 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 			)
 		}
 		warnings.push('No vendors declared in harnesses — nothing to build')
-		return { vendors: [], written: [], warnings, rows, catalogs: [], summary: summarize(rows) }
+		return {
+			vendors: [],
+			written: [],
+			warnings,
+			rows,
+			catalogs: [],
+			dependencyIssues: [],
+			summary: summarize(rows),
+		}
 	}
 
 	// Eager validation, scoped to the vendors actually being built — a codex block that is not a
@@ -459,7 +476,18 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 		}
 	}
 
-	const { catalogs, catalogRoot } = refreshCatalogs(root, manifest, vendors, opts, written, warnings)
+	// The declaration a vendor receives is what its catalog must resolve — a harness override included,
+	// since it is applied over the canonical one.
+	const dependenciesFor = (vendor: VendorId): unknown => harnesses[vendor]?.['dependencies'] ?? declaredDependencies
+	const { catalogs, catalogRoot, dependencyIssues } = refreshCatalogs(
+		root,
+		manifest,
+		vendors,
+		dependenciesFor,
+		opts,
+		written,
+		warnings,
+	)
 
 	return {
 		vendors,
@@ -468,6 +496,7 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 		rows,
 		catalogs,
 		catalogRoot,
+		dependencyIssues,
 		summary: summarize(rows),
 	}
 }
@@ -479,17 +508,23 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
  *
  *  Only a catalog the repository already carries is touched, and only this plugin's entry inside it.
  *  Creating one is a choice `plugin init --vendor` and `marketplace init` own; a build makes no new
- *  files at the repository root. */
+ *  files at the repository root.
+ *
+ *  A catalog is also where a runtime resolves this plugin's dependencies, so each one the vendor
+ *  reads is checked against it (issue #147): a dependency that names its source is listed there, and
+ *  one the catalog still cannot resolve is reported. */
 function refreshCatalogs(
 	root: string,
 	manifest: PluginManifest,
 	vendors: VendorId[],
+	dependenciesFor: (vendor: VendorId) => unknown,
 	opts: BuildOptions,
 	written: string[],
 	warnings: string[],
-): { catalogs: CatalogRow[]; catalogRoot?: string } {
+): { catalogs: CatalogRow[]; catalogRoot?: string; dependencyIssues: string[] } {
+	const dependencyIssues: string[] = []
 	const repo = gatherCatalogRepo(root)
-	if (!repo) return { catalogs: [] }
+	if (!repo) return { catalogs: [], dependencyIssues }
 
 	const source = repo.pluginPath === '' ? './' : `./${repo.pluginPath}`
 	const plugin = { name: manifest.name, source, metadata: manifest as Record<string, unknown> }
@@ -506,12 +541,28 @@ function refreshCatalogs(
 		if (existing === undefined) continue
 
 		try {
-			const artifact = refreshCatalogEntry(target, plugin, existing)
+			let content = refreshCatalogEntry(target, plugin, existing).content
+			if (vendorResolvesDependencies(vendor)) {
+				const declared = dependenciesFor(vendor)
+				for (const dependency of dependencyCatalogEntries(declared, catalogResolution(content).name)) {
+					const kind = dependency.source.source
+					if (!TARGET_SOURCE_KINDS[target].includes(kind)) {
+						warnings.push(
+							`dependency "${dependency.name}" names a ${kind} source, which "${relative}" cannot carry — it is not listed there`,
+						)
+						continue
+					}
+					content = foldDependencyEntry(content, dependency)
+				}
+				const unresolved = catalogDependencyIssues(declared, { path: relative, ...catalogResolution(content) })
+				dependencyIssues.push(...unresolved)
+				warnings.push(...unresolved)
+			}
 			// The build refreshes one entry inside a file it did not author, so an invalid catalog is
 			// reported rather than repaired or refused — `marketplace validate` is where that is fixed.
-			const issues = validateCatalogContent(target, artifact.content)
+			const issues = validateCatalogContent(target, content)
 			if (issues.length > 0) warnings.push(formatCatalogIssues(relative, issues))
-			if (sameCatalogContent(artifact.content, existing)) {
+			if (sameCatalogContent(content, existing)) {
 				rows.push({ path: relative, status: 'unchanged' })
 				continue
 			}
@@ -522,15 +573,16 @@ function refreshCatalogs(
 			const file = path.join(repo.root, relative)
 			// The catalog keeps the indentation it was written with, so a refresh does not fight the
 			// repository's own formatter.
-			const content = `${JSON.stringify(JSON.parse(artifact.content), null, detectIndent(existing))}\n`
-			fs.writeFileSync(file, content)
+			fs.writeFileSync(file, `${JSON.stringify(JSON.parse(content), null, detectIndent(existing))}\n`)
 			written.push(file)
 			rows.push({ path: relative, status: 'updated' })
 		} catch (err) {
 			warnings.push(`Failed to refresh "${relative}": ${err instanceof Error ? err.message : String(err)}`)
 		}
 	}
-	return rows.length > 0 ? { catalogs: rows, catalogRoot: repo.root } : { catalogs: rows }
+	return rows.length > 0
+		? { catalogs: rows, catalogRoot: repo.root, dependencyIssues }
+		: { catalogs: rows, dependencyIssues }
 }
 
 function writeSkillArtifacts(vendor: VendorId, skills: Skill[], opts: BuildOptions, written: string[]) {

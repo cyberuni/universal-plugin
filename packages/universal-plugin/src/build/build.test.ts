@@ -931,6 +931,143 @@ describe('buildPlugin — repository-local catalogs', () => {
 	})
 })
 
+/** A bare dependency resolves only against the marketplace its dependent is installed from, so a
+ *  catalog that does not list it ships a plugin nobody can install (issue #147). The build checks each
+ *  declared dependency against the catalogs it refreshes — offline, manifest against files on disk —
+ *  and lists a dependency that names its own source. */
+describe('buildPlugin — dependencies against the catalogs it refreshes', () => {
+	let repoRoot: string
+	let pluginRoot: string
+	const claudeCatalog = '.claude-plugin/marketplace.json'
+
+	beforeEach(() => {
+		repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-catalog-deps-'))
+		execFileSync('git', ['-C', repoRoot, 'init', '-q'])
+		pluginRoot = path.join(repoRoot, 'packages', 'pods')
+		fs.mkdirSync(pluginRoot, { recursive: true })
+	})
+
+	afterEach(() => fs.rmSync(repoRoot, { recursive: true, force: true }))
+
+	function writePluginManifest(dependencies: unknown[], harnesses: Record<string, unknown> = { 'claude-code': {} }) {
+		fs.writeFileSync(
+			path.join(pluginRoot, 'plugin.json'),
+			JSON.stringify({
+				name: 'uip-pods',
+				version: '0.3.0',
+				description: 'Pods',
+				extensions: up({ harnesses, dependencies }),
+			}),
+		)
+	}
+
+	function writeCatalog(relative: string, content: Record<string, unknown>) {
+		const file = path.join(repoRoot, relative)
+		fs.mkdirSync(path.dirname(file), { recursive: true })
+		fs.writeFileSync(file, `${JSON.stringify(content, null, 2)}\n`)
+	}
+
+	const readCatalog = (relative: string) =>
+		JSON.parse(fs.readFileSync(path.join(repoRoot, relative), 'utf8')) as Record<string, unknown>
+
+	const localCatalog = (extra: Record<string, unknown> = {}) => ({
+		name: 'uip-pods-local',
+		owner: { name: 'me' },
+		...extra,
+		plugins: [{ name: 'uip-pods', source: './packages/pods', version: '0.3.0', description: 'Pods' }],
+	})
+
+	it('warns when a bare dependency is not listed in the catalog, naming both fixes', () => {
+		writeCatalog(claudeCatalog, localCatalog())
+		writePluginManifest(['cyber-asana'])
+
+		const result = buildPlugin(pluginRoot, {})
+		expect(result.dependencyIssues).toEqual([
+			expect.stringContaining('dependency "cyber-asana" is not listed in ".claude-plugin/marketplace.json"'),
+		])
+		expect(result.warnings).toContain(result.dependencyIssues[0])
+		expect(result.dependencyIssues[0]).toContain('marketplace add')
+		expect(result.dependencyIssues[0]).toContain('allowCrossMarketplaceDependenciesOn')
+		expect(result.summary.failed).toBe(0)
+	})
+
+	it('says nothing when the catalog lists the dependency', () => {
+		writeCatalog(claudeCatalog, {
+			...localCatalog(),
+			plugins: [
+				{ name: 'uip-pods', source: './packages/pods', version: '0.3.0', description: 'Pods' },
+				{ name: 'cyber-asana', source: { source: 'npm', package: 'cyber-asana' } },
+			],
+		})
+		writePluginManifest(['cyber-asana'])
+		expect(buildPlugin(pluginRoot, {}).dependencyIssues).toEqual([])
+	})
+
+	it('checks a marketplace-qualified dependency against the catalog allow-list', () => {
+		writeCatalog(claudeCatalog, localCatalog())
+		writePluginManifest(['cyber-asana@cyberuni'])
+		expect(buildPlugin(pluginRoot, {}).dependencyIssues).toEqual([
+			expect.stringContaining('does not list in allowCrossMarketplaceDependenciesOn'),
+		])
+
+		writeCatalog(claudeCatalog, localCatalog({ allowCrossMarketplaceDependenciesOn: ['cyberuni'] }))
+		expect(buildPlugin(pluginRoot, {}).dependencyIssues).toEqual([])
+	})
+
+	it('lists a dependency that names its source, and the check then passes', () => {
+		writeCatalog(claudeCatalog, localCatalog())
+		writePluginManifest([{ name: 'cyber-asana', source: { source: 'npm', package: 'cyber-asana' } }])
+
+		const result = buildPlugin(pluginRoot, {})
+		expect(result.dependencyIssues).toEqual([])
+		expect(result.catalogs).toEqual([{ path: claudeCatalog, status: 'updated' }])
+		expect(readCatalog(claudeCatalog).plugins).toEqual([
+			{ name: 'uip-pods', source: './packages/pods', version: '0.3.0', description: 'Pods' },
+			{ name: 'cyber-asana', source: { source: 'npm', package: 'cyber-asana' } },
+		])
+		const manifest = JSON.parse(fs.readFileSync(path.join(pluginRoot, '.claude-plugin', 'plugin.json'), 'utf8'))
+		expect(manifest.dependencies).toEqual([{ name: 'cyber-asana' }])
+	})
+
+	it('plans the listing on --dry-run and writes nothing', () => {
+		writeCatalog(claudeCatalog, localCatalog())
+		writePluginManifest([{ name: 'cyber-asana', source: { source: 'npm', package: 'cyber-asana' } }])
+		const before = fs.readFileSync(path.join(repoRoot, claudeCatalog), 'utf8')
+
+		const result = buildPlugin(pluginRoot, { dryRun: true })
+		expect(result.catalogs).toEqual([{ path: claudeCatalog, status: 'planned' }])
+		expect(result.dependencyIssues).toEqual([])
+		expect(fs.readFileSync(path.join(repoRoot, claudeCatalog), 'utf8')).toBe(before)
+	})
+
+	it('does not list a source the catalog cannot carry, and warns about the dependency instead', () => {
+		writeCatalog(claudeCatalog, localCatalog())
+		writePluginManifest([{ name: 'cyber-asana', source: { source: 'pypi', package: 'cyber-asana' } }])
+
+		const result = buildPlugin(pluginRoot, {})
+		expect(result.warnings).toContain(
+			'dependency "cyber-asana" names a pypi source, which ".claude-plugin/marketplace.json" cannot carry — it is not listed there',
+		)
+		expect(result.dependencyIssues).toHaveLength(1)
+		expect((readCatalog(claudeCatalog).plugins as unknown[]).length).toBe(1)
+	})
+
+	it('checks only the catalogs of runtimes that resolve dependencies', () => {
+		writeCatalog('.agents/plugins/marketplace.json', {
+			name: 'uip-pods-local',
+			plugins: [{ name: 'uip-pods', version: '0.3.0', source: { source: 'local', path: './packages/pods' } }],
+		})
+		writePluginManifest(['cyber-asana'], { codex: {} })
+		expect(buildPlugin(pluginRoot, {}).dependencyIssues).toEqual([])
+	})
+
+	it('checks the declaration Claude Code receives, a harness override included', () => {
+		writeCatalog(claudeCatalog, localCatalog())
+		writePluginManifest([], { 'claude-code': { dependencies: ['cyber-asana'] } })
+		expect(buildPlugin(pluginRoot, {}).dependencyIssues).toHaveLength(1)
+	})
+})
+
 /** The repository formats its JSON with its own tools, so a refresh compares meaning rather than
  *  bytes and writes with the indentation the catalog already uses. Otherwise every build would
  *  rewrite a file whose content it agrees with. */
