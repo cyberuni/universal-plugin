@@ -5,7 +5,15 @@ import { expect, test } from 'vitest'
 
 import { realMarketplaceFs } from './fs.js'
 import { initializeMarketplace } from './init.js'
-import { absoluteSource, mergeCatalogEntry, originFromRepo, originFromUrl, refreshCatalogEntry } from './marketplace.js'
+import {
+	absoluteSource,
+	catalogResolution,
+	foldDependencyEntry,
+	mergeCatalogEntry,
+	originFromRepo,
+	originFromUrl,
+	refreshCatalogEntry,
+} from './marketplace.js'
 
 function fixture(prefix: string): string {
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), prefix))
@@ -484,4 +492,47 @@ test('rewrites a source local to another marketplace against that marketplace or
 
 	expect(absoluteSource(github, './plugins/aced/')).toMatchObject({ path: 'plugins/aced' })
 	expect(absoluteSource(github, { source: 'npm' })).toBeUndefined()
+})
+
+/** A dependency that names its source can be listed in the catalog the build refreshes (issue #147).
+ *  The entry says where the plugin comes from and nothing else: its metadata is the dependency's own
+ *  manifest, which this repository does not have. */
+const dependencyCatalog = (plugins: unknown[]) =>
+	`${JSON.stringify({ name: 'local', owner: { name: 'me' }, plugins }, null, 2)}\n`
+
+test('dependency fold appends an entry for a dependency the catalog does not list', () => {
+	const result = foldDependencyEntry(dependencyCatalog([{ name: 'mine', source: './' }]), {
+		name: 'cyber-asana',
+		source: { source: 'npm', package: 'cyber-asana' },
+	})
+	expect(JSON.parse(result).plugins).toEqual([
+		{ name: 'mine', source: './' },
+		{ name: 'cyber-asana', source: { source: 'npm', package: 'cyber-asana' } },
+	])
+})
+
+test('dependency fold replaces the source of a listed entry and keeps every other field on it', () => {
+	const result = foldDependencyEntry(
+		dependencyCatalog([{ name: 'cyber-asana', source: { source: 'npm', package: 'old' }, version: '0.9.0' }]),
+		{ name: 'cyber-asana', source: { source: 'npm', package: 'cyber-asana' } },
+	)
+	expect(JSON.parse(result).plugins).toEqual([
+		{ name: 'cyber-asana', source: { source: 'npm', package: 'cyber-asana' }, version: '0.9.0' },
+	])
+})
+
+test('catalogResolution reads the name, the listed plugins, and the cross-marketplace allow-list', () => {
+	expect(
+		catalogResolution(
+			JSON.stringify({
+				name: 'local',
+				allowCrossMarketplaceDependenciesOn: ['cyberuni'],
+				plugins: [{ name: 'a' }, { name: 'b' }],
+			}),
+		),
+	).toEqual({ name: 'local', plugins: ['a', 'b'], allowedMarketplaces: ['cyberuni'] })
+})
+
+test('catalogResolution reads no allow-list when the catalog carries none', () => {
+	expect(catalogResolution(JSON.stringify({ name: 'local', plugins: [] }))).toEqual({ name: 'local', plugins: [] })
 })

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { translateDependencies, validateDependencies } from './dependencies.js'
+import {
+	catalogDependencyIssues,
+	dependencyCatalogEntries,
+	translateDependencies,
+	validateDependencies,
+} from './dependencies.js'
 
 describe('validateDependencies', () => {
 	it('accepts a bare plugin name', () => {
@@ -122,5 +127,95 @@ describe('translateDependencies', () => {
 		const result = translateDependencies(['cyber-asana'], 'some-future-runtime')
 		expect(result.dependencies).toEqual(['cyber-asana'])
 		expect(result.warnings).toEqual([])
+	})
+})
+
+describe('validateDependencies — source', () => {
+	it('accepts a tagged source on the object form', () => {
+		expect(
+			validateDependencies([{ name: 'cyber-asana', source: { source: 'npm', package: 'cyber-asana' } }]).errors,
+		).toEqual([])
+	})
+
+	it('rejects a source that is not a tagged object', () => {
+		expect(validateDependencies([{ name: 'cyber-asana', source: 'npm:cyber-asana' }]).errors).toEqual([
+			'dependencies[0].source must be a catalog source such as { "source": "npm", "package": "cyber-asana" }',
+		])
+	})
+})
+
+describe('translateDependencies — source', () => {
+	it('strips source from what claude-code receives: it locates the entry for the catalog, not the runtime', () => {
+		const result = translateDependencies(
+			[{ name: 'cyber-asana', version: '^0.9.0', source: { source: 'npm', package: 'cyber-asana' } }],
+			'claude-code',
+		)
+		expect(result.dependencies).toEqual([{ name: 'cyber-asana', version: '^0.9.0' }])
+	})
+})
+
+describe('dependencyCatalogEntries', () => {
+	it('lists each bare dependency that carries a source', () => {
+		expect(
+			dependencyCatalogEntries(
+				['plain', { name: 'cyber-asana', source: { source: 'npm', package: 'cyber-asana' } }],
+				'local',
+			),
+		).toEqual([{ name: 'cyber-asana', source: { source: 'npm', package: 'cyber-asana' } }])
+	})
+
+	it('counts a dependency qualified with this catalog own name as local', () => {
+		expect(
+			dependencyCatalogEntries([{ name: 'a', marketplace: 'local', source: { source: 'npm', package: 'a' } }], 'local'),
+		).toEqual([{ name: 'a', source: { source: 'npm', package: 'a' } }])
+	})
+
+	it('never adds a dependency another marketplace resolves', () => {
+		expect(
+			dependencyCatalogEntries([{ name: 'a', marketplace: 'other', source: { source: 'npm', package: 'a' } }], 'local'),
+		).toEqual([])
+	})
+})
+
+describe('catalogDependencyIssues', () => {
+	const catalog = { path: '.claude-plugin/marketplace.json', name: 'uip-pods-local', plugins: ['uip-pods'] }
+
+	it('says nothing when every bare dependency is listed', () => {
+		expect(catalogDependencyIssues(['uip-pods'], { ...catalog, plugins: ['uip-pods'] })).toEqual([])
+	})
+
+	it('names a bare dependency the catalog does not list, and both fixes', () => {
+		expect(catalogDependencyIssues(['cyber-asana'], catalog)).toEqual([
+			'dependency "cyber-asana" is not listed in ".claude-plugin/marketplace.json" (marketplace "uip-pods-local"), and a bare name resolves only there — list it in that catalog (universal-plugin marketplace add npm:<package>), or qualify it with the marketplace that lists it ({ "name": "cyber-asana", "marketplace": "<marketplace>" }) and add that marketplace to the catalog\'s allowCrossMarketplaceDependenciesOn',
+		])
+	})
+
+	it('reads a range tail and the object form by name', () => {
+		expect(catalogDependencyIssues(['uip-pods@^1.0.0', { name: 'uip-pods', version: '^1.0.0' }], catalog)).toEqual([])
+	})
+
+	it('treats a dependency qualified with the catalog own name as bare', () => {
+		expect(catalogDependencyIssues(['cyber-asana@uip-pods-local'], catalog)).toHaveLength(1)
+		expect(catalogDependencyIssues(['uip-pods@uip-pods-local'], catalog)).toEqual([])
+	})
+
+	it('names a cross-marketplace dependency the catalog does not allow', () => {
+		expect(catalogDependencyIssues([{ name: 'cyber-asana', marketplace: 'cyberuni' }], catalog)).toEqual([
+			'dependency "cyber-asana@cyberuni" names marketplace "cyberuni", which ".claude-plugin/marketplace.json" (marketplace "uip-pods-local") does not list in allowCrossMarketplaceDependenciesOn, so the dependency is refused at install — add "cyberuni" to that list',
+		])
+	})
+
+	it('accepts a cross-marketplace dependency the catalog allows', () => {
+		expect(
+			catalogDependencyIssues(['cyber-asana@cyberuni'], { ...catalog, allowedMarketplaces: ['cyberuni'] }),
+		).toEqual([])
+	})
+
+	it('skips an entry whose shape is invalid — validation already reported it', () => {
+		expect(catalogDependencyIssues([42, 'Not A Name!'], catalog)).toEqual([])
+	})
+
+	it('says nothing for an absent declaration', () => {
+		expect(catalogDependencyIssues(undefined, catalog)).toEqual([])
 	})
 })

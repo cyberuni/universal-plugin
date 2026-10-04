@@ -164,6 +164,25 @@ Follows the AXI output contract ([../../axi/](../../axi/README.md)).
   a plugin with no scripts (issue #86). The build never *chooses* a non-local source: an author
   opts in once with `marketplace add npm:<pkg> --force`, which writes the npm entry to the Claude
   and Codex catalogs and skips Copilot CLI and Cursor, which document local paths only.
+- **Dependencies are checked against the catalogs the build refreshes** ([ADR-0018](../../design/decisions/0018-build-checks-dependencies-against-catalogs.md))
+  — a bare dependency name resolves only against the marketplace its dependent is installed from, so
+  a catalog that does not list it ships a plugin nobody can install (issue #147). While refreshing a
+  catalog for a vendor that reads `dependencies` (Claude Code alone today), the build checks the
+  declaration that vendor receives, a `harnesses.<vendor>.dependencies` override included. A bare
+  name — or one qualified with the catalog's own name — must be listed in the catalog; a name
+  qualified with another marketplace must have that marketplace in the catalog's
+  `allowCrossMarketplaceDependenciesOn`. Whether the other marketplace lists it stays unchecked
+  ([ADR-0013](../../design/decisions/0013-plugin-dependencies.md) §5). Only files on disk are read.
+  Each issue warns, naming the dependency, the catalog, and both fixes (list it with `marketplace
+  add`, or qualify it and allow that marketplace), and is reported in `dependencyIssues`. The build
+  stays green unless `--strict-dependencies` is passed, which exits 1 on these issues alone.
+- **A dependency that names its source is listed in the catalog** — an object entry may carry
+  `source`, a tagged catalog source such as `{ "source": "npm", "package": "cyber-asana" }`. When it
+  resolves through a catalog being refreshed, the build lists it there: a new entry is `{ name, source }`
+  and nothing more, and an existing entry takes the declared source and keeps its other fields.
+  Without `source` no entry is ever invented; the warning above stands. A source kind the catalog
+  does not document is not listed, and warns. `source` never reaches a derived manifest — Claude Code's
+  dependency object has no such key — and a `source` that is not a tagged object fails validation.
 - **TOON by default, `--format json` escape hatch** — a successful build prints a TOON result to
   stdout, one row per vendor (`vendor, path, status`), plus a pre-computed aggregate summary
   (`built N, skipped M, failed K`, with `served by plugin.json N` appended when any vendor is

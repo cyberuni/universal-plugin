@@ -56,6 +56,7 @@ The command never prompts, so it is safe to run unattended.
 | `--dry-run` | Validate and report the plan, write nothing. Run this first when unsure what will change |
 | `--vendor <id>` | Build one vendor (`claude-code`, `cursor`, `codex`, `copilot-cli`), and refresh only its catalog |
 | `--verbose` | Print each field-level decision the derivation made |
+| `--strict-dependencies` | Fail when a refreshed catalog cannot resolve a declared dependency. Use in CI |
 | `--format json` | The same result as JSON, for scripts |
 
 `--clean` also exists. It deletes derived manifests before rewriting them, so reach for it only
@@ -76,9 +77,14 @@ A catalog row reads `updated`, `unchanged`, or `planned` on `--dry-run`. A build
 catalog, and it keeps an entry's non-local source, such as an npm package, while it re-derives the
 version. To add a catalog or change a source, use `marketplace`.
 
+The build also checks each declared dependency against the catalogs it refreshes. A bare dependency
+the catalog does not list warns: offer the user both fixes the warning names, listing it with
+`marketplace add` or qualifying it with the marketplace that lists it. A dependency whose entry
+declares a `source` is listed in the catalog by the build itself.
+
 Read stderr too. The build drops what a vendor cannot represent and warns instead of failing: a hook
 handler type a vendor cannot run, a `harnesses.copilot-cli` override with no delivery path, an
-invalid catalog. Each warning names something that will not reach a runtime. Tell the user each
+invalid catalog, a dependency the catalog cannot resolve. Each warning names something that will not reach a runtime. Tell the user each
 one; do not bury it in a summary.
 
 `built 0` with "nothing to build" is not success. The manifest declares no vendor, so hand it to

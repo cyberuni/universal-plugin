@@ -18,7 +18,33 @@ export interface DependencyObject {
 	version?: string
 	/** Commit sha to pin to, for a dependency installed from git. */
 	sha?: string
+	/** Where the dependency is distributed from, in a catalog's tagged source shape — e.g.
+	 *  `{ "source": "npm", "package": "cyber-asana" }`. Ours, not the runtime's: it lets the build list
+	 *  the dependency in the catalog it refreshes, and is stripped from every derived manifest. */
+	source?: DependencySource
 	[key: string]: unknown
+}
+
+/** A catalog source as a dependency declares it: the tagged shape a marketplace entry takes. */
+type DependencySource = { source: string } & Record<string, unknown>
+
+/** What the build needs to know about one marketplace catalog to say whether a dependency resolves
+ *  through it. */
+export interface DependencyCatalog {
+	/** Repository-relative path, for the message. */
+	path: string
+	/** The marketplace's own name; a bare dependency resolves against it. */
+	name: string
+	/** Every plugin name the catalog lists. */
+	plugins: string[]
+	/** `allowCrossMarketplaceDependenciesOn`: the marketplaces a dependency may be qualified with. */
+	allowedMarketplaces?: string[]
+}
+
+/** A catalog entry the build may add for a dependency: its name and where it comes from. */
+export interface DependencyCatalogEntry {
+	name: string
+	source: DependencySource
 }
 
 export interface DependencyValidation {
@@ -90,6 +116,11 @@ export function validateDependencies(declaration: unknown): DependencyValidation
 		if (entry.version !== undefined && semver.validRange(entry.version) === null) {
 			errors.push(`dependencies[${index}].version "${entry.version}" is not a semver range`)
 		}
+		if (entry.source !== undefined && !isDependencySource(entry.source)) {
+			errors.push(
+				`dependencies[${index}].source must be a catalog source such as { "source": "npm", "package": "${entry.name}" }`,
+			)
+		}
 	})
 
 	return { errors, warnings }
@@ -98,7 +129,7 @@ export function validateDependencies(declaration: unknown): DependencyValidation
 /** Derives the `dependencies` field one vendor's manifest carries. */
 export function translateDependencies(declaration: DependencyDeclaration[], vendor: string): DependencyTranslation {
 	if (declaration.length === 0) return { dependencies: null, warnings: [] }
-	if (VENDOR_READS_DEPENDENCIES[vendor] !== false) return { dependencies: declaration, warnings: [] }
+	if (VENDOR_READS_DEPENDENCIES[vendor] !== false) return { dependencies: declaration.map(withoutSource), warnings: [] }
 
 	const named = declaration.map((entry) => `"${dependencyId(entry)}"`).join(', ')
 	const verb = declaration.length === 1 ? 'is' : 'are'
@@ -107,6 +138,79 @@ export function translateDependencies(declaration: DependencyDeclaration[], vend
 		dependencies: null,
 		warnings: [`${vendor} does not read plugin dependencies — ${named} ${verb} ${fate}`],
 	}
+}
+
+/** Whether this vendor's marketplace catalog is where its dependencies resolve, so the build checks
+ *  them against it. A runtime that reads no dependency has nothing to resolve. */
+export function vendorResolvesDependencies(vendor: string): boolean {
+	return VENDOR_READS_DEPENDENCIES[vendor] === true
+}
+
+/** The dependencies the build may list in a catalog: each one that resolves through it — bare, or
+ *  qualified with the catalog's own name — and carries a source saying where it comes from. A
+ *  dependency without a source is never listed: nothing here knows where it is distributed from. */
+export function dependencyCatalogEntries(declaration: unknown, catalogName: string): DependencyCatalogEntry[] {
+	return declaredEntries(declaration).flatMap((entry) => {
+		if (typeof entry === 'string' || !isDependencySource(entry.source)) return []
+		const { marketplace } = parseDependency(entry)
+		if (marketplace !== undefined && marketplace !== catalogName) return []
+		return [{ name: entry.name, source: entry.source }]
+	})
+}
+
+/** Checks that each declared dependency resolves through one catalog, offline. A bare name resolves
+ *  only against the marketplace the dependent is installed from, so the catalog must list it; a name
+ *  qualified with another marketplace is refused unless the catalog lists that marketplace in
+ *  `allowCrossMarketplaceDependenciesOn` (`.research/plugin-schema`). Whether the other marketplace
+ *  really lists the dependency is resolution, which stays out of scope (ADR-0013 §5). */
+export function catalogDependencyIssues(declaration: unknown, catalog: DependencyCatalog): string[] {
+	const issues: string[] = []
+	const where = `"${catalog.path}" (marketplace "${catalog.name}")`
+	for (const entry of declaredEntries(declaration)) {
+		const { name, marketplace } = parseDependency(entry)
+		if (marketplace === undefined || marketplace === catalog.name) {
+			if (catalog.plugins.includes(name)) continue
+			issues.push(
+				`dependency "${name}" is not listed in ${where}, and a bare name resolves only there — list it in that catalog (universal-plugin marketplace add npm:<package>), or qualify it with the marketplace that lists it ({ "name": "${name}", "marketplace": "<marketplace>" }) and add that marketplace to the catalog's allowCrossMarketplaceDependenciesOn`,
+			)
+			continue
+		}
+		if (catalog.allowedMarketplaces?.includes(marketplace)) continue
+		issues.push(
+			`dependency "${name}@${marketplace}" names marketplace "${marketplace}", which ${where} does not list in allowCrossMarketplaceDependenciesOn, so the dependency is refused at install — add "${marketplace}" to that list`,
+		)
+	}
+	return issues
+}
+
+/** The entries of a declaration whose shape the runtime accepts. Anything else was already reported
+ *  by `validateDependencies`, and a check built on top of it has nothing to add. */
+function declaredEntries(declaration: unknown): DependencyDeclaration[] {
+	if (!Array.isArray(declaration)) return []
+	return declaration.filter((entry): entry is DependencyDeclaration => {
+		if (typeof entry === 'string') return DEPENDENCY_STRING.test(entry)
+		return isDependencyObject(entry) && DEPENDENCY_STRING.test(dependencyId(entry))
+	})
+}
+
+function parseDependency(entry: DependencyDeclaration): { name: string; marketplace?: string } {
+	const [name = '', marketplace] = dependencyId(entry).split('@')
+	return marketplace === undefined ? { name } : { name, marketplace }
+}
+
+function withoutSource(entry: DependencyDeclaration): DependencyDeclaration {
+	if (typeof entry === 'string' || !('source' in entry)) return entry
+	const { source: _source, ...rest } = entry
+	return rest as DependencyObject
+}
+
+function isDependencySource(value: unknown): value is DependencySource {
+	return (
+		typeof value === 'object' &&
+		value !== null &&
+		!Array.isArray(value) &&
+		typeof (value as DependencySource).source === 'string'
+	)
 }
 
 /** The `name[@marketplace]` a runtime resolves a declaration to, minus any constraint beside it. */
