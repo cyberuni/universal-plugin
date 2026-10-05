@@ -53,7 +53,7 @@
 		"@cyberuni/agent-harness": "^0.3.0",
 		"@repobuddy/upx": "^0.2.0",
 		"@toon-format/toon": "^4.1.1",
-		"commander": "^14.0.3",
+		"commander": "^15.0.0",
 		"semver": "^7.8.1"
 	},
 	"devDependencies": {
