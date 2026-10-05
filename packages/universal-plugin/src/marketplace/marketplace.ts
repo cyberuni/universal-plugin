@@ -325,9 +325,13 @@ export function mergeDiscoveredCatalog(
 		if (typeof entry.name !== 'string' || isLocalCatalogSource(entry.source)) continue
 		foreign.set(entry.name, entry)
 	}
-	if (foreign.size === 0) return generated
+	// Discovery cannot derive which marketplaces a catalog's plugins may depend on; dropping the
+	// allowlist would make every cross-marketplace dependency refused at install.
+	const allowlist = previous.allowCrossMarketplaceDependenciesOn
+	if (foreign.size === 0 && allowlist === undefined) return generated
 
 	const catalog = JSON.parse(generated.content) as Record<string, unknown>
+	if (allowlist !== undefined) catalog.allowCrossMarketplaceDependenciesOn = allowlist
 	const discovered = (catalog.plugins ?? []) as Record<string, unknown>[]
 	const merged = discovered.map((entry) => {
 		const kept = typeof entry.name === 'string' ? foreign.get(entry.name) : undefined

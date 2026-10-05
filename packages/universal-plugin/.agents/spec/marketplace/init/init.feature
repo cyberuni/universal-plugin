@@ -340,6 +340,13 @@ Feature: marketplace init — derive local marketplace metadata
     Then the "alpha" entry still carries the npm source
     And its derived metadata is refreshed
 
+  Scenario: a forced regeneration keeps the cross-marketplace allowlist
+    Given the Claude catalog lists "cyberplace" in allowCrossMarketplaceDependenciesOn
+    And the "alpha" manifest declares a new description
+    When I run "universal-plugin marketplace init --claude --force --root <root>"
+    Then the Claude catalog still lists "cyberplace" in allowCrossMarketplaceDependenciesOn
+    And the "alpha" entry carries the new description
+
   Scenario: a kept entry is not a conflict on rerun
     Given the Claude catalog carries a kept entry and is otherwise current
     When I run "universal-plugin marketplace init --claude --root <root>"

@@ -87,8 +87,10 @@ proving a discovered plugin will install successfully in every vendor runtime.
   source with only its derived metadata refreshed. That is what lets [`add/`](../add/README.md) and
   this command run on one repository, and it stops a plugin distributed through npm from being
   rewritten to a repository path holding gitignored build output. What discovery owns it still owns:
-  a local-path entry it no longer finds is dropped. An existing catalog that is not JSON has nothing
-  to preserve and is regenerated whole under `--force`.
+  a local-path entry it no longer finds is dropped. The catalog's `allowCrossMarketplaceDependenciesOn`
+  survives too: discovery cannot derive which marketplaces the listed plugins depend on, and losing
+  the list makes Claude Code refuse every cross-marketplace dependency at install. An existing catalog
+  that is not JSON has nothing to preserve and is regenerated whole under `--force`.
 - Folding reads the existing catalog, so it happens only after that path is proved to resolve within
   `--root`.
 - A result row's plugin list names what the catalog ends up listing, discovered and kept alike.
@@ -190,6 +192,7 @@ flowchart TD
 | foreign source kept | a discovered plugin's entry names a non-local source | `a discovered plugin distributed elsewhere keeps that source` |
 | foreign convergence | the catalog already carries a kept entry | `a kept entry is not a conflict on rerun` |
 | unparseable existing | the existing catalog is not JSON | `a catalog that is not JSON is regenerated under force` |
+| allowlist kept | the catalog carries `allowCrossMarketplaceDependenciesOn`; `--force` | `a forced regeneration keeps the cross-marketplace allowlist` |
 | force branch | a selected artifact differs; `--force` | `force replaces only selected differing artifacts` |
 | write-error branch | a selected artifact write fails | `a selected-artifact write failure reports an error` |
 | output link guard | selected output parent is a link outside `--root` | `an external selected-output symlink fails before writes` |
