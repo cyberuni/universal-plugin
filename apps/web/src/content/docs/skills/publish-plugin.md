@@ -20,7 +20,12 @@ skill](../marketplace/); the two compose, and neither replaces the other.
 3. **Prepare entries** — build the entry for each vendor marketplace file that exists. The source
    shape (`url`, `github`, `git-subdir`, or `npm`) is decided from how the plugin actually ships —
    a monorepo subdirectory needs `git-subdir`, not a root-clone `url` that resolves nothing — and
-   `marketplace validate` checks the drafted entries before anything is committed.
+   `marketplace validate` checks the drafted entries before anything is committed. The plugin's
+   declared dependencies are read here too. A plain dependency (a bare name, or an object with no
+   `marketplace`) resolves against the target marketplace. If that marketplace does not list it, the
+   skill lists it in the same PR, prepared from its own repository or package. If it cannot, the
+   skill stops and asks you to publish it first. A dependency that names a different marketplace
+   needs the target catalog's `allowCrossMarketplaceDependenciesOn`, which the skill offers to add.
 4. **Submit PR** — one pull request that updates every detected marketplace file, with a checklist
    covering the vendor manifests, hook casing, version format, and license identifier.
 
@@ -31,6 +36,7 @@ skill](../marketplace/); the two compose, and neither replaces the other.
 | Hook events silently don't fire | Re-run `plugin build`; check its warnings for a handler type that vendor cannot run |
 | Codex rejects manifest | `version` and `description` are required by Codex |
 | Entry installs nothing for a monorepo plugin | Source was `url`/root-clone instead of `git-subdir` |
+| Install fails resolving a dependency | List a plain dependency in the same marketplace, or allow a named marketplace in `allowCrossMarketplaceDependenciesOn` |
 | `marketplace validate` fails | Fix the reported shape before opening the PR |
 
 ## See also
