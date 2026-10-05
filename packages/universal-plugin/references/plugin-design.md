@@ -330,6 +330,6 @@ Portability rules for skill bodies: keep each `SKILL.md` body under 6,000 chars;
 
 ## References
 
-Load `skill-design`, `skill-repo-structure`, and `agent-tool-output` with the `reference` skill in the `buddy-agent-harness` plugin.
+Load `skill-design`, `skill-repo-structure`, and `agent-tool-output` with the `reference` skill in the `cyber-agent-harness` plugin.
 
 Spec: https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/spec.md

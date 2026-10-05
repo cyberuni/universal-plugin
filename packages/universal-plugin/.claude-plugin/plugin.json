@@ -14,5 +14,8 @@
 		"agent",
 		"cross-vendor"
 	],
-	"skills": "./skills/"
+	"skills": "./skills/",
+	"dependencies": [
+		"cyber-agent-harness"
+	]
 }

@@ -124,7 +124,7 @@ Follows the AXI output contract ([../../axi/](../../axi/README.md)).
   handler the vendor cannot run.
 - **The build copies no governance** ([ADR-0017](../../design/decisions/0017-retire-governance-for-reference.md),
   superseding ADR-0016) — a skill loads a reference through the `reference` skill in the
-  `buddy-agent-harness` plugin, which resolves the name at run time from the project, user, and
+  `cyber-agent-harness` plugin, which resolves the name at run time from the project, user, and
   plugin tiers and falls back to the skill's own `references/<name>.md`. A folder a skill commits at
   `references/governances/` is skill content like any other: the build neither reads nor rewrites it.
   `--check`, which existed only to compare those copies with their source, is gone, so passing it
