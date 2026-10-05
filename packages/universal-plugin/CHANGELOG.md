@@ -1,5 +1,14 @@
 # universal-plugin
 
+## 0.12.0
+
+### Minor Changes
+
+- c82b27b: `plugin build` now checks each declared dependency against the marketplace catalogs it refreshes. A bare dependency the catalog does not list, or one qualified with a marketplace the catalog does not allow in `allowCrossMarketplaceDependenciesOn`, warns and names the fix. Pass `--strict-dependencies` to fail the build on it instead. A dependency that declares a `source`, such as `{ "name": "cyber-asana", "source": { "source": "npm", "package": "cyber-asana" } }`, is listed in the catalog for you.
+- 602e1c8: `plugin build` no longer warns about a dependency qualified with the catalog's own name, such as `cyber-asana@uip-pods-local`, when the catalog does not list it. Only a plain dependency (a bare name, or an object with no `marketplace`) has to be listed in the catalog. Naming a marketplace is an explicit choice by the author.
+- f87bfc8: `marketplace validate` now checks, in the Claude catalog, that each listed plugin's dependencies can resolve from it. A plain dependency (a bare name, or an object with no `marketplace`) the catalog does not list is an issue, and so is a dependency on another marketplace that the catalog does not allow in `allowCrossMarketplaceDependenciesOn`. It reads what is on disk: an entry's own `dependencies`, and the manifest of a plugin at a `./` source. `marketplace init --force` now keeps a catalog's `allowCrossMarketplaceDependenciesOn` when it regenerates the file.
+- b0558cd: The `publish-plugin` skill now reads the plugin's dependencies. A plain dependency the target marketplace does not list is listed in the same PR, or the skill stops and asks for it to be published first. A dependency on another marketplace gets an offer to add it to the catalog's `allowCrossMarketplaceDependenciesOn`.
+
 ## 0.11.3
 
 ### Patch Changes
