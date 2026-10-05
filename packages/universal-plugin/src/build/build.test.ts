@@ -1014,6 +1014,13 @@ describe('buildPlugin — dependencies against the catalogs it refreshes', () =>
 		expect(buildPlugin(pluginRoot, {}).dependencyIssues).toEqual([])
 	})
 
+	// A named marketplace is the author's explicit choice; only a plain name must be listed here.
+	it('does not require a dependency qualified with the catalog own name to be listed', () => {
+		writeCatalog(claudeCatalog, localCatalog())
+		writePluginManifest(['cyber-asana@uip-pods-local'])
+		expect(buildPlugin(pluginRoot, {}).dependencyIssues).toEqual([])
+	})
+
 	it('lists a dependency that names its source, and the check then passes', () => {
 		writeCatalog(claudeCatalog, localCatalog())
 		writePluginManifest([{ name: 'cyber-asana', source: { source: 'npm', package: 'cyber-asana' } }])

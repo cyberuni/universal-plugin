@@ -1,6 +1,6 @@
 import * as path from 'node:path'
 
-import { catalogDependencyIssues, withoutQualifiedOn } from '../dependencies/dependencies.js'
+import { catalogDependencyIssues } from '../dependencies/dependencies.js'
 import { type MarketplaceFs, realMarketplaceFs } from './fs.js'
 import { catalogResolution, type MarketplaceTarget, TARGET_CATALOG_PATHS } from './marketplace.js'
 import { type CatalogIssue, validateCatalogContent } from './validation.js'
@@ -89,8 +89,7 @@ function checkDependencies(
 		const record = entry as Record<string, unknown>
 		const reported = new Set<string>()
 		const report = (issuePath: string, declaration: unknown) => {
-			const checked = withoutQualifiedOn(declaration, resolution.name)
-			for (const message of catalogDependencyIssues(checked, resolution)) {
+			for (const message of catalogDependencyIssues(declaration, resolution)) {
 				if (reported.has(message)) continue
 				reported.add(message)
 				issues.push({ path: issuePath, message })

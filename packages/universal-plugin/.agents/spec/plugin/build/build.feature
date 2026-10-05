@@ -862,6 +862,13 @@ Feature: plugin build — derive per-vendor manifests
     When I run "universal-plugin plugin build --strict-dependencies"
     Then the exit code is 1
 
+  Scenario: a dependency qualified with the catalog's own name is not held to its listing
+    Given the project root is inside a repository that carries ".claude-plugin/marketplace.json" named "uip-pods-local"
+    And that catalog lists only this plugin
+    And the manifest declares harnesses for "claude-code" and the dependency "cyber-asana@uip-pods-local"
+    When I run "universal-plugin plugin build"
+    Then the build reports no dependency issue
+
   Scenario: a dependency qualified with another marketplace needs that marketplace allowed
     Given the project root is inside a repository that carries ".claude-plugin/marketplace.json"
     And the manifest declares harnesses for "claude-code" and the dependency "cyber-asana@cyberuni"

@@ -200,14 +200,16 @@ fetching, and installing a dependency is the runtime's job.
 
 ### Dependencies and your repository's catalog
 
-A bare dependency name resolves only against the marketplace your plugin is installed from. If your
-repository carries `.claude-plugin/marketplace.json` and that catalog does not list the dependency,
-nobody can install your plugin from it. So while the build refreshes that catalog, it checks each
-dependency against it, reading only files already on disk:
+A plain dependency (a bare name, or an object with no `marketplace`) resolves only against the
+marketplace your plugin is installed from. If your repository carries
+`.claude-plugin/marketplace.json` and that catalog does not list the dependency, nobody can install
+your plugin from it. So while the build refreshes that catalog, it checks each dependency against it,
+reading only files already on disk:
 
-- A bare name the catalog does not list warns. Fix it by listing the dependency there
+- A plain dependency the catalog does not list warns. Fix it by listing the dependency there
   (`universal-plugin marketplace add npm:<package>`), or by qualifying it with the marketplace that
   does list it and adding that marketplace to the catalog's `allowCrossMarketplaceDependenciesOn`.
+- A name qualified with this catalog's own name is your explicit choice, and is not checked.
 - A name qualified with another marketplace warns unless the catalog lists that marketplace in
   `allowCrossMarketplaceDependenciesOn`. Claude Code refuses the dependency otherwise.
 

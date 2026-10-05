@@ -4,7 +4,6 @@ import {
 	dependencyCatalogEntries,
 	translateDependencies,
 	validateDependencies,
-	withoutQualifiedOn,
 } from './dependencies.js'
 
 describe('validateDependencies', () => {
@@ -195,9 +194,10 @@ describe('catalogDependencyIssues', () => {
 		expect(catalogDependencyIssues(['uip-pods@^1.0.0', { name: 'uip-pods', version: '^1.0.0' }], catalog)).toEqual([])
 	})
 
-	it('treats a dependency qualified with the catalog own name as bare', () => {
-		expect(catalogDependencyIssues(['cyber-asana@uip-pods-local'], catalog)).toHaveLength(1)
-		expect(catalogDependencyIssues(['uip-pods@uip-pods-local'], catalog)).toEqual([])
+	// Only a plain name resolves against the installing marketplace; naming one is the author's choice.
+	it('does not hold a dependency qualified with the catalog own name to its listing', () => {
+		expect(catalogDependencyIssues(['cyber-asana@uip-pods-local'], catalog)).toEqual([])
+		expect(catalogDependencyIssues([{ name: 'cyber-asana', marketplace: 'uip-pods-local' }], catalog)).toEqual([])
 	})
 
 	it('names a cross-marketplace dependency the catalog does not allow', () => {
@@ -218,13 +218,5 @@ describe('catalogDependencyIssues', () => {
 
 	it('says nothing for an absent declaration', () => {
 		expect(catalogDependencyIssues(undefined, catalog)).toEqual([])
-	})
-})
-
-describe('withoutQualifiedOn', () => {
-	it('drops only the entries qualified with the named marketplace', () => {
-		expect(
-			withoutQualifiedOn(['a', 'b@here', 'c@there', { name: 'd', marketplace: 'here' }, { name: 'e' }], 'here'),
-		).toEqual(['a', 'c@there', { name: 'e' }])
 	})
 })

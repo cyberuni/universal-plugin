@@ -168,10 +168,11 @@ Follows the AXI output contract ([../../axi/](../../axi/README.md)).
   — a bare dependency name resolves only against the marketplace its dependent is installed from, so
   a catalog that does not list it ships a plugin nobody can install (issue #147). While refreshing a
   catalog for a vendor that reads `dependencies` (Claude Code alone today), the build checks the
-  declaration that vendor receives, a `harnesses.<vendor>.dependencies` override included. A bare
-  name — or one qualified with the catalog's own name — must be listed in the catalog; a name
-  qualified with another marketplace must have that marketplace in the catalog's
-  `allowCrossMarketplaceDependenciesOn`. Whether the other marketplace lists it stays unchecked
+  declaration that vendor receives, a `harnesses.<vendor>.dependencies` override included. A plain
+  dependency — a bare name, or an object with no `marketplace` — must be listed in the catalog. A
+  dependency that names its marketplace is the author's explicit choice and is not held to the
+  listing, even when it names this catalog; one naming another marketplace must have that
+  marketplace in the catalog's `allowCrossMarketplaceDependenciesOn`. Whether the other marketplace lists it stays unchecked
   ([ADR-0013](../../design/decisions/0013-plugin-dependencies.md) §5). Only files on disk are read.
   Each issue warns, naming the dependency, the catalog, and both fixes (list it with `marketplace
   add`, or qualify it and allow that marketplace), and is reported in `dependencyIssues`. The build
