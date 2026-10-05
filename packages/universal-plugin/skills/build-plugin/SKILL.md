@@ -123,7 +123,7 @@ Validation runs before the first write, so a failed build leaves the tree untouc
 - **Expect a build to pin skill `npx` references.** That is the release-time `plugin bundle`, not
   this step.
 - **Expect a build to copy governances into skills.** A skill loads a reference through the
-  `reference` skill in the `buddy-agent-harness` plugin; the build no longer copies them, and
+  `reference` skill in the `cyber-agent-harness` plugin; the build no longer copies them, and
   `--check` is gone.
 
 ## Related skills

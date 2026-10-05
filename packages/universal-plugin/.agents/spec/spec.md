@@ -40,7 +40,7 @@ One canonical `plugin.json` at the project root — Agent Plugins Specification 
 field set with tool-specific data under `extensions` (ADR-0007) — is the single source of truth for a
 plugin. The `universal-plugin` CLI turns that canonical manifest into what each AI-agent runtime
 (Claude Code, Cursor, Codex, Copilot CLI) expects. It also ships the reference documents it owns under
-`references/`, for `buddy-agent-harness reference` to serve; the `governance` command that once
+`references/`, for `@cyberuni/agent-harness`'s `reference` command to serve; the `governance` command that once
 resolved them was retired (ADR-0017) and then removed. Its core concern:
 
 - **The `plugin` command group** — `universal-plugin plugin build` **derives** per-vendor manifests
@@ -152,8 +152,8 @@ Where a new concept lives — slot here, do not invent placement (strategy = **c
   **manifest** it already derives. The dividing line is the object, not the word "pin".
 - **a new name→document resolution op, or a governance copy step** → **out of charter**
   ([ADR-0017](./design/decisions/0017-retire-governance-for-reference.md)).
-  `buddy-agent-harness reference` resolves documents by name, and its `reference` skill is how a
-  skill loads one.
+  `@cyberuni/agent-harness`'s `reference` command resolves documents by name, and the `reference`
+  skill in the `cyber-agent-harness` plugin is how a skill loads one.
 - **a new repository-local marketplace metadata derivation** (discover eligible plugin roots and
   emit each vendor's catalog) → `marketplace/init/`. This is
   deterministic file generation only: publishing, registration, installation, authentication,
