@@ -109,7 +109,7 @@ TOON by default; pass `--format json` for JSON.
 ### Reference documents
 
 This package ships its own documents (`plugin-design`, `slash-invocation`, `universal-plugin`) under
-`references/`. Read one with `npx @cyberuni/agent-harness@^0.5.0 reference show <name>` in any
+`references/`. Read one with `npx @cyberuni/agent-harness reference show <name>` in any
 project that depends on `universal-plugin`, or, from a skill, with the `reference` skill in the
 `cyber-agent-harness` plugin.
 
