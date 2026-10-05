@@ -536,3 +536,28 @@ test('catalogResolution reads the name, the listed plugins, and the cross-market
 test('catalogResolution reads no allow-list when the catalog carries none', () => {
 	expect(catalogResolution(JSON.stringify({ name: 'local', plugins: [] }))).toEqual({ name: 'local', plugins: [] })
 })
+
+// Discovery cannot derive the allowlist, and losing it makes every cross-marketplace dependency of a
+// listed plugin refused at install.
+test('a forced regeneration keeps the catalog allowCrossMarketplaceDependenciesOn', () => {
+	const root = fixture('universal-plugin-marketplace-allowlist-')
+	try {
+		initializeMarketplace(root, { targets: ['claude'] })
+		const file = path.join(root, '.claude-plugin/marketplace.json')
+		const catalog = JSON.parse(fs.readFileSync(file, 'utf8'))
+		catalog.allowCrossMarketplaceDependenciesOn = ['cyberplace']
+		fs.writeFileSync(file, JSON.stringify(catalog))
+		fs.writeFileSync(
+			path.join(root, 'plugins', 'alpha', 'plugin.json'),
+			JSON.stringify({ name: 'alpha', description: 'Changed' }),
+		)
+
+		initializeMarketplace(root, { targets: ['claude'], force: true })
+		expect(readJson(root, '.claude-plugin/marketplace.json')).toMatchObject({
+			allowCrossMarketplaceDependenciesOn: ['cyberplace'],
+			plugins: [{ name: 'alpha', description: 'Changed' }],
+		})
+	} finally {
+		fs.rmSync(root, { recursive: true, force: true })
+	}
+})

@@ -22,6 +22,14 @@ Every check and every entry field in Steps 1–2 reads from the plugin location 
 from the cwd by assumption. Getting this wrong means the marketplace entry ends up pointing at the
 marketplace repo's own URL instead of the plugin's.
 
+## A plugin's dependencies go with it
+
+A plain dependency (no marketplace named) resolves against the marketplace the plugin is installed
+from, so publishing a plugin whose plain dependency the catalog does not list publishes something
+nobody can install. The skill lists such a dependency in the same PR, or stops and asks for it to be
+published first. A dependency that names another marketplace only needs that marketplace in the
+catalog's `allowCrossMarketplaceDependenciesOn`, which the skill offers to add.
+
 ## Why this is not the `marketplace` skill
 
 `marketplace` generates a repository's own local catalog — no submission, no shared listing, no PR.

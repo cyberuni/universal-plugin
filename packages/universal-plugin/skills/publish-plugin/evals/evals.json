@@ -30,6 +30,12 @@
 			"prompt": "I'm a maintainer of cyberuni/marketplace and I already have it checked out here. I want to add a plugin called 'db-migrate' that lives at github.com/someuser/db-migrate. Add it.",
 			"expected_output": "Detects the cwd is the marketplace repo itself, not the plugin, so it reads the plugin's metadata from the given URL (cloning it to a scratch location) instead of the cwd, then works directly in the existing checkout (fetch/merge, branch, edit, commit, push, PR) rather than cloning or forking cyberuni/marketplace again. The prepared entry's source/repository URL points at db-migrate's repo, not at cyberuni/marketplace.",
 			"files": []
+		},
+		{
+			"id": 6,
+			"prompt": "Publish buddy-agent-harness (in ~/code/buddy-agent-harness) to the cyberplace marketplace. Its plugin.json declares dependencies [\"agent-harness\", { \"name\": \"cyber-asana\", \"marketplace\": \"cyberuni\" }]. cyberplace's .claude-plugin/marketplace.json does not list agent-harness and has no allowCrossMarketplaceDependenciesOn.",
+			"expected_output": "Reads the plugin's dependencies before submitting. Treats \"agent-harness\" as a plain dependency resolved against cyberplace: since cyberplace does not list it, prepares agent-harness's entry in the same PR from its own repository/package (after pre-flight), or stops and tells the user to publish agent-harness first — never opens a PR listing buddy-agent-harness without it. Treats cyber-asana@cyberuni as a named-marketplace dependency: adds no entry for it, says installs from cyberplace need \"cyberuni\" in allowCrossMarketplaceDependenciesOn, and offers to add it.",
+			"files": []
 		}
 	]
 }

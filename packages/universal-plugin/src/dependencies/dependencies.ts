@@ -158,17 +158,19 @@ export function dependencyCatalogEntries(declaration: unknown, catalogName: stri
 	})
 }
 
-/** Checks that each declared dependency resolves through one catalog, offline. A bare name resolves
- *  only against the marketplace the dependent is installed from, so the catalog must list it; a name
- *  qualified with another marketplace is refused unless the catalog lists that marketplace in
- *  `allowCrossMarketplaceDependenciesOn` (`.research/plugin-schema`). Whether the other marketplace
+/** Checks that each declared dependency resolves through one catalog, offline. A plain name — no
+ *  marketplace — resolves only against the marketplace the dependent is installed from, so the
+ *  catalog must list it. A named marketplace is the author's explicit choice and is not held to this
+ *  catalog's listing, even when it names this catalog; another marketplace is refused unless the
+ *  catalog lists it in `allowCrossMarketplaceDependenciesOn` (`.research/plugin-schema`). Whether the other marketplace
  *  really lists the dependency is resolution, which stays out of scope (ADR-0013 §5). */
 export function catalogDependencyIssues(declaration: unknown, catalog: DependencyCatalog): string[] {
 	const issues: string[] = []
 	const where = `"${catalog.path}" (marketplace "${catalog.name}")`
 	for (const entry of declaredEntries(declaration)) {
 		const { name, marketplace } = parseDependency(entry)
-		if (marketplace === undefined || marketplace === catalog.name) {
+		if (marketplace === catalog.name) continue
+		if (marketplace === undefined) {
 			if (catalog.plugins.includes(name)) continue
 			issues.push(
 				`dependency "${name}" is not listed in ${where}, and a bare name resolves only there — list it in that catalog (universal-plugin marketplace add npm:<package>), or qualify it with the marketplace that lists it ({ "name": "${name}", "marketplace": "<marketplace>" }) and add that marketplace to the catalog's allowCrossMarketplaceDependenciesOn`,

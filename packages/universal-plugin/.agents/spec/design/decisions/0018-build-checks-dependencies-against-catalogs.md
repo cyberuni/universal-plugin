@@ -28,7 +28,8 @@ While refreshing a catalog for a vendor that reads `dependencies` — Claude Cod
 0013's support table — the build checks the declaration that vendor receives (a
 `harnesses.<vendor>.dependencies` override included) against that catalog:
 
-- **A bare name** — or one qualified with the catalog's own name — must be listed in the catalog.
+- **A plain name** — a bare string, or an object with no `marketplace` — must be listed in the
+  catalog. A name qualified with the catalog's own name is not checked (revised; see below).
 - **A name qualified with another marketplace** must have that marketplace in the catalog's
   `allowCrossMarketplaceDependenciesOn`, or Claude Code refuses the dependency at install. Whether the
   other marketplace really lists it stays unchecked: that is resolution, and 0013 §5 stands.
@@ -69,6 +70,17 @@ that it cannot carry it, and the check then reports the dependency as unresolved
 `source` is ours, not the runtime's. Claude Code's dependency object is `{name, marketplace?,
 version?, sha?}`, so the build strips `source` from every derived manifest, and `validateDependencies`
 rejects a `source` that is not a tagged object.
+
+### Revision (2026-10-04): only a plain dependency must be listed
+
+As first accepted, §1 also required a dependency qualified with the catalog's own name to be listed.
+It no longer does. Claude Code resolves a plain dependency against the marketplace the plugin is
+installed from, so only a plain dependency is this catalog's to list. A named marketplace is an
+explicit choice the author made about where the dependency resolves, so the check does not
+second-guess it, even when it names this catalog. A name qualified with another marketplace still
+needs that marketplace in `allowCrossMarketplaceDependenciesOn`. `marketplace validate` applies the
+same rule. §3 is unchanged: a self-qualified dependency that declares a `source` is still listed,
+because the author asked for that.
 
 ## Alternatives considered
 

@@ -19,7 +19,7 @@ Publishing has four steps:
 
 0. **Locate** — work out which repo is which, and where the plugin and the marketplace each live
 1. **Pre-flight** — validate the plugin is ready
-2. **Prepare entries** — build the entry for each vendor marketplace file that exists
+2. **Prepare entries** — build the entry for each vendor marketplace file that exists, and resolve the plugin's dependencies against the target marketplace
 3. **Submit PR** — one PR that updates all relevant marketplace files
 
 Work through each step in order. Do not skip pre-flight even if the user says the plugin is ready.
@@ -211,7 +211,39 @@ If the plugin is already listed (this is an update), find its existing entry, up
 
 Show all prepared entries to the user and ask them to confirm before proceeding.
 
-### 2f. Validate the catalogs
+### 2f. Resolve the plugin's dependencies
+
+Claude Code installs a plugin only when every dependency it declares resolves, so a catalog that lists
+the plugin but not what it depends on publishes a plugin nobody can install. Read the declaration
+Claude Code receives, from the **plugin location**: `dependencies` in `.claude-plugin/plugin.json`
+(the built manifest), or, if that has not been built, the canonical one —
+`extensions["org.cyberuni.universal-plugin"].harnesses["claude-code"].dependencies`, else
+`extensions["org.cyberuni.universal-plugin"].dependencies` in `plugin.json`. No declaration means
+nothing to do here.
+
+Each entry is a string (`<plugin>` or `<plugin>@<marketplace>`, optionally with an `@^range` tail) or
+an object (`{ "name", "marketplace"?, "version"?, ... }`). Sort each one:
+
+- **Plain** — a bare `<plugin>`, or an object with no `marketplace`. Claude Code resolves it against
+  the marketplace the plugin is installed from, which is this one. If the target catalog
+  (`.claude-plugin/marketplace.json`) already lists that name, it is resolved. Otherwise it must be
+  listed in this same PR: locate the dependency's own repository or package (an object's `source`
+  field, when present, says where it is distributed from; otherwise ask the user), run Step 1's
+  pre-flight against it, and prepare its entries exactly as 2b–2e do for the main plugin — then
+  resolve *its* plain dependencies the same way. If a plain dependency cannot be listed (no
+  repository or package to read, pre-flight fails, the user declines), **stop**: tell the user to
+  publish that dependency to this marketplace first, and do not open the PR.
+- **Names a marketplace** — `<plugin>@<marketplace>`, or an object with `marketplace`. Not held to
+  this catalog's listing, even when the marketplace it names is this one; do not add an entry for
+  it. When the named marketplace is **not** this catalog's `name`, Claude Code refuses the
+  dependency at install unless this catalog's top-level `allowCrossMarketplaceDependenciesOn` lists
+  that marketplace. If it does not, tell the user that installs from this marketplace need it, and
+  offer to add the marketplace name to that array in the same PR.
+
+Report how each dependency was sorted and what was done about it, and include the dependency entries
+in what you show the user to confirm.
+
+### 2g. Validate the catalogs
 
 Before moving to Step 3, run the validator against the marketplace repo's working copy (the same
 checkout the entries were just written into):
@@ -221,7 +253,11 @@ npx universal-plugin marketplace validate --root .
 ```
 
 This is the same check `marketplace init`/`build` rely on — it catches an entry shape no runtime can
-load (a bad `source`, a missing required key) before it reaches a PR. Fix any reported issue and
+load (a bad `source`, a missing required key) before it reaches a PR. In the Claude catalog it also
+reports a plain dependency the catalog does not list and a dependency on a marketplace missing from
+`allowCrossMarketplaceDependenciesOn`, as far as it can see them offline (an entry's own
+`dependencies`, and plugins at `./` paths) — so it does not replace 2f for a plugin listed from npm
+or git. Fix any reported issue and
 re-run before continuing. Do not open the PR while validation fails.
 
 ---
@@ -266,7 +302,7 @@ git checkout -b add-<plugin-name>
 
 ### 3c. Edit all detected marketplace files
 
-For each vendor marketplace file detected in Step 2a, append the plugin entry to its `plugins` array. Preserve formatting and all existing entries exactly. Stage all changed files together.
+For each vendor marketplace file detected in Step 2a, append the plugin entry — and the entry of each dependency 2f listed — to its `plugins` array, and add any `allowCrossMarketplaceDependenciesOn` change the user accepted in 2f. Preserve formatting and all existing entries exactly. Stage all changed files together.
 
 ### 3d. Commit and push
 
@@ -319,6 +355,8 @@ gh pr create \
 - [ ] Semver version string
 - [ ] SPDX license identifier
 - [ ] Entry appended to each detected marketplace file
+- [ ] Every plain dependency is listed in this marketplace (here or already)
+- [ ] Every marketplace a dependency names is in `allowCrossMarketplaceDependenciesOn`, or noted as not needed
 EOF
 )"
 ```
@@ -337,7 +375,8 @@ Return the PR URL to the user when done.
 | Name conflict in marketplace | Check existing entries in each marketplace file first |
 | Plugin loads but skills missing | Add `skills` array to the Claude Code marketplace entry |
 | Entry installs nothing for a monorepo plugin | `source` was `url`/root-clone instead of `git-subdir` — redo 2b/2c with the plugin's actual repo-relative path |
-| `marketplace validate` fails after 2f | Fix the reported shape before opening the PR — do not open it while validation fails |
+| Install fails resolving a dependency | 2f was skipped — list the plain dependency in this marketplace, or allow the named marketplace in `allowCrossMarketplaceDependenciesOn` |
+| `marketplace validate` fails after 2g | Fix the reported shape before opening the PR — do not open it while validation fails |
 | Entry's `repository`/`source.url` points at the marketplace repo | Step 0 role detection was skipped or overridden wrongly — re-check which repo the cwd is |
 
 ---
