@@ -83,7 +83,8 @@ is **not** a local path survives a regeneration untouched, and a discovered plug
 a non-local source keeps that source with its derived metadata refreshed around it. So a plugin
 shipped through npm keeps pointing at npm, and an entry `marketplace add` wrote is not a deletion
 waiting for the next `--force`. What discovery owns it still owns: a local-path entry it no longer
-finds is dropped.
+finds is dropped. A catalog's `allowCrossMarketplaceDependenciesOn` is kept too: discovery cannot
+derive it, and without it Claude Code refuses every cross-marketplace dependency.
 
 ## `marketplace add` lists a plugin that lives elsewhere
 
@@ -188,6 +189,27 @@ where the catalog requires the URL. Generation reduces what it can — an npm `r
 URL, and a field it cannot reduce is omitted rather than written — and refuses to write a catalog that
 would still be invalid. Validation is what catches the rest: a file edited by hand, or a `./` source
 pointing at a directory that is no longer there.
+
+In the Claude catalog, validation also checks that each listed plugin's
+[dependencies](../build/#plugin-dependencies) can resolve from it. Claude Code resolves a plain
+dependency (a bare name, or an object with no `marketplace`) against the declaring plugin's own
+marketplace. So a plain dependency the catalog does not list means the plugin cannot install from
+here. A dependency that names its marketplace is not held to this catalog's listing, even when it
+names this one. A dependency that names a different marketplace is refused unless the catalog lists
+that marketplace in `allowCrossMarketplaceDependenciesOn`:
+
+```json
+{
+  "name": "cyberplace",
+  "allowCrossMarketplaceDependenciesOn": ["other-marketplace"],
+  "plugins": [...]
+}
+```
+
+Only what is on disk is checked: an entry's own `dependencies`, and the manifest of a plugin at a `./`
+source (its built `.claude-plugin/plugin.json`, or the canonical declaration before a build). A plugin
+listed from npm or git is not fetched, so its dependencies are for the
+[`publish-plugin`](../../skills/publish-plugin/) skill to check when it lists the plugin.
 
 Nothing is repaired. A catalog you edited is yours to correct.
 

@@ -183,6 +183,13 @@ export function catalogDependencyIssues(declaration: unknown, catalog: Dependenc
 	return issues
 }
 
+/** The declaration less every entry qualified with the named marketplace. Claude Code resolves only a
+ *  plain name against the dependent's own marketplace; a qualified one is the author's own claim
+ *  about where it resolves, so a catalog check that holds only plain names to its listing drops them. */
+export function withoutQualifiedOn(declaration: unknown, marketplaceName: string): DependencyDeclaration[] {
+	return declaredEntries(declaration).filter((entry) => parseDependency(entry).marketplace !== marketplaceName)
+}
+
 /** The entries of a declaration whose shape the runtime accepts. Anything else was already reported
  *  by `validateDependencies`, and a check built on top of it has nothing to add. */
 function declaredEntries(declaration: unknown): DependencyDeclaration[] {

@@ -4,6 +4,7 @@ import {
 	dependencyCatalogEntries,
 	translateDependencies,
 	validateDependencies,
+	withoutQualifiedOn,
 } from './dependencies.js'
 
 describe('validateDependencies', () => {
@@ -217,5 +218,13 @@ describe('catalogDependencyIssues', () => {
 
 	it('says nothing for an absent declaration', () => {
 		expect(catalogDependencyIssues(undefined, catalog)).toEqual([])
+	})
+})
+
+describe('withoutQualifiedOn', () => {
+	it('drops only the entries qualified with the named marketplace', () => {
+		expect(
+			withoutQualifiedOn(['a', 'b@here', 'c@there', { name: 'd', marketplace: 'here' }, { name: 'e' }], 'here'),
+		).toEqual(['a', 'c@there', { name: 'e' }])
 	})
 })

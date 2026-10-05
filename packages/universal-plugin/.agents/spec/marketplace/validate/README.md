@@ -54,6 +54,19 @@ service.
   (`.research/local-marketplaces`, E-CODEX-M16).
 - A `./` source is checked for existence under `--root`. A source that resolves nowhere satisfies
   every schema and still installs nothing.
+- In the Claude catalog — Claude Code is the only runtime that reads plugin dependencies — each listed
+  plugin's dependencies are checked against the catalog, as far as they are readable offline: the
+  entry's own `dependencies`, and, for a `./` source, the plugin's built `.claude-plugin/plugin.json`
+  or, before a build, its canonical declaration (the `claude-code` harness override first). Claude
+  Code resolves a plain dependency — a bare name, or an object with no `marketplace` — against the
+  declaring plugin's own marketplace, so a plain dependency this catalog does not list is an issue.
+  A dependency that names its marketplace is not held to this catalog's listing, even when it names
+  this catalog. One that names another marketplace is an issue unless that marketplace is in
+  `allowCrossMarketplaceDependenciesOn`. Either way the plugin does not install from this catalog,
+  so both are issues like a dangling source, not warnings. The messages are `plugin build`'s ([ADR-0018](../../design/decisions/0018-build-checks-dependencies-against-catalogs.md)),
+  which warns by default because it refreshes a catalog it does not own; `validate` is the gate.
+  Whether the other marketplace lists the dependency, and a plugin fetched from npm or git, stay
+  unchecked: that needs the network.
 - An issue names the key by dotted path (`owner`, `plugins[0].repository`) and, for the two shapes
   `package.json` invites, the value to write instead.
 - Nothing is repaired and nothing is written: a catalog someone hand-edited is theirs to correct.
@@ -81,6 +94,10 @@ this command:
 | missing catalog | no catalog at the selected path | `an absent catalog is missing rather than invalid` |
 | required target | no catalog and `--required` | `a required target with no catalog fails` |
 | dangling source | a source pointing at a removed directory | `a source that resolves nowhere is reported` |
+| missing dependency | an entry's plain dependency the catalog does not list | `a plain dependency the catalog does not list is reported` |
+| self-qualified | a dependency qualified with this catalog's name | `a dependency that names its marketplace is not held to the listing` |
+| local manifest dependency | a `./` plugin's manifest declares a dependency the catalog does not list | `a local plugin's declared dependency is checked against the catalog` |
+| cross-marketplace | a dependency on another marketplace, not allowlisted | `a cross-marketplace dependency needs the allowlist` |
 | Codex rules | the Codex catalog with its local source | `the Codex catalog is judged by Codex rules` |
 | not JSON | a catalog that is not JSON | `a catalog that is not JSON is one issue, not a crash` |
 | machine output | `--format json` | `json output carries the rows and the issues` |
