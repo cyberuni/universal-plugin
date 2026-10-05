@@ -1,5 +1,12 @@
 # universal-plugin
 
+## 0.12.1
+
+### Patch Changes
+
+- da18173: Depend on `@cyberuni/agent-harness` `^0.5.0`. That release ships the `agent-harness` CLI, so `npx @cyberuni/agent-harness reference show <name>` reads this package's documents without a version pin.
+- 1904555: Point reference loading at the `cyber-agent-harness` plugin. The `reference` skill moved there from `buddy-agent-harness` in buddy-agent-harness@0.20.0, so the shipped skills and references now name `cyber-agent-harness`, and the plugin declares it as a dependency.
+
 ## 0.12.0
 
 ### Minor Changes
