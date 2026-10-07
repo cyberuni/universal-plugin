@@ -207,8 +207,8 @@ importers:
   packages/universal-plugin:
     dependencies:
       '@cyberuni/agent-harness':
-        specifier: ^0.5.0
-        version: 0.5.0(typescript@6.0.3)
+        specifier: ^0.6.0
+        version: 0.6.0(typescript@6.0.3)
       '@repobuddy/upx':
         specifier: ^0.2.0
         version: 0.2.0
@@ -581,6 +581,12 @@ packages:
     resolution: {integrity: sha512-y7/yvZ2TPAnR9+jnc00klvNNLkJiXFFrQA/hlLCcxA9a2A4zQIOimyFQ9XfwYKiGD1fb5GY8vbKIIgO8d5Tb2A==}
     engines: {node: '>= 20.12.0'}
 
+  '@clibuilder/axi@0.1.0':
+    resolution: {integrity: sha512-axduLxgCRP33iEPv8AGeFY9xDo0z6LH5JwhqpF/JqNmKo99UNI5rmSLduEjCfgIBc7TRwM1jiV0mBFNPKuLabA==}
+    engines: {node: '>= 20.19'}
+    peerDependencies:
+      clibuilder: ^11.0.0
+
   '@commitlint/cli@21.0.2':
     resolution: {integrity: sha512-YMmfLbqBg+ZRvvmPhc+cilSQFrh/AgzVgCT1U/OifmUZEwPbvCtA8rN//YNaF9d5eoZphxVMGYtmwA2QgQORgg==}
     engines: {node: '>=22.12.0'}
@@ -666,8 +672,8 @@ packages:
     resolution: {integrity: sha512-kzyuwOAQnXJNLS9PSyrk0CWk35nWJW/zl/6KvnTBMFK65gm7U1/Z5BqjxeapjZCIhQcM/DsrEmcbRwDyXyXK4A==}
     engines: {node: '>=14'}
 
-  '@cyberuni/agent-harness@0.5.0':
-    resolution: {integrity: sha512-TyfqEHYfHiU9Uw8CE1J393+H/CyBv9Vv7+w3YrAKHmTgMqoH+cFPujFpgkU3uT5sr7xUg1RiEHICXuVao14Wbg==}
+  '@cyberuni/agent-harness@0.6.0':
+    resolution: {integrity: sha512-ELy0pcHiRb9vjaVymBIvCQTDaQTOyliVKEx3MdpiDLeaGAYkhBwgCfoIa/ov/hPFxed4gQdYLBv6O3UTNgr78A==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -3942,6 +3948,11 @@ snapshots:
       fast-wrap-ansi: 0.2.2
       sisteransi: 1.0.5
 
+  '@clibuilder/axi@0.1.0(clibuilder@11.3.2(typescript@6.0.3))':
+    dependencies:
+      '@toon-format/toon': 4.1.1
+      clibuilder: 11.3.2(typescript@6.0.3)
+
   '@commitlint/cli@21.0.2(@types/node@24.12.4)(conventional-commits-parser@6.4.0)(typescript@6.0.3)':
     dependencies:
       '@commitlint/format': 21.0.1
@@ -4060,9 +4071,9 @@ snapshots:
 
   '@ctrl/tinycolor@4.2.0': {}
 
-  '@cyberuni/agent-harness@0.5.0(typescript@6.0.3)':
+  '@cyberuni/agent-harness@0.6.0(typescript@6.0.3)':
     dependencies:
-      '@toon-format/toon': 4.1.1
+      '@clibuilder/axi': 0.1.0(clibuilder@11.3.2(typescript@6.0.3))
       clibuilder: 11.3.2(typescript@6.0.3)
       yaml: 2.9.0
     transitivePeerDependencies:
