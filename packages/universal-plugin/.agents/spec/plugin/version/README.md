@@ -43,6 +43,14 @@ the manifest would leave the npm tarball claiming a version the plugin inside it
 `publish sync-version` exists precisely to repair that drift after the fact. Moving both here means
 there is nothing to repair.
 
+**Why a write keeps the file's own format.** Each authored file is rewritten the way it was already
+formatted (issue #164): its indentation, its line ending and whether it ends in a newline, and the
+original text of every value the bump leaves unchanged — so an array a formatter collapsed onto one
+line stays on that line, and a release does not fail the repository's formatter check. Only a value
+that changed is laid out fresh, one entry per line. A file with no indentation to read takes the one
+`.editorconfig` sets for it, then a tab. `publish sync-version` writes through the same applier, so
+the same holds there.
+
 **Non-goals** — version **policy**: which number is authoritative for a repo, whether a marketplace
 source should resolve a tag rather than a branch, and what is done about content that changed without
 a bump. All three are settled in
@@ -198,6 +206,8 @@ Grouped by concern; 1:1 with [`version.feature`](./version.feature).
 | seed | manifest with no `version`, explicit `0.1.0` | `an explicit version seeds a manifest that has none` |
 | preserve fields | manifest with `name` and `description` | `every other manifest field is preserved` |
 | preserve indent | manifest indented with two spaces | `the canonical manifest keeps its own indentation` |
+| preserve lines | tab-indented manifest, one-line array, trailing newline | `the canonical manifest keeps the lines the bump does not change` |
+| editorconfig | single-line manifest, `.editorconfig` sets 4 spaces | `a manifest with no indentation to read takes the .editorconfig indentation` |
 
 ### Keep the npm package.json in lockstep
 

@@ -232,6 +232,26 @@ describe('buildPlugin', () => {
 		expect(raw).not.toContain('\t')
 	})
 
+	it('a rebuilt vendor manifest keeps the format already on disk', () => {
+		writeManifest(
+			{ name: 'x', version: '0.9.0', keywords: ['a', 'b'], extensions: up({ harnesses: { 'claude-code': {} } }) },
+			'\t',
+		)
+		const out = path.join(dir, '.claude-plugin', 'plugin.json')
+		fs.mkdirSync(path.dirname(out))
+		fs.writeFileSync(out, '{\n  "name": "x",\n  "version": "0.8.0",\n  "keywords": ["a", "b"]\n}')
+		buildPlugin(dir)
+		expect(fs.readFileSync(out, 'utf8')).toBe('{\n  "name": "x",\n  "version": "0.9.0",\n  "keywords": ["a", "b"]\n}')
+	})
+
+	it('a new vendor manifest takes the .editorconfig indentation', () => {
+		fs.writeFileSync(path.join(dir, '.editorconfig'), 'root = true\n[*.json]\nindent_style = space\nindent_size = 4\n')
+		writeManifest({ name: 'x', extensions: up({ harnesses: { 'claude-code': {} } }) })
+		buildPlugin(dir)
+		const raw = fs.readFileSync(path.join(dir, '.claude-plugin', 'plugin.json'), 'utf8')
+		expect(raw).toBe('{\n    "name": "x"\n}\n')
+	})
+
 	it('derives no Cursor command — Cursor loads SKILL.md from the manifest skills path', () => {
 		writeManifest({ name: 'x', extensions: up({ harnesses: { cursor: {} } }) })
 		writeSkill('deploy', '---\ninvocation-policy: user\ndescription: Deploy safely\n---\nDeploy $ARGUMENTS.')

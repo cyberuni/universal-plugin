@@ -149,6 +149,13 @@ Follows the AXI output contract ([../../axi/](../../axi/README.md)).
   skipped; no targets at all is a definitive empty state — exit 0, zero built rows.
 - **`--dry-run` / `--clean`** — `--dry-run` resolves and validates but writes nothing; `--clean`
   removes an existing output file before rewriting it.
+- **Writes keep the repository's JSON format** (issue #164) — every JSON file the build writes over
+  (a vendor manifest, a derived hooks or mcp file, a refreshed catalog) keeps the format already on
+  disk: its indentation, its line ending, whether it ends in a newline, and the original text of
+  every value that did not change, so an array a formatter collapsed onto one line stays there and
+  a rebuild does not fail the repository's formatter check. Only a changed value is laid out fresh.
+  A new file, or one with no indentation to read, takes the indentation `.editorconfig` sets for its
+  path, then the canonical manifest's, then a tab.
 - **Repository catalog entries are refreshed, never created** — a catalog entry's `version` is copied
   from the canonical manifest and never authored ([ADR-0010](../../design/decisions/0010-version-policy.md) §3),
   so the build that derives the manifests also re-derives this plugin's entry in each

@@ -2,7 +2,8 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 
 import { getPackagePath } from '../config/config.js'
-import { detectIndent } from '../json.js'
+import { readEditorconfigIndent } from '../editorconfig/fs.js'
+import { formatJson } from '../json.js'
 import type { VersionPlan, VersionState } from './version.js'
 
 /** Minimal JSON file access. `applyVersionPlan` is written against this rather than `node:fs` so
@@ -37,10 +38,12 @@ function readPackagePath(root: string, io: JsonIo): string | null {
 	return getPackagePath(JSON.parse(io.read(configPath)) as Record<string, unknown>)
 }
 
-/** Writes `value` over `filePath`, keeping whatever indentation that file already used. */
+/** Writes `value` over `filePath` in that file's own format — its indentation, its trailing
+ *  newline, and the text of every value left unchanged. A file with no indentation to read takes
+ *  `.editorconfig`'s, then a tab. */
 function writeJson(io: JsonIo, filePath: string, value: unknown): void {
-	const indent = io.exists(filePath) ? detectIndent(io.read(filePath)) : '\t'
-	io.write(filePath, `${JSON.stringify(value, null, indent)}\n`)
+	const existing = io.exists(filePath) ? io.read(filePath) : undefined
+	io.write(filePath, formatJson(value, { existing, indent: readEditorconfigIndent(filePath) }))
 }
 
 /** The one applier. Writes every authored file the plan names — and nothing else: the derived

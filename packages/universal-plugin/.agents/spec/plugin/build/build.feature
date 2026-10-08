@@ -756,6 +756,21 @@ Feature: plugin build — derive per-vendor manifests
     Then ".claude-plugin/plugin.json" is removed and rewritten
     And the exit code is 0
 
+  # ── Output format ──
+
+  Scenario: a rebuilt vendor manifest keeps the format already on disk
+    Given ".claude-plugin/plugin.json" exists from a previous build, indented with two spaces, with a "keywords" array on one line and no trailing newline
+    And the canonical manifest is tab-indented and its "version" has moved
+    When I run "universal-plugin plugin build"
+    Then ".claude-plugin/plugin.json" differs from before only in its "version" line
+
+  Scenario: a new vendor manifest takes the .editorconfig indentation
+    Given an ".editorconfig" at the root sets "indent_style = space" and "indent_size = 4" for "*.json"
+    And the canonical manifest is written on a single line
+    And the manifest declares harnesses for "claude-code"
+    When I run "universal-plugin plugin build"
+    Then ".claude-plugin/plugin.json" is indented with four spaces and ends in a newline
+
   # ── AXI output contract ──
 
   Scenario: a successful build prints a TOON result with per-vendor status and aggregate
