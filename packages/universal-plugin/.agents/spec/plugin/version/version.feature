@@ -56,6 +56,19 @@ Feature: plugin version — move the plugin's version, and keep every version-ca
     When I run "universal-plugin plugin version patch --root <root>"
     Then "plugin.json" is still indented with two spaces
 
+  Scenario: the canonical manifest keeps the lines the bump does not change
+    Given the manifest version is "1.2.3"
+    And "plugin.json" is tab-indented with a "keywords" array on one line and a trailing newline
+    When I run "universal-plugin plugin version patch --root <root>"
+    Then "plugin.json" differs from before only in its "version" line
+
+  Scenario: a manifest with no indentation to read takes the .editorconfig indentation
+    Given the manifest version is "1.2.3"
+    And "plugin.json" is written on a single line
+    And an ".editorconfig" at the root sets "indent_style = space" and "indent_size = 4" for "*.json"
+    When I run "universal-plugin plugin version patch --root <root>"
+    Then "plugin.json" is indented with four spaces
+
   # ── Keep the npm package.json in lockstep ──
 
   Scenario: the packagePath package.json moves to the same version

@@ -8,8 +8,9 @@ import {
 	validateDependencies,
 	vendorResolvesDependencies,
 } from '../dependencies/dependencies.js'
+import { readEditorconfigIndent } from '../editorconfig/fs.js'
 import { type CanonicalHooksFile, type HookDrop, type HookTranslation, translateHooks } from '../hooks/hooks.js'
-import { detectIndent } from '../json.js'
+import { detectIndent, formatJson } from '../json.js'
 import { gatherCatalogRepo } from '../marketplace/fs.js'
 import {
 	catalogResolution,
@@ -452,21 +453,22 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 
 		try {
 			if (!opts.dryRun) {
+				const content = derivedJson(outputPath, vendorManifest, indent)
 				if (opts.clean && fs.existsSync(outputPath)) fs.unlinkSync(outputPath)
 				fs.mkdirSync(outputDir, { recursive: true })
-				fs.writeFileSync(outputPath, `${JSON.stringify(vendorManifest, null, indent)}\n`)
+				fs.writeFileSync(outputPath, content)
 			}
 			written.push(outputPath)
 			if (hooks?.changed) {
 				if (hooks.hooks) {
-					writeArtifact(derivedHooksPath, `${JSON.stringify(hooks.hooks, null, indent)}\n`, opts, written)
+					writeArtifact(derivedHooksPath, derivedJson(derivedHooksPath, hooks.hooks, indent), opts, written)
 				} else if (!opts.dryRun && fs.existsSync(derivedHooksPath)) {
 					// Nothing runnable is left this time; an earlier build's file would linger unreferenced.
 					fs.unlinkSync(derivedHooksPath)
 				}
 			}
 			if (mcp?.changed && declaredMcp && !declaredMcp.inline) {
-				writeArtifact(derivedMcpPath, `${JSON.stringify({ mcpServers: mcp.servers }, null, indent)}\n`, opts, written)
+				writeArtifact(derivedMcpPath, derivedJson(derivedMcpPath, { mcpServers: mcp.servers }, indent), opts, written)
 			}
 			writeSkillArtifacts(vendor, skills, opts, written)
 			rows.push({ vendor, path: relPath, status: 'built' })
@@ -571,9 +573,9 @@ function refreshCatalogs(
 				continue
 			}
 			const file = path.join(repo.root, relative)
-			// The catalog keeps the indentation it was written with, so a refresh does not fight the
+			// The catalog keeps the format it was written with, so a refresh does not fight the
 			// repository's own formatter.
-			fs.writeFileSync(file, `${JSON.stringify(JSON.parse(content), null, detectIndent(existing))}\n`)
+			fs.writeFileSync(file, formatJson(JSON.parse(content), { existing, indent: readEditorconfigIndent(file) }))
 			written.push(file)
 			rows.push({ path: relative, status: 'updated' })
 		} catch (err) {
@@ -735,7 +737,7 @@ function deriveCopilotNamespace(
 	// one path spec mode reads.
 	const hooksPath = path.join(nsDir, COPILOT_HOOKS_PATH)
 	if (hooks?.hooks) {
-		writeArtifact(hooksPath, `${JSON.stringify(hooks.hooks, null, indent)}\n`, opts, written)
+		writeArtifact(hooksPath, derivedJson(hooksPath, hooks.hooks, indent), opts, written)
 		derived = true
 	} else if (hooks && !opts.dryRun && fs.existsSync(hooksPath)) {
 		// Nothing runnable survived this time; an earlier build's file would linger unreferenced.
@@ -794,6 +796,14 @@ function listFilesRecursive(dir: string): string[] {
 		if (entry.isDirectory()) return listFilesRecursive(entryPath)
 		return entry.isFile() ? [entryPath] : []
 	})
+}
+
+/** A derived JSON file's text in the format the file already on disk uses, so rebuilding does not
+ *  fight the repository's formatter (issue #164). A new file takes `.editorconfig`'s indentation,
+ *  then the canonical manifest's. */
+function derivedJson(outputPath: string, value: unknown, manifestIndent: string | number): string {
+	const existing = fs.existsSync(outputPath) ? fs.readFileSync(outputPath, 'utf8') : undefined
+	return formatJson(value, { existing, indent: readEditorconfigIndent(outputPath) ?? manifestIndent })
 }
 
 function writeArtifact(outputPath: string, content: string | Buffer, opts: BuildOptions, written: string[]) {
