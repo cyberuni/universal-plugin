@@ -66,6 +66,11 @@ unchanged and puts the drift check in `doctor`. Also out of scope: deriving the 
   vendor manifests through the same `build` writer, so neither path leaves them carrying the old
   number (#143). `sync-version --no-build` skips that step for a release script that runs `build`
   itself.
+- `sync-version` also moves the skills' `npx`/`upx <pkg>@<version>` pins of the package it synced
+  from (that `package.json`'s `name`), so the pins do not wait for a separate `plugin bundle` run
+  (#164). It calls `bundle`'s own rewriter with a version source that resolves only that package:
+  every other package's pin, and every pin-exempt skill, is left as authored. `--no-build` does not
+  skip it.
 
 Stated as a rule for authors: **if your repo uses changesets, keep using it** and let
 `publish sync-version` carry the number into the manifest. **If it does not**, `plugin version` is
