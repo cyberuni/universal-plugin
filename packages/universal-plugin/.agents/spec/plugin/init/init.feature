@@ -237,6 +237,56 @@ Feature: plugin init — scaffold a plugin project, and wire an npm package to s
     And stdout contains an aggregate carrying the updated count
     And the exit code is 0
 
+  Scenario: --npm copies the package version into plugin.json
+    Given a "package.json" at the project root with version "0.8.0"
+    When I run "universal-plugin plugin init --npm --root <root>"
+    Then "plugin.json" contains version "0.8.0"
+    And the exit code is 0
+
+  Scenario: --npm writes no version when the package declares none
+    Given a "package.json" at the project root with no "version" field
+    When I run "universal-plugin plugin init --npm --root <root>"
+    Then "plugin.json" declares no "version"
+    And the exit code is 0
+
+  # Changesets runs no npm lifecycle scripts, and changesets/action calls the root "version" script,
+  # so that script is the only hook that keeps the plugin version in step with the package.
+  Scenario: --npm wires the version sync into a stock changesets version script
+    Given the project root is "packages/my-plugin" in a repository carrying ".changeset/"
+    And the repository root "package.json" has the "version" script "changeset version"
+    When I run "universal-plugin plugin init --npm --root <root>"
+    Then the repository root "version" script is "changeset version && universal-plugin publish sync-version --root packages/my-plugin"
+    And the repository root "package.json" lists "universal-plugin" in "devDependencies"
+    And stdout has a row for "../../package.json" with action "updated"
+    And the exit code is 0
+
+  Scenario: --npm wires the sync with --root . when the plugin is the workspace root
+    Given the project root carries ".changeset/" and its "version" script is "changeset version"
+    When I run "universal-plugin plugin init --npm --root <root>"
+    Then the "version" script is "changeset version && universal-plugin publish sync-version --root ."
+    And the exit code is 0
+
+  Scenario: --npm leaves a custom version script alone and prints the line to add
+    Given the project root is "packages/my-plugin" in a repository carrying ".changeset/"
+    And the repository root "package.json" has the "version" script "changeset version && pnpm format"
+    When I run "universal-plugin plugin init --npm --root <root>"
+    Then the repository root "package.json" is unchanged
+    And stderr contains "&& universal-plugin publish sync-version --root packages/my-plugin"
+    And the exit code is 0
+
+  Scenario: --npm leaves an already wired version script unchanged
+    Given the repository root "version" script already runs "universal-plugin publish sync-version"
+    When I run "universal-plugin plugin init --npm --force --root <root>"
+    Then the repository root "package.json" is unchanged
+    And the exit code is 0
+
+  Scenario: without changesets the root version script is untouched
+    Given the project root is "packages/my-plugin" in a repository with no ".changeset/"
+    And the repository root "package.json" has the "version" script "changeset version"
+    When I run "universal-plugin plugin init --npm --root <root>"
+    Then the repository root "package.json" is unchanged
+    And the exit code is 0
+
   # ── Print the command reference ──
 
   Scenario: --help prints a concise reference

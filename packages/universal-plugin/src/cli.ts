@@ -9,6 +9,7 @@ import { bundleCommand } from './bundle/cli.js'
 import { resolveOwnVersion } from './cli-options.js'
 import { configCommand } from './config/cli.js'
 import { initCommand } from './init/cli.js'
+import { realInitFs } from './init/fs.js'
 import { installCommand, uninstallCommand } from './install/cli.js'
 import { marketplaceCommand } from './marketplace/cli.js'
 import { prepareCommand } from './prepare/cli.js'
@@ -48,7 +49,7 @@ function pluginCommand(): Command {
 		.action((opts) => runValidate(opts, { withHarnesses: true }))
 	cmd.addCommand(buildCommand())
 	cmd.addCommand(bundleCommand())
-	cmd.addCommand(initCommand())
+	cmd.addCommand(initCommand({ fs: realInitFs, version: resolveOwnVersion(ownPackageJsonPath) }))
 	cmd.addCommand(installCommand())
 	cmd.addCommand(uninstallCommand())
 	cmd.addCommand(validateCommand())
