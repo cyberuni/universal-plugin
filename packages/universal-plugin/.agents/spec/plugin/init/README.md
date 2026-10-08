@@ -28,6 +28,10 @@ Every command follows the AXI output contract ([../../axi/](../../axi/README.md)
   `<owner>-<repo>-local` — and not after any one plugin. `marketplace init` owns generating one from
   the repository's plugins; `init` folds a single plugin's entry into it. Entry `version` is derived
   from the canonical manifest and never authored (ADR-0010 §3).
+- **Changesets version sync** — in a repository released with changesets, the plugin manifest must
+  follow the package version on every Version Packages PR. Changesets runs no npm lifecycle scripts,
+  and changesets/action calls the workspace root's `version` script, so that script is the only hook:
+  `changeset version && universal-plugin publish sync-version --root <plugin-root>`.
 - **Ship on publish** — an npm package declares which files travel in its tarball via `package.json`
   `files`; `--npm` adds the **open-standard base** — the canonical root `plugin.json` and the skills
   directory — plus each selected vendor's derived manifest. The base is unconditional: the standard
@@ -70,6 +74,13 @@ The entry points, each a mode of the `universal-plugin plugin init` verb, given 
   - *outcome:* the canonical manifest is written **and** `package.json` `files` carries the
     open-standard base (root `plugin.json` + the skills directory) plus each selected vendor's
     derived manifest path; existing `files` entries and other fields are preserved; safe to re-run.
+    The manifest takes the package's `version`, so it is complete from the start (Codex requires a
+    version) and `publish sync-version` moves it from there.
+    When the workspace root carries `.changeset/` and its `version` script is exactly
+    `changeset version`, init appends `&& universal-plugin publish sync-version --root <plugin-root>`
+    and adds `universal-plugin` to the root devDependencies (unless already a dependency), so CI runs
+    the locked version. A custom or absent `version` script is not rewritten: init prints the line to
+    add instead. A script that already runs the sync is left alone.
 - **Register the plugin in the repository's local marketplace** — `plugin init --vendor <id>…
   [--no-marketplace]`.
   - *trigger:* an author wants to install and test the plugin before publishing it.
@@ -111,8 +122,18 @@ graph TD
   SC -->|yes| sc1[create skills/ agents/ references/ commands/]
   SC -->|no| sc2[manifest only]
   W --> NP{--npm?}
-  NP -->|yes| wire[add plugin.json + skills/ base, then each vendor's derived manifest path]
+  NP -->|yes| wire[add plugin.json + skills/ base, then each vendor's derived manifest path · seed manifest version from package.json]
   NP -->|no| skip[package.json untouched]
+  wire --> CS{.changeset/ at the workspace root?}
+  CS -->|no| cs0[no version sync wired]
+  CS -->|yes| VS{root version script?}
+  VS -->|exactly changeset version| cs1[append sync-version --root plugin-root · add universal-plugin devDependency]
+  VS -->|already runs sync-version| cs2[leave it]
+  VS -->|custom or absent| cs3[leave it · print the line to add]
+  cs0 --> OUT
+  cs1 --> OUT
+  cs2 --> OUT
+  cs3 --> OUT
   W --> MP{--vendor given and not --no-marketplace?}
   MP -->|no| mp0[no catalog written]
   MP -->|yes| REPO{inside a repository with an owner to name?}
@@ -172,6 +193,13 @@ Grouped by use case; 1:1 with [`init.feature`](./init.feature). `| Edge | Path (
 | guard: no package.json | `--npm`, no package.json | `--npm with no package.json fails before writing the manifest` |
 | barred: no --npm | package.json present, no `--npm` | `without --npm the package.json is untouched` |
 | npm reports updated | `--npm` success | `--npm reports package.json as updated in the result` |
+| seed version | `--npm`, package.json has a version | `--npm copies the package version into plugin.json` |
+| no version to seed | `--npm`, package.json has no version | `--npm writes no version when the package declares none` |
+| wire sync | `--npm`, `.changeset/`, root script `changeset version` | `--npm wires the version sync into a stock changesets version script` |
+| sync at root | plugin root is the workspace root | `--npm wires the sync with --root . when the plugin is the workspace root` |
+| custom script | `--npm`, `.changeset/`, custom root script | `--npm leaves a custom version script alone and prints the line to add` |
+| already wired | root script already runs sync-version | `--npm leaves an already wired version script unchanged` |
+| no changesets | `--npm`, no `.changeset/` | `without changesets the root version script is untouched` |
 
 ### Register the plugin in the repository's local marketplace
 

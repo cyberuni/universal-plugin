@@ -25,7 +25,7 @@ function collect(value: string, previous: string[]): string[] {
 	return [...previous, value]
 }
 
-export function initCommand(deps: { fs: InitFs } = { fs: realInitFs }): Command {
+export function initCommand(deps: { fs: InitFs; version?: string } = { fs: realInitFs }): Command {
 	const cmd = new Command('init').description(
 		'Scaffold the canonical plugin.json (with --npm, wire an npm package to ship it)',
 	)
@@ -36,7 +36,7 @@ export function initCommand(deps: { fs: InitFs } = { fs: realInitFs }): Command 
 		.option('--scaffold', 'Create the standard skills/ agents/ references/ commands/ directories')
 		.option('--force', 'Overwrite an existing plugin.json')
 		.option('--yes', 'Non-interactive (compatibility no-op; init never prompts)')
-		.option('--npm', "Wire package.json 'files' to ship the derived vendor manifests")
+		.option('--npm', 'Wire package.json to ship the plugin (files, version; changesets version sync)')
 		.option('--no-marketplace', "Skip the repository's local marketplace catalogs")
 		.option('--format <format>', 'Output format: json or toon (default: toon)')
 		.addOption(new Option('--json').hideHelp())
@@ -55,6 +55,7 @@ export function initCommand(deps: { fs: InitFs } = { fs: realInitFs }): Command 
 						force: Boolean(opts.force),
 						npm: Boolean(opts.npm),
 						marketplace: opts.marketplace !== false,
+						cliVersion: deps.version,
 					},
 					path.basename(root),
 					(vendor) => VENDOR_SHIPPED_PATHS[vendor as keyof typeof VENDOR_SHIPPED_PATHS] ?? [],
