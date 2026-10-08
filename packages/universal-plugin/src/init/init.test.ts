@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { VENDOR_SHIPPED_PATHS } from '../build/build.js'
 import { realInitFs } from './fs.js'
-import { buildManifest, type InitOptions, type InitState, planInit, wireFiles } from './init.js'
+import { buildManifest, type InitOptions, type InitState, planInit, wireChangesets, wireFiles } from './init.js'
 
 const resolve = (v: string) => VENDOR_SHIPPED_PATHS[v as keyof typeof VENDOR_SHIPPED_PATHS] ?? []
 const empty: InitState = { manifestExists: false, packageJson: null }
@@ -128,6 +128,132 @@ describe('planInit publish half', () => {
 			{ path: 'package.json', action: 'updated' },
 		])
 		expect(plan.summary).toEqual({ created: 1, updated: 1, unchanged: 0 })
+	})
+})
+
+describe('planInit version seed', () => {
+	const npm: InitOptions = { vendors: [], scaffold: false, force: false, npm: true }
+
+	it('--npm copies the package version into the manifest', () => {
+		const plan = planInit({ manifestExists: false, packageJson: { version: '0.8.0' } }, npm, 'root', resolve)
+		expect(plan.manifest.version).toBe('0.8.0')
+	})
+
+	it('--npm writes no version when the package declares none', () => {
+		const plan = planInit({ manifestExists: false, packageJson: {} }, npm, 'root', resolve)
+		expect(plan.manifest).not.toHaveProperty('version')
+	})
+
+	it('without --npm the package version is not copied', () => {
+		const plan = planInit(
+			{ manifestExists: false, packageJson: { version: '0.8.0' } },
+			{ ...npm, npm: false },
+			'root',
+			resolve,
+		)
+		expect(plan.manifest).not.toHaveProperty('version')
+	})
+})
+
+describe('wireChangesets', () => {
+	it('appends the sync to a stock changeset version script and adds the devDependency', () => {
+		const wired = wireChangesets({ scripts: { version: 'changeset version', build: 'x' } }, 'packages/p', '1.2.3')
+		expect(wired.note).toBeUndefined()
+		expect(wired.content?.scripts).toEqual({
+			version: 'changeset version && universal-plugin publish sync-version --root packages/p',
+			build: 'x',
+		})
+		expect(wired.content?.devDependencies).toEqual({ 'universal-plugin': '^1.2.3' })
+	})
+
+	it('passes --root . when the plugin sits at the workspace root', () => {
+		const wired = wireChangesets({ scripts: { version: 'changeset version' } }, '', '1.2.3')
+		expect((wired.content?.scripts as Record<string, string>).version).toBe(
+			'changeset version && universal-plugin publish sync-version --root .',
+		)
+	})
+
+	it('keeps an existing universal-plugin dependency', () => {
+		const wired = wireChangesets(
+			{ scripts: { version: 'changeset version' }, devDependencies: { 'universal-plugin': '^0.1.0', a: '1' } },
+			'p',
+			'1.2.3',
+		)
+		expect(wired.content?.devDependencies).toEqual({ 'universal-plugin': '^0.1.0', a: '1' })
+	})
+
+	it('leaves a custom script alone and names the line to add', () => {
+		const wired = wireChangesets({ scripts: { version: 'changeset version && pnpm fmt' } }, 'packages/p', '1.2.3')
+		expect(wired.content).toBeNull()
+		expect(wired.note).toContain('custom')
+		expect(wired.note).toContain('&& universal-plugin publish sync-version --root packages/p')
+	})
+
+	it('names the script to add when there is none', () => {
+		const wired = wireChangesets({}, 'packages/p', '1.2.3')
+		expect(wired.content).toBeNull()
+		expect(wired.note).toContain('changeset version && universal-plugin publish sync-version --root packages/p')
+	})
+
+	it('changes nothing once the sync is wired', () => {
+		const wired = wireChangesets(
+			{ scripts: { version: 'changeset version && universal-plugin publish sync-version --root p' } },
+			'p',
+			'1.2.3',
+		)
+		expect(wired).toEqual({ content: null })
+	})
+})
+
+describe('planInit changesets wiring', () => {
+	const npm: InitOptions = { vendors: [], scaffold: false, force: false, npm: true, cliVersion: '1.2.3' }
+	const stock = { scripts: { version: 'changeset version' } }
+
+	it('rewrites the workspace-root package.json for a plugin below it', () => {
+		const state: InitState = {
+			manifestExists: false,
+			packageJson: { name: 'p' },
+			changesets: { pluginPath: 'packages/p', packageJson: stock },
+		}
+		const plan = planInit(state, npm, 'p', resolve)
+		expect(plan.workspacePackageJson?.path).toBe('../../package.json')
+		expect((plan.workspacePackageJson?.content.scripts as Record<string, string>).version).toBe(
+			'changeset version && universal-plugin publish sync-version --root packages/p',
+		)
+		expect(plan.rows).toContainEqual({ path: '../../package.json', action: 'updated' })
+	})
+
+	it('folds the wiring into the plugin package.json when the plugin is the workspace root', () => {
+		const state: InitState = {
+			manifestExists: false,
+			packageJson: stock,
+			changesets: { pluginPath: '', packageJson: stock },
+		}
+		const plan = planInit(state, npm, 'p', resolve)
+		expect(plan.workspacePackageJson).toBeNull()
+		expect(plan.packageJson?.files).toContain('plugin.json')
+		expect((plan.packageJson?.scripts as Record<string, string>).version).toContain('--root .')
+	})
+
+	it('notes the line to add for a custom script and rewrites nothing', () => {
+		const state: InitState = {
+			manifestExists: false,
+			packageJson: {},
+			changesets: { pluginPath: 'p', packageJson: { scripts: { version: 'custom' } } },
+		}
+		const plan = planInit(state, npm, 'p', resolve)
+		expect(plan.workspacePackageJson).toBeNull()
+		expect(plan.notes.join('\n')).toContain('&& universal-plugin publish sync-version --root p')
+	})
+
+	it('wires nothing without --npm or without changesets', () => {
+		const withChangesets: InitState = {
+			manifestExists: false,
+			packageJson: {},
+			changesets: { pluginPath: 'p', packageJson: stock },
+		}
+		expect(planInit(withChangesets, { ...npm, npm: false }, 'p', resolve).workspacePackageJson).toBeNull()
+		expect(planInit({ manifestExists: false, packageJson: {} }, npm, 'p', resolve).workspacePackageJson).toBeNull()
 	})
 })
 
@@ -327,6 +453,36 @@ describe('realInitFs integration', () => {
 
 		// Re-running init over the catalogs it wrote changes nothing.
 		expect(run().rows.map((row) => row.action)).toEqual(['created', 'unchanged', 'unchanged'])
+	})
+
+	it('--npm in a changesets repository wires the root version script', () => {
+		execFileSync('git', ['-C', dir, 'init', '-q'])
+		fs.mkdirSync(path.join(dir, '.changeset'))
+		fs.writeFileSync(
+			path.join(dir, 'package.json'),
+			`${JSON.stringify({ private: true, scripts: { version: 'changeset version' } }, null, '\t')}\n`,
+		)
+		const pluginRoot = path.join(dir, 'packages', 'my-plugin')
+		fs.mkdirSync(pluginRoot, { recursive: true })
+		fs.writeFileSync(path.join(pluginRoot, 'package.json'), JSON.stringify({ name: 'my-plugin', version: '0.8.0' }))
+
+		const state = realInitFs.gather(pluginRoot)
+		const plan = planInit(
+			state,
+			{ vendors: [], scaffold: false, force: false, npm: true, cliVersion: '1.2.3' },
+			'my-plugin',
+			resolve,
+		)
+		realInitFs.apply(pluginRoot, plan)
+
+		const rootText = fs.readFileSync(path.join(dir, 'package.json'), 'utf8')
+		expect(rootText).toContain('\t"scripts"')
+		expect(JSON.parse(rootText)).toEqual({
+			private: true,
+			scripts: { version: 'changeset version && universal-plugin publish sync-version --root packages/my-plugin' },
+			devDependencies: { 'universal-plugin': '^1.2.3' },
+		})
+		expect(JSON.parse(fs.readFileSync(path.join(pluginRoot, 'plugin.json'), 'utf8')).version).toBe('0.8.0')
 	})
 
 	it('--npm with no package.json writes nothing (guard before manifest write)', () => {
