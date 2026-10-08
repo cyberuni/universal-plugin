@@ -137,6 +137,14 @@ picks the number, so content sitting ahead of the last released version is the n
 branch, not a defect — only the author-picks model can forget the bump, and only there does the
 check run. It reads git, so it is skipped rather than guessed at where history is unavailable.
 
+**Amended (issue #164).** `version-drift` now covers all five places, not only the authored pair:
+the derived vendor manifests, the repository catalogs and the skill pins are compared too, and each
+file left behind is its own finding. `doctor` asks `publish check-version` for the comparison, and
+that command exits 1 on drift so a repository can run it in CI — `doctor` itself stays advisory.
+Detection on the release PR is what catches a release tool that moved one number and no sync, which
+`init` can wire for changesets but not for release-please or semantic-release
+([`plugin/version/`](../../plugin/version/README.md)).
+
 ## Alternatives considered
 
 | Alternative | Why not |
