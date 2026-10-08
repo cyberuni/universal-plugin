@@ -278,10 +278,20 @@ A plugin whose MCP server is its own npm package writes an unpinned invocation �
 
 **Rules (Cursor-only):** `.mdc` files in `rules/`. Required frontmatter: `description`. Optional: `alwaysApply` (bool), `globs` (file-pattern array). Bundle `commands/setup.md` to merge rule content into project's `AGENTS.md` — after that merge, `.mdc` files are redundant.
 
-**Decision tree for always-on guidance:**
+## Rules vs References
+
+"Always-on" assumes one agent per session. In an orchestrated system, a team of subagents each with its own focus, always-on content is injected into every subagent whatever its role. Anything that is not true for every role costs context and dilutes focus.
+
+- **Always-on content is the HCF (highest common factor) of all agents.** It holds only the constraints every agent in every role must follow, such as "never commit secrets" or "use Conventional Commits". That set is small.
+- **`rules/` is for the HCF only.** It stays for backward compatibility and for simple single-agent setups where no orchestration is involved. Its scope is narrow on purpose.
+- **Shared guidance is a reference, not a rule.** Content that cuts across components but applies only to some roles or tasks (a design standard, a review checklist, a workflow discipline) belongs in `references/<name>.md`. Whichever agent, skill, command, hook, or MCP server needs it loads it by name on demand, through the `reference` skill in the `cyber-agent-harness` plugin.
+
+**Decision tree for guidance:**
+- Every agent, every role (the HCF) → merge into **AGENTS.md**. For Cursor-only delivery, use `rules/` + `commands/setup.md`.
+- Cross-cutting, scoped to a role or task → `references/<name>.md`, loaded by name
 - Situation-triggered → **skill** (all agents)
-- Always-on, cross-agent → merge into **AGENTS.md**
-- Always-on, Cursor-only → `rules/` + `commands/setup.md`
+- Agent-specific → the agent definition file
+- Skill-specific → the `SKILL.md` body
 
 ## Namespacing
 
@@ -312,6 +322,7 @@ Default scope: **team**.
 - Relying on extended component types (commands, rules, agents, hooks) for core functionality — silently ignored on non-supporting hosts
 - Duplicating SKILL.md content in `plugin.json` — the manifest is a path index, never a content mirror
 - Using `rules/` for cross-agent always-on guidance — use AGENTS.md instead
+- Putting role- or task-scoped guidance in always-on context (`rules/` or AGENTS.md) — make it a reference loaded on demand
 - Putting install-time metadata in `plugin.json` instead of `skill.json`
 
 ## Cross-Platform Portability
