@@ -140,6 +140,26 @@ describe('syncVersion', () => {
 		expect(raw).not.toMatch(/\n {2}/)
 	})
 
+	it('leaves lines it does not change as the formatter wrote them, trailing newline included', () => {
+		const original = '{\n\t"name": "my-plugin",\n\t"version": "0.8.0",\n\t"keywords": ["a", "b"]\n}\n'
+		fs.writeFileSync(path.join(dir, 'plugin.json'), original)
+		writeAgentsConfig({ packagePath: 'pkg' })
+		writePackage('pkg', { version: '0.9.0' })
+		syncVersion(dir, realSyncVersionFs)
+		expect(fs.readFileSync(path.join(dir, 'plugin.json'), 'utf8')).toBe(original.replace('0.8.0', '0.9.0'))
+	})
+
+	it('takes .editorconfig indentation when the file has none to read', () => {
+		fs.writeFileSync(path.join(dir, '.editorconfig'), 'root = true\n[*]\nindent_style = space\nindent_size = 2\n')
+		writeManifest({ name: 'my-plugin' })
+		writeAgentsConfig({ packagePath: 'pkg' })
+		writePackage('pkg', { version: '1.0.0' })
+		syncVersion(dir, realSyncVersionFs)
+		expect(fs.readFileSync(path.join(dir, 'plugin.json'), 'utf8')).toBe(
+			'{\n  "name": "my-plugin",\n  "version": "1.0.0"\n}',
+		)
+	})
+
 	it('preserves 2-space indentation from existing file', () => {
 		writeManifest({ name: 'my-plugin' }, 2)
 		writeAgentsConfig({ packagePath: 'pkg' })
