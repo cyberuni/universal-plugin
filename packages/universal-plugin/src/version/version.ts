@@ -129,7 +129,7 @@ export function planVersion(state: VersionState, opts: VersionOptions): VersionP
 
 /** Root-relative POSIX join — the domain reports paths as the user typed `packagePath`, so the
  *  result stays stable across platforms and readable in the TOON output. */
-function joinRelative(dir: string, file: string): string {
+export function joinRelative(dir: string, file: string): string {
 	const normalized = dir.replace(/\\/g, '/').replace(/\/+$/, '')
 	return normalized === '' || normalized === '.' ? file : `${normalized}/${file}`
 }

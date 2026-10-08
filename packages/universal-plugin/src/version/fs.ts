@@ -1,8 +1,12 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 
+import { type PluginManifest, universalPluginExtension, VENDOR_OUTPUT } from '../build/build.js'
 import { getPackagePath } from '../config/config.js'
 import { detectIndent } from '../json.js'
+import { gatherCatalogRepo } from '../marketplace/fs.js'
+import { realPinFs, resolveSkillsDir } from '../pin/fs.js'
+import type { DriftFile, DriftState } from './drift.js'
 import type { VersionPlan, VersionState } from './version.js'
 
 /** Minimal JSON file access. `applyVersionPlan` is written against this rather than `node:fs` so
@@ -70,4 +74,43 @@ export const realVersionFs: VersionFs = {
 	apply(root, plan) {
 		applyVersionPlan(root, plan, realJsonIo)
 	},
+}
+
+/** Reads every file that carries the plugin's version, for `checkVersionDrift`. Paths are relative
+ *  to the plugin root, so a catalog at the repository root above a monorepo plugin reads as
+ *  `../../.claude-plugin/marketplace.json`. Only what exists is read: a vendor not declared, or a
+ *  catalog the repository does not carry, is not a file left behind. */
+export function gatherDriftState(root: string): DriftState {
+	const manifestPath = path.join(root, 'plugin.json')
+	if (!fs.existsSync(manifestPath)) throw new Error(`No plugin.json found at ${root}`)
+	const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as Record<string, unknown>
+
+	const packagePath = readPackagePath(root, realJsonIo)
+	const pkgJsonPath = packagePath === null ? null : path.join(root, packagePath, 'package.json')
+	const packageJson =
+		pkgJsonPath !== null && fs.existsSync(pkgJsonPath)
+			? (JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8')) as Record<string, unknown>)
+			: null
+
+	const relative = (abs: string) => path.relative(root, abs).split(path.sep).join('/')
+	const read = (abs: string): DriftFile => ({ path: relative(abs), content: fs.readFileSync(abs, 'utf8') })
+
+	const uext = universalPluginExtension(manifest as PluginManifest)
+	const targets = uext.vendors ?? Object.keys(uext.harnesses ?? {})
+	const vendorManifests = targets
+		.map((vendor) => (VENDOR_OUTPUT as Record<string, string>)[vendor])
+		.filter((rel): rel is string => rel !== undefined && rel !== 'plugin.json')
+		.map((rel) => path.join(root, rel))
+		.filter((abs) => fs.existsSync(abs))
+		.map(read)
+
+	const repo = gatherCatalogRepo(root)
+	const catalogs = repo
+		? Object.entries(repo.catalogs).map(([rel, content]) => ({ path: relative(path.join(repo.root, rel)), content }))
+		: []
+
+	const skillsDir = resolveSkillsDir(root, uext.skills as string | undefined)
+	const skillFiles = realPinFs(skillsDir).listSkillFiles().map(read)
+
+	return { manifest, packagePath, packageJson, vendorManifests, catalogs, skillFiles }
 }

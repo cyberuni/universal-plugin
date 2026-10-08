@@ -148,6 +148,30 @@ test('packagePath resolves from the plugin root, so a monorepo package sits besi
 	expect(codes).toContain('version-drift')
 })
 
+test('every file a release left behind is its own version-drift finding, named by path', () => {
+	seedRelease('0.8.0')
+	write('.agents/universal-plugin.json', '{ "packagePath": "." }\n')
+	write('package.json', '{ "name": "demo-cli", "version": "0.9.0" }\n')
+	write('.claude-plugin/plugin.json', '{ "name": "demo", "version": "0.8.0" }\n')
+	writeSkill('Run `npx -y demo-cli@0.8.0 go`.')
+
+	const result = spawnSync('node', [doctor, '--root', root], { encoding: 'utf8' })
+	const report = JSON.parse(result.stdout) as { findings: { code: string; detail: string }[] }
+	const drift = report.findings.filter((f) => f.code === 'version-drift').map((f) => f.detail)
+	expect(drift).toEqual([
+		'plugin.json is 0.8.0, package.json is 0.9.0',
+		'.claude-plugin/plugin.json is 0.8.0, package.json is 0.9.0',
+		'skills/demo/SKILL.md is 0.8.0, package.json is 0.9.0',
+	])
+})
+
+test('a derived manifest left behind drifts even without an npm package', () => {
+	seedRelease('1.0.0')
+	write('.claude-plugin/plugin.json', '{ "name": "demo", "version": "0.9.0" }\n')
+
+	expect(detail('version-drift')).toBe('.claude-plugin/plugin.json is 0.9.0, plugin.json is 1.0.0')
+})
+
 test('a packagePath declared in the manifest extension is reported, and not honored', () => {
 	seedRelease()
 	const manifest = JSON.parse(fs.readFileSync(path.join(root, 'plugin.json'), 'utf8'))

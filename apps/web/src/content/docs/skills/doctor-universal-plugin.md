@@ -34,6 +34,20 @@ content committed after the commit that set the current version never reaches an
 installed the plugin. The skill reports that as `unreleased-content`. It stays quiet for a plugin
 that declares `packagePath`, where the release moves the number, and on a tree with no history.
 
+## Version drift in CI
+
+The skill reports each file whose version disagrees with the release's number as `version-drift`:
+the canonical manifest, a vendor manifest, a catalog entry, or a skill pin. The same comparison is a
+CLI command that exits 1 on drift, so a repository can fail the release PR instead of publishing the
+old number:
+
+```bash
+universal-plugin publish check-version --root <plugin-root>
+```
+
+When the skill finds drift and the repository does not run this yet, it offers to add it to the
+`verify` script or the CI workflow.
+
 ## See also
 
 - [`init-universal-plugin`](../init-universal-plugin/) — owns the repairs this skill names

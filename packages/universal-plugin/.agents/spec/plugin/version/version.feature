@@ -196,6 +196,50 @@ Feature: plugin version — move the plugin's version, and keep every version-ca
     When I run "universal-plugin plugin version patch --root <root>"
     Then stderr contains a next-step line
 
+  # ── Check that every file agrees ──
+
+  Scenario: check-version passes when every file carries the same version
+    Given "packagePath" names a package at "0.9.0"
+    And the manifest, a derived vendor manifest, the catalog entry and a skill pin all carry "0.9.0"
+    When I run "universal-plugin publish check-version --root <root>"
+    Then the exit code is 0
+    And nothing is written
+
+  Scenario: check-version names every file a release left behind
+    Given "packagePath" names a package at "0.9.0"
+    And the manifest, a derived vendor manifest, the catalog entry and a skill pin all carry "0.8.0"
+    When I run "universal-plugin publish check-version --root <root>"
+    Then the exit code is 1
+    And stdout names "plugin.json", the vendor manifest, the catalog and the skill file
+    And stderr ends with "→ universal-plugin publish sync-version"
+
+  Scenario: without packagePath the canonical manifest is the reference
+    Given no "packagePath" is declared
+    And the manifest version is "1.0.0"
+    And ".claude-plugin/plugin.json" carries "0.9.0"
+    When I run "universal-plugin publish check-version --root <root>"
+    Then the exit code is 1
+    And stderr contains ".claude-plugin/plugin.json is 0.9.0, plugin.json is 1.0.0"
+
+  Scenario: a skill pin left behind points at plugin bundle
+    Given "packagePath" names a package at "0.9.0"
+    And every file but one skill pin carries "0.9.0"
+    When I run "universal-plugin publish check-version --root <root>"
+    Then the exit code is 1
+    And stderr ends with "→ universal-plugin plugin bundle"
+
+  Scenario: a pin that is not a version is not compared
+    Given "packagePath" names a package at "0.9.0"
+    And a skill pins the package at "<version>" and at "latest"
+    When I run "universal-plugin publish check-version --root <root>"
+    Then the skill file is not reported
+
+  Scenario: check-version fails loud without a canonical manifest
+    Given an empty root
+    When I run "universal-plugin publish check-version --root <root>"
+    Then the exit code is 1
+    And stderr contains "No plugin.json found"
+
   # ── Print the command reference ──
 
   Scenario: --help prints a concise reference
