@@ -5,6 +5,8 @@ concept: [canonical-manifest, axi]
 
 # plugin build — derive per-vendor manifests
 
+## What
+
 `universal-plugin plugin build` compiles the canonical root `plugin.json` (Agent Plugins Specification
 v1.0.0 form) into one vendor-specific manifest per target vendor. Each vendor expects its manifest at
 a different path and shape; maintaining one file per vendor lets shared fields drift. Build treats the
@@ -23,6 +25,32 @@ specifier inside an `mcpServers` entry's `args`, which is manifest content build
 authored abstractly with a marker, stamped concretely here, exactly as hook casing is.
 
 Follows the AXI output contract ([../../axi/](../../axi/README.md)).
+
+**Key terms**
+
+- **Canonical manifest** — the root `plugin.json`, the one file the author writes. Build reads it and
+  never writes it.
+- **Target set** — the vendors a build derives for: the extension's `vendors` list when present, else
+  every `harnesses` key ([ADR-0007](../../design/decisions/0007-adopt-agent-plugins-spec-canonical.md)).
+  `--vendor` narrows it to one and never widens it.
+- **Derived manifest** — `<vendor-dir>/plugin.json` for `claude-code` (`.claude-plugin/`), `cursor`
+  (`.cursor-plugin/`), and `codex` (`.codex-plugin/`). A derived hooks or MCP file lands beside it.
+- **Spec-mode namespace** — `com.github.copilot/`, the tree Copilot CLI reads agents, commands, rules,
+  hooks, and `lsp.json` from once the canonical `$schema` is declared
+  ([ADR-0015](../../design/decisions/0015-copilot-spec-mode-namespace.md)). It is `copilot-cli`'s
+  only derived output.
+- **Row status** — one row per vendor: `built` (derived output written, or planned under `--dry-run`),
+  `canonical` (root `plugin.json` serves the vendor and nothing was derived), `skipped` (an unknown
+  vendor key), or `failed` (a write threw). Any `failed` row exits 1.
+- **Pin marker** — `"pinToPluginVersion": true` on an `mcpServers` entry: the build directive that
+  stamps the entry's package specifier with the manifest version. It never reaches a vendor.
+
+**Non-goals** — checking a manifest without deriving output (`plugin validate`); scaffolding a new
+project (`plugin init`); publishing or installing manifests (the `cyberplace` package); the shared
+output-contract mechanics themselves ([`../../axi/`](../../axi/README.md) owns those); **resolving or
+pinning the `npx <cli>@<version>` references a plugin's skills carry** — that is the release-time
+[`plugin bundle`](../bundle/README.md) step, not a build step (the MCP-invocation pin is a
+different object — see above).
 
 ## Use Cases
 
@@ -225,36 +253,266 @@ Follows the AXI output contract ([../../axi/](../../axi/README.md)).
 - **Fail-loud, no prompts, help** — an unknown flag exits 1 naming the flag; the command never
   prompts interactively; `--help` exits 0 with a concise synopsis, flags, and one example.
 
-**Non-goals** — checking a manifest without deriving output (`plugin validate`); scaffolding a new
-project (`plugin init`); publishing or installing manifests (the `cyberplace` package); the shared
-output-contract mechanics themselves ([`../../axi/`](../../axi/README.md) owns those); **resolving or
-pinning the `npx <cli>@<version>` references a plugin's skills carry** — that is the release-time
-[`plugin bundle`](../bundle/README.md) step, not a build step (the MCP-invocation pin above is a
-different object — see the intro).
+## Control Flow
 
-Every scenario in [`build.feature`](./build.feature) maps to one of these behaviors:
+The run as a whole, then the work done for one vendor. Decisions are nodes, branches are edges.
 
-| Behavior | What it covers |
-|---|---|
-| **target selection (`vendors ?? harnesses`)** | builds the `vendors` list, else all `harnesses` keys; correct per-vendor output paths; copilot-cli reported `canonical` when it declares no moving component kind |
-| **merge then strip** | harness fields merged; canonical wrapper (`$schema`, `extensions`) + orchestration keys (`vendors`, `packagePath`, `harnesses`) stripped |
-| **component support per vendor** | a component the vendor has none of left out of its manifest with a warning, kept for the vendors that read it; Codex keeps `commands`; a harness override not filtered |
-| **component path resolution** | `skills` resolved from a path string, a path array, and a `{ paths }` object; every declared directory searched; `./skills/` used only when nothing is declared; a declared-but-missing directory warned, an absent default not; a declaration in none of the three forms warned and read as nothing |
-| **hook translation** | canonical PascalCase kept for claude-code and codex; camelCase, `version: 1`, and flattened matcher groups for cursor; derived file written beside the vendor manifest and pointed at; inline hooks translated; `--dry-run` derives nothing |
-| **unrepresentable handlers (ADR-0011)** | per-drop warning naming vendor, event, and type; emptied event omitted; emptied file not written and the `hooks` field dropped; copilot-cli's drop removed from its derived namespace file |
-| **MCP invocation pinning** | a marked entry's `args` specifier rewritten to `<pkg>@<version>` under either runner word (`npx`, `upx`), located as the first non-flag argument with or without a leading `-y`/`--yes`; an unmarked entry and an unrelated `npx` invocation left alone; an already-pinned specifier overwritten with a warning; guards (non-runner `command`, no manifest `version`, no specifier in `args`) warn and leave the entry |
-| **marker stripping + delivery** | `pinToPluginVersion` absent from every derived manifest and derived MCP file; nothing marked derives nothing; an inline declaration stays inline, a path declaration gets `<vendor-dir>/mcp.json` and is repointed; the authored `mcp.json` untouched; copilot-cli warned rather than derived for (`mcp.json` does not move) |
-| **the copilot spec-mode namespace (ADR-0015)** | declared agents, commands and rules copied under `com.github.copilot/` with agents renamed to `.agent.md`, resolved from all three `pathValue` forms, the schema default read when the field is absent, a declared-but-missing directory warned and an absent default not; hooks translated to `com.github.copilot/hooks/hooks.json`; a declared `lspServers` path copied to `com.github.copilot/lsp.json`, an inline map warned about; `skills/` and `mcp.json` not copied there; the vendor reported `built` at `com.github.copilot/`; an authored `extensions/` left alone by both the build and `--clean`; the canonical `plugin.json` never written |
-| **governance copies retired (ADR-0017)** | a committed `references/governances/` file left as it is and no copy reported; `--check` rejected as an unknown flag, writing no manifest |
-| **`--vendor` filters** | filter to one vendor; a `--vendor` not among the targets fails |
-| **eager validation** | missing manifest fails; codex requires description + version |
-| **unknown vendors warn** | unknown vendor key in `harnesses` skipped with warning |
-| **`--dry-run` / `--clean`** | dry-run writes nothing; clean removes stale output before rewrite |
-| **catalog refresh (ADR-0010 §3)** | this plugin's entry re-derived in each existing repository catalog for the vendors built; other entries and top-level fields untouched; no catalog created; a non-local source (npm) kept while its version is re-derived; unchanged reported as unchanged; `--dry-run` plans only |
-| **TOON default + aggregate (#1,#2,#4)** | stdout TOON, one row per vendor (`vendor, path, status`), pre-computed `built/skipped/failed` summary |
-| **`--format json` / `--format toon`** | JSON escape hatch with `built` array + counts; `--format toon` names the default |
-| **definitive empty state (#5)** | no targets → exit 0, TOON zero built rows + aggregate `built 0`, stderr "nothing to build", stderr names `/universal-plugin:doctor-universal-plugin` |
-| **a declaration this CLI no longer reads (#6)** | zero targets beside a top-level `vendorExtensions` block or a shadowing `.plugin/plugin.json` → exit 1 naming the signal and `/universal-plugin:doctor-universal-plugin`, nothing written; the same signal beside deriving harnesses stays exit 0 |
-| **next-step suggestion (#9)** | successful build's stderr ends with `→ universal-plugin marketplace validate` after a catalog refresh, else `→ /universal-plugin:doctor-universal-plugin`; never `plugin validate` |
-| **fail-loud unknown flag (#6)** | unknown flag exits 1, stderr names it |
-| **`--help` (#10)** | exits 0, concise synopsis + flags + one example |
+```mermaid
+graph TD
+  A[plugin build invoked] --> FLAG{unknown flag?}
+  FLAG -->|yes| E_FLAG[exit 1 · name the flag · write nothing]
+  FLAG -->|no| HELP{--help?}
+  HELP -->|yes| R_HELP[synopsis, flags, example · exit 0]
+  HELP -->|no| MAN{root plugin.json present?}
+  MAN -->|no| E_MAN[exit 1 · No plugin.json found]
+  MAN -->|yes| T[target set = vendors ?? harnesses keys]
+  T --> UNK[unknown vendor key: warn · row skipped]
+  UNK --> SEL{--vendor given?}
+  SEL -->|not among the targets| E_SEL[exit 1 · not declared in harnesses]
+  SEL -->|among the targets| ONE[narrow to that vendor]
+  SEL -->|no| EMPTY
+  ONE --> EMPTY{target set empty?}
+  EMPTY -->|yes| SIG{pre-0.6 signal present?}
+  SIG -->|yes| E_SIG[exit 1 · name the signal and doctor · write nothing]
+  SIG -->|no| R_EMPTY[TOON built 0 · stderr nothing to build, names doctor · exit 0]
+  EMPTY -->|no| VAL{manifest valid for the targets?}
+  VAL -->|no| E_VAL[exit 1 · list each error · write nothing]
+  VAL -->|yes| READ[read skills, hooks, mcpServers once · pin marked MCP entries]
+  READ --> V[for each target vendor: derive, see below]
+  V --> CAT{repository carries a catalog for a built vendor?}
+  CAT -->|no| OUT
+  CAT -->|yes| REF[re-derive this plugin's entry · list sourced dependencies · check the rest]
+  REF --> OUT[warnings on stderr · TOON/json result · next step on stderr]
+  OUT --> FAIL{any row failed, or --strict-dependencies with a dependency issue?}
+  FAIL -->|yes| E_OUT[exit 1]
+  FAIL -->|no| R_OK[exit 0]
+```
+
+```mermaid
+graph TD
+  A[derive for one vendor] --> CAN{copilot-cli?}
+  CAN -->|yes| WARN[warn: harness override and marked MCP entry not delivered · warn per dropped handler]
+  WARN --> NS[copy agents as .agent.md, commands, rules · translate hooks · copy a declared lspServers path]
+  NS --> ANY{anything derived into com.github.copilot/?}
+  ANY -->|yes| R_NS[row: built at com.github.copilot/]
+  ANY -->|no| R_CAN[row: canonical at plugin.json]
+  CAN -->|no| MERGE[shared metadata + the components the vendor reads + harnesses.vendor]
+  MERGE --> DROP[warn per component the vendor lacks · warn per hook handler dropped]
+  DROP --> HK{hooks form differs from canonical?}
+  HK -->|yes| HKW[derive vendor-dir/hooks.json · repoint, or omit hooks when nothing is left]
+  HK -->|no| MCP
+  HKW --> MCP{a marked MCP entry?}
+  MCP -->|yes, inline| MCPI[pinned servers inline in the manifest]
+  MCP -->|yes, by path| MCPF[derive vendor-dir/mcp.json · repoint]
+  MCP -->|no| W
+  MCPI --> W
+  MCPF --> W
+  W{--dry-run?}
+  W -->|yes| R_PLAN[row: built · nothing written]
+  W -->|no| WR[--clean removes the old file · write the manifest and derived files]
+  WR --> OK{write threw?}
+  OK -->|yes| R_FAIL[row: failed]
+  OK -->|no| R_BUILT[row: built]
+```
+
+`--dry-run` resolves, validates, and reports every row and catalog as it would, and writes nothing:
+no manifest, no derived file, no namespace file, no catalog. `--clean` removes what an earlier build
+derived before rewriting it, and leaves an authored `com.github.copilot/extensions/` alone.
+
+## Scenario map
+
+Grouped by use case; 1:1 with [`build.feature`](./build.feature).
+`| Edge | Path (Given) | Scenario |`.
+
+### Target selection and merge then strip
+
+| Edge | Path (Given) | Scenario |
+|---|---|---|
+| all harnesses | harnesses for `claude-code` and `cursor` | `builds all declared harnesses` |
+| vendors list | a `vendors` list narrower than `harnesses` | `the vendors list selects the build targets when present` |
+| harnesses fallback | no `vendors` list | `build falls back to all harnesses keys when no vendors list is present` |
+| copilot canonical | `copilot-cli` with only skills declared | `copilot-cli derives no manifest — the canonical root manifest serves it` |
+| copilot override | `harnesses.copilot-cli` sets a field | `a copilot-cli harness override warns that it cannot be delivered` |
+| merge | `harnesses.claude-code` sets `displayName` | `harness-specific fields are merged into output` |
+| strip | `$schema` plus `vendors`, `packagePath`, `harnesses` | `the canonical wrapper and orchestration keys are stripped from output` |
+
+### Component support per vendor
+
+| Edge | Path (Given) | Scenario |
+|---|---|---|
+| left out | codex with `agents` declared | `a component the vendor has none of is left out of its manifest, with a warning` |
+| kept where read | `agents` across three vendors | `the path still reaches the vendors that read the component` |
+| codex commands | codex with `commands` declared | `codex keeps commands, which its runtime reads` |
+| per vendor | `rules`, `lspServers`, `outputStyles` on claude-code and cursor | `each vendor drops only the components it lacks` |
+| override | `harnesses.codex` sets `agents` | `a harness override still sets a component the vendor's table leaves out` |
+
+### Component path resolution
+
+| Edge | Path (Given) | Scenario |
+|---|---|---|
+| string | `skills` as a path string | `a skills path string is resolved` |
+| array | `skills` as a path array | `a skills path array is resolved across every declared directory` |
+| paths object | `skills` as `{ paths }` | `a skills paths object is resolved across every declared directory` |
+| no silent default | declared array beside an undeclared `./skills/` | `a declared skills path is never silently replaced by the default directory` |
+| default | no `skills` declared | `skills fall back to "./skills/" only when the namespace declares none` |
+| declared missing | a declared directory absent on disk | `a declared skills directory that does not exist is warned about, not skipped in silence` |
+| bad form | `skills` as a number | `a skills declaration in none of the three forms is warned about and reads nothing` |
+| default missing | no `skills` declared, no `./skills/` | `an absent default skills directory is not warned about` |
+
+### Hook translation and unrepresentable handlers
+
+| Edge | Path (Given) | Scenario |
+|---|---|---|
+| canonical kept | claude-code, a command handler | `claude-code keeps the canonical hooks file when nothing needs translating` |
+| camelCase | cursor, a command handler | `cursor gets a derived hooks file with camelCase event names` |
+| cursor shape | cursor, one matcher group of two handlers | `a cursor hooks file carries the schema version and flattens matcher groups` |
+| drop: codex | codex, a prompt handler | `codex drops a handler type it cannot run, and warns` |
+| drop: cursor | cursor, an http handler | `cursor drops an http handler, and warns` |
+| drop: copilot | copilot-cli, an agent handler | `copilot-cli drops an unsupported handler from its derived namespace file` |
+| emptied event | codex, an event with only a prompt handler | `an event left with no runnable handler is omitted from the derived file` |
+| emptied file | codex, only an http handler | `a hooks file with nothing left is not written and the hooks field is omitted` |
+| inline | cursor, hooks declared inline | `inline hooks in the manifest are translated too` |
+| dry run | cursor, `--dry-run` | `--dry-run derives no hooks file` |
+
+### MCP invocation pinning and delivery
+
+| Edge | Path (Given) | Scenario |
+|---|---|---|
+| pin | a marked `npx -y <pkg>` entry | `a marked mcpServers entry is pinned to the manifest version` |
+| strip marker | a marked entry | `the marker is stripped from the derived manifest` |
+| unmarked | no marker | `an unmarked entry is left alone` |
+| unrelated | an unmarked entry beside a marked one | `an unrelated invocation beside a marked one is not stamped` |
+| scoped | a marked `@scope/pkg` entry | `a scoped package name keeps its scope when pinned` |
+| overwrite | a marked entry pinned to another version | `an already-pinned specifier is overwritten with a warning` |
+| same version | a marked entry already at the manifest version | `a specifier already at the manifest version is rewritten without a warning` |
+| no runner flag | a marked entry with no `-y` | `an args list carrying no runner flag is pinned at its first argument` |
+| upx | a marked entry running `upx` | `a marked entry running upx is pinned too` |
+| guard: runner | a marked entry running `node` | `a marked entry whose command is not a package runner warns and is left alone` |
+| guard: version | a marked entry, no manifest `version` | `a marked entry cannot be pinned when the manifest carries no version` |
+| guard: specifier | a marked entry whose `args` is only `-y` | `a marked entry with no package specifier in args warns and is left alone` |
+| path delivery | `mcpServers` by path, an entry marked | `a path declaration with a marked entry gets a derived mcp file and is repointed` |
+| path, unmarked | `mcpServers` by path, nothing marked | `a path declaration with nothing marked derives no mcp file and keeps pointing at the authored one` |
+| dry run | `mcpServers` by path, `--dry-run` | `--dry-run derives no mcp file` |
+| copilot | copilot-cli, a marked entry | `copilot-cli is warned that a marked entry is not pinned for it` |
+
+### The Copilot spec-mode namespace
+
+| Edge | Path (Given) | Scenario |
+|---|---|---|
+| copy | `agents`, `commands`, `rules` declared | `declared agents, commands, and rules are copied under the namespace` |
+| rename | `agents/reviewer.md` | `a copied agent is renamed to the .agent.md convention` |
+| keep name | `agents/reviewer.agent.md` | `an agent already named .agent.md keeps its name` |
+| array | `agents` as a path array | `a component path array is resolved across every declared directory` |
+| paths object | `agents` as `{ paths }` | `a component paths object is resolved across every declared directory` |
+| commands only | only `commands` declared | `a commands-only plugin is reported as built` |
+| rules only | only `rules` declared | `a rules-only plugin is reported as built` |
+| default | no `agents` declared, `agents/` present | `the schema default is read when the field is absent` |
+| declared missing | `agents` declared, no directory | `a declared component directory that does not exist is warned about` |
+| default missing | none declared, none present | `an absent default directory is not warned about` |
+| bad form | `agents` as a number | `a component declaration in none of the three forms warns and copies nothing` |
+| suffix | nothing derived | `the aggregate names the vendors the canonical manifest serves` |
+| no suffix | agents derived | `the aggregate omits the suffix when copilot-cli derives its components` |
+| built row | agents derived | `the vendor is reported as built at the namespace directory` |
+| hooks | a command handler | `hooks are translated to the fixed spec-mode path` |
+| lsp path | `lspServers` as a path string | `a declared lspServers path is copied to the namespace lsp.json` |
+| lsp paths object | `lspServers` as `{ paths }` | `an lspServers paths object is resolved to the namespace lsp.json` |
+| lsp inline | `lspServers` inline | `an inline lspServers map warns rather than guessing the file shape` |
+| not moved | `skills` and `mcpServers` declared | `skills and mcp.json are not copied into the namespace` |
+| extensions | an authored `extensions/` only | `an authored extensions directory is passed through untouched` |
+| clean | a stale derived agent, `--clean` | `--clean replaces the derived tree but leaves authored extensions` |
+| dry run | agents declared, `--dry-run` | `--dry-run derives no namespace files` |
+
+### `--vendor` filters
+
+| Edge | Path (Given) | Scenario |
+|---|---|---|
+| narrow | `--vendor` among the targets | `--vendor filters to a single vendor` |
+| guard: not a target | `--vendor` not among the targets | `--vendor not among the targets fails` |
+
+### Unknown vendors and the definitive empty state
+
+| Edge | Path (Given) | Scenario |
+|---|---|---|
+| empty | no `harnesses`, no `vendors` | `no targets declared is a definitive empty state` |
+| empty next step | same, no pre-0.6 signal | `the definitive empty state names doctor as the next step` |
+| unknown vendor | `harnesses` carries `acme` | `unknown vendor in harnesses is warned and skipped` |
+
+### Eager validation
+
+| Edge | Path (Given) | Scenario |
+|---|---|---|
+| guard: no manifest | no root `plugin.json` | `missing plugin.json fails` |
+| guard: codex fields | codex, no `description` or `version` | `codex vendor requires description and version` |
+
+### A declaration this CLI no longer reads
+
+| Edge | Path (Given) | Scenario |
+|---|---|---|
+| vendorExtensions | top-level `vendorExtensions`, zero targets | `a pre-0.6 vendorExtensions block that derives nothing fails loud` |
+| shadowing manifest | `.plugin/plugin.json`, zero targets | `a shadowing .plugin/plugin.json that derives nothing fails loud` |
+| still derives | `.plugin/plugin.json`, a declared harness | `a pre-0.6 signal beside harnesses that still derive is not a build failure` |
+
+### `--dry-run` / `--clean`
+
+| Edge | Path (Given) | Scenario |
+|---|---|---|
+| dry run | `--dry-run` | `--dry-run skips file writes` |
+| clean | an earlier build's manifest, `--clean` | `--clean removes existing output before writing` |
+
+### AXI output contract
+
+| Edge | Path (Given) | Scenario |
+|---|---|---|
+| TOON result | success, no `--format` | `a successful build prints a TOON result with per-vendor status and aggregate` |
+| JSON result | `--format json` | `--format json returns a structured build result` |
+| explicit TOON | `--format toon` | `--format toon names the default explicitly` |
+| next step: doctor | no catalog refreshed | `a successful build ends with a next-step suggestion` |
+| next step: catalog | a catalog refreshed from a workspace package | `a build that refreshed a catalog names marketplace validate as the next step` |
+| no prompts | any run | `build never prompts interactively` |
+| guard: unknown flag | `--frobnicate` | `an unknown flag fails loud` |
+
+### Repository catalog refresh
+
+| Edge | Path (Given) | Scenario |
+|---|---|---|
+| refresh | a catalog listing this plugin at an older version | `the entry for this plugin is re-derived in an existing repository catalog` |
+| keep source | the entry has an npm source | `a refresh keeps an entry's npm source` |
+| no create | no catalog in the repository | `a catalog the repository does not carry is not created` |
+| built vendors only | two catalogs, `--vendor codex` | `only the vendors being built are refreshed` |
+| dry run | an out-of-date entry, `--dry-run` | `--dry-run plans the refresh and writes nothing` |
+
+### Dependencies against the refreshed catalogs
+
+| Edge | Path (Given) | Scenario |
+|---|---|---|
+| unlisted | a bare dependency the catalog does not list | `a bare dependency the catalog does not list warns and names both fixes` |
+| strict | same, `--strict-dependencies` | `--strict-dependencies fails on a dependency the catalog cannot resolve` |
+| own marketplace | qualified with the catalog's own name | `a dependency qualified with the catalog's own name is not held to its listing` |
+| cross marketplace | qualified with another marketplace | `a dependency qualified with another marketplace needs that marketplace allowed` |
+| sourced | an object carrying `source` | `a dependency that names its source is listed in the catalog` |
+| unsourced | a bare name | `a dependency without a source is never added to the catalog` |
+| not read | codex, which reads no dependency | `a catalog of a runtime that reads no dependency is not checked` |
+
+### The build copies no governance
+
+| Edge | Path (Given) | Scenario |
+|---|---|---|
+| left alone | a committed `references/governances/` file | `the build leaves a skill's references/governances/ folder as it is` |
+| guard: `--check` | `--check` | `--check is no longer a flag` |
+
+### Print the command reference
+
+| Edge | Path (Given) | Scenario |
+|---|---|---|
+| help | `--help` | `--help prints a concise reference` |
+
+## References
+
+- ADR-0007 (this project) — the canonical manifest and the target set (`vendors ?? harnesses` keys).
+- ADR-0010 (this project) — the version policy: the MCP pin (§1) and the catalog entry's derived
+  version (§3).
+- ADR-0011 (this project) — hook translation, and warning on and dropping a handler a vendor cannot run.
+- ADR-0014 (this project) — the build refreshes the repository-local catalogs.
+- ADR-0015 (this project) — Copilot CLI's spec-mode namespace.
+- ADR-0017 (this project) — governance retired for the `reference` skill; the build copies none.
+- ADR-0018 (this project) — dependencies checked against the catalogs the build refreshes.
