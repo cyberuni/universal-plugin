@@ -1,5 +1,11 @@
 # universal-plugin
 
+## 0.12.2
+
+### Patch Changes
+
+- d3650b6: Fix stale and dangling references in the shipped skills and the agentskills-specialist agent: point skills at `doctor-universal-plugin`, link ADRs by URL, state current rules instead of migration-relative ones, and drop the project-specific commit and memory rules from the agent.
+
 ## 0.12.1
 
 ### Patch Changes
