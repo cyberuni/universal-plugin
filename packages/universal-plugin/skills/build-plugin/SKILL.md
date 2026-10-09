@@ -111,7 +111,7 @@ Validation runs before the first write, so a failed build leaves the tree untouc
 | a missing `plugin.json` | `--root` is not the plugin root | point `--root` at the directory holding the canonical manifest |
 | codex requires `description` / `version` | Codex rejects a manifest without them | add them to `plugin.json` through `init-universal-plugin`, or `version` for the number |
 | a `--vendor` not among the targets | the manifest does not declare that vendor | declare it through `init-universal-plugin`, or drop the flag |
-| `vendorExtensions` or `.plugin/plugin.json` | a pre-0.6 layout this CLI no longer reads | run `doctor-universal-plugin`, which names the migration |
+| `vendorExtensions` or `.plugin/plugin.json` | a layout this CLI does not read | run `doctor-universal-plugin`, which names the migration |
 
 ## Do not
 
@@ -123,8 +123,8 @@ Validation runs before the first write, so a failed build leaves the tree untouc
 - **Expect a build to pin skill `npx` references.** That is the release-time `plugin bundle`, not
   this step.
 - **Expect a build to copy governances into skills.** A skill loads a reference through the
-  `reference` skill in the `cyber-agent-harness` plugin; the build no longer copies them, and
-  `--check` is gone.
+  `reference` skill in the `cyber-agent-harness` plugin; the build does not copy them and has no
+  `--check` flag.
 
 ## Related skills
 

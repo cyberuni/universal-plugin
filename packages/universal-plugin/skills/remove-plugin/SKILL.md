@@ -83,5 +83,5 @@ this skill does.
 | Task | Skill |
 |------|-------|
 | Remove a vendor from what the plugin declares | `init-universal-plugin`, update route |
-| Confirm what is stale, shadowing, or unbuilt before deleting | `doctor` |
+| Confirm what is stale, shadowing, or unbuilt before deleting | `doctor-universal-plugin` |
 | Take a published plugin out of a marketplace listing | `publish-plugin` |

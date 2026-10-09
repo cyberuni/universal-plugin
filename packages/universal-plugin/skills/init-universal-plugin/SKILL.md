@@ -18,7 +18,7 @@ That asymmetry does not extend to components. Declaring the canonical `$schema` 
 Open Plugin Spec mode, and Copilot CLI then reads its **native** components — agents, commands,
 rules, hooks, LSP servers — from a `com.github.copilot/` directory rather than the plugin root.
 Authoring still happens at the canonical locations: `plugin build` derives that directory
-([ADR-0015](../../.agents/spec/design/decisions/0015-copilot-spec-mode-namespace.md)), so do not tell
+([ADR-0015](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/design/decisions/0015-copilot-spec-mode-namespace.md)), so do not tell
 an author to move `agents/` into it — the root copy is what the other three vendors derive from. See
 [`references/vendors/copilot-cli.md`](./references/vendors/copilot-cli.md).
 
@@ -30,7 +30,7 @@ runtime you are enabling, and only those.
 | Claude Code | `.claude-plugin/plugin.json` | none | `references/vendors/claude-code.md` |
 | Cursor | `.cursor-plugin/plugin.json` | none | `references/vendors/cursor.md` |
 | Codex | `.codex-plugin/plugin.json` | `version`, `description` | `references/vendors/codex.md` |
-| GitHub Copilot CLI | none — reads root `plugin.json` | native components derived under `com.github.copilot/` ([ADR-0015](../../.agents/spec/design/decisions/0015-copilot-spec-mode-namespace.md)) | `references/vendors/copilot-cli.md` |
+| GitHub Copilot CLI | none — reads root `plugin.json` | native components derived under `com.github.copilot/` ([ADR-0015](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/design/decisions/0015-copilot-spec-mode-namespace.md)) | `references/vendors/copilot-cli.md` |
 
 This skill owns the **authoring** side: the plugin a project ships. Setting a repository up to
 *consume* skills — the `.agents/skills/` layout, `AGENTS.md`, per-harness bridges — is
@@ -127,7 +127,7 @@ Route by what Phase 2 found. Read exactly the reference for the work at hand —
 | canonical, and a vendor or component changes | edit `extensions`, then rebuild | [`references/update.md`](./references/update.md) |
 
 Three asks leave this skill rather than routing inside it. Hand them over instead of improvising a
-route: **`doctor`** reports what is declared, built, stale, or drifting; **`version`** moves the
+route: **`doctor-universal-plugin`** reports what is declared, built, stale, or drifting; **`version`** moves the
 number; **`remove-plugin`** deletes derived manifests or the plugin itself.
 
 Every route ends in the same two commands. Scaffold with the CLI that shipped beside this skill:
@@ -193,7 +193,7 @@ that vendor's `harnesses` entry, or to the drop list you reported in Phase 3, be
 
 Audit each skill the plugin ships, per [`references/create.md`](./references/create.md) Step 6.
 Report what was created, adopted, derived, and left alone. For a fuller read of the plugin's state
-than this phase gives — drift, version skew, shadowing manifests — hand off to `doctor`.
+than this phase gives — drift, version skew, shadowing manifests — hand off to `doctor-universal-plugin`.
 
 This skill is not a formatter. If the project has one, run it over the written files and say so.
 
@@ -221,7 +221,7 @@ This skill is not a formatter. If the project has one, run it over the written f
 
 | Task | Skill |
 |------|-------|
-| Diagnose a plugin — what is declared, built, stale, or drifting | `doctor` |
+| Diagnose a plugin — what is declared, built, stale, or drifting | `doctor-universal-plugin` |
 | Make the repository installable, and document how | `marketplace` |
 | Move the plugin's version, or reconcile one that drifted | `version` |
 | Delete derived manifests, or the whole plugin | `remove-plugin` |

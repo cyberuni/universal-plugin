@@ -85,7 +85,7 @@ Copilot CLI. The reverse does not hold: Claude Code rejects the Codex catalog fo
 | Task | Skill |
 |------|-------|
 | Create or change the plugin being listed | `init-universal-plugin` |
-| Check that the plugin's own manifests are current | `doctor` |
+| Check that the plugin's own manifests are current | `doctor-universal-plugin` |
 | Move the version users will install | `version` |
 | Submit to the shared marketplace repository instead | `publish-plugin` |
 

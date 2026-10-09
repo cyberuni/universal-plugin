@@ -115,7 +115,7 @@ Every guard resolves before the first write, so a failed run leaves the tree unt
 |------|-------|
 | Create, adopt, or change what the plugin declares | `init-universal-plugin` |
 | Re-derive the vendor manifests by hand | `build-plugin` |
-| Check whether the two authored versions agree | `doctor` |
+| Check whether the two authored versions agree | `doctor-universal-plugin` |
 | Add a changeset for the change being released | `add-changeset` |
 | Refresh the repository's own marketplace catalogs after a bump | `marketplace` |
 | List the released plugin in the shared marketplace | `publish-plugin` |
