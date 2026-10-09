@@ -58,7 +58,7 @@ to derive. Never report it as a fault.
 A plugin that **does** declare those reports `copilot-cli` as `built` at `com.github.copilot/`
 instead. Declaring the canonical `$schema` moves them there: Copilot CLI stops reading them from the
 plugin root entirely, so a root-only layout loads none of them and says nothing
-([ADR-0015](../../.agents/spec/design/decisions/0015-copilot-spec-mode-namespace.md)). That is what
+([ADR-0015](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/design/decisions/0015-copilot-spec-mode-namespace.md)). That is what
 `copilot-root-components` reports.
 
 If `node` is unavailable, read `scripts/doctor.mjs` and apply the same checks by hand: it composes
@@ -85,7 +85,7 @@ Each `code` below is what the script emits.
 | `copilot-root-components` | agents, commands, rules, hooks, or LSP servers sit at the plugin root with no copy under `com.github.copilot/` — Copilot CLI reads them only from there in spec mode, so it loads none of them, silently | `/universal-plugin:build-plugin` |
 | `stale-github-plugin` | a leftover `.github/plugin/plugin.json` from an older build — shadowed by root and no longer generated | `/universal-plugin:remove-plugin` |
 | `shadowing-manifest` | a `.plugin/plugin.json` exists — it outranks root in Copilot CLI's search order and silently shadows the canonical manifest | `/universal-plugin:remove-plugin` |
-| `no-vendors` | no vendor is declared, so the build writes nothing and no runtime reads the plugin. On a repository still on the pre-0.6 layout the build stops rather than reporting an empty result, and the detail says so — read it beside `legacy-manifest` and `shadowing-manifest`, which name the signals | `/universal-plugin:init-universal-plugin`, adopt route on the pre-0.6 layout, else update route |
+| `no-vendors` | no vendor is declared, so the build writes nothing and no runtime reads the plugin. When the repository carries `vendorExtensions` or a `.plugin/plugin.json`, the build stops rather than reporting an empty result, and the detail says so — read it beside `legacy-manifest` and `shadowing-manifest`, which name the signals | `/universal-plugin:init-universal-plugin`, adopt route when `vendorExtensions` or `.plugin/plugin.json` is present, else update route |
 | `package-path-missing` | `packagePath` names a directory with no readable `package.json` | fix `packagePath`, or create the package |
 | `package-path-unknown` | the CLI could not report `packagePath` (a version too old to read it), so `version-drift` and `unreleased-content` were skipped rather than guessed | upgrade universal-plugin |
 | `misplaced-package-path` | `plugin.json` declares `packagePath` under `extensions["org.cyberuni.universal-plugin"]`, where the CLI never reads it — the plugin is silently treated as not shipping to npm | move it to `.agents/universal-plugin.json`, relative to the plugin root |
@@ -150,7 +150,7 @@ other.
 A runtime keys its plugin cache on the version, not on content: Claude Code resolves the version,
 finds it unchanged, and reports *"already at the latest version"* without re-extracting. So content
 pushed without a bump reaches nobody who already installed the plugin, and neither side is told
-([ADR-0010](../../.agents/spec/design/decisions/0010-version-policy.md) §6).
+([ADR-0010](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/design/decisions/0010-version-policy.md) §6).
 
 The script compares the shipped paths — the canonical manifest, the skills directory, `agents/`,
 `governances/`, `references/`, `mcp.json` — against the commit that set the version the manifest carries now, and
@@ -158,7 +158,7 @@ emits `unreleased-content` for anything committed since. Uncommitted work is not
 shipped.
 
 Two cases are deliberately silent. A plugin that declares `packagePath` is skipped, because there the
-release picks the number (ADR-0010 §2) and content waiting ahead of the last released version is the
+release picks the number ([ADR-0010](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/design/decisions/0010-version-policy.md) §2) and content waiting ahead of the last released version is the
 normal state of a branch. A tree with no git history is skipped rather than guessed at.
 
 The repair is the bump, and it belongs to `/universal-plugin:version`. Judge first whether the change
