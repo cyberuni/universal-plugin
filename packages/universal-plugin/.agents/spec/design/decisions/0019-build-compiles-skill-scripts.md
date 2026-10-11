@@ -63,6 +63,13 @@ So a script a skill runs has to be one file that reaches back into nothing.
    version of a compiled script as a `compiled-script` surface, and skips the `npx` pins its inlined
    code may carry. The build's `stale` excludes a difference in the version alone. A script behind on
    its version is `version-drift`; a script behind its source is `stale-script`.
+9. **universal-plugin's own skill scripts are compiled entries too** ([#182](https://github.com/cyberuni/universal-plugin/issues/182)).
+   Their sources live in `src/skill-scripts/`. The scripts that stand alone (`doctor`, `rewrite-upx`,
+   `install-docs`) compile in full. The six that run a CLI command (`plugin build`, `plugin init`,
+   `plugin version`, `marketplace add`, `marketplace init`, `marketplace validate`) share one entry,
+   `run-cli`, declared once per command: the full CLI is over the budget, so the compiled file looks up
+   its command in the embedded map and calls the installed CLI (`pnpm exec <bin>`), else the `npx`
+   fallback pinned to the embedded version. Neither looks beside itself for the package.
 
 ## Alternatives considered
 

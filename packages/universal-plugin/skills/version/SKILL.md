@@ -73,9 +73,9 @@ node scripts/version.mjs <bump-or-number>
 node scripts/version.mjs --from-package
 ```
 
-Resolve that path against this skill's own directory; it runs the CLI that shipped beside it, so
-nothing is downloaded. `universal-plugin plugin version` on the `PATH`, or `npx universal-plugin
-plugin version`, is the fallback. The command never prompts, so it is safe to run unattended once the
+Resolve that path against this skill's own directory; it runs the project's installed CLI
+(`pnpm exec universal-plugin`), else `npx universal-plugin@<version>` pinned to this skill's version.
+`universal-plugin plugin version` on the `PATH` is the fallback. The command never prompts, so it is safe to run unattended once the
 source is decided.
 
 | `<bump>` | From `1.2.3` you get |
