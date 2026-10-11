@@ -75,6 +75,16 @@ if (manifest === null) {
 	report({ vendors: [] })
 }
 
+/** The canonical $schema is hosted on agent-plugins.org; a URL that merely mentions the name is not. */
+function isAgentPluginsSchema(schema: unknown): boolean {
+	if (typeof schema !== 'string') return false
+	try {
+		return new URL(schema).hostname === 'agent-plugins.org'
+	} catch {
+		return false
+	}
+}
+
 const ext = manifest.extensions?.[UP_NAMESPACE] ?? null
 
 // The universal-plugin CLI, as the project installed it (`pnpm exec`), else pinned to this skill's version. Every question the CLI can answer is asked
@@ -103,7 +113,7 @@ if (ext !== null && Object.hasOwn(ext, 'packagePath')) {
 		'move packagePath to .agents/universal-plugin.json, relative to the plugin root',
 	)
 }
-if (!manifest.$schema?.includes('agent-plugins.org') || ext === null) {
+if (!isAgentPluginsSchema(manifest.$schema) || ext === null) {
 	add(
 		'legacy-manifest',
 		'high',

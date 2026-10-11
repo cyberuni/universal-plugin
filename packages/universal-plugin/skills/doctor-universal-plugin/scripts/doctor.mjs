@@ -85,12 +85,21 @@ if (manifest === null) {
 	else add("no-manifest", "high", "no root plugin.json — this is not a plugin yet", "/universal-plugin:init-universal-plugin");
 	report({ vendors: [] });
 }
+/** The canonical $schema is hosted on agent-plugins.org; a URL that merely mentions the name is not. */
+function isAgentPluginsSchema(schema) {
+	if (typeof schema !== "string") return false;
+	try {
+		return new URL(schema).hostname === "agent-plugins.org";
+	} catch {
+		return false;
+	}
+}
 const ext = manifest.extensions?.[UP_NAMESPACE] ?? null;
 const runCli = (...args) => runCli$1(args);
 const packagePath = readPackagePath();
 if (packagePath === void 0) add("package-path-unknown", "low", "the CLI could not report packagePath, so version-drift and unreleased-content were not checked", "upgrade universal-plugin");
 if (ext !== null && Object.hasOwn(ext, "packagePath")) add("misplaced-package-path", "high", `plugin.json declares extensions["${UP_NAMESPACE}"].packagePath, which the CLI never reads${packagePath === null ? " — this plugin is treated as not shipping to npm" : ""}`, "move packagePath to .agents/universal-plugin.json, relative to the plugin root");
-if (!manifest.$schema?.includes("agent-plugins.org") || ext === null) add("legacy-manifest", "high", "root plugin.json carries no $schema on agent-plugins.org or no extensions block", "/universal-plugin:init-universal-plugin, adopt route");
+if (!isAgentPluginsSchema(manifest.$schema) || ext === null) add("legacy-manifest", "high", "root plugin.json carries no $schema on agent-plugins.org or no extensions block", "/universal-plugin:init-universal-plugin, adopt route");
 if (fs.existsSync(path.join(root, ".plugin/plugin.json"))) add("shadowing-manifest", "high", ".plugin/plugin.json outranks root and is read instead of the canonical manifest", "/universal-plugin:remove-plugin");
 if (fs.existsSync(path.join(root, ".github/plugin/plugin.json"))) add("stale-github-plugin", "low", ".github/plugin/plugin.json is a leftover from an older build and is no longer generated", "/universal-plugin:remove-plugin");
 const COPILOT_NAMESPACE = "com.github.copilot";
