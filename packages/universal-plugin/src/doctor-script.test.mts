@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
-import { afterEach, beforeEach, expect, test } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, expect, test } from 'vitest'
 
 /** The `doctor` skill's script is the home of the ADR-0010 §6 check: a runtime keys its plugin cache
  *  on the version, so content committed after the commit that set the current one never reaches a
@@ -10,6 +10,26 @@ import { afterEach, beforeEach, expect, test } from 'vitest'
 const doctor = path.resolve('skills/doctor-universal-plugin/scripts/doctor.mjs')
 
 let root: string
+
+/** The doctor script asks the CLI through `pnpm exec universal-plugin`, because a compiled skill script
+ *  carries no CLI beside it. A shim named `pnpm` stands in for the project's install: it runs this
+ *  checkout's built CLI. */
+const originalPath = process.env.PATH
+let shimDir: string
+beforeAll(() => {
+	shimDir = fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-pnpm-shim-'))
+	const cli = path.resolve('bin/universal-plugin.mjs')
+	fs.writeFileSync(
+		path.join(shimDir, 'pnpm'),
+		`#!/bin/sh\n[ "$1" = exec ] && [ "$2" = universal-plugin ] || exit 1\nshift 2\nexec node ${cli} "$@"\n`,
+		{ mode: 0o755 },
+	)
+	process.env.PATH = `${shimDir}${path.delimiter}${originalPath}`
+})
+afterAll(() => {
+	process.env.PATH = originalPath
+	fs.rmSync(shimDir, { recursive: true, force: true })
+})
 
 beforeEach(() => {
 	root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-doctor-')))
@@ -474,6 +494,8 @@ test('a copied doctor script with no CLI beside it runs the pinned npx fallback'
 	fs.mkdirSync(bin)
 	const log = path.join(root, 'npx.log')
 	fs.writeFileSync(path.join(bin, 'npx'), `#!/bin/sh\necho "$@" >> ${log}\nexit 1\n`, { mode: 0o755 })
+	// The project has no installed CLI either: `pnpm exec` finds nothing.
+	fs.writeFileSync(path.join(bin, 'pnpm'), '#!/bin/sh\nexit 1\n', { mode: 0o755 })
 	writeManifest('1.0.0')
 	spawnSync('node', [copy, '--root', root], {
 		encoding: 'utf8',
