@@ -1584,3 +1584,16 @@ describe('buildPlugin — links that leave the skill folder (#177)', () => {
 		expect(linkWarnings[0]).toContain('skills/demo/SKILL.md:5 links to "../../readme.md"')
 	})
 })
+
+describe('buildPlugin — script entries (#177)', () => {
+	it('never writes the scripts declaration into a derived manifest', () => {
+		writeManifest({
+			name: 'p',
+			version: '1.0.0',
+			extensions: up({ vendors: ['claude-code'], scripts: { 'skills/a/scripts/a.mjs': 'src/a.ts' } }),
+		})
+		buildPlugin(dir)
+		const derived = JSON.parse(fs.readFileSync(path.join(dir, '.claude-plugin/plugin.json'), 'utf8'))
+		expect(derived).not.toHaveProperty('scripts')
+	})
+})

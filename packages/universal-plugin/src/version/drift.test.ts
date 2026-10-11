@@ -235,3 +235,36 @@ describe('checkVersionDrift — unstamped places (semantic-release)', () => {
 		expect(result.unstamped.map((s) => s.path)).toEqual(['.claude-plugin/plugin.json'])
 	})
 })
+
+describe('checkVersionDrift — compiled skill scripts (#177)', () => {
+	const compiled = (version: string, body = 'run()') =>
+		`// Compiled by \`universal-plugin plugin build\` from src/a.ts. Edit the source, not this file.\nglobalThis.__SKILL_SCRIPT__ = ${JSON.stringify({ package: 'my-plugin-cli', bin: null, version, entry: 'skills/a/scripts/a.mjs', commands: {} })};\n${body}\n`
+
+	it('names a compiled script whose embedded version is behind', () => {
+		const result = checkVersionDrift(
+			state({ ...npm, skillFiles: [{ path: 'skills/a/scripts/a.mjs', content: compiled('1.0.0') }] }),
+		)
+		expect(result.drifted).toEqual([{ path: 'skills/a/scripts/a.mjs', kind: 'compiled-script', version: '1.0.0' }])
+	})
+
+	it('a compiled script on the version is not drift', () => {
+		expect(
+			drifted(state({ ...npm, skillFiles: [{ path: 'skills/a/scripts/a.mjs', content: compiled('1.2.3') }] })),
+		).toEqual([])
+	})
+
+	it('reports a compiled script once, by its header, never by a pin its source inlines', () => {
+		const content = compiled('1.0.0', "spawn('npx my-plugin-cli@0.9.0 go')")
+		expect(
+			checkVersionDrift(state({ ...npm, skillFiles: [{ path: 'skills/a/scripts/a.mjs', content }] })).drifted,
+		).toEqual([{ path: 'skills/a/scripts/a.mjs', kind: 'compiled-script', version: '1.0.0' }])
+	})
+
+	it('still reads the pin of a hand-written script', () => {
+		expect(
+			drifted(
+				state({ ...npm, skillFiles: [{ path: 'skills/a/scripts/a.mjs', content: "'npx my-plugin-cli@1.0.0'" }] }),
+			),
+		).toEqual(['skills/a/scripts/a.mjs'])
+	})
+})

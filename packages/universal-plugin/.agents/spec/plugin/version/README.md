@@ -153,7 +153,11 @@ missed sync fails the release PR rather than the published package.
   the manifest's skills path pinning the package (`npx`/`upx <package>@<version>`, either `-y` or
   `--yes`); and each `mcpServers` entry marked `pinToPluginVersion` (kind `mcp-pin`). Pins are read
   with the stamper's reader and skip what it skips: a pin-exempt skill, and a pin that is not a
-  version (`<version>`, `latest`, a range).
+  version (`<version>`, `latest`, a range). A compiled skill script
+  ([ADR-0019](../../design/decisions/0019-build-compiles-skill-scripts.md)) is compared by the version
+  its header embeds (kind `compiled-script`), and only by that: a pin its inlined code carries is not
+  a second surface, and a script whose source moved on is `plugin build`'s `stale` report, not drift.
+  One file is never reported twice.
 - **Unstamped, not drifted.** A place holding `0.0.0-development` is reported in a separate
   `unstamped` list and never as drift: a semantic-release repo commits the placeholder, and the
   release stamps it. `check-version` prints `<path> is unstamped (0.0.0-development) — the release
@@ -410,6 +414,7 @@ Grouped by concern; 1:1 with [`version.feature`](./version.feature).
 | manifest only | manifest source, vendor behind | `a vendor manifest left behind points at plugin build` |
 | disagree | package and manifest differ | `a package and manifest that disagree point at the version skill` |
 | not a version | pins `<version>` and `latest` | `a pin that is not a version is not compared` |
+| compiled script | a compiled script's embedded version behind | `a compiled script behind on its version is drift, reported once` |
 | guard: no manifest | empty root | `check-version fails loud without a canonical manifest` |
 
 ### Deprecated aliases

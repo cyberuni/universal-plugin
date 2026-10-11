@@ -54,6 +54,7 @@
 		"@repobuddy/upx": "^0.2.0",
 		"@toon-format/toon": "^4.1.1",
 		"commander": "^15.0.0",
+		"rolldown": "^1.2.11",
 		"semver": "^7.8.1"
 	},
 	"devDependencies": {

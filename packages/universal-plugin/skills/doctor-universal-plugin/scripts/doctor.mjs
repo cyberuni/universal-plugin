@@ -235,8 +235,25 @@ if (build === null) {
 			add('stale', 'medium', `${row.path} is older than plugin.json`, 'universal-plugin plugin build')
 		}
 	}
+	// A compiled skill script whose source moved on (issue #177). One that differs only in its embedded
+	// version is left to version-drift below, so one file is never reported twice.
+	for (const row of build.scripts ?? []) {
+		if (row.status !== 'stale' && row.status !== 'missing') continue
+		add(
+			'stale-script',
+			'medium',
+			row.status === 'missing'
+				? `${row.path} is declared but not compiled from ${row.source}`
+				: `${row.path} is behind its source ${row.source}`,
+			'universal-plugin plugin build, then commit the compiled script',
+		)
+	}
 	for (const warning of build.warnings ?? []) {
-		if (/not delivered/.test(warning)) {
+		if (/^Failed to compile /.test(warning)) {
+			add('script-compile-failed', 'high', warning, 'fix the entry so every import resolves, then plugin build')
+		} else if (/budget for a compiled skill script/.test(warning)) {
+			add('script-over-budget', 'low', warning, 'have the skill call the installed CLI instead of compiling it in')
+		} else if (/not delivered/.test(warning)) {
 			add('undeliverable-override', 'medium', warning, '/universal-plugin:init-universal-plugin, update route')
 		} else if (/No vendors declared/.test(warning)) {
 			add(

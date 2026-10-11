@@ -157,6 +157,8 @@ export interface UniversalPluginExtension {
 	/** Plugins this plugin needs. Canonical here because the runtimes that read one disagree on
 	 *  whether they read one at all — the build delivers it per vendor (ADR-0013). */
 	dependencies?: DependencyDeclaration[]
+	/** Skill script entries `plugin build` compiles, output path → source (issue #177). */
+	scripts?: unknown
 	skills?: unknown
 	[key: string]: unknown
 }
@@ -349,6 +351,8 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 		packagePath: _packagePath,
 		harnesses: _harnesses,
 		dependencies: declaredDependencies,
+		// Compiled by `compileScripts`, after the manifests: an entry map is not a component a vendor reads.
+		scripts: _scripts,
 		...componentConfig
 	} = uext
 	// A declaration the runtime accepts and then discards is an invisible loss, and it is one loss to

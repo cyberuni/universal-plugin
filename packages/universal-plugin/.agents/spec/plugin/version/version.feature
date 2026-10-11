@@ -467,6 +467,13 @@ Feature: plugin version — move the plugin's version, and keep every version-ca
     Then the exit code is 1
     And stderr ends with "/universal-plugin:version"
 
+  Scenario: a compiled script behind on its version is drift, reported once
+    Given "packagePath" names a package at "0.9.0"
+    And a compiled skill script embeds version "0.8.0" and its inlined code pins the package at "0.7.0"
+    When I run "universal-plugin publish check-version --root <root>"
+    Then the exit code is 1
+    And the script is reported once, with version "0.8.0" and kind "compiled-script"
+
   Scenario: check-version fails loud without a canonical manifest
     Given an empty root
     When I run "universal-plugin publish check-version --root <root>"

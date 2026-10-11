@@ -11,11 +11,20 @@
  *  the real number — is reported as unstamped, not as drift (issue #179). */
 
 import * as semver from 'semver'
+
+import { embeddedData } from '../compile/scripts.js'
 import { extractPins, markedMcpVersions } from '../pin/pin.js'
 import { isPinExempt } from '../pin/stamp.js'
 import { currentVersion, joinRelative, UNSTAMPED_VERSION } from './version.js'
 
-export type DriftKind = 'package' | 'manifest' | 'vendor-manifest' | 'catalog' | 'skill-pin' | 'mcp-pin'
+export type DriftKind =
+	| 'package'
+	| 'manifest'
+	| 'vendor-manifest'
+	| 'catalog'
+	| 'skill-pin'
+	| 'mcp-pin'
+	| 'compiled-script'
 
 /** One file and the version it carries. `version` is `null` only for the canonical manifest, which
  *  drifts by carrying no version at all while the package it ships in has one. */
@@ -98,6 +107,13 @@ export function checkVersionDrift(state: DriftState): DriftResult {
 	const packageName = state.packageJson === null ? null : stringField(state.packageJson, 'name')
 	if (packageName !== null) surfaces.push(...skillPins(state.skillFiles, packageName))
 
+	// A compiled skill script embeds the plugin version in its header (issue #177). Only that version
+	// is compared here; a script whose source moved on is `plugin build`'s stale report, not drift.
+	for (const file of state.skillFiles) {
+		const version = file.path.endsWith('.mjs') ? (embeddedData(file.content)?.version ?? null) : null
+		if (version !== null) surfaces.push({ path: file.path, kind: 'compiled-script', version })
+	}
+
 	for (const { path, servers } of state.mcpServers ?? []) {
 		for (const entry of markedMcpVersions(servers)) {
 			surfaces.push({ path, kind: 'mcp-pin', version: entry.version ?? null })
@@ -125,6 +141,8 @@ function skillPins(files: DriftFile[], packageName: string): VersionSurface[] {
 	const pins: VersionSurface[] = []
 	for (const file of files) {
 		if (exemptDirs.some((dir) => file.path.startsWith(dir))) continue
+		// A compiled script's version is the one in its header; a pin its source inlines is not another.
+		if (embeddedData(file.content) !== null) continue
 		const versions = new Set(
 			extractPins(file.content)
 				.filter((pin) => pin.pkg === packageName && semver.valid(pin.current) !== null)

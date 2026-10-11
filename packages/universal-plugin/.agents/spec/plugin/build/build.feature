@@ -849,6 +849,75 @@ Feature: plugin build — derive per-vendor manifests
     When I run "universal-plugin plugin build"
     Then the build reports no dependency issue
 
+  # ── Script entries compile into self-contained .mjs (ADR-0019) ──
+  # A skill linked or copied on its own (pnpm, a plugin cache) cannot reach back into its package, so
+  # each declared entry compiles into one file that imports nothing but Node built-ins.
+
+  Scenario: a script entry compiles into a self-contained .mjs in the skill
+    Given the manifest declares scripts { "skills/demo/scripts/a.mjs": "src/a.ts" }
+    And "src/a.ts" is TypeScript that imports only Node built-ins
+    When I run "universal-plugin plugin build --format json"
+    Then the exit code is 0
+    And "skills/demo/scripts/a.mjs" exists and carries no type annotation
+    And the result's scripts lists "skills/demo/scripts/a.mjs" with status "compiled"
+    And running "node skills/demo/scripts/a.mjs" from any directory succeeds
+
+  Scenario: a script entry's dependencies are inlined and minified
+    Given the manifest declares scripts { "skills/demo/scripts/a.mjs": "src/a.ts" }
+    And "src/a.ts" imports an installed package "tiny"
+    When I run "universal-plugin plugin build"
+    Then "skills/demo/scripts/a.mjs" imports nothing but Node built-ins
+    And its code is minified
+
+  Scenario: a compiled script embeds the package, bin, plugin version and command map
+    Given plugin.json carries version "1.2.3"
+    And packagePath names a package.json with name "@acme/demo", version "0.0.0-development" and bin "demo"
+    And the manifest declares scripts { "skills/demo/scripts/a.mjs": { "source": "src/a.ts", "command": "task get" } }
+    When I run "universal-plugin plugin build"
+    Then "skills/demo/scripts/a.mjs" assigns globalThis.__SKILL_SCRIPT__ = { "package": "@acme/demo", "bin": "demo", "version": "1.2.3", "entry": "skills/demo/scripts/a.mjs", "commands": { "task get": "skills/demo/scripts/a.mjs" } }
+
+  Scenario: the scripts declaration never reaches a derived manifest
+    Given the manifest declares harnesses for "claude-code" and scripts { "skills/demo/scripts/a.mjs": "src/a.ts" }
+    When I run "universal-plugin plugin build"
+    Then ".claude-plugin/plugin.json" has no "scripts" key
+
+  Scenario: --dry-run reports a current compiled script as unchanged
+    Given "skills/demo/scripts/a.mjs" was compiled and nothing has changed since
+    When I run "universal-plugin plugin build --dry-run --format json"
+    Then the result's scripts lists "skills/demo/scripts/a.mjs" with status "unchanged"
+
+  Scenario: --dry-run reports a compiled script behind its source as stale
+    Given "skills/demo/scripts/a.mjs" was compiled and "src/a.ts" has changed since
+    When I run "universal-plugin plugin build --dry-run --format json"
+    Then the result's scripts lists "skills/demo/scripts/a.mjs" with status "stale"
+    And "skills/demo/scripts/a.mjs" is unchanged
+
+  Scenario: --dry-run reports a compiled script behind only on its version as version
+    Given "skills/demo/scripts/a.mjs" was compiled at plugin version "1.0.0"
+    And plugin.json now carries version "1.1.0" and the source is unchanged
+    When I run "universal-plugin plugin build --dry-run --format json"
+    Then the result's scripts lists "skills/demo/scripts/a.mjs" with status "version"
+
+  Scenario: a script entry that cannot be made self-contained fails
+    Given the manifest declares harnesses for "claude-code" and scripts { "a.mjs": "src/a.ts" }
+    And "src/a.ts" imports "not-installed", which resolves nowhere
+    When I run "universal-plugin plugin build"
+    Then the exit code is 1
+    And stderr contains "Failed to compile src/a.ts"
+    And ".claude-plugin/plugin.json" is written
+
+  Scenario: a script entry whose source is missing fails
+    Given the manifest declares scripts { "a.mjs": "src/missing.ts" }
+    When I run "universal-plugin plugin build"
+    Then the exit code is 1
+    And stderr contains "script source \"src/missing.ts\" for a.mjs not found"
+
+  Scenario: a compiled script over the size budget warns
+    Given a script entry that compiles to more than 150 KB
+    When I run "universal-plugin plugin build"
+    Then the exit code is 0
+    And stderr contains a warning naming the size, the 150 KB budget, and "pnpm exec"
+
   # ── A skill's links stay inside its folder (issue #177) ──
   # pnpm links or copies each skill folder on its own, so a link that climbs out of it resolves to
   # nothing there.
