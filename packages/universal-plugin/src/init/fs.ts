@@ -2,12 +2,14 @@ import { execFileSync } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 
-import { detectIndent } from '../json.js'
+import { readEditorconfigIndent } from '../editorconfig/fs.js'
+import { formatJson } from '../json.js'
 import { gatherCatalogRepo } from '../marketplace/fs.js'
 import type { ChangesetsState, InitPlan, InitState, RepoState } from './init.js'
 
-/** Gathers the filesystem state `planInit` needs and applies the plan it returns. The manifest is
- *  written tab-indented (the repo default); `package.json` keeps its own indentation. */
+/** Gathers the filesystem state `planInit` needs and applies the plan it returns. Each JSON file is
+ *  written in its own format when it exists; a new one takes `.editorconfig`'s indentation, then a
+ *  tab (issue #164). */
 export interface InitFs {
 	gather(root: string): InitState
 	apply(root: string, plan: InitPlan): void
@@ -60,8 +62,8 @@ function gatherChangesets(root: string, repo: RepoState | undefined): Changesets
 }
 
 function writeJson(file: string, value: Record<string, unknown>): void {
-	const indent = detectIndent(fs.readFileSync(file, 'utf8'))
-	fs.writeFileSync(file, `${JSON.stringify(value, null, indent)}\n`)
+	const existing = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : undefined
+	fs.writeFileSync(file, formatJson(value, { existing, indent: readEditorconfigIndent(file) }))
 }
 
 export const realInitFs: InitFs = {
@@ -75,7 +77,7 @@ export const realInitFs: InitFs = {
 		}
 	},
 	apply(root, plan) {
-		fs.writeFileSync(manifestPath(root), `${JSON.stringify(plan.manifest, null, '\t')}\n`)
+		writeJson(manifestPath(root), plan.manifest)
 		for (const dir of plan.dirs) {
 			fs.mkdirSync(path.join(root, dir), { recursive: true })
 		}

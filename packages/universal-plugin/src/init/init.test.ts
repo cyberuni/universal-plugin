@@ -485,6 +485,32 @@ describe('realInitFs integration', () => {
 		expect(JSON.parse(fs.readFileSync(path.join(pluginRoot, 'plugin.json'), 'utf8')).version).toBe('0.8.0')
 	})
 
+	it('--npm leaves the package.json lines it does not change as the formatter wrote them', () => {
+		const original = '{\n\t"name": "p",\n\t"keywords": ["a", "b"],\n\t"files": ["dist"]\n}\n'
+		fs.writeFileSync(path.join(dir, 'package.json'), original)
+		const state = realInitFs.gather(dir)
+		const plan = planInit(state, { vendors: [], scaffold: false, force: false, npm: true }, path.basename(dir), resolve)
+		realInitFs.apply(dir, plan)
+		const text = fs.readFileSync(path.join(dir, 'package.json'), 'utf8')
+		expect(text).toContain('\t"keywords": ["a", "b"],\n')
+		expect(text.endsWith('}\n')).toBe(true)
+	})
+
+	it('writes a new plugin.json with the .editorconfig indentation', () => {
+		fs.writeFileSync(path.join(dir, '.editorconfig'), 'root = true\n[*.json]\nindent_style = space\nindent_size = 2\n')
+		const state = realInitFs.gather(dir)
+		const plan = planInit(
+			state,
+			{ vendors: [], scaffold: false, force: false, npm: false },
+			path.basename(dir),
+			resolve,
+		)
+		realInitFs.apply(dir, plan)
+		const text = fs.readFileSync(path.join(dir, 'plugin.json'), 'utf8')
+		expect(text).toMatch(/^\{\n {2}"\$schema"/)
+		expect(text).not.toContain('\t')
+	})
+
 	it('--npm with no package.json writes nothing (guard before manifest write)', () => {
 		const state = realInitFs.gather(dir)
 		expect(() =>

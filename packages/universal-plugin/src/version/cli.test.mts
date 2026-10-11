@@ -101,6 +101,22 @@ test('the canonical manifest keeps its own indentation', () => {
 	expect(raw).not.toContain('\t')
 })
 
+test('the canonical manifest keeps the lines the bump does not change', () => {
+	const original = '{\n\t"name": "my-plugin",\n\t"version": "1.2.3",\n\t"keywords": ["a", "b"]\n}\n'
+	fs.writeFileSync(path.join(root, 'plugin.json'), original)
+	run('patch')
+	expect(fs.readFileSync(path.join(root, 'plugin.json'), 'utf8')).toBe(original.replace('1.2.3', '1.2.4'))
+})
+
+test('a manifest with no indentation to read takes the .editorconfig indentation', () => {
+	fs.writeFileSync(path.join(root, '.editorconfig'), 'root = true\n[*.json]\nindent_style = space\nindent_size = 4\n')
+	fs.writeFileSync(path.join(root, 'plugin.json'), '{"name":"my-plugin","version":"1.2.3"}\n')
+	run('patch')
+	expect(fs.readFileSync(path.join(root, 'plugin.json'), 'utf8')).toBe(
+		'{\n    "name": "my-plugin",\n    "version": "1.2.4"\n}\n',
+	)
+})
+
 // ── Keep the npm package.json in lockstep ──
 
 test('the packagePath package.json moves to the same version', () => {

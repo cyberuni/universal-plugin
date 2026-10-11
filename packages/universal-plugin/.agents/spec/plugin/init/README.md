@@ -81,6 +81,9 @@ The entry points, each a mode of the `universal-plugin plugin init` verb, given 
     and adds `universal-plugin` to the root devDependencies (unless already a dependency), so CI runs
     the locked version. A custom or absent `version` script is not rewritten: init prints the line to
     add instead. A script that already runs the sync is left alone.
+    Each `package.json` init rewrites keeps its own format — indentation, trailing newline, and the
+    text of every value init leaves unchanged — and a new `plugin.json` takes the indentation
+    `.editorconfig` sets for it, then a tab (issue #164).
 - **Register the plugin in the repository's local marketplace** — `plugin init --vendor <id>…
   [--no-marketplace]`.
   - *trigger:* an author wants to install and test the plugin before publishing it.
