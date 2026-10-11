@@ -1,6 +1,8 @@
 ---
 name: adopt-upx
 description: Use this skill when the user wants to make their skills use upx — the fast local-first package runner shipped as @repobuddy/upx. Trigger on phrases like "make my skills use upx", "adopt the upx runner", "speed up npx calls", "switch to upx", or "rewrite npx pins to upx". Rewrites `npx <pkg>@<version>` references to a caret range on `upx` (`^<major>`, or `^0.<minor>` for a 0.x pin) across one skill, a named set, or every skill in the project.
+metadata:
+  pin-exempt: true
 ---
 
 # Adopt upx
