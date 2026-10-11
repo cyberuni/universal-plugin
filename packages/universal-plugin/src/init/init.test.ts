@@ -160,7 +160,7 @@ describe('wireChangesets', () => {
 		const wired = wireChangesets({ scripts: { version: 'changeset version', build: 'x' } }, 'packages/p', '1.2.3')
 		expect(wired.note).toBeUndefined()
 		expect(wired.content?.scripts).toEqual({
-			version: 'changeset version && universal-plugin publish sync-version --root packages/p',
+			version: 'changeset version && universal-plugin plugin version --from-package --root packages/p',
 			build: 'x',
 		})
 		expect(wired.content?.devDependencies).toEqual({ 'universal-plugin': '^1.2.3' })
@@ -169,7 +169,7 @@ describe('wireChangesets', () => {
 	it('passes --root . when the plugin sits at the workspace root', () => {
 		const wired = wireChangesets({ scripts: { version: 'changeset version' } }, '', '1.2.3')
 		expect((wired.content?.scripts as Record<string, string>).version).toBe(
-			'changeset version && universal-plugin publish sync-version --root .',
+			'changeset version && universal-plugin plugin version --from-package --root .',
 		)
 	})
 
@@ -186,18 +186,31 @@ describe('wireChangesets', () => {
 		const wired = wireChangesets({ scripts: { version: 'changeset version && pnpm fmt' } }, 'packages/p', '1.2.3')
 		expect(wired.content).toBeNull()
 		expect(wired.note).toContain('custom')
-		expect(wired.note).toContain('&& universal-plugin publish sync-version --root packages/p')
+		expect(wired.note).toContain('&& universal-plugin plugin version --from-package --root packages/p')
 	})
 
 	it('names the script to add when there is none', () => {
 		const wired = wireChangesets({}, 'packages/p', '1.2.3')
 		expect(wired.content).toBeNull()
-		expect(wired.note).toContain('changeset version && universal-plugin publish sync-version --root packages/p')
+		expect(wired.note).toContain(
+			'changeset version && universal-plugin plugin version --from-package --root packages/p',
+		)
+	})
+
+	it('points a script still running the deprecated sync-version at the stamp', () => {
+		const wired = wireChangesets(
+			{ scripts: { version: 'changeset version && universal-plugin publish sync-version --root p' } },
+			'p',
+			'1.2.3',
+		)
+		expect(wired.content).toBeNull()
+		expect(wired.note).toContain('deprecated')
+		expect(wired.note).toContain('universal-plugin plugin version --from-package --root p')
 	})
 
 	it('changes nothing once the sync is wired', () => {
 		const wired = wireChangesets(
-			{ scripts: { version: 'changeset version && universal-plugin publish sync-version --root p' } },
+			{ scripts: { version: 'changeset version && universal-plugin plugin version --from-package --root p' } },
 			'p',
 			'1.2.3',
 		)
@@ -218,7 +231,7 @@ describe('planInit changesets wiring', () => {
 		const plan = planInit(state, npm, 'p', resolve)
 		expect(plan.workspacePackageJson?.path).toBe('../../package.json')
 		expect((plan.workspacePackageJson?.content.scripts as Record<string, string>).version).toBe(
-			'changeset version && universal-plugin publish sync-version --root packages/p',
+			'changeset version && universal-plugin plugin version --from-package --root packages/p',
 		)
 		expect(plan.rows).toContainEqual({ path: '../../package.json', action: 'updated' })
 	})
@@ -243,7 +256,7 @@ describe('planInit changesets wiring', () => {
 		}
 		const plan = planInit(state, npm, 'p', resolve)
 		expect(plan.workspacePackageJson).toBeNull()
-		expect(plan.notes.join('\n')).toContain('&& universal-plugin publish sync-version --root p')
+		expect(plan.notes.join('\n')).toContain('&& universal-plugin plugin version --from-package --root p')
 	})
 
 	it('wires nothing without --npm or without changesets', () => {
@@ -479,7 +492,9 @@ describe('realInitFs integration', () => {
 		expect(rootText).toContain('\t"scripts"')
 		expect(JSON.parse(rootText)).toEqual({
 			private: true,
-			scripts: { version: 'changeset version && universal-plugin publish sync-version --root packages/my-plugin' },
+			scripts: {
+				version: 'changeset version && universal-plugin plugin version --from-package --root packages/my-plugin',
+			},
 			devDependencies: { 'universal-plugin': '^1.2.3' },
 		})
 		expect(JSON.parse(fs.readFileSync(path.join(pluginRoot, 'plugin.json'), 'utf8')).version).toBe('0.8.0')
