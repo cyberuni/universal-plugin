@@ -71,6 +71,38 @@ Stated as a rule for authors: **if your repo uses changesets, keep using it** an
 `publish sync-version` carry the number into the manifest. **If it does not**, `plugin version` is
 the whole release-number step.
 
+## Checking that every file agrees — `publish check-version`
+
+A release tool moves one number; the other four places follow only when something carries it. A
+changesets Version Packages PR that bumps `package.json` and never runs `sync-version` leaves
+`plugin.json`, the vendor manifests, the catalogs and the skill pins on the previous version, and
+nothing fails until a consumer installs the wrong one (issue #164). `release-please` and
+`semantic-release` move the number the same way, and `init` cannot wire a sync into them.
+
+`universal-plugin publish check-version` is the read-only gate for that case. It writes nothing and
+exits 1 when any file disagrees, so a repository runs it in CI or in its `verify` script and the
+missed sync fails the release PR rather than the published package.
+
+- **The reference** is the number the release decides: the `packagePath` `package.json` when one is
+  declared, else the canonical `plugin.json`. A declared `packagePath` with no `package.json` fails,
+  as it does for `plugin version`.
+- **Compared against it:** the canonical `plugin.json` (a manifest with no `version` under a
+  versioned package drifts); each declared vendor's derived manifest that exists and carries a
+  `version`; this plugin's entry in each catalog the repository carries; and every skill file under
+  the manifest's skills path pinning the package (`npx`/`upx <package>@<version>`, either `-y` or
+  `--yes`). Pins are read with `plugin bundle`'s reader and skip what `bundle` skips: a pin-exempt
+  skill, and a pin that is not a version (`<version>`, `latest`, a range).
+- **Not compared:** what does not exist. An undeclared vendor, a catalog the repository does not
+  carry, and pins with no `packagePath` (there is no package to pin) are absent, not drifted.
+- **The result** names every file that disagrees, by path relative to the plugin root, with the
+  version it carries. The next step names the command that owns the first kind left behind:
+  `publish sync-version` for the manifest, `plugin build` for a derived manifest or catalog,
+  `plugin bundle` for a pin.
+
+`doctor` asks this command rather than re-reading the files, and reports each disagreeing file as
+its own `version-drift` finding. `doctor` stays advisory and exits 0; `check-version` is the one that
+fails.
+
 ## The skill question
 
 A verb in this package is asked two separate questions about a companion skill, and they have
@@ -237,6 +269,17 @@ Grouped by concern; 1:1 with [`version.feature`](./version.feature).
 | TOON result | success, no `--format` | `a successful run prints a row per written file plus the updated aggregate` |
 | JSON result | `--format json` | `--format json returns the from, to, and written fields` |
 | next-step | success | `a successful run ends with a next-step line` |
+
+### Check that every file agrees
+
+| Edge | Path (Given) | Scenario |
+|---|---|---|
+| agree | every file at the package version | `check-version passes when every file carries the same version` |
+| package reference | `packagePath` declared, every other file behind | `check-version names every file a release left behind` |
+| manifest reference | no `packagePath`, a vendor manifest behind | `without packagePath the canonical manifest is the reference` |
+| pin only | only a skill pin behind | `a skill pin left behind points at plugin bundle` |
+| not a version | pins `<version>` and `latest` | `a pin that is not a version is not compared` |
+| guard: no manifest | empty root | `check-version fails loud without a canonical manifest` |
 
 ### Print the command reference
 
