@@ -22,8 +22,9 @@ test -d .changeset && echo "changesets"
 
 **If it does**, the version number is decided by changesets, not by you. Add a changeset and let the
 release run — the repo's `version` script should already call `publish sync-version`, which carries
-the released number from `package.json` into the canonical manifest and re-derives the vendor
-manifests, the same way `plugin version` does:
+the released number from `package.json` into the canonical manifest and into the skills'
+`npx`/`upx` pins of that package, and re-derives the vendor manifests, the same way `plugin version`
+does:
 
 ```bash
 npx universal-plugin publish sync-version

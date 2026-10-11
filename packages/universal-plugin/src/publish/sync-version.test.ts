@@ -2,8 +2,9 @@ import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import type { PinFs } from '../pin/fs.js'
 import { realSyncVersionFs } from './fs.js'
-import { syncVersion } from './sync-version.js'
+import { syncSkillPins, syncVersion } from './sync-version.js'
 
 let dir: string
 
@@ -148,5 +149,58 @@ describe('syncVersion', () => {
 		const raw = fs.readFileSync(path.join(dir, 'plugin.json'), 'utf8')
 		expect(raw).toContain('\n  ')
 		expect(raw).not.toContain('\t')
+	})
+
+	it('returns the synced package name', () => {
+		writeManifest({ name: 'my-plugin' })
+		writePackage('.', { name: '@scope/my-plugin', version: '1.0.0' })
+		expect(syncVersion(dir, realSyncVersionFs).packageName).toBe('@scope/my-plugin')
+	})
+
+	it('returns a null package name when package.json has none', () => {
+		writeManifest({ name: 'my-plugin' })
+		writePackage('.', { version: '1.0.0' })
+		expect(syncVersion(dir, realSyncVersionFs).packageName).toBeNull()
+	})
+})
+
+function memoryPinFs(files: Record<string, string>): PinFs & { files: Record<string, string> } {
+	return {
+		files,
+		listSkillFiles: () => Object.keys(files),
+		readFile: (p) => files[p]!,
+		writeFile: (p, c) => {
+			files[p] = c
+		},
+	}
+}
+
+describe('syncSkillPins', () => {
+	it('rewrites the --yes, -y, and upx pins of the synced package', () => {
+		const pinFs = memoryPinFs({
+			'/s/a/SKILL.md': 'npx --yes my-cli@0.8.0 run\nnpx -y my-cli@0.8.0 run\n`upx my-cli@0.8.0`',
+		})
+		const pins = syncSkillPins(pinFs, 'my-cli', '0.9.0')
+		expect(pinFs.files['/s/a/SKILL.md']).toBe('npx --yes my-cli@0.9.0 run\nnpx -y my-cli@0.9.0 run\n`upx my-cli@0.9.0`')
+		expect(pins).toEqual([{ package: 'my-cli', current: '0.8.0', resolved: '0.9.0', status: 'pinned' }])
+	})
+
+	it('leaves the pins of every other package alone', () => {
+		const pinFs = memoryPinFs({ '/s/a/SKILL.md': 'npx my-cli@0.8.0 and npx other-cli@1.0.0' })
+		const pins = syncSkillPins(pinFs, 'my-cli', '0.9.0')
+		expect(pinFs.files['/s/a/SKILL.md']).toBe('npx my-cli@0.9.0 and npx other-cli@1.0.0')
+		expect(pins.map((p) => p.package)).toEqual(['my-cli'])
+	})
+
+	it('leaves a pin-exempt skill alone', () => {
+		const content = '---\nmetadata:\n  pin-exempt: true\n---\nnpx my-cli@0.1.0'
+		const pinFs = memoryPinFs({ '/s/a/SKILL.md': content })
+		expect(syncSkillPins(pinFs, 'my-cli', '0.9.0')).toEqual([])
+		expect(pinFs.files['/s/a/SKILL.md']).toBe(content)
+	})
+
+	it('reports unchanged when the pins already carry the version', () => {
+		const pinFs = memoryPinFs({ '/s/a/SKILL.md': 'npx my-cli@0.9.0' })
+		expect(syncSkillPins(pinFs, 'my-cli', '0.9.0')[0]?.status).toBe('unchanged')
 	})
 })

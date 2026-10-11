@@ -667,3 +667,21 @@ test('publish sync-version --no-build leaves the vendor manifests for the caller
 		fs.rmSync(root, { recursive: true, force: true })
 	}
 })
+
+test('publish sync-version moves the skills pins of the synced package', () => {
+	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-syncver-'))
+	try {
+		fs.writeFileSync(path.join(root, 'plugin.json'), JSON.stringify({ name: 'test-plugin', version: '0.8.0' }))
+		fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ name: 'test-cli', version: '0.9.0' }))
+		const skillPath = path.join(root, 'skills', 'use', 'SKILL.md')
+		fs.mkdirSync(path.dirname(skillPath), { recursive: true })
+		fs.writeFileSync(skillPath, 'npx --yes test-cli@0.8.0 run\nnpx -y test-cli@0.8.0 run\nnpx other-cli@1.0.0\n')
+
+		const result = run('publish', 'sync-version', '--no-build', '--root', root)
+		expect(result.status).toBe(0)
+		expect(fs.readFileSync(skillPath, 'utf8')).toBe('npx --yes test-cli@0.9.0 run\nnpx -y test-cli@0.9.0 run\nnpx other-cli@1.0.0\n')
+		expect(result.stdout).toContain('test-cli')
+	} finally {
+		fs.rmSync(root, { recursive: true, force: true })
+	}
+})
