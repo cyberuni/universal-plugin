@@ -256,24 +256,44 @@ if (build === null) {
 	}
 }
 
-// Version drift between the two authored numbers.
+// Version drift across every file that carries the version: the authored pair, the derived vendor
+// manifests, the repository catalogs, and the skill pins. The shipped CLI's `publish check-version`
+// owns the comparison — the same command a repository runs in CI — so each file it names left behind
+// is one finding here. A CLI too old to answer falls back to comparing the authored pair.
+let packageMissing = false
 if (typeof packagePath === 'string') {
-	const pkgPath = path.join(root, packagePath, 'package.json')
-	const pkg = readJson(pkgPath)
+	const pkg = readJson(path.join(root, packagePath, 'package.json'))
 	if (pkg === null) {
+		packageMissing = true
 		add(
 			'package-path-missing',
 			'medium',
 			`packagePath names ${packagePath}, which holds no readable package.json`,
 			'fix packagePath, or create the package',
 		)
-	} else if (manifest.version !== undefined && pkg.version !== manifest.version) {
-		add(
-			'version-drift',
-			'high',
-			`plugin.json is ${manifest.version}, ${packagePath}/package.json is ${pkg.version}`,
-			'/universal-plugin:version',
-		)
+	}
+}
+if (packagePath !== undefined && !packageMissing) {
+	const check = readJson_stdout(runCli('publish', 'check-version', '--format', 'json', '--root', root).stdout)
+	if (check !== null && Array.isArray(check.drifted)) {
+		for (const file of check.drifted) {
+			add(
+				'version-drift',
+				'high',
+				`${file.path} is ${file.version ?? '(no version)'}, ${check.source} is ${check.expected}`,
+				'/universal-plugin:version',
+			)
+		}
+	} else if (typeof packagePath === 'string') {
+		const pkg = readJson(path.join(root, packagePath, 'package.json'))
+		if (manifest.version !== undefined && pkg.version !== manifest.version) {
+			add(
+				'version-drift',
+				'high',
+				`plugin.json is ${manifest.version}, ${packagePath}/package.json is ${pkg.version}`,
+				'/universal-plugin:version',
+			)
+		}
 	}
 }
 
