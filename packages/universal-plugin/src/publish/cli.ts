@@ -1,66 +1,27 @@
-import * as path from 'node:path'
-
 import { Command } from 'commander'
 
-import { buildPlugin, readManifest, universalPluginExtension } from '../build/build.js'
 import { ROOT_OPTION, resolveRoot } from '../cli-options.js'
 import { output } from '../output.js'
-import { realPinFs, resolveSkillsDir } from '../pin/fs.js'
+import { runVersion } from '../version/cli.js'
 import { checkVersionDrift, type DriftResult } from '../version/drift.js'
 import { gatherDriftState } from '../version/fs.js'
-import { realSyncVersionFs } from './fs.js'
-import { syncSkillPins, syncVersion } from './sync-version.js'
 
 export function publishCommand(): Command {
 	const cmd = new Command('publish').description('Prepare plugin for publishing').helpCommand(false)
 
+	// Deprecated (#179): `plugin version --from-package` is the same stamp under the command that owns
+	// every version-carrying place. Kept as a warning alias for one minor release.
 	cmd
 		.command('sync-version')
-		.description(
-			"Sync version from packagePath/package.json (default: the plugin root) into plugin.json and the skills' pins of that package",
-		)
+		.description('Deprecated: use `plugin version --from-package`')
 		.option('--no-build', 'Skip re-deriving the vendor manifests')
+		.option('--format <format>', 'Output format: json or toon (default: toon)')
 		.addOption(ROOT_OPTION)
 		.action((opts: { root?: string; build?: boolean }) => {
-			try {
-				const root = resolveRoot(opts.root)
-				const { packageName, ...result } = syncVersion(root, realSyncVersionFs)
-
-				// The skills' `npx`/`upx <pkg>@<version>` pins of this package are derived too, so they move
-				// with the version rather than waiting for a separate `plugin bundle` run (#164).
-				const pinned: string[] = []
-				if (packageName !== null) {
-					const skillsDir = resolveSkillsDir(
-						root,
-						universalPluginExtension(readManifest(root)).skills as string | undefined,
-					)
-					for (const pin of syncSkillPins(realPinFs(skillsDir), packageName, result.version)) {
-						if (pin.status === 'pinned') pinned.push(pin.package)
-					}
-				}
-
-				// The same re-derivation `plugin version` runs after its bump, so the vendor manifests carry
-				// the synced version and the two directions of the version flow cannot drift (#143).
-				const derived: string[] = []
-				if (opts.build !== false) {
-					const build = buildPlugin(root, {})
-					for (const warning of build.warnings) {
-						process.stderr.write(`warn: ${warning}\n`)
-					}
-					for (const written of build.written) {
-						derived.push(path.relative(root, written).split(path.sep).join('/'))
-					}
-				}
-
-				output(
-					{ ...result, derived, pinned },
-					{ version: result.version, manifest: result.manifestPath, derived, pinned },
-				)
-				if (opts.build === false) process.stderr.write('→ universal-plugin plugin build\n')
-			} catch (err) {
-				process.stderr.write(`${err instanceof Error ? err.message : String(err)}\n`)
-				process.exit(1)
-			}
+			process.stderr.write(
+				'warn: publish sync-version is deprecated and will be removed in the next minor release — use plugin version --from-package\n',
+			)
+			runVersion(undefined, { ...opts, fromPackage: true })
 		})
 
 	cmd
@@ -99,14 +60,18 @@ export function publishCommand(): Command {
 	return cmd
 }
 
-/** The command that carries the number on. Where a package decides it, `sync-version` moves the
- *  manifest and the skills' pins and re-derives the vendor manifests and catalogs, so it repairs every
- *  kind at once; where the manifest decides it, `build` re-derives what follows from it. A package
- *  with no version has nothing to sync from, and the move is `plugin version`'s. */
+/** The command that carries the number on. Where a package decides it, `plugin version
+ *  --from-package` stamps every place and re-derives the vendor manifests and catalogs, so it repairs
+ *  every kind at once. Where the manifest decides it, `plugin build` re-derives what it derives, and a
+ *  stamped place left behind takes `plugin version` with the same number. A package that disagrees
+ *  with the manifest is a release decision, so it goes to the skill. */
 function repairStep(result: DriftResult): string {
 	if (result.drifted.some((s) => s.kind === 'package')) {
 		return '→ /universal-plugin:version — the package and the manifest disagree\n'
 	}
-	if (result.source !== 'plugin.json') return '→ universal-plugin publish sync-version\n'
-	return '→ universal-plugin plugin build\n'
+	if (result.source !== 'plugin.json') return '→ universal-plugin plugin version --from-package\n'
+	if (result.drifted.every((s) => s.kind === 'vendor-manifest' || s.kind === 'catalog')) {
+		return '→ universal-plugin plugin build\n'
+	}
+	return `→ universal-plugin plugin version ${result.expected} --force\n`
 }

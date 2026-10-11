@@ -1,13 +1,30 @@
 import * as fsNode from 'node:fs'
 import * as path from 'node:path'
 
-import { detectIndent } from '../json.js'
-import type { StampedPin, VersionSource } from './stamp.js'
+import type { VersionSource } from './stamp.js'
 
-const TEXT_EXTENSIONS = new Set(['.md', '.mdx', '.markdown', '.json', '.yaml', '.yml', '.txt'])
+/** The files a pin can live in: prose and data, and the skills' scripts — a script's `npx` fallback
+ *  carries a pin like any Markdown file does (#179). */
+const TEXT_EXTENSIONS = new Set([
+	'.md',
+	'.mdx',
+	'.markdown',
+	'.json',
+	'.yaml',
+	'.yml',
+	'.txt',
+	'.js',
+	'.mjs',
+	'.cjs',
+	'.ts',
+	'.mts',
+	'.cts',
+	'.sh',
+	'.py',
+])
 
 export interface PinFs {
-	/** Every text file under the plugin's skills directory (recursive), absolute paths. */
+	/** Every text file under the plugin's skills directory (recursive), scripts included, absolute paths. */
 	listSkillFiles(): string[]
 	readFile(filePath: string): string
 	writeFile(filePath: string, content: string): void
@@ -132,25 +149,6 @@ export function discoverWorkspace(root: string): Map<string, string | undefined>
 	}
 
 	return map
-}
-
-/** Writes `<root>/.plugin/pins.json` — a flat, key-sorted `{ "<package>": "<resolvedVersion>" }`
- *  map of the workspace-resolved pins (`pinned` + `unchanged`), so a stamped plugin's skills can read
- *  the shipped version programmatically (e.g. `${CLAUDE_PLUGIN_ROOT}/.plugin/pins.json`). External /
- *  `skipped` packages are excluded — they have no authoritative workspace version. */
-export function writePinsMap(root: string, pins: StampedPin[]): void {
-	const map: Record<string, string> = {}
-	for (const pin of pins) {
-		if (pin.status === 'pinned' || pin.status === 'unchanged') map[pin.package] = pin.resolved
-	}
-	const sorted: Record<string, string> = {}
-	for (const key of Object.keys(map).sort((a, b) => a.localeCompare(b))) sorted[key] = map[key]!
-	const dir = path.join(root, '.plugin')
-	fsNode.mkdirSync(dir, { recursive: true })
-	const pinsPath = path.join(dir, 'pins.json')
-	const existing = fsNode.existsSync(pinsPath) ? fsNode.readFileSync(pinsPath, 'utf8') : null
-	const indent = existing ? detectIndent(existing) : '\t'
-	fsNode.writeFileSync(pinsPath, `${JSON.stringify(sorted, null, indent)}\n`)
 }
 
 export function realVersionSource(workspace: Map<string, string | undefined>): VersionSource {

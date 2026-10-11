@@ -76,52 +76,41 @@ export function pinRunnerArgs(args: readonly unknown[], version: string): Pinned
 }
 
 /** The canonical opt-in marker on an `mcpServers` entry: "this package is the plugin's own, stamp
- *  the plugin's version onto it". A build directive — never part of a vendor's schema, so it is
- *  stripped from everything derived. */
+ *  the plugin's version onto it". It stays on the authored entry, so the next `plugin version` finds
+ *  it again, and is stripped from everything derived — it is never part of a vendor's schema. */
 const PIN_MARKER = 'pinToPluginVersion'
 
 export interface McpPinNote {
 	server: string
-	/** Why a marked entry could not be pinned, or was re-pinned over an authored version. */
-	kind: 'not-a-runner' | 'no-manifest-version' | 'no-specifier' | 'repinned'
-	/** The version the entry already carried, for `repinned`. */
-	previous?: string
+	/** Why a marked entry could not be stamped. */
+	kind: 'not-a-runner' | 'no-specifier'
 }
 
-export interface McpPinResult {
-	/** The servers map with every marked entry pinned and every marker stripped. */
+export interface McpStampResult {
+	/** The servers map with every marked entry stamped; the markers stay. */
 	servers: Record<string, unknown>
-	/** True when anything was pinned or a marker was stripped — i.e. the derived form differs from
-	 *  the authored one and has to be delivered rather than pointed at. */
+	/** True when any entry's specifier moved. */
 	changed: boolean
 	notes: McpPinNote[]
 }
 
-/** Stamps the plugin's version onto every `mcpServers` entry that opts in with {@link PIN_MARKER},
- *  and strips the marker from all of them. Pure: the caller decides where the result is delivered.
+function isEntry(value: unknown): value is Record<string, unknown> {
+	return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+}
+
+/** Stamps `version` onto every authored `mcpServers` entry that opts in with {@link PIN_MARKER}.
+ *  Pure: the caller decides where the result is written.
  *
  *  Opt-in is required and a name match is never used — a plugin may publish its server under a
  *  package name that is not the plugin's, and an unrelated `npx -y widget-cli` must never be
  *  stamped with this plugin's version. */
-export function pinMcpServers(servers: Record<string, unknown>, version: string | undefined): McpPinResult {
+export function stampMcpServers(servers: Record<string, unknown>, version: string): McpStampResult {
 	const out: Record<string, unknown> = {}
 	const notes: McpPinNote[] = []
 	let changed = false
 
-	for (const [server, rawEntry] of Object.entries(servers)) {
-		if (!rawEntry || typeof rawEntry !== 'object' || Array.isArray(rawEntry)) {
-			out[server] = rawEntry
-			continue
-		}
-		const { [PIN_MARKER]: marker, ...entry } = rawEntry as Record<string, unknown>
-		if (marker !== undefined) changed = true
-		if (marker !== true) {
-			out[server] = entry
-			continue
-		}
-
-		if (!version) {
-			notes.push({ server, kind: 'no-manifest-version' })
+	for (const [server, entry] of Object.entries(servers)) {
+		if (!isEntry(entry) || entry[PIN_MARKER] !== true) {
 			out[server] = entry
 			continue
 		}
@@ -137,12 +126,46 @@ export function pinMcpServers(servers: Record<string, unknown>, version: string 
 			out[server] = entry
 			continue
 		}
-		if (pinned.previous !== undefined && pinned.previous !== version) {
-			notes.push({ server, kind: 'repinned', previous: pinned.previous })
-		}
+		if (pinned.previous !== version) changed = true
 		out[server] = { ...entry, args: pinned.args }
-		changed = true
 	}
 
 	return { servers: out, changed, notes }
+}
+
+/** The plugin's version as each marked `mcpServers` entry carries it, for the drift check. An entry
+ *  whose specifier carries no version is listed with `undefined`. */
+export function markedMcpVersions(servers: Record<string, unknown>): { server: string; version?: string }[] {
+	const found: { server: string; version?: string }[] = []
+	for (const [server, entry] of Object.entries(servers)) {
+		if (!isEntry(entry) || entry[PIN_MARKER] !== true || !isPackageRunner(entry['command'])) continue
+		const args = entry['args']
+		const pinned = Array.isArray(args) ? pinRunnerArgs(args, '') : null
+		if (pinned) found.push(pinned.previous === undefined ? { server } : { server, version: pinned.previous })
+	}
+	return found
+}
+
+export interface McpStripResult {
+	servers: Record<string, unknown>
+	/** True when a marker was stripped — the derived form then differs from the authored one and has
+	 *  to be delivered rather than pointed at. */
+	changed: boolean
+}
+
+/** Strips {@link PIN_MARKER} from every entry, for the derived manifests. The version the entry
+ *  carries is copied as authored: `plugin version` stamped it, and a build never decides one. */
+export function stripPinMarkers(servers: Record<string, unknown>): McpStripResult {
+	const out: Record<string, unknown> = {}
+	let changed = false
+	for (const [server, entry] of Object.entries(servers)) {
+		if (!isEntry(entry) || !(PIN_MARKER in entry)) {
+			out[server] = entry
+			continue
+		}
+		const { [PIN_MARKER]: _marker, ...rest } = entry
+		out[server] = rest
+		changed = true
+	}
+	return { servers: out, changed }
 }

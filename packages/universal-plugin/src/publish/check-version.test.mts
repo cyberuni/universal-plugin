@@ -80,15 +80,15 @@ test('a release that moved only package.json fails and names every file left beh
 		'skills/demo/SKILL.md',
 	])
 	expect(r.stderr).toContain('plugin.json is 0.8.0, ../../packages/demo/package.json is 0.9.0')
-	expect(r.stderr).toMatch(/→ universal-plugin publish sync-version\n$/)
+	expect(r.stderr).toMatch(/→ universal-plugin plugin version --from-package\n$/)
 })
 
-test('a skill pin left behind points at sync-version, which moves the pins too', () => {
+test('a skill pin left behind points at plugin version --from-package, which stamps the pins too', () => {
 	seedMonorepo({ pkg: '0.9.0', manifest: '0.9.0', claude: '0.9.0', catalog: '0.9.0', pin: '0.8.0' })
 	const r = run(path.join(repo, 'plugins/demo'))
 	expect(r.status).toBe(1)
 	expect(r.stdout).toContain('skills/demo/SKILL.md')
-	expect(r.stderr).toMatch(/→ universal-plugin publish sync-version\n$/)
+	expect(r.stderr).toMatch(/→ universal-plugin plugin version --from-package\n$/)
 })
 
 test('without packagePath the canonical manifest is the reference', () => {
