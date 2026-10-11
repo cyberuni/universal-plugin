@@ -73,7 +73,7 @@ Feature: config get — read a keyed config array
     Given ".agents/universal-plugin.json" has "packagePath" set to "packages/demo"
     When I run "universal-plugin config get --key packagePath"
     Then stdout is a TOON result showing "packagePath" as "packages/demo" relative to the plugin root
-    And stderr ends with "→ universal-plugin publish sync-version"
+    And stderr ends with "→ universal-plugin plugin version --from-package"
     And the exit code is 0
 
   Scenario: an undeclared packagePath prints a definitive null

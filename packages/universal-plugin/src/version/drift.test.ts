@@ -174,3 +174,64 @@ describe('checkVersionDrift — skill pins', () => {
 		expect(drifted(state({ skillFiles: [{ path: 'skills/a/SKILL.md', content: 'npx my-plugin@0.1.0' }] }))).toEqual([])
 	})
 })
+
+describe('checkVersionDrift — the mcpServers pin (#179)', () => {
+	const marked = (version?: string) => ({
+		srv: {
+			command: 'npx',
+			args: ['-y', version ? `my-plugin-cli@${version}` : 'my-plugin-cli'],
+			pinToPluginVersion: true,
+		},
+	})
+
+	it('a marked entry at the reference version agrees', () => {
+		expect(drifted(state({ mcpServers: [{ path: 'mcp.json', servers: marked('1.2.3') }] }))).toEqual([])
+	})
+
+	it('a marked entry left behind drifts', () => {
+		const result = checkVersionDrift(state({ mcpServers: [{ path: 'mcp.json', servers: marked('1.2.2') }] }))
+		expect(result.drifted).toEqual([{ path: 'mcp.json', kind: 'mcp-pin', version: '1.2.2' }])
+	})
+
+	it('a marked entry never stamped drifts with no version', () => {
+		expect(drifted(state({ mcpServers: [{ path: 'plugin.json', servers: marked() }] }))).toEqual(['plugin.json'])
+	})
+})
+
+describe('checkVersionDrift — unstamped places (semantic-release)', () => {
+	it('a package at 0.0.0-development is unstamped, and the manifest it was committed back to is the reference', () => {
+		const result = checkVersionDrift(
+			state({
+				packagePath: '.',
+				packageJson: { name: 'my-plugin-cli', version: '0.0.0-development' },
+				skillFiles: [{ path: 'skills/a/SKILL.md', content: 'npx my-plugin-cli@1.2.3' }],
+			}),
+		)
+		expect(result.source).toBe('plugin.json')
+		expect(result.expected).toBe('1.2.3')
+		expect(result.drifted).toEqual([])
+		expect(result.unstamped).toEqual([{ path: 'package.json', kind: 'package', version: '0.0.0-development' }])
+	})
+
+	it('nothing stamped yet reports every place unstamped and none drifted', () => {
+		const result = checkVersionDrift(
+			state({
+				manifest: { name: 'my-plugin', version: '0.0.0-development' },
+				packagePath: '.',
+				packageJson: { name: 'my-plugin-cli', version: '0.0.0-development' },
+				vendorManifests: [{ path: '.claude-plugin/plugin.json', content: '{"version":"0.0.0-development"}' }],
+			}),
+		)
+		expect(result.expected).toBeNull()
+		expect(result.drifted).toEqual([])
+		expect(result.unstamped.map((s) => s.path)).toEqual(['package.json', 'plugin.json', '.claude-plugin/plugin.json'])
+	})
+
+	it('an unstamped place beside a stamped reference is not drift', () => {
+		const result = checkVersionDrift(
+			state({ vendorManifests: [{ path: '.claude-plugin/plugin.json', content: '{"version":"0.0.0-development"}' }] }),
+		)
+		expect(result.drifted).toEqual([])
+		expect(result.unstamped.map((s) => s.path)).toEqual(['.claude-plugin/plugin.json'])
+	})
+})

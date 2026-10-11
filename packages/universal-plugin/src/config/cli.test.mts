@@ -249,7 +249,7 @@ test('get --key packagePath returns the declared string', () => {
 	expect(r.status).toBe(0)
 	expect(r.stdout).toMatch(/packagePath: \.\.\/\.\.\/packages\/demo/)
 	expect(r.stdout).toMatch(/plugin root/)
-	expect(r.stderr).toMatch(/→ universal-plugin publish sync-version/)
+	expect(r.stderr).toMatch(/→ universal-plugin plugin version --from-package/)
 })
 
 test('get --key packagePath --format json returns the raw string', () => {

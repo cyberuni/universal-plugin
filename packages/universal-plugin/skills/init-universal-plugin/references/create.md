@@ -46,7 +46,7 @@ Resolve `scripts/init.mjs` against this skill's directory; it runs the CLI that 
 `npx universal-plugin plugin init` is the fallback. Add `--npm` when an npm package ships the plugin,
 which also wires that `package.json`'s `files` to carry the derived manifests, copies its `version`
 into the manifest, and, in a changesets repository, wires the root `version` script to run
-`publish sync-version` (SKILL.md Phase 3 asks before that rewrite).
+`plugin version --from-package` (SKILL.md Phase 3 asks before that rewrite).
 
 `init` writes a minimal manifest — `$schema`, `name`, the vendor list, and the package `version`
 under `--npm`. Fill in the Step 1

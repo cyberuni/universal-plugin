@@ -31,7 +31,7 @@ Every command follows the AXI output contract ([../../axi/](../../axi/README.md)
 - **Changesets version sync** — in a repository released with changesets, the plugin manifest must
   follow the package version on every Version Packages PR. Changesets runs no npm lifecycle scripts,
   and changesets/action calls the workspace root's `version` script, so that script is the only hook:
-  `changeset version && universal-plugin publish sync-version --root <plugin-root>`.
+  `changeset version && universal-plugin plugin version --from-package --root <plugin-root>`.
 - **Ship on publish** — an npm package declares which files travel in its tarball via `package.json`
   `files`; `--npm` adds the **open-standard base** — the canonical root `plugin.json` and the skills
   directory — plus each selected vendor's derived manifest. The base is unconditional: the standard
@@ -46,7 +46,7 @@ Every command follows the AXI output contract ([../../axi/](../../axi/README.md)
 > surprised — see `## References`.
 
 **Non-goals** — deriving the vendor manifests (`plugin build`); checking a manifest
-(`plugin validate`); pinning release versions (`plugin bundle`); **setting a repository up to
+(`plugin validate`); stamping release versions (`plugin version`); **setting a repository up to
 *consume* skills** — the canonical skills layout, per-harness compatibility links, and the
 enabled-harness record are **`repobuddy/buddy-agent-harness`**'s, withdrawn from this package
 (ADR-0006); publishing to or installing from a marketplace (`cyberplace`).
@@ -75,12 +75,14 @@ The entry points, each a mode of the `universal-plugin plugin init` verb, given 
     open-standard base (root `plugin.json` + the skills directory) plus each selected vendor's
     derived manifest path; existing `files` entries and other fields are preserved; safe to re-run.
     The manifest takes the package's `version`, so it is complete from the start (Codex requires a
-    version) and `publish sync-version` moves it from there.
+    version) and `plugin version --from-package` moves it from there.
     When the workspace root carries `.changeset/` and its `version` script is exactly
-    `changeset version`, init appends `&& universal-plugin publish sync-version --root <plugin-root>`
+    `changeset version`, init appends `&& universal-plugin plugin version --from-package --root <plugin-root>`
     and adds `universal-plugin` to the root devDependencies (unless already a dependency), so CI runs
     the locked version. A custom or absent `version` script is not rewritten: init prints the line to
-    add instead. A script that already runs the sync is left alone.
+    add instead. A script that already runs the stamp is left alone. A script still running the
+    deprecated `universal-plugin publish sync-version` is left alone too, with a note telling the
+    user to replace it with the stamp command.
     Each `package.json` init rewrites keeps its own format — indentation, trailing newline, and the
     text of every value init leaves unchanged — and a new `plugin.json` takes the indentation
     `.editorconfig` sets for it, then a tab (issue #164).
@@ -130,13 +132,15 @@ graph TD
   wire --> CS{.changeset/ at the workspace root?}
   CS -->|no| cs0[no version sync wired]
   CS -->|yes| VS{root version script?}
-  VS -->|exactly changeset version| cs1[append sync-version --root plugin-root · add universal-plugin devDependency]
-  VS -->|already runs sync-version| cs2[leave it]
+  VS -->|exactly changeset version| cs1[append plugin version --from-package --root plugin-root · add universal-plugin devDependency]
+  VS -->|already runs plugin version| cs2[leave it]
+  VS -->|still runs publish sync-version| cs4[leave it · note: replace with plugin version --from-package]
   VS -->|custom or absent| cs3[leave it · print the line to add]
   cs0 --> OUT
   cs1 --> OUT
   cs2 --> OUT
   cs3 --> OUT
+  cs4 --> OUT
   W --> MP{--vendor given and not --no-marketplace?}
   MP -->|no| mp0[no catalog written]
   MP -->|yes| REPO{inside a repository with an owner to name?}
@@ -201,7 +205,8 @@ Grouped by use case; 1:1 with [`init.feature`](./init.feature). `| Edge | Path (
 | wire sync | `--npm`, `.changeset/`, root script `changeset version` | `--npm wires the version sync into a stock changesets version script` |
 | sync at root | plugin root is the workspace root | `--npm wires the sync with --root . when the plugin is the workspace root` |
 | custom script | `--npm`, `.changeset/`, custom root script | `--npm leaves a custom version script alone and prints the line to add` |
-| already wired | root script already runs sync-version | `--npm leaves an already wired version script unchanged` |
+| already wired | root script already runs the stamp | `--npm leaves an already wired version script unchanged` |
+| legacy script | root script still runs `publish sync-version` | `--npm notes that a script running the deprecated sync-version should be replaced` |
 | no changesets | `--npm`, no `.changeset/` | `without changesets the root version script is untouched` |
 
 ### Register the plugin in the repository's local marketplace

@@ -20,6 +20,8 @@ const root = path.resolve(rootFlag === -1 ? process.cwd() : (argv[rootFlag + 1] 
 const marketplaceRoots = argv.flatMap((arg, i) => (arg === '--marketplace-root' ? [argv[i + 1]] : [])).filter(Boolean)
 
 const findings = []
+/** semantic-release's version placeholder until its publish run stamps the real number. */
+const UNSTAMPED_VERSION = '0.0.0-development'
 const add = (code, severity, detail, repair) => findings.push({ code, severity, detail, repair })
 
 const readJson = (file) => {
@@ -71,14 +73,16 @@ const ext = manifest.extensions?.[UP_NAMESPACE] ?? null
 
 // The shipped CLI, preferring the one this skill ships with. Every question the CLI can answer is asked
 // of it rather than re-derived here, so this script cannot drift from the commands it diagnoses.
+// The fallback is pinned to the version this skill shipped with; `plugin version` stamps it.
 const bin = path.join(packageRoot, 'bin', 'universal-plugin.mjs')
+const [runner, ...fallback] = 'npx universal-plugin@0.12.2'.split(' ')
 const runCli = (...args) =>
 	fs.existsSync(bin)
 		? spawnSync(process.execPath, [bin, ...args], { encoding: 'utf8' })
-		: spawnSync('npx', ['universal-plugin', ...args], { encoding: 'utf8' })
+		: spawnSync(runner, [...fallback, ...args], { encoding: 'utf8' })
 
 // `packagePath` is the CLI's own config. It is asked of the CLI (`config get --key packagePath`), the
-// same reader `plugin version` and `publish sync-version` use, so a plugin the CLI treats as
+// same reader `plugin version` uses, so a plugin the CLI treats as
 // npm-shipping is one this script treats the same way (issue #79). `undefined` means the CLI could not
 // answer — too old to read the key — and every check that depends on it is skipped rather than guessed.
 const packagePath = readPackagePath()
@@ -284,9 +288,19 @@ if (packagePath !== undefined && !packageMissing) {
 				'/universal-plugin:version',
 			)
 		}
+		// semantic-release's placeholder: the release has not stamped the place yet, which is not drift.
+		for (const file of check.unstamped ?? []) {
+			add(
+				'unstamped',
+				'low',
+				`${file.path} holds ${UNSTAMPED_VERSION}, which the release replaces`,
+				// biome-ignore lint/suspicious/noTemplateCurlyInString: semantic-release's own placeholder, written literally
+				'semantic-release: run `plugin version ${nextRelease.version}` in prepareCmd and commit the stamped files back',
+			)
+		}
 	} else if (typeof packagePath === 'string') {
 		const pkg = readJson(path.join(root, packagePath, 'package.json'))
-		if (manifest.version !== undefined && pkg.version !== manifest.version) {
+		if (manifest.version !== undefined && pkg.version !== UNSTAMPED_VERSION && pkg.version !== manifest.version) {
 			add(
 				'version-drift',
 				'high',

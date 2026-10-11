@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { extractPins, isPackageRunner, pinMcpServers, pinRunnerArgs, splitSpecifier } from './pin.js'
+import {
+	extractPins,
+	isPackageRunner,
+	markedMcpVersions,
+	pinRunnerArgs,
+	splitSpecifier,
+	stampMcpServers,
+	stripPinMarkers,
+} from './pin.js'
 
 describe('extractPins', () => {
 	it('extracts a single npx pin', () => {
@@ -88,43 +96,74 @@ describe('pinRunnerArgs', () => {
 	})
 })
 
-describe('pinMcpServers', () => {
+describe('stampMcpServers', () => {
 	const marked = { command: 'npx', args: ['-y', 'cyber-asana', 'mcp'], pinToPluginVersion: true }
 
-	it('pins a marked entry and strips the marker', () => {
-		const result = pinMcpServers({ srv: marked }, '1.0.0')
-		expect(result.servers['srv']).toEqual({ command: 'npx', args: ['-y', 'cyber-asana@1.0.0', 'mcp'] })
+	it('stamps a marked entry and keeps the marker for the next stamp', () => {
+		const result = stampMcpServers({ srv: marked }, '1.0.0')
+		expect(result.servers['srv']).toEqual({ ...marked, args: ['-y', 'cyber-asana@1.0.0', 'mcp'] })
 		expect(result.changed).toBe(true)
 		expect(result.notes).toEqual([])
 	})
 
 	it('leaves an unmarked entry untouched and reports no change', () => {
 		const entry = { command: 'npx', args: ['-y', 'cyber-asana', 'mcp'] }
-		const result = pinMcpServers({ srv: entry }, '1.0.0')
+		const result = stampMcpServers({ srv: entry }, '1.0.0')
 		expect(result.servers['srv']).toEqual(entry)
 		expect(result.changed).toBe(false)
 	})
 
-	it('strips a false marker — it is still a build directive no vendor should see', () => {
-		const result = pinMcpServers({ srv: { command: 'npx', args: ['-y', 'x'], pinToPluginVersion: false } }, '1.0.0')
+	it('reports no change when the entry already carries the version', () => {
+		const result = stampMcpServers({ srv: { ...marked, args: ['-y', 'cyber-asana@1.0.0'] } }, '1.0.0')
+		expect(result.changed).toBe(false)
+	})
+
+	it('notes each guard and leaves the entry unstamped', () => {
+		expect(
+			stampMcpServers({ srv: { command: 'node', args: ['./s.js'], pinToPluginVersion: true } }, '1.0.0').notes,
+		).toEqual([{ server: 'srv', kind: 'not-a-runner' }])
+		expect(stampMcpServers({ srv: { command: 'npx', args: ['-y'], pinToPluginVersion: true } }, '1.0.0').notes).toEqual(
+			[{ server: 'srv', kind: 'no-specifier' }],
+		)
+	})
+
+	it('passes a non-object entry through untouched', () => {
+		const result = stampMcpServers({ a: 'not-an-object', b: null, c: [1, 2] }, '1.0.0')
+		expect(result.servers).toEqual({ a: 'not-an-object', b: null, c: [1, 2] })
+		expect(result.changed).toBe(false)
+	})
+})
+
+describe('stripPinMarkers', () => {
+	it('strips the marker and copies the authored version', () => {
+		const result = stripPinMarkers({
+			srv: { command: 'npx', args: ['-y', 'cyber-asana@0.9.0'], pinToPluginVersion: true },
+		})
+		expect(result.servers['srv']).toEqual({ command: 'npx', args: ['-y', 'cyber-asana@0.9.0'] })
+		expect(result.changed).toBe(true)
+	})
+
+	it('strips a false marker — it is still a directive no vendor should see', () => {
+		const result = stripPinMarkers({ srv: { command: 'npx', args: ['-y', 'x'], pinToPluginVersion: false } })
 		expect(result.servers['srv']).toEqual({ command: 'npx', args: ['-y', 'x'] })
 		expect(result.changed).toBe(true)
 	})
 
-	it('notes each guard and leaves the entry unpinned', () => {
-		expect(pinMcpServers({ srv: marked }, undefined).notes).toEqual([{ server: 'srv', kind: 'no-manifest-version' }])
-		expect(
-			pinMcpServers({ srv: { command: 'node', args: ['./s.js'], pinToPluginVersion: true } }, '1.0.0').notes,
-		).toEqual([{ server: 'srv', kind: 'not-a-runner' }])
-		expect(pinMcpServers({ srv: { command: 'npx', args: ['-y'], pinToPluginVersion: true } }, '1.0.0').notes).toEqual([
-			{ server: 'srv', kind: 'no-specifier' },
-		])
+	it('reports no change when nothing is marked', () => {
+		expect(stripPinMarkers({ srv: { command: 'npx', args: ['x'] }, b: null }).changed).toBe(false)
 	})
+})
 
-	it('notes a re-pin only when the authored version differs', () => {
-		const at = (v: string) => ({ srv: { command: 'npx', args: ['-y', `cyber-asana@${v}`], pinToPluginVersion: true } })
-		expect(pinMcpServers(at('0.9.0'), '1.0.0').notes).toEqual([{ server: 'srv', kind: 'repinned', previous: '0.9.0' }])
-		expect(pinMcpServers(at('1.0.0'), '1.0.0').notes).toEqual([])
+describe('markedMcpVersions', () => {
+	it('lists the version each marked runner entry carries', () => {
+		expect(
+			markedMcpVersions({
+				a: { command: 'npx', args: ['-y', 'x@1.0.0'], pinToPluginVersion: true },
+				b: { command: 'npx', args: ['-y', 'y'], pinToPluginVersion: true },
+				c: { command: 'npx', args: ['-y', 'z@2.0.0'] },
+				d: { command: 'node', args: ['s.js'], pinToPluginVersion: true },
+			}),
+		).toEqual([{ server: 'a', version: '1.0.0' }, { server: 'b' }])
 	})
 })
 
@@ -138,13 +177,5 @@ describe('pinRunnerArgs — carrying the rest of the argv through', () => {
 
 	it('skips a non-string argument while looking for the specifier', () => {
 		expect(pinRunnerArgs([null, 'cyber-asana'], '1.0.0')?.args).toEqual([null, 'cyber-asana@1.0.0'])
-	})
-})
-
-describe('pinMcpServers — entries that are not objects', () => {
-	it('passes a non-object entry through untouched', () => {
-		const result = pinMcpServers({ a: 'not-an-object', b: null, c: [1, 2] }, '1.0.0')
-		expect(result.servers).toEqual({ a: 'not-an-object', b: null, c: [1, 2] })
-		expect(result.changed).toBe(false)
 	})
 })

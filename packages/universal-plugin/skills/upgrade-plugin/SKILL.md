@@ -1,6 +1,8 @@
 ---
 name: upgrade-plugin
 description: Use this skill when upgrading pinned `npx universal-plugin@<version>` calls across a project to a newer version.
+metadata:
+  pin-exempt: true
 ---
 
 # Upgrade Universal Plugin

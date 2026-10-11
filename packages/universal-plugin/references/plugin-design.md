@@ -247,17 +247,18 @@ If the repo needs explicit symlink tracking: `mcp.json symlink` in `.gitattribut
 
 ### Pinning a self-published server to the plugin version
 
-A plugin whose MCP server is its own npm package writes an unpinned invocation — `{"command": "npx", "args": ["-y", "my-server", "mcp"]}` — and a consumer on plugin 1.4.0 then gets 1.4.0's skills alongside whatever `npx` resolves as latest for the server. Mark the entry and `build` stamps the version on:
+A plugin whose MCP server is its own npm package writes an unpinned invocation — `{"command": "npx", "args": ["-y", "my-server", "mcp"]}` — and a consumer on plugin 1.4.0 then gets 1.4.0's skills alongside whatever `npx` resolves as latest for the server. Mark the entry and `plugin version` stamps the version on at release:
 
 ```json
 { "command": "npx", "args": ["-y", "my-server", "mcp"], "pinToPluginVersion": true }
 ```
 
-- **The marker is required.** `build` never name-matches — a plugin may publish its server under a package name that is not the plugin's, and an unrelated `npx -y widget-cli` must never be stamped with this plugin's version.
-- **The marker never reaches a runtime.** It is a build directive, not part of any vendor's schema, so `build` strips it from every derived manifest and derived `mcp.json`. The authored files are left as written.
-- An already-pinned specifier is **overwritten** with the manifest version, and the build warns naming the version it replaced. Do not hand-pin a marked entry.
-- A marked entry the build cannot pin — the `command` is not `npx`/`upx`, the manifest declares no `version`, or `args` carry no package specifier — is warned about and left alone; the build stays green.
-- `copilot-cli` reads the canonical manifest directly, so it has no derived manifest to receive the pin; the build warns rather than pretending otherwise.
+- **The marker is required.** Stamping never name-matches — a plugin may publish its server under a package name that is not the plugin's, and an unrelated `npx -y widget-cli` must never be stamped with this plugin's version.
+- **The marker never reaches a runtime.** It is a directive, not part of any vendor's schema, so `build` strips it from every derived manifest and derived `mcp.json` and copies the entry otherwise as authored. `build` never decides a version.
+- **`plugin version` writes the pin** into the authored entry, inline or in the mcp file, and keeps the marker. An already-pinned specifier is overwritten with the new version. Do not hand-pin a marked entry.
+- A marked entry that cannot be pinned — the `command` is not `npx`/`upx`, or `args` carry no package specifier — is warned about and left alone.
+- `publish check-version` and `doctor` compare marked entries too, so a stale pin is reported as drift.
+- `copilot-cli` reads the canonical manifest directly, so the stamped authored entry is what it sees.
 
 ## Environment Variable Mapping
 

@@ -1,6 +1,8 @@
 ---
 name: adopt-upx
 description: Use this skill when the user wants to make their skills use upx — the fast local-first package runner shipped as @repobuddy/upx. Trigger on phrases like "make my skills use upx", "adopt the upx runner", "speed up npx calls", "switch to upx", or "rewrite npx pins to upx". Rewrites `npx <pkg>@<version>` references to a caret range on `upx` (`^<major>`, or `^0.<minor>` for a 0.x pin) across one skill, a named set, or every skill in the project.
+metadata:
+  pin-exempt: true
 ---
 
 # Adopt upx
@@ -51,7 +53,7 @@ Left alone (never rewritten):
   installed version; these already go straight to `npx` inside `upx` itself on a miss)
 - **Already-`upx` references** — nothing to do
 - **Any skill marked `pin-exempt: true`** in its frontmatter — its version strings are
-  documentation/illustration, not real invocations. This mirrors how `plugin bundle` treats
+  documentation/illustration, not real invocations. This mirrors how `plugin version` treats
   pin-exempt skills; `upgrade-plugin` is a live example.
 
 ## Choose scope

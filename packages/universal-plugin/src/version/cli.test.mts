@@ -123,7 +123,7 @@ test('the packagePath package.json moves to the same version', () => {
 	seedManifest()
 	writeJson('.agents/universal-plugin.json', { packagePath: 'packages/mypkg' })
 	writeJson('packages/mypkg/package.json', { name: 'mypkg', version: '1.2.3' })
-	run('minor')
+	run('1.3.0')
 	expect(readJson('plugin.json').version).toBe('1.3.0')
 	expect(readJson('packages/mypkg/package.json').version).toBe('1.3.0')
 })
@@ -132,7 +132,7 @@ test('the package.json keeps its other fields and its own indentation', () => {
 	seedManifest()
 	writeJson('.agents/universal-plugin.json', { packagePath: 'packages/mypkg' })
 	writeJson('packages/mypkg/package.json', { name: 'mypkg', scripts: { build: 'x' }, version: '1.2.3' }, 2)
-	run('patch')
+	run('1.2.4')
 	const raw = fs.readFileSync(path.join(root, 'packages/mypkg/package.json'), 'utf8')
 	expect(raw).toContain('\n  ')
 	expect(readJson('packages/mypkg/package.json').scripts).toEqual({ build: 'x' })
@@ -150,7 +150,7 @@ test('both authored files are reported as updated', () => {
 	seedManifest()
 	writeJson('.agents/universal-plugin.json', { packagePath: 'packages/mypkg' })
 	writeJson('packages/mypkg/package.json', { name: 'mypkg', version: '1.2.3' })
-	const r = run('patch', '--format', 'json')
+	const r = run('1.2.4', '--format', 'json')
 	const result = JSON.parse(r.stdout) as { written: string[] }
 	expect(result.written).toContain('plugin.json')
 	expect(result.written).toContain('packages/mypkg/package.json')
@@ -272,7 +272,7 @@ test('--format json returns the from, to, and written fields', () => {
 test('a successful run ends with a next-step line', () => {
 	seedManifest()
 	const r = run('patch')
-	expect(r.stderr).toContain('→ universal-plugin plugin')
+	expect(r.stderr).toContain('→ review and commit the stamped files')
 })
 
 // ── Print the command reference ──
@@ -283,4 +283,97 @@ test('--help prints a concise reference', () => {
 	expect(r.stdout).toContain('--preid')
 	expect(r.stdout).toContain('--no-build')
 	expect(r.stdout).toContain('--dry-run')
+})
+
+// ── Stamp every place (#179) ──
+
+/** A changesets layout: the release tool already moved package.json, and every other place lags. */
+function seedReleased() {
+	writeJson('plugin.json', {
+		name: 'my-plugin',
+		version: '1.2.3',
+		extensions: {
+			'org.cyberuni.universal-plugin': {
+				harnesses: { 'claude-code': {} },
+				mcpServers: './mcp.json',
+			},
+		},
+	})
+	writeJson('.agents/universal-plugin.json', { packagePath: '.' })
+	writeJson('package.json', { name: 'my-cli', version: '1.3.0' })
+	writeJson('mcp.json', {
+		mcpServers: { srv: { command: 'npx', args: ['-y', 'my-cli@1.2.3', 'mcp'], pinToPluginVersion: true } },
+	})
+	const write = (rel: string, content: string) => {
+		fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true })
+		fs.writeFileSync(path.join(root, rel), content)
+	}
+	write('skills/use/SKILL.md', '---\nname: use\n---\n\nRun `npx -y my-cli@1.2.3 go`.\n')
+	write('skills/use/references/more.md', 'Or `upx my-cli@1.2.3 go`.\n')
+	write('skills/use/scripts/run.mjs', "const fallback = 'npx my-cli@1.2.3'.split(' ')\n")
+}
+
+const read = (rel: string) => fs.readFileSync(path.join(root, rel), 'utf8')
+
+test('--from-package stamps every place from the released package.json', () => {
+	seedReleased()
+	const r = run('--from-package')
+	expect(r.status).toBe(0)
+	expect(readJson('plugin.json').version).toBe('1.3.0')
+	expect(readJson('package.json').version).toBe('1.3.0')
+	expect(read('skills/use/SKILL.md')).toContain('npx -y my-cli@1.3.0 go')
+	expect(read('skills/use/references/more.md')).toContain('upx my-cli@1.3.0 go')
+	expect(read('skills/use/scripts/run.mjs')).toContain("'npx my-cli@1.3.0'")
+	expect(readJson('.plugin/pins.json')).toEqual({ 'my-cli': '1.3.0' })
+	expect((readJson('mcp.json').mcpServers as any).srv).toEqual({
+		command: 'npx',
+		args: ['-y', 'my-cli@1.3.0', 'mcp'],
+		pinToPluginVersion: true,
+	})
+	expect(readJson('.claude-plugin/plugin.json').version).toBe('1.3.0')
+	expect((readJson('.claude-plugin/mcp.json').mcpServers as any).srv.args).toEqual(['-y', 'my-cli@1.3.0', 'mcp'])
+})
+
+test('after one stamp, check-version finds no drift', () => {
+	seedReleased()
+	expect(run('--from-package').status).toBe(0)
+	const check = spawnSync('node', [bin, 'publish', 'check-version', '--root', root, '--format', 'json'], {
+		encoding: 'utf8',
+	})
+	expect(check.status).toBe(0)
+	expect(JSON.parse(check.stdout)).toMatchObject({ ok: true, expected: '1.3.0', drifted: [] })
+})
+
+test('a release type is refused where packagePath is declared', () => {
+	seedReleased()
+	const r = run('minor')
+	expect(r.status).toBe(1)
+	expect(r.stderr).toContain('--from-package')
+	expect(readJson('plugin.json').version).toBe('1.2.3')
+})
+
+test('the pins map takes the .editorconfig indentation', () => {
+	seedReleased()
+	fs.writeFileSync(path.join(root, '.editorconfig'), 'root = true\n[*.json]\nindent_style = space\nindent_size = 2\n')
+	run('--from-package')
+	expect(read('.plugin/pins.json')).toBe('{\n  "my-cli": "1.3.0"\n}\n')
+})
+
+test('--dry-run plans the stamped places and writes none of them', () => {
+	seedReleased()
+	const r = run('--from-package', '--dry-run', '--format', 'json')
+	expect(r.status).toBe(0)
+	expect(JSON.parse(r.stdout).planned).toEqual(
+		expect.arrayContaining(['plugin.json', 'skills/use/SKILL.md', 'mcp.json', '.plugin/pins.json']),
+	)
+	expect(read('skills/use/SKILL.md')).toContain('my-cli@1.2.3')
+	expect(exists('.plugin/pins.json')).toBe(false)
+})
+
+test('publish sync-version warns and runs the --from-package stamp', () => {
+	seedReleased()
+	const r = spawnSync('node', [bin, 'publish', 'sync-version', '--root', root], { encoding: 'utf8' })
+	expect(r.status).toBe(0)
+	expect(r.stderr).toContain('publish sync-version is deprecated')
+	expect(read('skills/use/SKILL.md')).toContain('my-cli@1.3.0')
 })

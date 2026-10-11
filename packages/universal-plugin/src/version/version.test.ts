@@ -4,7 +4,15 @@ import * as path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { realVersionFs } from './fs.js'
-import { currentVersion, planVersion, RELEASE_TYPES, resolveTarget, type VersionState } from './version.js'
+import {
+	currentVersion,
+	PINS_MAP_PATH,
+	planVersion,
+	RELEASE_TYPES,
+	resolveTarget,
+	UNSTAMPED_VERSION,
+	type VersionState,
+} from './version.js'
 
 const base: VersionState = {
 	manifestExists: true,
@@ -72,7 +80,7 @@ describe('planVersion — keep the npm package.json in lockstep', () => {
 	}
 
 	it('the packagePath package.json moves to the same version', () => {
-		const result = plan(withPackage, 'minor')
+		const result = plan(withPackage, '1.3.0')
 		expect(result.to).toBe('1.3.0')
 		expect(result.manifest.version).toBe('1.3.0')
 		expect(result.packageJson?.content.version).toBe('1.3.0')
@@ -82,7 +90,7 @@ describe('planVersion — keep the npm package.json in lockstep', () => {
 	it('the package.json keeps its other fields', () => {
 		const result = plan(
 			{ packagePath: 'pkg', packageJson: { name: 'mypkg', scripts: { build: 'x' }, version: '1.2.3' } },
-			'patch',
+			'1.2.4',
 		)
 		expect(result.packageJson?.content.name).toBe('mypkg')
 		expect(result.packageJson?.content.scripts).toEqual({ build: 'x' })
@@ -95,7 +103,7 @@ describe('planVersion — keep the npm package.json in lockstep', () => {
 	})
 
 	it('both authored files are reported as updated', () => {
-		const result = plan(withPackage, 'patch')
+		const result = plan(withPackage, '1.2.4')
 		expect(result.rows).toEqual([
 			{ path: 'plugin.json', action: 'updated' },
 			{ path: 'packages/mypkg/package.json', action: 'updated' },
@@ -104,7 +112,7 @@ describe('planVersion — keep the npm package.json in lockstep', () => {
 	})
 
 	it('a packagePath of "." resolves to the root package.json', () => {
-		const result = plan({ packagePath: '.', packageJson: { version: '1.2.3' } }, 'patch')
+		const result = plan({ packagePath: '.', packageJson: { version: '1.2.3' } }, '1.2.4')
 		expect(result.packageJson?.path).toBe('package.json')
 	})
 })
@@ -142,6 +150,160 @@ describe('planVersion — guards', () => {
 
 	it('a manifest whose current version is not semver fails loud', () => {
 		expect(() => plan({ manifest: { name: 'x', version: 'not-semver' } }, 'patch')).toThrow(/not valid semver/)
+	})
+})
+
+describe('planVersion — only one place picks the number (ADR-0010 §2)', () => {
+	const withPackage: Partial<VersionState> = {
+		packagePath: 'packages/mypkg',
+		packageJson: { name: 'mypkg', version: '1.3.0' },
+	}
+	const fromPackage = (state: Partial<VersionState>) =>
+		planVersion({ ...base, ...state }, { fromPackage: true, force: false })
+
+	it('refuses a release type where packagePath is declared and points at --from-package', () => {
+		expect(() => plan(withPackage, 'minor')).toThrow(/packages\/mypkg\/package\.json.*--from-package/s)
+	})
+
+	it('still takes an explicit version where packagePath is declared — semantic-release calls it', () => {
+		expect(plan(withPackage, '1.4.0').to).toBe('1.4.0')
+	})
+
+	it('--from-package takes the declared package version and leaves the package alone', () => {
+		const result = fromPackage(withPackage)
+		expect(result.to).toBe('1.3.0')
+		expect(result.manifest.version).toBe('1.3.0')
+		expect(result.packageJson).toBeNull()
+		expect(result.rows.map((r) => r.path)).toEqual(['plugin.json'])
+	})
+
+	it('--from-package re-stamps the version the manifest already carries, without --force', () => {
+		expect(fromPackage({ ...withPackage, manifest: { name: 'x', version: '1.3.0' } }).to).toBe('1.3.0')
+	})
+
+	it('--from-package reads the plugin root package.json when no packagePath is declared', () => {
+		expect(fromPackage({ rootPackageJson: { name: 'p', version: '2.0.0' } }).to).toBe('2.0.0')
+	})
+
+	it('--from-package names both places it looked when there is no package', () => {
+		expect(() => fromPackage({})).toThrow(/packagePath is not set.*plugin root has no package\.json/s)
+	})
+
+	it('--from-package refuses a package without a version', () => {
+		expect(() => fromPackage({ rootPackageJson: { name: 'p' } })).toThrow(/No version found in package\.json/)
+	})
+
+	it('--from-package refuses the semantic-release placeholder and points at the explicit form', () => {
+		expect(() => fromPackage({ rootPackageJson: { version: UNSTAMPED_VERSION } })).toThrow(/0\.0\.0-development/)
+	})
+
+	it('a version and --from-package together are refused', () => {
+		expect(() => planVersion(base, { bump: '1.4.0', fromPackage: true, force: false })).toThrow(/not both/)
+	})
+
+	it('neither a version nor --from-package is refused', () => {
+		expect(() => planVersion(base, { force: false })).toThrow(/--from-package/)
+	})
+
+	it('an explicit version replaces an unstamped manifest without --force', () => {
+		expect(plan({ manifest: { name: 'x', version: UNSTAMPED_VERSION } }, '1.0.0').to).toBe('1.0.0')
+	})
+})
+
+describe('planVersion — stamp the skills', () => {
+	const skill = (content: string, rel = 'skills/a/SKILL.md') => ({ path: rel, content })
+	const own: Partial<VersionState> = { rootPackageJson: { name: 'my-cli', version: '1.2.3' } }
+
+	it("stamps the plugin's own pins with the new version, in Markdown and scripts alike", () => {
+		const result = plan(
+			{
+				...own,
+				skillFiles: [
+					skill('Run `npx -y my-cli@1.2.3 go`.'),
+					skill("spawnSync('npx', 'npx my-cli@1.2.3'.split(' '))", 'skills/a/scripts/run.mjs'),
+					skill('See `upx my-cli@1.2.3 help`.', 'skills/a/references/more.md'),
+				],
+			},
+			'1.3.0',
+		)
+		expect(result.files).toEqual([
+			skill('Run `npx -y my-cli@1.3.0 go`.'),
+			skill("spawnSync('npx', 'npx my-cli@1.3.0'.split(' '))", 'skills/a/scripts/run.mjs'),
+			skill('See `upx my-cli@1.3.0 help`.', 'skills/a/references/more.md'),
+		])
+		expect(result.rows.filter((r) => r.action === 'stamped').map((r) => r.path)).toContain('skills/a/scripts/run.mjs')
+	})
+
+	it('pins another workspace CLI to its workspace version and leaves an external one alone', () => {
+		const result = plan(
+			{ ...own, skillFiles: [skill('npx tool@0.1.0 && npx far-away@3.0.0')], workspace: { tool: '0.2.0' } },
+			'1.3.0',
+		)
+		expect(result.files[0]?.content).toBe('npx tool@0.2.0 && npx far-away@3.0.0')
+	})
+
+	it('leaves a pin-exempt skill alone', () => {
+		const result = plan(
+			{
+				...own,
+				skillFiles: [
+					skill('---\nmetadata:\n  pin-exempt: true\n---\nnpx my-cli@1.0.0'),
+					skill('npx my-cli@1.0.0', 'skills/a/scripts/x.mjs'),
+				],
+			},
+			'1.3.0',
+		)
+		expect(result.files).toEqual([])
+	})
+
+	it('maps the resolved pins into .plugin/pins.json', () => {
+		const result = plan(
+			{ ...own, skillFiles: [skill('npx tool@0.1.0 npx my-cli@1.2.3 npx far@1.0.0')], workspace: { tool: '0.2.0' } },
+			'1.3.0',
+		)
+		expect(result.json).toContainEqual({ path: PINS_MAP_PATH, content: { 'my-cli': '1.3.0', tool: '0.2.0' } })
+	})
+
+	it('writes no pins map for a plugin whose skills pin nothing it versions', () => {
+		expect(plan({ ...own, skillFiles: [skill('npx far@1.0.0')] }, '1.3.0').json).toEqual([])
+	})
+
+	it('keeps an existing pins map current even when it is now empty', () => {
+		expect(plan({ ...own, pinsMapExists: true }, '1.3.0').json).toEqual([{ path: PINS_MAP_PATH, content: {} }])
+	})
+})
+
+describe('planVersion — stamp the mcpServers pin (#56)', () => {
+	const marked = { command: 'npx', args: ['-y', 'cyber-asana@1.2.3', 'mcp'], pinToPluginVersion: true }
+	const ext = (mcpServers: unknown) => ({
+		manifest: {
+			name: 'p',
+			version: '1.2.3',
+			extensions: { 'org.cyberuni.universal-plugin': { mcpServers } },
+		},
+	})
+
+	it('stamps an inline marked entry inside plugin.json and keeps the marker', () => {
+		const result = plan(ext({ srv: marked }), '1.3.0')
+		const uext = (result.manifest['extensions'] as Record<string, Record<string, any>>)['org.cyberuni.universal-plugin']
+		expect(uext?.['mcpServers'].srv).toEqual({ ...marked, args: ['-y', 'cyber-asana@1.3.0', 'mcp'] })
+	})
+
+	it('stamps a marked entry in an authored mcp file', () => {
+		const result = plan({ mcpFiles: [{ path: 'mcp.json', content: { mcpServers: { srv: marked } } }] }, '1.3.0')
+		expect(result.json).toEqual([
+			{ path: 'mcp.json', content: { mcpServers: { srv: { ...marked, args: ['-y', 'cyber-asana@1.3.0', 'mcp'] } } } },
+		])
+	})
+
+	it('leaves an mcp file with nothing to move unwritten', () => {
+		const unmarked = { mcpServers: { srv: { command: 'npx', args: ['x@1.0.0'] } } }
+		expect(plan({ mcpFiles: [{ path: 'mcp.json', content: unmarked }] }, '1.3.0').json).toEqual([])
+	})
+
+	it('warns about a marked entry it cannot stamp', () => {
+		const result = plan(ext({ srv: { command: 'node', args: ['s.js'], pinToPluginVersion: true } }), '1.3.0')
+		expect(result.warnings.join('\n')).toContain('"srv"')
 	})
 })
 
@@ -208,7 +370,7 @@ describe('realVersionFs', () => {
 		writeJson('plugin.json', { name: 'x', version: '1.2.3' })
 		writeJson('.agents/universal-plugin.json', { packagePath: 'packages/mypkg' })
 		writeJson('packages/mypkg/package.json', { name: 'mypkg', version: '1.2.3' })
-		realVersionFs.apply(dir, planVersion(realVersionFs.gather(dir), { bump: 'patch', force: false }))
+		realVersionFs.apply(dir, planVersion(realVersionFs.gather(dir), { bump: '1.2.4', force: false }))
 		expect(readJson('plugin.json').version).toBe('1.2.4')
 		expect(readJson('packages/mypkg/package.json').version).toBe('1.2.4')
 	})
@@ -224,7 +386,7 @@ describe('realVersionFs', () => {
 		writeJson('plugin.json', { name: 'x', version: '1.2.3' }, '\t')
 		writeJson('.agents/universal-plugin.json', { packagePath: 'pkg' })
 		writeJson('pkg/package.json', { name: 'mypkg', scripts: { build: 'x' }, version: '1.2.3' }, 2)
-		realVersionFs.apply(dir, planVersion(realVersionFs.gather(dir), { bump: 'patch', force: false }))
+		realVersionFs.apply(dir, planVersion(realVersionFs.gather(dir), { bump: '1.2.4', force: false }))
 		expect(readRaw('plugin.json')).toContain('\t')
 		expect(readRaw('pkg/package.json')).toContain('\n  ')
 		expect(readJson('pkg/package.json').scripts).toEqual({ build: 'x' })

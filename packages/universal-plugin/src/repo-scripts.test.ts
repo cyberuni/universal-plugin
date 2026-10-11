@@ -9,7 +9,7 @@ import { expect, it } from 'vitest'
  *  encode one right answer. The consumer repo formats after the CLI writes. Concretely: every root
  *  script that runs a manifest-writing verb must end in a format step, or the next `biome check .`
  *  fails on the file the script just wrote (which is how the release PR went red). */
-const WRITE_VERBS = ['plugin build', 'plugin init', 'plugin version', 'publish sync-version']
+const WRITE_VERBS = ['plugin build', 'plugin init', 'plugin version']
 const FORMAT_STEPS = ['pnpm check', 'biome check --write', 'biome format']
 
 const repoRoot = path.resolve(fileURLToPath(import.meta.url), '../../../..')

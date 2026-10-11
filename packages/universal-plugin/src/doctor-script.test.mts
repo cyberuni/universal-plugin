@@ -453,3 +453,14 @@ test('a com.github.copilot/ whose files predate plugin.json is still stale', () 
 
 	expect(findings()).toContain('stale')
 })
+
+test('a semantic-release placeholder is reported as unstamped, not as version-drift', () => {
+	seedRelease('1.0.0')
+	write('.agents/universal-plugin.json', '{ "packagePath": "." }\n')
+	write('package.json', '{ "name": "demo-cli", "version": "0.0.0-development" }\n')
+
+	const codes = findings()
+	expect(codes).toContain('unstamped')
+	expect(codes).not.toContain('version-drift')
+	expect(detail('unstamped')).toBe('package.json holds 0.0.0-development, which the release replaces')
+})

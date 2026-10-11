@@ -22,7 +22,7 @@ import {
 	VENDOR_TARGETS,
 } from '../marketplace/marketplace.js'
 import { formatCatalogIssues, validateCatalogContent } from '../marketplace/validation.js'
-import { type McpPinNote, pinMcpServers } from '../pin/pin.js'
+import { stripPinMarkers } from '../pin/pin.js'
 import { vendorRuleViolations } from '../validate/validation.js'
 
 type VendorId = 'claude-code' | 'cursor' | 'codex' | 'copilot-cli'
@@ -144,7 +144,7 @@ const DEFAULT_HOOKS_PATH = './hooks/hooks.json'
 const DEFAULT_SKILLS_PATH = './skills/'
 
 /** The Agent Plugins Specification's fixed location for a plugin's MCP config (ADR-0007 §6.1). */
-const DEFAULT_MCP_PATH = './mcp.json'
+export const DEFAULT_MCP_PATH = './mcp.json'
 
 /** universal-plugin's own build config, nested under extensions["org.cyberuni.universal-plugin"]
  *  in the canonical Agent Plugins Spec v1.0.0 manifest (ADR-0007). */
@@ -169,7 +169,7 @@ export interface PluginManifest {
 	[key: string]: unknown
 }
 
-const UP_NAMESPACE = 'org.cyberuni.universal-plugin'
+export const UP_NAMESPACE = 'org.cyberuni.universal-plugin'
 
 /** Reads universal-plugin's config block from the canonical manifest's extensions map. */
 export function universalPluginExtension(manifest: PluginManifest): UniversalPluginExtension {
@@ -355,12 +355,10 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 	warnings.push(...validateDependencies(declaredDependencies).warnings)
 	const skills = readSkills(root, manifest, warnings)
 	const canonicalHooks = readCanonicalHooks(root, componentConfig['hooks'], warnings)
-	// An MCP invocation's version is known here and nowhere else: `mcp.json` expands only
-	// ${PLUGIN_ROOT} and ${PLUGIN_DATA}, so a runtime placeholder would reach the client literally.
+	// A marked entry's version is stamped into the authored declaration by `plugin version`; the build
+	// copies it as authored and only strips the marker, so it never decides a version (#179).
 	const declaredMcp = readCanonicalMcpServers(root, componentConfig['mcpServers'], warnings)
-	const mcp = declaredMcp ? pinMcpServers(declaredMcp.servers, manifest.version) : null
-	// One marked entry is one loss to fix however many vendors are targeted.
-	warnings.push(...(mcp?.notes ?? []).map(formatMcpNote))
+	const mcp = declaredMcp ? stripPinMarkers(declaredMcp.servers) : null
 
 	for (const vendor of vendors) {
 		const relPath = VENDOR_OUTPUT[vendor]
@@ -384,13 +382,6 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 			for (const drop of dedupeDrops(hooks?.drops ?? [])) {
 				warnings.push(
 					`${vendor} cannot run the "${drop.type}" hook handler on ${drop.event} — dropped from the derived hooks file`,
-				)
-			}
-			// `mcp.json` is one of the two paths spec mode leaves at the plugin root, so there is still
-			// no derived file the pin could ride in.
-			if (mcp?.changed) {
-				warnings.push(
-					`${vendor} reads the canonical plugin.json directly — the pinned mcpServers is not delivered to it`,
 				)
 			}
 			const overrides = Object.keys(vendorFields)
@@ -882,7 +873,7 @@ function dedupeDrops(drops: HookDrop[]): HookDrop[] {
 }
 
 /** The canonical `mcpServers` declaration, resolved into one servers map. `inline` records how the
- *  author wrote it, because that decides how a pinned map is delivered: an inline declaration stays
+ *  author wrote it, because that decides how a marker-stripped map is delivered: an inline declaration stays
  *  inline in the derived manifest, a path declaration gets a derived file beside it. */
 interface CanonicalMcp {
 	servers: Record<string, unknown>
@@ -934,19 +925,4 @@ function fromPaths(root: string, paths: string[], warnings: string[]): Canonical
 		}
 	}
 	return read === 0 ? null : { servers: merged, inline: false }
-}
-
-/** A marked entry that could not be pinned is a silent loss of the guarantee the marker asked for,
- *  so each one is named. None of them fails the build — the manifest still derives. */
-function formatMcpNote(note: McpPinNote): string {
-	switch (note.kind) {
-		case 'no-manifest-version':
-			return `mcpServers "${note.server}" asks to be pinned to the plugin version, but the manifest declares no version — left unpinned`
-		case 'not-a-runner':
-			return `mcpServers "${note.server}" asks to be pinned to the plugin version, but its command is not "npx" or "upx" — left unpinned`
-		case 'no-specifier':
-			return `mcpServers "${note.server}" asks to be pinned to the plugin version, but its args carry no package specifier — left unpinned`
-		case 'repinned':
-			return `mcpServers "${note.server}" was authored at "${note.previous}" — overwritten with the plugin version`
-	}
 }

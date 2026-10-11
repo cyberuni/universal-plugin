@@ -88,7 +88,7 @@ function getCommand(fs: ConfigFs): Command {
 					process.stderr.write(
 						packagePath === null
 							? '→ set packagePath in .agents/universal-plugin.json to ship through npm\n'
-							: '→ universal-plugin publish sync-version\n',
+							: '→ universal-plugin plugin version --from-package\n',
 					)
 					return
 				}

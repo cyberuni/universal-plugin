@@ -119,7 +119,7 @@ shared field. A silent pick there is a silent behavior change for one runtime.
 An npm-shipped plugin (`--npm`) in a changesets repository gets one more plan line. When the
 repository root carries `.changeset/` and its `package.json` `version` script is exactly
 `changeset version`, `plugin init --npm` rewrites that script to
-`changeset version && universal-plugin publish sync-version --root <plugin-root>` and adds
+`changeset version && universal-plugin plugin version --from-package --root <plugin-root>` and adds
 `universal-plugin` to the root `devDependencies`. Without it the first Version Packages PR moves
 `package.json` and leaves the plugin version behind. Show the new script and the devDependency in the
 plan, and ask before running init: it rewrites the user's root `package.json`. If the user declines,
