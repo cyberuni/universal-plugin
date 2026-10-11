@@ -39,8 +39,9 @@ npx universal-plugin plugin init --npm           # also wire an npm package to s
 npx universal-plugin plugin build                # generate vendor manifests
 npx universal-plugin plugin install              # install the working copy into the runtimes it targets
 npx universal-plugin plugin uninstall            # take it back out
-npx universal-plugin plugin version <bump>       # move the version across every file carrying one
-npx universal-plugin plugin bundle               # pin skill npx references to workspace versions
+npx universal-plugin plugin version <bump>       # stamp the version into every place it lives (author bump)
+npx universal-plugin plugin version 1.4.0        # explicit number (semantic-release prepareCmd)
+npx universal-plugin plugin version --from-package  # take package.json's version (changesets, release-please)
 ```
 
 `build` writes `.claude-plugin/plugin.json`, `.cursor-plugin/plugin.json`, and
@@ -69,11 +70,11 @@ npx universal-plugin sync apply <action-id>
 ### publish
 
 ```sh
-npx universal-plugin publish sync-version             # copy packagePath/package.json version into plugin.json, then rebuild
+npx universal-plugin publish check-version            # fail when any place carries a different version (read-only, for CI)
 ```
 
-This writes the canonical `plugin.json` only. Run `plugin build` afterwards, or the vendor manifests
-keep their previous version.
+`publish sync-version` and `plugin bundle` are deprecated aliases of `plugin version --from-package`
+and `plugin version`. They print a warning and are removed in the next minor release.
 
 ### marketplace
 
@@ -136,7 +137,7 @@ upx cyber-skills@^2 audit validate
 ```
 
 Use a caret range on the major rather than an exact pin, so one global install serves every caller.
-`plugin bundle --runner upx` emits references in this form.
+The `adopt-upx` skill rewrites references to this form.
 
 `upx` only works once it is installed globally. `npx` ships with npm, so keep `npx` as the default
 anywhere you cannot guarantee that install.

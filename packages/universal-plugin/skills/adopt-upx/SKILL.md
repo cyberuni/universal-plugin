@@ -53,7 +53,7 @@ Left alone (never rewritten):
   installed version; these already go straight to `npx` inside `upx` itself on a miss)
 - **Already-`upx` references** — nothing to do
 - **Any skill marked `pin-exempt: true`** in its frontmatter — its version strings are
-  documentation/illustration, not real invocations. This mirrors how `plugin bundle` treats
+  documentation/illustration, not real invocations. This mirrors how `plugin version` treats
   pin-exempt skills; `upgrade-plugin` is a live example.
 
 ## Choose scope

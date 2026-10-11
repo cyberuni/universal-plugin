@@ -80,7 +80,8 @@ Each `code` below is what the script emits.
 | `unsupported-component` | a component path on the shared extension names a component one targeted vendor has none of (`agents` for Codex, `rules` for Claude Code, …); the build leaves it out of that vendor's manifest | declare the path under `harnesses.<vendor>` for the vendors that read it, or leave it — nothing is lost |
 | `undeliverable-override` | `harnesses["copilot-cli"]` sets fields that reach nothing | `/universal-plugin:init-universal-plugin`, update route — move them to a vendor that has a derived manifest, or drop them |
 | `codex-fields-missing` | Codex is targeted without `version` or `description`; the build fails and writes **nothing at all**, including for the other vendors | add both to the canonical top level |
-| `version-drift` | one file carries a different version from the release's number — the canonical manifest, a derived vendor manifest, a catalog entry, or a skill pin; one finding per file, named by path | `/universal-plugin:version`; then [offer the CI check](#offer-the-check-to-ci) |
+| `version-drift` | one file carries a different version from the release's number — the canonical manifest, a derived vendor manifest, a catalog entry, a skill pin, or a marked `mcpServers` entry; one finding per file, named by path | `/universal-plugin:version` (for a package-sourced drift, `universal-plugin plugin version --from-package`); then [offer the CI check](#offer-the-check-to-ci) |
+| `unstamped` | a place holds `0.0.0-development`, semantic-release's placeholder. The release has not stamped it yet, so it is not drift (severity low) | in `prepareCmd`, `plugin version ${nextRelease.version}`, and commit the stamped files back with `@semantic-release/git`; see `/universal-plugin:version` |
 | `unreleased-content` | shipped content was committed after the commit that set the current version — a consumer keyed on that version never re-extracts it | `/universal-plugin:version` |
 | `copilot-root-components` | agents, commands, rules, hooks, or LSP servers sit at the plugin root with no copy under `com.github.copilot/` — Copilot CLI reads them only from there in spec mode, so it loads none of them, silently | `/universal-plugin:build-plugin` |
 | `stale-github-plugin` | a leftover `.github/plugin/plugin.json` from an older build — shadowed by root and no longer generated | `/universal-plugin:remove-plugin` |
@@ -139,16 +140,18 @@ user can run, or ask before running it yourself.
 
 A version lives in five places. Two are authored: the canonical `plugin.json`, and the `package.json`
 at the `packagePath` the CLI reports (`config get --key packagePath`), resolved from the plugin root.
-Three are derived from them: the vendor manifests, this plugin's entry in each repository catalog,
-and the `npx`/`upx <package>@<version>` pins in the skills.
+The rest are stamped from them by `plugin version`: the vendor manifests, this plugin's entry in each
+repository catalog, the `npx`/`upx <package>@<version>` pins in the skills, and each `mcpServers`
+entry marked `pinToPluginVersion`.
 
 The script asks `universal-plugin publish check-version` for the comparison and emits one
 `version-drift` per file that disagrees. The reference is the release's number: the `package.json`
 when `packagePath` is declared, else `plugin.json`. Pins are compared only when there is a package to
-pin, and a pin-exempt skill or a pin that is not a version (`<version>`, `latest`) is skipped.
+pin, and a pin-exempt skill or a pin that is not a version (`<version>`, `latest`) is skipped. A place
+holding `0.0.0-development` is reported as `unstamped`, not as `version-drift`.
 
 Files diverge when someone ran `npm version`, or when a release tool (changesets, release-please,
-semantic-release) moved `package.json` and nothing carried the number on. All of it is
+semantic-release) moved `package.json` and nothing stamped the number on. All of it is
 `/universal-plugin:version`'s to fix — never patch one file by hand to match another.
 
 ### Offer the check to CI

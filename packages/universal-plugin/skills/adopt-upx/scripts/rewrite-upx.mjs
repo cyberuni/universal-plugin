@@ -16,7 +16,7 @@
 //   - dist-tags (e.g. `@next`, `@latest`) — upx can't range-match these, they go to npx anyway
 //   - any occurrence already using `upx` — nothing to rewrite
 //   - any SKILL.md whose frontmatter declares `pin-exempt: true` — its versions are illustration
-//     (the same convention the plugin bundler uses)
+//     (the same convention `plugin version` uses)
 //
 // Idempotent: a second run finds no more `npx <pkg>@<semver>` occurrences to rewrite.
 
@@ -28,7 +28,7 @@ const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', '.turbo'])
 const FRONTMATTER_PATTERN = /^---\r?\n([\s\S]*?)\r?\n---/
 const PIN_EXEMPT_PATTERN = /(^|\n)\s*pin-exempt:\s*true\s*(\n|$)/
 
-// Matches `npx <pkg>@<version>` — mirrors the pattern `plugin bundle` uses for pin rewriting,
+// Matches `npx <pkg>@<version>` — mirrors the pattern `plugin version` uses for pin rewriting,
 // but only for the `npx` runner word (upx refs are already fast, nothing to do). The package
 // class includes `@` and `/` so a scoped package (`@acme/cli@1.2.3`) matches; greedy matching
 // backtracks to the LAST `@`, which separates the version.

@@ -120,8 +120,8 @@ Validation runs before the first write, so a failed build leaves the tree untouc
 - **Edit `plugin.json` to get a different derived manifest.** A per-vendor field belongs under
   `extensions["org.cyberuni.universal-plugin"].harnesses.<vendor>`. That is a declaration, and
   `init-universal-plugin` owns it.
-- **Expect a build to pin skill `npx` references.** That is the release-time `plugin bundle`, not
-  this step.
+- **Expect a build to pin skill `npx` references or decide a version.** Build derives and copies
+  whatever `plugin.json` carries. Stamping is the release-time `plugin version`, not this step.
 - **Expect a build to copy governances into skills.** A skill loads a reference through the
   `reference` skill in the `cyber-agent-harness` plugin; the build does not copy them and has no
   `--check` flag.

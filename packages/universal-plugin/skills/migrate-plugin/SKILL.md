@@ -174,7 +174,7 @@ as a follow-up instead of doing it inside this migration.
 Point every version and build step at the new plugin root:
 
 - Set the manifest extension's `packagePath` to `"."`.
-- `universal-plugin publish sync-version --root <pkg>` reads `packagePath` from
+- `universal-plugin plugin version --from-package --root <pkg>` reads `packagePath` from
   `<pkg>/.agents/universal-plugin.json`, not from the manifest extension. With
   no `packagePath` it reads `<pkg>/package.json`, so a package that holds its
   own plugin needs no config file for it. If the repository instead runs its
