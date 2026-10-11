@@ -109,3 +109,15 @@ test('a missing plugin.json fails loud', () => {
 	expect(r.status).toBe(1)
 	expect(r.stderr).toMatch(/No plugin.json found/)
 })
+
+test('a semantic-release placeholder is reported as unstamped, not drift', () => {
+	seedMonorepo({ pkg: '0.0.0-development', manifest: '0.9.0', claude: '0.9.0', catalog: '0.9.0', pin: '0.9.0' })
+	const r = run(path.join(repo, 'plugins/demo'), '--format', 'json')
+	expect(r.status).toBe(0)
+	const out = JSON.parse(r.stdout)
+	expect(out).toMatchObject({ ok: true, expected: '0.9.0', drifted: [] })
+	expect(out.unstamped).toEqual([
+		{ path: '../../packages/demo/package.json', kind: 'package', version: '0.0.0-development' },
+	])
+	expect(r.stderr).toContain('../../packages/demo/package.json is unstamped')
+})

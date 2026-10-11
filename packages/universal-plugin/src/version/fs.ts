@@ -174,5 +174,28 @@ export function gatherDriftState(root: string): DriftState {
 	const skillsDir = resolveSkillsDir(root, uext.skills as string | undefined)
 	const skillFiles = realPinFs(skillsDir).listSkillFiles().map(read)
 
-	return { manifest, packagePath, packageJson, vendorManifests, catalogs, skillFiles }
+	return {
+		manifest,
+		packagePath,
+		packageJson,
+		vendorManifests,
+		catalogs,
+		skillFiles,
+		mcpServers: authoredMcpServers(root, uext['mcpServers']),
+	}
+}
+
+/** The authored `mcpServers` maps the stamp writes into: an inline declaration (which lives in
+ *  `plugin.json`) and each declared file. */
+function authoredMcpServers(root: string, declaration: unknown): { path: string; servers: Record<string, unknown> }[] {
+	const serversOf = (block: Record<string, unknown>) => {
+		const inner = block['mcpServers']
+		return (inner && typeof inner === 'object' && !Array.isArray(inner) ? inner : block) as Record<string, unknown>
+	}
+	const maps = gatherMcpFiles(root, declaration).map((file) => ({ path: file.path, servers: serversOf(file.content) }))
+	if (declaration && typeof declaration === 'object' && !Array.isArray(declaration)) {
+		const block = declaration as Record<string, unknown>
+		if (!Array.isArray(block['paths'])) maps.push({ path: 'plugin.json', servers: serversOf(block) })
+	}
+	return maps
 }

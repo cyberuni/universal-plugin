@@ -42,9 +42,16 @@ export function publishCommand(): Command {
 						expected: result.expected ?? '(none)',
 						source: result.source,
 						drifted: result.drifted.map((s) => ({ path: s.path, kind: s.kind, version: s.version ?? '(none)' })),
-						summary: `checked ${result.surfaces.length}, drifted ${result.drifted.length}`,
+						...(result.unstamped.length > 0
+							? { unstamped: result.unstamped.map((s) => ({ path: s.path, kind: s.kind })) }
+							: {}),
+						summary: `checked ${result.surfaces.length}, drifted ${result.drifted.length}, unstamped ${result.unstamped.length}`,
 					},
 				)
+				// semantic-release's placeholder is a release not yet run, not a number left behind.
+				for (const s of result.unstamped) {
+					process.stderr.write(`${s.path} is unstamped (${s.version}) — the release stamps it\n`)
+				}
 				if (ok) return
 				for (const s of result.drifted) {
 					process.stderr.write(`${s.path} is ${s.version ?? '(no version)'}, ${result.source} is ${result.expected}\n`)
