@@ -3,7 +3,14 @@ spec-type: behavioral
 concept: [release, axi]
 ---
 
-# plugin bundle — materialize the release form
+# plugin bundle — materialize the release form (deprecated)
+
+> **Deprecated.** `plugin bundle` is an alias kept for one more minor release. It behaves as
+> described below and prints `warn: plugin bundle is deprecated and will be removed in the next
+> minor release — use plugin version, which stamps the skill pins` to stderr. Use
+> [`plugin version`](../version/README.md): it stamps the same skill pins (and the pins map, and
+> marked `mcpServers` entries) in the same call that moves the version
+> ([ADR-0010](../../design/decisions/0010-version-policy.md)). This node is removed with the alias.
 
 `universal-plugin plugin bundle` produces the **release form** of a plugin's skills: it rewrites the
 `npx <cli>@<version>` references a skill carries so each **workspace** CLI is pinned to the version in
@@ -60,9 +67,12 @@ output per the AXI contract:
   a flat `{ "<package>": "<resolvedVersion>" }` map of the workspace-resolved pins (`pinned` +
   `unchanged`), so a bundled plugin's skills can read the shipped version programmatically — e.g. an
   init skill via `${CLAUDE_PLUGIN_ROOT}/.plugin/pins.json` — instead of scraping rewritten prose.
-  External/`skipped` packages are excluded (no authoritative workspace version).
+  External/`skipped` packages are excluded (no authoritative workspace version). The file is written in
+  the repository's own JSON format, honoring `.editorconfig`.
 - **`--dry-run`** — resolves and reports the pins without writing them (neither the skill files nor
   `.plugin/pins.json`).
+- **Deprecation warning** — every run writes the deprecation warning above to stderr; stdout and the
+  exit code are unchanged.
 - **AXI output** — `bundle` prints a TOON pins section to stdout, one row per package
   (`package, current, resolved, status` where status ∈ `pinned | unchanged | skipped`), plus a
   pre-computed aggregate `pinned N, unchanged M, skipped K`; `--format json` returns a `pins` array;
@@ -93,7 +103,8 @@ Every scenario in [`bundle.feature`](./bundle.feature) maps to one of these beha
 | **runner selection** | `--runner npx\|upx` sets the emitted runner word; default preserves each ref's runner; both `npx`/`upx` refs recognized; unknown value fails loud |
 | **doc-example ignore** | pin-exempt skill never rewritten (concrete or placeholder, workspace or not); no pins row |
 | **external pins skipped** | no workspace entry → left untouched, status `skipped` |
-| **version-map artifact** | writes `.plugin/pins.json` (workspace-resolved `{pkg: version}`); excludes external/`skipped`; `--dry-run` skips it |
+| **version-map artifact** | writes `.plugin/pins.json` (workspace-resolved `{pkg: version}`); excludes external/`skipped`; honors `.editorconfig`; `--dry-run` skips it |
+| **deprecation warning** | stderr carries the `plugin bundle is deprecated` warning pointing at `plugin version` |
 | **`--dry-run`** | reports resolved pins without writing (skill files or `.plugin/pins.json`) |
 | **TOON pins + aggregate (#1,#2,#4)** | pins rows (`package, current, resolved, status`) + `pinned N` aggregate |
 | **`--format json` / `--format toon`** | JSON `pins` array; `--format toon` names the default |

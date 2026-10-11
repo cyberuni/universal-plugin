@@ -15,12 +15,14 @@
 			// array wrapping, so linting these makes every build/lint cycle flip them back and forth.
 			"!!**/.claude-plugin/plugin.json",
 			"!!**/.cursor-plugin/plugin.json",
-			"!!**/.codex-plugin/plugin.json"
+			"!!**/.codex-plugin/plugin.json",
+			// Compiled by `plugin build` from src/skill-scripts; the source is what gets linted.
+			"!!**/skills/*/scripts/*.mjs"
 		]
 	},
 	"overrides": [
 		{
-			"includes": ["packages/*/src/**/*.ts", "packages/*/src/**/*.mts", "packages/*/skills/*/scripts/**/*.mjs"],
+			"includes": ["packages/*/src/**/*.ts", "packages/*/src/**/*.mts"],
 			"linter": {
 				"rules": {
 					"suspicious": {

@@ -253,3 +253,37 @@ test('--strict-dependencies fails the build on a dependency the catalog cannot r
 	expect(r.status).toBe(1)
 	expect(r.stderr).toContain('dependency "cyber-asana" is not listed')
 })
+
+test('compiles declared script entries and reports a row for each', () => {
+	const manifestPath = path.join(workspacePackage, 'plugin.json')
+	const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+	manifest.extensions['org.cyberuni.universal-plugin'].scripts = {
+		'skills/a/scripts/a.mjs': { source: 'src/a.ts', command: 'a' },
+	}
+	fs.writeFileSync(manifestPath, JSON.stringify(manifest))
+	fs.mkdirSync(path.join(workspacePackage, 'src'))
+	fs.writeFileSync(path.join(workspacePackage, 'src/a.ts'), "const n: number = 1\nconsole.log('ran', n)\n")
+
+	const r = build('--format', 'json')
+
+	expect(r.status).toBe(0)
+	expect(JSON.parse(r.stdout).scripts).toEqual([
+		{ path: 'skills/a/scripts/a.mjs', source: 'src/a.ts', status: 'compiled', bytes: expect.any(Number) },
+	])
+	const run = spawnSync('node', [path.join(workspacePackage, 'skills/a/scripts/a.mjs')], { encoding: 'utf8' })
+	expect(run.stdout).toBe('ran 1\n')
+	expect(JSON.parse(build('--dry-run', '--format', 'json').stdout).scripts[0].status).toBe('unchanged')
+})
+
+test('exits 1 when a script entry fails to compile', () => {
+	const manifestPath = path.join(workspacePackage, 'plugin.json')
+	const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+	manifest.extensions['org.cyberuni.universal-plugin'].scripts = { 'a.mjs': 'src/missing.ts' }
+	fs.writeFileSync(manifestPath, JSON.stringify(manifest))
+
+	const r = build()
+
+	expect(r.status).toBe(1)
+	expect(r.stderr).toContain('script source "src/missing.ts" for a.mjs not found')
+	expect(built()).toBe(true)
+})

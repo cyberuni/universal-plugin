@@ -19,8 +19,9 @@ and that judgment belongs to the skill that owns the write.
 node scripts/doctor.mjs
 ```
 
-Resolve that path against this skill's own directory. It runs the CLI that shipped beside it against
-the current working directory, so nothing is downloaded; add `--root <path>` to diagnose elsewhere.
+Resolve that path against this skill's own directory. It asks the project's installed CLI
+(`pnpm exec universal-plugin`), else the CLI pinned to this skill's version (`npx`), about the
+current working directory; add `--root <path>` to diagnose elsewhere.
 Add `--marketplace-root <path>` (repeatable) to also check a **separately-cloned** shared marketplace
 repository (e.g. a local clone of `cyberuni/marketplace`) — see
 [Catalogs are checked at the repository root](#catalogs-are-checked-at-the-repository-root).
@@ -78,9 +79,14 @@ Each `code` below is what the script emits.
 | `hand-edited` | a derived manifest that `build` would rewrite — the edit is already lost, it just has not been overwritten yet | move the field to the canonical manifest or to `harnesses.<vendor>`, then rebuild |
 | `unknown-vendor` | a `vendors` entry no build target matches; reported as `skipped` plus a warning | fix the id in `plugin.json` |
 | `unsupported-component` | a component path on the shared extension names a component one targeted vendor has none of (`agents` for Codex, `rules` for Claude Code, …); the build leaves it out of that vendor's manifest | declare the path under `harnesses.<vendor>` for the vendors that read it, or leave it — nothing is lost |
+| `stale-script` | a compiled skill script (`scripts` in the extension) is missing, or no longer matches what its source compiles to. A script that differs only in its embedded version is `version-drift` instead, never both | `/universal-plugin:build-plugin`, then commit the compiled script |
+| `script-compile-failed` | a declared script entry could not be compiled into one self-contained file — usually an import that does not resolve from the plugin root | fix the entry, then `/universal-plugin:build-plugin` |
+| `script-over-budget` | a compiled skill script is over the 150 KB budget | have the skill call the installed CLI instead: `pnpm exec <bin>` with a pinned `npx` fallback |
+| `skill-link-escapes` | a relative Markdown link in a skill climbs out of the skill folder (`../../readme.md`). pnpm links or copies each skill folder on its own, and a plugin cache keeps only what ships, so the link resolves to nothing there | copy the file into the skill and link it relatively, or link it by URL |
 | `undeliverable-override` | `harnesses["copilot-cli"]` sets fields that reach nothing | `/universal-plugin:init-universal-plugin`, update route — move them to a vendor that has a derived manifest, or drop them |
 | `codex-fields-missing` | Codex is targeted without `version` or `description`; the build fails and writes **nothing at all**, including for the other vendors | add both to the canonical top level |
-| `version-drift` | one file carries a different version from the release's number — the canonical manifest, a derived vendor manifest, a catalog entry, or a skill pin; one finding per file, named by path | `/universal-plugin:version`; then [offer the CI check](#offer-the-check-to-ci) |
+| `version-drift` | one file carries a different version from the release's number — the canonical manifest, a derived vendor manifest, a catalog entry, a skill pin, a marked `mcpServers` entry, or the version a compiled skill script embeds; one finding per file, named by path | `/universal-plugin:version` (for a package-sourced drift, `universal-plugin plugin version --from-package`); then [offer the CI check](#offer-the-check-to-ci) |
+| `unstamped` | a place holds `0.0.0-development`, semantic-release's placeholder. The release has not stamped it yet, so it is not drift (severity low) | in `prepareCmd`, `plugin version ${nextRelease.version}`, and commit the stamped files back with `@semantic-release/git`; see `/universal-plugin:version` |
 | `unreleased-content` | shipped content was committed after the commit that set the current version — a consumer keyed on that version never re-extracts it | `/universal-plugin:version` |
 | `copilot-root-components` | agents, commands, rules, hooks, or LSP servers sit at the plugin root with no copy under `com.github.copilot/` — Copilot CLI reads them only from there in spec mode, so it loads none of them, silently | `/universal-plugin:build-plugin` |
 | `stale-github-plugin` | a leftover `.github/plugin/plugin.json` from an older build — shadowed by root and no longer generated | `/universal-plugin:remove-plugin` |
@@ -139,16 +145,18 @@ user can run, or ask before running it yourself.
 
 A version lives in five places. Two are authored: the canonical `plugin.json`, and the `package.json`
 at the `packagePath` the CLI reports (`config get --key packagePath`), resolved from the plugin root.
-Three are derived from them: the vendor manifests, this plugin's entry in each repository catalog,
-and the `npx`/`upx <package>@<version>` pins in the skills.
+The rest are stamped from them by `plugin version`: the vendor manifests, this plugin's entry in each
+repository catalog, the `npx`/`upx <package>@<version>` pins in the skills, and each `mcpServers`
+entry marked `pinToPluginVersion`.
 
 The script asks `universal-plugin publish check-version` for the comparison and emits one
 `version-drift` per file that disagrees. The reference is the release's number: the `package.json`
 when `packagePath` is declared, else `plugin.json`. Pins are compared only when there is a package to
-pin, and a pin-exempt skill or a pin that is not a version (`<version>`, `latest`) is skipped.
+pin, and a pin-exempt skill or a pin that is not a version (`<version>`, `latest`) is skipped. A place
+holding `0.0.0-development` is reported as `unstamped`, not as `version-drift`.
 
 Files diverge when someone ran `npm version`, or when a release tool (changesets, release-please,
-semantic-release) moved `package.json` and nothing carried the number on. All of it is
+semantic-release) moved `package.json` and nothing stamped the number on. All of it is
 `/universal-plugin:version`'s to fix — never patch one file by hand to match another.
 
 ### Offer the check to CI
@@ -164,7 +172,7 @@ it does not, offer to add it — ask first, because both are the user's files:
   semantic-release bot opens.
 
 Use the locked `universal-plugin` from the repository's devDependencies when it has one; otherwise
-`npx universal-plugin@<version>`, pinned. This check matters most where the release tool picks the
+`npx universal-plugin@0.12.2`, pinned. This check matters most where the release tool picks the
 number, because nothing else runs between that bump and publish.
 
 ## Unreleased content

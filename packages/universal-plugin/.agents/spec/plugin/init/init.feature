@@ -255,7 +255,7 @@ Feature: plugin init — scaffold a plugin project, and wire an npm package to s
     Given the project root is "packages/my-plugin" in a repository carrying ".changeset/"
     And the repository root "package.json" has the "version" script "changeset version"
     When I run "universal-plugin plugin init --npm --root <root>"
-    Then the repository root "version" script is "changeset version && universal-plugin publish sync-version --root packages/my-plugin"
+    Then the repository root "version" script is "changeset version && universal-plugin plugin version --from-package --root packages/my-plugin"
     And the repository root "package.json" lists "universal-plugin" in "devDependencies"
     And stdout has a row for "../../package.json" with action "updated"
     And the exit code is 0
@@ -263,7 +263,7 @@ Feature: plugin init — scaffold a plugin project, and wire an npm package to s
   Scenario: --npm wires the sync with --root . when the plugin is the workspace root
     Given the project root carries ".changeset/" and its "version" script is "changeset version"
     When I run "universal-plugin plugin init --npm --root <root>"
-    Then the "version" script is "changeset version && universal-plugin publish sync-version --root ."
+    Then the "version" script is "changeset version && universal-plugin plugin version --from-package --root ."
     And the exit code is 0
 
   Scenario: --npm leaves a custom version script alone and prints the line to add
@@ -271,13 +271,21 @@ Feature: plugin init — scaffold a plugin project, and wire an npm package to s
     And the repository root "package.json" has the "version" script "changeset version && pnpm format"
     When I run "universal-plugin plugin init --npm --root <root>"
     Then the repository root "package.json" is unchanged
-    And stderr contains "&& universal-plugin publish sync-version --root packages/my-plugin"
+    And stderr contains "&& universal-plugin plugin version --from-package --root packages/my-plugin"
     And the exit code is 0
 
   Scenario: --npm leaves an already wired version script unchanged
-    Given the repository root "version" script already runs "universal-plugin publish sync-version"
+    Given the repository root "version" script already runs "universal-plugin plugin version --from-package"
     When I run "universal-plugin plugin init --npm --force --root <root>"
     Then the repository root "package.json" is unchanged
+    And the exit code is 0
+
+  Scenario: --npm notes that a script running the deprecated sync-version should be replaced
+    Given the repository root "version" script is "changeset version && universal-plugin publish sync-version --root packages/my-plugin"
+    When I run "universal-plugin plugin init --npm --force --root <root>"
+    Then the repository root "package.json" is unchanged
+    And stderr contains "replace it with"
+    And stderr contains "universal-plugin plugin version --from-package"
     And the exit code is 0
 
   Scenario: without changesets the root version script is untouched

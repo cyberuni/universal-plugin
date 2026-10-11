@@ -588,7 +588,7 @@ test('publish sync-version exits 1 when neither packagePath nor a root package.j
 	}
 })
 
-test('plugin build pins a marked mcpServers invocation and warns about the version it replaced', () => {
+test('plugin build copies a marked mcpServers invocation as authored and strips the marker', () => {
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-mcp-pin-'))
 	try {
 		fs.writeFileSync(
@@ -613,10 +613,9 @@ test('plugin build pins a marked mcpServers invocation and warns about the versi
 		})
 		expect(result.status ?? 0).toBe(0)
 		const derived = JSON.parse(fs.readFileSync(path.join(root, '.claude-plugin', 'plugin.json'), 'utf8'))
-		expect(derived.mcpServers.srv.args).toEqual(['-y', 'cyber-asana@0.10.0', 'mcp'])
+		expect(derived.mcpServers.srv.args).toEqual(['-y', 'cyber-asana@0.9.0', 'mcp'])
 		expect(derived.mcpServers.other.args).toEqual(['-y', 'some-other-cli'])
 		expect(derived.mcpServers.srv.pinToPluginVersion).toBeUndefined()
-		expect(result.stderr).toMatch(/0\.9\.0/)
 	} finally {
 		fs.rmSync(root, { recursive: true, force: true })
 	}
@@ -680,7 +679,20 @@ test('publish sync-version moves the skills pins of the synced package', () => {
 		const result = run('publish', 'sync-version', '--no-build', '--root', root)
 		expect(result.status).toBe(0)
 		expect(fs.readFileSync(skillPath, 'utf8')).toBe('npx --yes test-cli@0.9.0 run\nnpx -y test-cli@0.9.0 run\nnpx other-cli@1.0.0\n')
-		expect(result.stdout).toContain('test-cli')
+		expect(result.stdout).toContain('skills/use/SKILL.md')
+		expect(result.stderr).toContain('publish sync-version is deprecated')
+	} finally {
+		fs.rmSync(root, { recursive: true, force: true })
+	}
+})
+
+test('plugin bundle warns that it is deprecated in favour of plugin version', () => {
+	const root = mkBundleFixture('universal-plugin-bundle-deprecated-')
+	try {
+		const result = runBundle(root)
+		expect(result.status).toBe(0)
+		expect(result.stderr).toContain('plugin bundle is deprecated')
+		expect(result.stderr).toContain('plugin version')
 	} finally {
 		fs.rmSync(root, { recursive: true, force: true })
 	}

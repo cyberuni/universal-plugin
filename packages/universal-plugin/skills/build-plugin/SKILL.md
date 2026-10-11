@@ -15,6 +15,7 @@ beside it is **derived**, and this build is the one step that writes all of it:
 | `.claude-plugin/plugin.json`, `.cursor-plugin/plugin.json`, `.codex-plugin/plugin.json` | Claude Code, Cursor, Codex |
 | `com.github.copilot/` (agents, commands, rules, hooks, LSP) | Copilot CLI in spec mode; the manifest itself is root `plugin.json` |
 | this plugin's entry in each marketplace catalog the repository already carries | anyone installing from the repository |
+| each declared `scripts` entry, compiled into one self-contained `.mjs` in its skill | the skill, wherever it was linked or copied to |
 
 So a change to the plugin is not done until it has been built. A runtime reads the derived files,
 not the canonical manifest, and a derived file that predates the change still ships the old plugin.
@@ -38,15 +39,15 @@ grep -n "plugin build" package.json
 
 If a script already runs `plugin build`, run that script (for example `pnpm plugin:build`). It
 carries the project's own `--root` and whatever it chains after the build, such as a formatter over
-the written JSON. Otherwise run the launcher shipped beside this skill:
+the written JSON. Otherwise run this skill's launcher:
 
 ```bash
 node scripts/build.mjs --root <plugin-root>
 ```
 
-Resolve `scripts/build.mjs` against this skill's own directory. It runs the CLI that shipped beside
-it, so nothing is downloaded and the build cannot resolve a different version from the one installed.
-`npx universal-plugin plugin build` is the fallback. `--root` defaults to the working directory and
+Resolve `scripts/build.mjs` against this skill's own directory. It runs the CLI the project installed
+(`pnpm exec universal-plugin`), else the CLI pinned to the version this skill shipped with
+(`npx universal-plugin@<version>`), so it works in a skill that was linked or copied on its own. `--root` defaults to the working directory and
 must name the directory that holds the canonical `plugin.json`.
 
 The command never prompts, so it is safe to run unattended.
@@ -73,6 +74,12 @@ Default stdout is TOON: one row per vendor (`vendor, path, status`), one row per
 | `canonical` | Copilot CLI with nothing to derive: root `plugin.json` serves it directly |
 | `skipped` / `failed` | the row says why; fix that and rebuild |
 
+A script row (`path, status`) reads `compiled` or `unchanged`. On `--dry-run` it reads `unchanged`,
+`missing`, `stale` (its source moved on), or `version` (only its embedded version did, which
+`publish check-version` reports). A `failed` row is an entry that could not be made self-contained,
+usually an import that does not resolve; the build exits 1 and the warning names it. A script over
+150 KB warns: the skill should call the installed CLI instead of compiling it in.
+
 A catalog row reads `updated`, `unchanged`, or `planned` on `--dry-run`. A build **never creates** a
 catalog, and it keeps an entry's non-local source, such as an npm package, while it re-derives the
 version. To add a catalog or change a source, use `marketplace`.
@@ -84,7 +91,8 @@ declares a `source` is listed in the catalog by the build itself.
 
 Read stderr too. The build drops what a vendor cannot represent and warns instead of failing: a hook
 handler type a vendor cannot run, a `harnesses.copilot-cli` override with no delivery path, an
-invalid catalog, a dependency the catalog cannot resolve. Each warning names something that will not reach a runtime. Tell the user each
+invalid catalog, a dependency the catalog cannot resolve, a skill link that climbs out of the skill
+folder. Each warning names something that will not reach a runtime. Tell the user each
 one; do not bury it in a summary.
 
 `built 0` with "nothing to build" is not success. The manifest declares no vendor, so hand it to
@@ -100,7 +108,7 @@ derived files together:
 git status --short
 ```
 
-Expect the vendor manifests, `com.github.copilot/`, and any refreshed catalog. A diff outside those paths did not come from the build.
+Expect the vendor manifests, `com.github.copilot/`, any refreshed catalog, and any compiled script. A diff outside those paths did not come from the build.
 
 ## Guards
 
@@ -120,8 +128,8 @@ Validation runs before the first write, so a failed build leaves the tree untouc
 - **Edit `plugin.json` to get a different derived manifest.** A per-vendor field belongs under
   `extensions["org.cyberuni.universal-plugin"].harnesses.<vendor>`. That is a declaration, and
   `init-universal-plugin` owns it.
-- **Expect a build to pin skill `npx` references.** That is the release-time `plugin bundle`, not
-  this step.
+- **Expect a build to pin skill `npx` references or decide a version.** Build derives and copies
+  whatever `plugin.json` carries. Stamping is the release-time `plugin version`, not this step.
 - **Expect a build to copy governances into skills.** A skill loads a reference through the
   `reference` skill in the `cyber-agent-harness` plugin; the build does not copy them and has no
   `--check` flag.
@@ -141,3 +149,4 @@ Validation runs before the first write, so a failed build leaves the tree untouc
 - Spec: [`plugin/build/`](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/plugin/build/README.md)
 - [ADR-0014](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/design/decisions/0014-build-refreshes-catalogs.md): the build refreshes catalogs it finds
 - [ADR-0017](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/design/decisions/0017-retire-governance-for-reference.md): the build no longer copies governances into skills
+- [ADR-0019](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/design/decisions/0019-build-compiles-skill-scripts.md): the build compiles skill script entries into committed `.mjs`

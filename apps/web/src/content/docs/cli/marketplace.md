@@ -220,14 +220,14 @@ to, at generation time. It is not a second number to maintain: on Claude Code th
 overrides the entry's silently, and an entry whose manifest declares no version carries none. A
 version left behind on an entry is removed the next time the entry is derived.
 
-Move the version with `plugin version <bump>`, or with `publish sync-version` where changesets owns
-it. See [ADR-0010](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/design/decisions/0010-version-policy.md).
+Move the version with `plugin version <bump>`, or with `plugin version --from-package` where a release
+tool owns it. See [ADR-0010](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/design/decisions/0010-version-policy.md).
 
 `plugin build` keeps it that way. Every build re-derives this plugin's entry in each catalog the
 repository already carries, for the vendors it is building, so a version move reaches the catalogs
 without a second command. It re-derives the metadata, not the distribution: an entry pointing at an
 npm package still points there after a build — `plugin version` re-derives through `plugin build`, and so does the
-`changeset version → publish sync-version → plugin build` release script. The build creates no
+`changeset version → plugin version --from-package` release script. The build creates no
 catalog: it refreshes the ones the repository chose to carry and leaves everything else in them
 alone. See [ADR-0014](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/design/decisions/0014-build-refreshes-catalogs.md).
 

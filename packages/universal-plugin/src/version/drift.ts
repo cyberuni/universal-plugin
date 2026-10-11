@@ -1,19 +1,30 @@
 /** Version drift — does every file that carries the plugin's version say the same number?
  *
  *  No I/O: the caller gathers the files (`gatherDriftState`) and this reads the version out of each.
- *  A version lives in five places (see `version.ts`). The reference is the authored number the
+ *  A version lives in several places (see `version.ts`). The reference is the authored number the
  *  release decides: the `packagePath` `package.json` when the project declares one (changesets,
  *  release-please or semantic-release moved it), else the canonical `plugin.json`. Every other place
  *  is compared against it, so a release that moved one number and left the rest behind is caught on
- *  the release PR rather than after publish (issue #164). */
+ *  the release PR rather than after publish (issue #164).
+ *
+ *  A place holding `0.0.0-development` — semantic-release's placeholder until its publish run stamps
+ *  the real number — is reported as unstamped, not as drift (issue #179). */
 
 import * as semver from 'semver'
 
-import { isPinExempt } from '../bundle/bundle.js'
-import { extractPins } from '../pin/pin.js'
-import { currentVersion, joinRelative } from './version.js'
+import { embeddedData } from '../compile/scripts.js'
+import { extractPins, markedMcpVersions } from '../pin/pin.js'
+import { isPinExempt } from '../pin/stamp.js'
+import { currentVersion, joinRelative, UNSTAMPED_VERSION } from './version.js'
 
-export type DriftKind = 'package' | 'manifest' | 'vendor-manifest' | 'catalog' | 'skill-pin'
+export type DriftKind =
+	| 'package'
+	| 'manifest'
+	| 'vendor-manifest'
+	| 'catalog'
+	| 'skill-pin'
+	| 'mcp-pin'
+	| 'compiled-script'
 
 /** One file and the version it carries. `version` is `null` only for the canonical manifest, which
  *  drifts by carrying no version at all while the package it ships in has one. */
@@ -41,6 +52,8 @@ export interface DriftState {
 	catalogs: DriftFile[]
 	/** Every text file under the plugin's skills directory. */
 	skillFiles: DriftFile[]
+	/** The authored `mcpServers` maps: the inline declaration (as `plugin.json`) and each file. */
+	mcpServers?: { path: string; servers: Record<string, unknown> }[]
 }
 
 export interface DriftResult {
@@ -52,6 +65,8 @@ export interface DriftResult {
 	surfaces: VersionSurface[]
 	/** The files that disagree with `expected`. */
 	drifted: VersionSurface[]
+	/** The files still holding `0.0.0-development`: the release has not stamped them yet. */
+	unstamped: VersionSurface[]
 }
 
 export function checkVersionDrift(state: DriftState): DriftResult {
@@ -92,10 +107,28 @@ export function checkVersionDrift(state: DriftState): DriftResult {
 	const packageName = state.packageJson === null ? null : stringField(state.packageJson, 'name')
 	if (packageName !== null) surfaces.push(...skillPins(state.skillFiles, packageName))
 
-	const reference = packageSurface?.version ? packageSurface : manifestSurface
-	const expected = reference.version
-	const drifted = expected === null ? [] : surfaces.filter((s) => s !== reference && s.version !== expected)
-	return { expected, source: reference.path, surfaces, drifted }
+	// A compiled skill script embeds the plugin version in its header (issue #177). Only that version
+	// is compared here; a script whose source moved on is `plugin build`'s stale report, not drift.
+	for (const file of state.skillFiles) {
+		const version = file.path.endsWith('.mjs') ? (embeddedData(file.content)?.version ?? null) : null
+		if (version !== null) surfaces.push({ path: file.path, kind: 'compiled-script', version })
+	}
+
+	for (const { path, servers } of state.mcpServers ?? []) {
+		for (const entry of markedMcpVersions(servers)) {
+			surfaces.push({ path, kind: 'mcp-pin', version: entry.version ?? null })
+		}
+	}
+
+	const stamped = (s: VersionSurface) => s.version !== null && s.version !== UNSTAMPED_VERSION
+	const reference = packageSurface && stamped(packageSurface) ? packageSurface : manifestSurface
+	const expected = stamped(reference) ? reference.version : null
+	const unstamped = surfaces.filter((s) => s.version === UNSTAMPED_VERSION)
+	const drifted =
+		expected === null
+			? []
+			: surfaces.filter((s) => s !== reference && s.version !== expected && s.version !== UNSTAMPED_VERSION)
+	return { expected, source: reference.path, surfaces, drifted, unstamped }
 }
 
 /** The plugin's own pins: `npx`/`upx <package>@<version>` references to the package that ships it.
@@ -108,6 +141,8 @@ function skillPins(files: DriftFile[], packageName: string): VersionSurface[] {
 	const pins: VersionSurface[] = []
 	for (const file of files) {
 		if (exemptDirs.some((dir) => file.path.startsWith(dir))) continue
+		// A compiled script's version is the one in its header; a pin its source inlines is not another.
+		if (embeddedData(file.content) !== null) continue
 		const versions = new Set(
 			extractPins(file.content)
 				.filter((pin) => pin.pkg === packageName && semver.valid(pin.current) !== null)

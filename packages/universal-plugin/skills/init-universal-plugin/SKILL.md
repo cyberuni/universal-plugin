@@ -119,7 +119,7 @@ shared field. A silent pick there is a silent behavior change for one runtime.
 An npm-shipped plugin (`--npm`) in a changesets repository gets one more plan line. When the
 repository root carries `.changeset/` and its `package.json` `version` script is exactly
 `changeset version`, `plugin init --npm` rewrites that script to
-`changeset version && universal-plugin publish sync-version --root <plugin-root>` and adds
+`changeset version && universal-plugin plugin version --from-package --root <plugin-root>` and adds
 `universal-plugin` to the root `devDependencies`. Without it the first Version Packages PR moves
 `package.json` and leaves the plugin version behind. Show the new script and the devDependency in the
 plan, and ask before running init: it rewrites the user's root `package.json`. If the user declines,
@@ -140,7 +140,7 @@ Three asks leave this skill rather than routing inside it. Hand them over instea
 route: **`doctor-universal-plugin`** reports what is declared, built, stale, or drifting; **`version`** moves the
 number; **`remove-plugin`** deletes derived manifests or the plugin itself.
 
-Every route ends in the same two commands. Scaffold with the CLI that shipped beside this skill:
+Every route ends in the same two commands. Scaffold with this skill's launcher, which runs the project's installed CLI or the pinned `npx` one:
 
 ```bash
 node scripts/init.mjs --name <plugin-name> --vendor claude-code --vendor cursor

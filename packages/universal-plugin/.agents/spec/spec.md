@@ -44,8 +44,8 @@ plugin. The `universal-plugin` CLI turns that canonical manifest into what each 
 resolved them was retired (ADR-0017) and then removed. Its core concern:
 
 - **The `plugin` command group** — `universal-plugin plugin build` **derives** per-vendor manifests
-  from the canonical one; `plugin bundle` **materializes** the release form (pins the plugin's skill
-  `npx <cli>@<version>` references to the shipping workspace versions); `plugin validate` **checks** the
+  from the canonical one; `plugin version` **stamps** the version (the authored numbers, the plugin's skill
+  `npx <cli>@<version>` pins, and marked `mcpServers` entries; `plugin bundle` is its deprecated alias for the pins); `plugin validate` **checks** the
   canonical manifest against the schema and each vendor's rules; `plugin init` **scaffolds** the
   canonical manifest, and `plugin init --npm` additionally wires an npm package so its **built** vendor
   manifests ship on `npm publish` — the one **publish-side** setup op in charter (ADR-0006). Setting a
@@ -84,7 +84,7 @@ plugin-install, hook, marketplace). The repo's concern split broke that apart:
 - **agent-facing authoring skills** (create/publish/write-vendor-config) belong to the **`cyberspace`**
   and **`aced`** plugins.
 - the **cross-vendor sync engine** currently shipping under this package (`prepare <vendor-id>`
-  detect → `sync apply` → `self-update` / `publish sync-version`, backed by the asset-store and the
+  detect → `sync apply` → `self-update`, backed by the asset-store and the
   source/vendor registries and state) is a **separate concern destined to leave** — see the Placement
   map non-goals and `design/decisions/`.
 - **consuming-project setup** — setting a directory up to *use* installed plugins (the skills layout,
@@ -109,10 +109,10 @@ ADR-0006 corrects that.
 |---|---|---|
 | [`cli/`](./cli/README.md) | behavioral | the root program's own identity — `--version`/`-V` reports the installed `universal-plugin` package's version |
 | [`plugin/`](./plugin/README.md) | group | the `plugin` command group — build / bundle / validate / init / install / version |
-| [`plugin/build/`](./plugin/build/README.md) | behavioral | `universal-plugin plugin build [--vendor] [--dry-run] [--clean]` — derive per-vendor manifests from the canonical `plugin.json` (dev-consumable form; no skill pins, but it stamps a marked `mcpServers` invocation with the plugin version) |
-| [`plugin/bundle/`](./plugin/bundle/README.md) | behavioral | `universal-plugin plugin bundle [--dry-run] [--full] [--format] [--runner]` — materialize the release form: pin the `npx`/`upx <cli>@<version>` references in the plugin's skills to their shipping workspace versions (`--runner` selects the emitted runner word) |
+| [`plugin/build/`](./plugin/build/README.md) | behavioral | `universal-plugin plugin build [--vendor] [--dry-run] [--clean]` — derive per-vendor manifests from the canonical `plugin.json` (dev-consumable form; it derives and never decides a version, so skill pins and marked `mcpServers` entries are copied as authored) |
+| [`plugin/bundle/`](./plugin/bundle/README.md) | behavioral | `universal-plugin plugin bundle [--dry-run] [--full] [--format] [--runner]` — **deprecated alias** (warns; removed next minor, use `plugin version`): pin the `npx`/`upx <cli>@<version>` references in the plugin's skills to their shipping workspace versions (`--runner` selects the emitted runner word) |
 | [`plugin/validate/`](./plugin/validate/README.md) | behavioral | `universal-plugin plugin validate [--vendor] [--strict] [--full] [--format]` — check the canonical manifest against the Agent Plugins schema + vendor rules; bare `universal-plugin plugin` runs it too |
-| [`plugin/version/`](./plugin/version/README.md) | behavioral | `universal-plugin plugin version <major\|minor\|patch\|pre*\|x.y.z> [--preid] [--force] [--no-build] [--dry-run]` — move the plugin's version: write the two **authored** numbers (canonical `plugin.json`, and the `packagePath` `package.json` when declared), then re-derive the vendor manifests through `build`'s own writer |
+| [`plugin/version/`](./plugin/version/README.md) | behavioral | `universal-plugin plugin version <major\|minor\|patch\|pre*\|x.y.z>` or `--from-package` `[--preid] [--force] [--no-build] [--dry-run]` — stamp the plugin's version: write the **authored** numbers (canonical `plugin.json`, and the `packagePath` `package.json` for an explicit version), every **stamped place** (skill pins, `.plugin/pins.json`, marked `mcpServers` entries), then re-derive the vendor manifests through `build`'s own writer |
 | [`plugin/init/`](./plugin/init/README.md) | behavioral | `universal-plugin plugin init [--name] [--vendor] [--scaffold] [--force] [--yes] [--npm]` — scaffold the canonical `plugin.json`; `--npm` also wires an npm package's `files` to ship the derived vendor manifests (ADR-0006). Consuming-side harness setup → `repobuddy/buddy-agent-harness` |
 | [`plugin/install/`](./plugin/install/README.md) | behavioral | `universal-plugin plugin install [--vendor] [--link\|--copy] [--force] [--list]` and `plugin uninstall` — put the working copy into the local plugin directory of each runtime the manifest declares, and take it back out. Local development only; a marketplace or registry install stays the runtime's own job (ADR-0012) |
 | [`marketplace/`](./marketplace/README.md) | group | the repository-local marketplace metadata command group |
@@ -129,27 +129,23 @@ Where a new concept lives — slot here, do not invent placement (strategy = **c
 
 - **a new canonical-manifest op** (derive / check / scaffold the root `plugin.json`) →
   `plugin/<verb>/` (a new unit node under the `plugin` group).
-- **a new op that _moves_ the plugin's version** (bump or set the number the plugin releases under) →
-  **`plugin/version/`**. The rule that keeps it one verb: a version lives in exactly two **authored**
-  files — the canonical `plugin.json` and, when `packagePath` is declared, that `package.json` — and
-  every other occurrence is **derived** by a command that already exists (`plugin build` for the
-  vendor manifests, `marketplace init` for the local catalogs, `plugin bundle` for the skill pins).
-  A version op therefore writes the authored pair and **calls** the existing deriver; it never writes
-  a derived file itself, which would fork a second writer beside the one that owns it. The opposite
-  direction — a changesets-decided number flowing `package.json` → manifest — stays `publish
-  sync-version`, sharing this node's applier so the two cannot drift.
-- **a new op resolving/pinning the version pins in the plugin's own skills** (the
-  `npx <cli>@<version>` references a plugin's skills carry) → **`plugin/bundle/`** — pinning is a
-  release-time **materialization** step (resolve each workspace CLI to the version in its local
-  `packages/<pkg>/package.json` at `changeset version`, skipping doc-example and external pins),
-  distinct from `build`'s dev-time manifest derivation. `build` no longer touches pins. It is **not**
-  the `self-update` hook-file concern (updating `universal-plugin`'s own pin across a project's hook
-  files departs with the sync engine — see the non-goals below).
-- **a new op stamping the plugin's version into _manifest content_ the build already derives** (a
-  package specifier inside an `mcpServers` entry's `args`, marked `pinToPluginVersion`) →
-  **`plugin/build/`**. It does not contradict the `plugin/bundle/` rule above: bundle owns the pins
-  in the plugin's **skills** (prose files build never rewrites), build owns the pins in the
-  **manifest** it already derives. The dividing line is the object, not the word "pin".
+- **a new op that _moves_ the plugin's version, or writes it into a place that restates it** →
+  **`plugin/version/`**. The rule that keeps it one verb is the **derive/stamp seam**
+  ([ADR-0010](./design/decisions/0010-version-policy.md)): `plugin build` **derives** files from
+  source and never decides a version; `plugin version` **stamps** it. A version lives in two
+  **authored** files (the canonical `plugin.json` and, when `packagePath` is declared, that
+  `package.json`) and in **stamped places** the source tree restates (the `npx`/`upx <cli>@<version>`
+  pins in the skills, `.plugin/pins.json`, and `mcpServers` entries marked `pinToPluginVersion`);
+  every other occurrence (vendor manifests, local catalogs) is **derived** by a command that already
+  exists, which this verb **calls** and never reimplements. The number comes from a release type, an
+  explicit version, or `--from-package` (changesets, release-please); a new stamped place (the
+  compiled script's embedded version, #177) joins this node's one stamping pass.
+- **a pin or version marker that `build` must understand** → **`plugin/build/`** only to the extent of
+  stripping the directive from the vendor output. `build` copies the `mcpServers` entry as authored;
+  the stamp belongs to `plugin/version/`. `plugin/bundle/` is a deprecated alias for the skill-pin
+  part and takes no new behavior. It is **not** the `self-update` hook-file concern (updating
+  `universal-plugin`'s own pin across a project's hook files departs with the sync engine, see the
+  non-goals below).
 - **a new name→document resolution op, or a governance copy step** → **out of charter**
   ([ADR-0017](./design/decisions/0017-retire-governance-for-reference.md)).
   `@cyberuni/agent-harness`'s `reference` command resolves documents by name, and the `reference`
@@ -163,7 +159,7 @@ Where a new concept lives — slot here, do not invent placement (strategy = **c
   `config` group: `config/add/` writes, `config/get/` reads). **Charter note:** a keyed config store is
   broader than "derive/validate/scaffold the manifest", but it lives here deliberately — the file it
   reads and writes is **this CLI's own** `.agents/universal-plugin.json` (already the home of
-  `packagePath`, read by `plugin version` and `publish sync-version`), resolved from cwd; owning structured access to its own
+  `packagePath`, read by `plugin version`), resolved from cwd; owning structured access to its own
   config file is not the marketplace/install concern that departs to `cyberplace`. Recorded placement,
   not charter drift. A config op **preserves every other top-level key** on write. **Reserved key:**
   `packagePath` is the CLI's own **string** config, not a plugin-registered array — `config add`
@@ -173,7 +169,7 @@ Where a new concept lives — slot here, do not invent placement (strategy = **c
 - **a new fast-invocation / package-runner op** (run an installed CLI in place of `npx`) → out of
   scope; that is [`@repobuddy/upx`](https://github.com/repobuddy/upx), a separate package
   (the `upx` bin). **Charter note:** a generic runner is broader than "derive/validate/scaffold the
-  manifest", but it lives here deliberately — `plugin bundle` already emits `upx` references at release,
+  manifest", but it lives here deliberately — `plugin version` already stamps `upx` references at release,
   so the runner and its emitter ship and version as one unit — and ships as a **separate lean bin** so
   its cold-start stays fast. Recorded placement, not charter drift.
 - **a new op making an npm package _publish_ a plugin** (wire `package.json` `files` so the built

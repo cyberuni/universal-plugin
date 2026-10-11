@@ -1,6 +1,6 @@
 ---
 title: Choosing a runner
-description: Which runner word a skill should shell out through — npx, upx, a bundled launcher, or no runner at all — and what each choice costs.
+description: Which runner word a skill should shell out through — npx, upx, a compiled script, or no runner at all — and what each choice costs.
 ---
 
 Skills invoke CLIs by shelling out. The runner word at the front of that command decides how much
@@ -40,7 +40,7 @@ Two mitigations were used in practice, in escalating order:
 
 ### It trades reproducibility for speed, by design
 
-`plugin bundle` pins skills to an **exact** version at release. Adopting `upx` deliberately widens
+[`plugin version`](../../cli/overview/#plugin-version-stamps-every-place) pins skills to an **exact** version at release. Adopting `upx` deliberately widens
 that pin to a caret range (`^<major>`, or `^0.<minor>` for a 0.x package). The version a skill runs
 is then whatever satisfying copy happens to be nearest — which may not be the version the skill was
 written and tested against. A stale global install that still satisfies the range wins silently.
@@ -75,20 +75,49 @@ one; treat a rewrite tool's output as something to review rather than trust.
 ## Running a CLI your own plugin ships
 
 The fastest call is the one with no runner word at all. When the CLI belongs to the plugin shipping
-the skill, the code is already on disk next to the skill, and the skill can import it directly.
+the skill, the skill can run the command from a script in its own `scripts/` directory.
 
-Ship a launcher in the skill's own `scripts/` directory, named for the command it runs:
+### A skill does not always travel with its package
 
-```js
-#!/usr/bin/env node
-import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+How the skill reached the agent decides what sits next to it:
 
-// <package>/skills/<skill>/scripts/doctor.mjs: four levels up is the package root.
-const packageRoot = dirname(dirname(dirname(dirname(fileURLToPath(import.meta.url)))))
+| Channel | What the agent sees |
+| --- | --- |
+| npm-sourced plugin install | the whole package, with its dependency tree |
+| git-sourced plugin install (Copilot CLI, Cursor, GitHub-hosted marketplaces) | the repository, with no `node_modules` |
+| pnpm 12.11 agent skills ([docs](https://pnpm.io/agent-skills)) | one skill folder, linked as `.claude/skills/pnpm-<pkg>-<skill>`, or copied when a link fails |
 
-process.argv.splice(2, 0, 'doctor')
-await import(join(packageRoot, 'bin', 'my-cli.mjs'))
+pnpm links the skills of a project's **direct** dependencies, one folder at a time. Through a
+symlink, Node resolves a script to its real path inside `node_modules`, so a script that climbs out
+of the skill to the package root still works. Through a copy, the same climb lands in `.claude/`
+and finds nothing. Node also refuses to strip types from a file under `node_modules`
+(`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`), so shipping the `.ts` source is no answer either.
+The skill also gets a different name in this channel, `pnpm-<pkg>-<skill>`, so a plugin-qualified
+reference such as `/my-plugin:doctor` points at nothing there.
+
+A script that works in every channel is one file that reaches back into nothing.
+
+### Compile each script into the skill
+
+Write the script as an ordinary module in your package source, next to its tests, and declare it as
+a [script entry](../../cli/build/#compiling-skill-scripts):
+
+```json
+"scripts": {
+  "skills/doctor/scripts/doctor.mjs": { "source": "src/skills/doctor.ts", "command": "doctor" }
+}
+```
+
+`plugin build` compiles it into `skills/doctor/scripts/doctor.mjs`: Node built-ins stay imports, and
+everything else, your own modules and their dependencies, is inlined. Commit the output. The entry
+can import the same command function your CLI registers, so the skill and the CLI print the same
+output:
+
+```ts
+// src/skills/doctor.ts
+import { runDoctor } from '../doctor/doctor.js'
+
+await runDoctor(process.argv.slice(2))
 ```
 
 The skill body names it relative to itself:
@@ -97,35 +126,69 @@ The skill body names it relative to itself:
 node scripts/doctor.mjs
 ```
 
-Four things make this work, and each fails a different way if you skip it.
+Three things make this work, and each fails a different way if you skip it.
 
 **Resolve from `import.meta.url`, never the working directory.** An agent runs the script from the
 repository it is working on, so the working directory is that repository rather than the skill. That
-is what you want for the command's input. It is useless for finding the command.
+is what you want for the command's input. It is useless for finding anything the skill ships.
 
-**Keep `node` in front.** A launcher written by a build step ships as mode `100644`, so its shebang
-never runs it, and on Windows a shebang does nothing regardless of mode.
+**Keep `node` in front.** A file written by a build step ships as mode `100644`, so its shebang never
+runs it, and on Windows a shebang does nothing regardless of mode.
 
-**Publish the plugin to npm if the CLI has dependencies.** An npm-sourced install brings the
-dependency tree; a git source copies the repository and leaves `node_modules` to whatever the
-checkout happened to contain. The launcher then fails on a missing transitive dependency rather than
-on anything you wrote. See the caveat in [Tradeoffs](#it-is-not-ambient-so-it-needs-a-bootstrap),
-which is the same distribution boundary from the other side.
+**Keep the script small.** The build warns above 150 KB. One command with a small argument parser
+compiles to tens of kilobytes; a whole CLI with an SDK can pass a megabyte. A skill that needs most
+of the CLI should call it instead of compiling it in: `pnpm exec <bin>` in the pnpm channel, where
+the CLI is guaranteed because pnpm links only direct dependencies, with the pinned `npx` fallback
+below.
 
-**Keep a pinned `npx` fallback in the body.** Resolving the script's path is model behavior, not a
-guarantee, and a git-sourced install has no dependency tree. One line covers both.
+### Call the installed CLI when it is too big to compile
 
-Pin the fallback to the version that shipped the skill, and regenerate it at release. A skill states
-the flags and output of its own version, so an unpinned fallback can hand an agent a CLI its
-documentation does not describe. Generating the skill text and running that generator inside
-`changeset version`, alongside `publish sync-version`, keeps the pin from going stale behind the
-package.
+universal-plugin's own skills do this for every command that runs the CLI (`plugin build`,
+`plugin init`, `plugin version`, `marketplace add`, `marketplace init`, `marketplace validate`). The
+full CLI is far over the budget, so one source, `src/skill-scripts/run-cli.ts`, is declared once per
+command:
+
+```json
+"scripts": {
+  "skills/build-plugin/scripts/build.mjs": { "source": "src/skill-scripts/run-cli.ts", "command": "plugin build" },
+  "skills/version/scripts/version.mjs": { "source": "src/skill-scripts/run-cli.ts", "command": "plugin version" }
+}
+```
+
+Each compiled file is about 2 KB. It finds its command in the embedded command map, by looking up
+its own `entry`, and runs `pnpm exec <bin> <command> ...`. When the project has no such CLI, it runs
+`npx <package>@<version> <command> ...`, with the version the file embeds. It never looks beside
+itself, so a copied skill works the same as a linked one. The scripts that stand alone, such as
+`doctor.mjs`, are compiled from `src/skill-scripts/` and ask the CLI the same way.
+
+### Keep a pinned `npx` fallback
+
+Resolving the script's path is model behavior, not a guarantee, so keep one line in the skill body
+that works without the script: `npx <pkg>@<version>`.
+
+Pin it to the version that shipped the skill. A skill states the flags and output of its own version,
+so an unpinned fallback can hand an agent a CLI its documentation does not describe. A hand-written
+script that shells out to `npx` follows the same rule. Write the pin as one `npx <pkg>@<version>`
+string so the release finds it:
+
+```js
+const [npx, ...npxArgs] = 'npx my-cli@1.4.0'.split(' ')
+```
+
+A compiled script takes the version from `globalThis.__SKILL_SCRIPT__.version` instead.
+
+The release keeps every such pin current, in Markdown and in scripts:
+[`plugin version`](../../cli/overview/#plugin-version-stamps-every-place) re-pins the plugin's own
+package and every other workspace package the skills reference, whichever release tool calls it. A
+compiled script needs no literal pin: its header embeds the package, the bin and the plugin version,
+and `plugin version` stamps that version too.
 
 ## Choosing a runner
 
 | Situation | Use |
 | --- | --- |
-| The CLI ships in the same plugin as the skill | A launcher in the skill's `scripts/`, run as `node scripts/<name>.mjs` |
+| The CLI ships in the same plugin as the skill | A [compiled script entry](../../cli/build/#compiling-skill-scripts) in the skill's `scripts/`, run as `node scripts/<name>.mjs` |
+| The same, but the command needs most of the CLI (over 150 KB compiled) | `pnpm exec <bin>`, with a pinned `npx <pkg>@<exact>` fallback |
 | The CLI exposes a library API and you control the call site | Import in-process — no runner at all |
 | A skill shipped to unknown machines, or via a non-npm plugin source | `npx <pkg>@<exact>` |
 | A skill called many times per run, on a machine you set up | `upx <pkg>@^<major>` |

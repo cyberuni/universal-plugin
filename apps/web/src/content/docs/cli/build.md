@@ -68,6 +68,76 @@ The vendor reports `built` at `com.github.copilot/` when it derives any of this,
 namespace copy exists, Copilot CLI loads none of them and says nothing — `/universal-plugin:doctor-universal-plugin`
 reports that as `copilot-root-components`.
 
+## Compiling skill scripts
+
+A skill does not always travel with its package. pnpm 12.11 links the skills of a project's direct
+dependencies into the agent's skill directory one folder at a time, and falls back to a copy
+([pnpm docs](https://pnpm.io/agent-skills)). A plugin cache keeps only what the plugin ships. A script
+that climbs out of the skill to reach the package's CLI finds nothing in a copy, and Node refuses to
+run a TypeScript file from `node_modules`.
+
+So declare each script a skill runs as an entry, and the build compiles it into one self-contained
+`.mjs` inside the skill:
+
+```json
+{
+  "extensions": {
+    "org.cyberuni.universal-plugin": {
+      "scripts": {
+        "skills/doctor/scripts/doctor.mjs": "src/skills/doctor.ts",
+        "skills/tasks/scripts/task-get.mjs": { "source": "src/skills/task-get.ts", "command": "task get" }
+      }
+    }
+  }
+}
+```
+
+Both paths are relative to the plugin root. The source, its tests and its stories stay in your
+package; the skill gets only the built file.
+
+- **Node built-ins stay imports; everything else is inlined.** An entry that imports only Node
+  built-ins and its own files keeps readable output. One that inlines a dependency is minified. An
+  import the build cannot inline (a package that is not installed) fails that entry and the build
+  exits 1.
+- **Commit the output,** as you commit the vendor manifests, so a git-sourced install carries it too.
+  `--dry-run` reports each script as `unchanged`, `missing`, `stale` (its source or imports moved on)
+  or `version` (only its embedded version did). `/universal-plugin:doctor-universal-plugin` reports a
+  missing or stale script as `stale-script`.
+- **Keep scripts small.** Over 150 KB the build warns. A skill that needs most of your CLI should call
+  the installed CLI instead: `pnpm exec <bin>`, which this channel guarantees because pnpm links only
+  direct dependencies, with a pinned `npx <pkg>@<version>` fallback.
+- **The scripts declaration is build input.** It never reaches a vendor manifest, and `--vendor` does
+  not narrow it.
+
+Each compiled file starts with a header that names its source and embeds the script's data:
+
+```js
+globalThis.__SKILL_SCRIPT__ = {
+  "package": "@acme/tasks", "bin": "tasks", "version": "1.4.0",
+  "entry": "skills/tasks/scripts/task-get.mjs",
+  "commands": { "task get": "skills/tasks/scripts/task-get.mjs" }
+}
+```
+
+`package` and `bin` come from the `package.json` at `packagePath`. `version` comes from `plugin.json`,
+never `package.json`, because the build never decides a version: `plugin version` stamps it into
+`plugin.json` and into each compiled script's header in the same run. `commands`
+maps every entry's declared command path to its file, so the code a script inlines can turn a pointer
+to another command into a command line the agent can run: a sibling script as
+`node <real path>`, else `pnpm exec <bin>`, else `npx <package>@<version>`. The build ships the data;
+reading it is up to your script or the library it inlines.
+
+`publish check-version` compares the embedded version like any other place the version lives. A
+script that is behind only on its version is reported there, as `version-drift`, and not also as
+`stale-script`.
+
+### Links that leave the skill folder
+
+For the same reason, a relative Markdown link in a skill that climbs out of the skill folder
+(`../../readme.md`) resolves to nothing in a linked or copied skill. The build warns once per link,
+naming the file and line. Copy the file into the skill, or link it by URL. Doctor reports it as
+`skill-link-escapes`.
+
 ## Build steps
 
 For each vendor in `extensions["org.cyberuni.universal-plugin"].vendors`:
@@ -81,7 +151,8 @@ For each vendor in `extensions["org.cyberuni.universal-plugin"].vendors`:
 7. Enforce required fields (fails build on missing)
 8. Write to the vendor output path — and for `copilot-cli`, derive the `com.github.copilot/` component tree instead of a manifest
 
-Then, once per build: each repository-local marketplace catalog the repository **already carries**
+Then, once per build, every declared script entry is compiled into its `.mjs` (see
+[Compiling skill scripts](#compiling-skill-scripts)), and each repository-local marketplace catalog the repository **already carries**
 has this plugin's entry re-derived, for the vendors just built, so a catalog entry's version follows
 the canonical manifest instead of drifting. No catalog is created — that stays with
 [`plugin init --vendor` and `marketplace init`](../marketplace/) — and nothing else in the file
@@ -153,6 +224,7 @@ The build fails (exit 1) if:
 - root `plugin.json` does not exist at the plugin root
 - `--vendor` names a vendor not in `extensions["org.cyberuni.universal-plugin"].vendors`
 - `dependencies` is not an array, names a plugin the runtime cannot parse, or carries a `version` that is not a semver range
+- a script entry's source does not exist, or imports something that cannot be inlined (the manifests are still written)
 
 Unrecognized vendor keys in `extensions["org.cyberuni.universal-plugin"].harnesses` emit a warning and are skipped.
 

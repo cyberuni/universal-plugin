@@ -121,13 +121,15 @@ export function wireFiles(pkg: Record<string, unknown>, vendorPaths: string[]): 
 }
 
 const CHANGESET_VERSION = 'changeset version'
-const SYNC_VERSION = 'universal-plugin publish sync-version'
+const STAMP_VERSION = 'universal-plugin plugin version --from-package'
+/** The command the stamp replaced (#179); a script still running it is told to switch. */
+const LEGACY_SYNC_VERSION = 'universal-plugin publish sync-version'
 const CLI_PACKAGE = 'universal-plugin'
 
-/** The command a changesets `version` script runs after `changeset version`, so the plugin manifest
- *  follows the package it ships in on every Version Packages PR. */
+/** The command a changesets `version` script runs after `changeset version`, so every place that
+ *  carries the plugin version follows the package it ships in on every Version Packages PR. */
 function syncVersionCommand(pluginPath: string): string {
-	return `${SYNC_VERSION} --root ${pluginPath === '' ? '.' : pluginPath}`
+	return `${STAMP_VERSION} --root ${pluginPath === '' ? '.' : pluginPath}`
 }
 
 /** Wires the plugin's version sync into a changesets workspace-root `package.json`. Only the stock
@@ -145,9 +147,15 @@ export function wireChangesets(
 		unknown
 	>
 	const script = typeof scripts.version === 'string' ? scripts.version : undefined
-	if (script?.includes(SYNC_VERSION)) return { content: null }
+	if (script?.includes(STAMP_VERSION)) return { content: null }
 
 	const command = syncVersionCommand(pluginPath)
+	if (script?.includes(LEGACY_SYNC_VERSION)) {
+		return {
+			content: null,
+			note: `changesets: the root "version" script runs the deprecated "${LEGACY_SYNC_VERSION}"; replace it with "${command}"`,
+		}
+	}
 	if (script?.trim() !== CHANGESET_VERSION) {
 		const note =
 			script === undefined
@@ -273,7 +281,7 @@ export function planInit(
 	const name = opts.name ?? rootDirName
 	const manifest = buildManifest(name, opts.vendors)
 	// A plugin shipped in an npm package takes that package's version, so the manifest is complete
-	// (Codex requires one) and `publish sync-version` has the same number to move from.
+	// (Codex requires one) and `plugin version --from-package` has the same number to move from.
 	const packageVersion = state.packageJson?.version
 	if (opts.npm && typeof packageVersion === 'string' && packageVersion !== '') {
 		manifest.version = packageVersion

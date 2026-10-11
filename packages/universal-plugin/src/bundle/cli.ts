@@ -1,12 +1,15 @@
+import * as path from 'node:path'
+
 import { Command } from 'commander'
 
 import { readManifest, universalPluginExtension } from '../build/build.js'
 import { ROOT_OPTION, resolveRoot } from '../cli-options.js'
 import { output } from '../output.js'
-import { realPinFs, resolveSkillsDir } from '../pin/fs.js'
-import type { BundlePin } from './bundle.js'
-import { bundlePins } from './bundle.js'
-import { discoverWorkspace, realVersionSource, writePinsMap } from './fs.js'
+import { discoverWorkspace, realPinFs, realVersionSource, resolveSkillsDir } from '../pin/fs.js'
+import type { StampedPin } from '../pin/stamp.js'
+import { stampPins } from '../pin/stamp.js'
+import { writeJsonFile } from '../version/fs.js'
+import { PINS_MAP_PATH, pinsMap } from '../version/version.js'
 
 const TRUNCATE_THRESHOLD = 20
 const NEXT_STEP = '→ review and commit the pinned skills\n'
@@ -19,9 +22,9 @@ interface BundleCliOptions {
 }
 
 export function bundleCommand(): Command {
-	const cmd = new Command('bundle').description(
-		"Pin the plugin's skill npx references to their workspace package.json versions (release form)",
-	)
+	// Deprecated (#179): `plugin version` stamps the skills' pins along with every other place the
+	// version lives. Kept as a warning alias for one minor release.
+	const cmd = new Command('bundle').description('Deprecated: use `plugin version`, which stamps the skill pins')
 
 	cmd
 		.option('--dry-run', 'Resolve and report pins without writing them')
@@ -34,6 +37,9 @@ export function bundleCommand(): Command {
 		.addOption(ROOT_OPTION)
 		.addHelpText('after', '\nExample:\n  $ universal-plugin plugin bundle --dry-run --full\n')
 		.action((opts: BundleCliOptions) => {
+			process.stderr.write(
+				'warn: plugin bundle is deprecated and will be removed in the next minor release — use plugin version, which stamps the skill pins\n',
+			)
 			try {
 				const runner = opts.runner
 				if (runner !== undefined && runner !== 'npx' && runner !== 'upx') {
@@ -46,9 +52,9 @@ export function bundleCommand(): Command {
 				const pinFs = realPinFs(skillsDir)
 				const versionSource = realVersionSource(discoverWorkspace(root))
 
-				const result = bundlePins(pinFs, versionSource, { dryRun: opts.dryRun, runner })
+				const result = stampPins(pinFs, versionSource, { dryRun: opts.dryRun, runner })
 
-				if (!opts.dryRun) writePinsMap(root, result.pins)
+				if (!opts.dryRun) writeJsonFile(path.join(root, PINS_MAP_PATH), pinsMap(result.pins))
 
 				for (const warning of result.warnings) {
 					process.stderr.write(`warn: ${warning}\n`)
@@ -63,7 +69,7 @@ export function bundleCommand(): Command {
 				output(
 					{ pins: result.pins },
 					{
-						pins: shown.map((r: BundlePin) => ({
+						pins: shown.map((r: StampedPin) => ({
 							package: r.package,
 							current: r.current,
 							resolved: r.resolved,

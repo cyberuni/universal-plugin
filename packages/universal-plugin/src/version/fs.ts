@@ -1,28 +1,30 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 
-import { type PluginManifest, universalPluginExtension, VENDOR_OUTPUT } from '../build/build.js'
+import { DEFAULT_MCP_PATH, type PluginManifest, universalPluginExtension, VENDOR_OUTPUT } from '../build/build.js'
 import { getPackagePath } from '../config/config.js'
 import { readEditorconfigIndent } from '../editorconfig/fs.js'
 import { formatJson } from '../json.js'
 import { gatherCatalogRepo } from '../marketplace/fs.js'
-import { realPinFs, resolveSkillsDir } from '../pin/fs.js'
+import { discoverWorkspace, realPinFs, resolveSkillsDir } from '../pin/fs.js'
 import type { DriftFile, DriftState } from './drift.js'
-import type { VersionPlan, VersionState } from './version.js'
+import { PINS_MAP_PATH, type StampJson, type VersionPlan, type VersionState } from './version.js'
 
-/** Minimal JSON file access. `applyVersionPlan` is written against this rather than `node:fs` so
- *  both directions of the version flow — `plugin version` (computed here) and `publish sync-version`
- *  (decided by changesets) — share the **one** applier and cannot drift apart. */
-export interface JsonIo {
+/** Minimal file access. `applyVersionPlan` is written against this rather than `node:fs`, so a test
+ *  can watch every write the stamp makes. */
+interface JsonIo {
 	exists(filePath: string): boolean
 	read(filePath: string): string
 	write(filePath: string, content: string): void
 }
 
-export const realJsonIo: JsonIo = {
+const realJsonIo: JsonIo = {
 	exists: (p) => fs.existsSync(p),
 	read: (p) => fs.readFileSync(p, 'utf8'),
-	write: (p, content) => fs.writeFileSync(p, content),
+	write: (p, content) => {
+		fs.mkdirSync(path.dirname(p), { recursive: true })
+		fs.writeFileSync(p, content)
+	},
 }
 
 export interface VersionFs {
@@ -50,13 +52,55 @@ function writeJson(io: JsonIo, filePath: string, value: unknown): void {
 	io.write(filePath, formatJson(value, { existing, indent: readEditorconfigIndent(filePath) }))
 }
 
-/** The one applier. Writes every authored file the plan names — and nothing else: the derived
- *  vendor manifests are re-derived by calling `plugin build`, which owns them. */
-export function applyVersionPlan(root: string, plan: VersionPlan, io: JsonIo): void {
+/** Writes one JSON file in its own format, as the stamp writes every JSON file it touches. */
+export function writeJsonFile(filePath: string, value: unknown): void {
+	writeJson(realJsonIo, filePath, value)
+}
+
+/** The one applier. Writes every file the plan names — and nothing else: the derived vendor
+ *  manifests are re-derived by calling `plugin build`, which owns them. */
+function applyVersionPlan(root: string, plan: VersionPlan, io: JsonIo): void {
 	writeJson(io, path.join(root, 'plugin.json'), plan.manifest)
 	if (plan.packageJson) {
 		writeJson(io, path.join(root, plan.packageJson.path), plan.packageJson.content)
 	}
+	for (const file of plan.files ?? []) io.write(path.join(root, file.path), file.content)
+	for (const file of plan.json ?? []) writeJson(io, path.join(root, file.path), file.content)
+}
+
+function readJsonFile(io: JsonIo, filePath: string): Record<string, unknown> | null {
+	return io.exists(filePath) ? (JSON.parse(io.read(filePath)) as Record<string, unknown>) : null
+}
+
+/** The authored `mcpServers` files the manifest's declaration names — a path, a list of paths, or a
+ *  `{ paths }` block — or the spec-fixed `mcp.json` when it declares none. An inline declaration is
+ *  stamped inside `plugin.json`, and an unreadable file is left to `plugin build` to warn about. */
+function gatherMcpFiles(root: string, declaration: unknown): StampJson[] {
+	let paths: string[]
+	if (typeof declaration === 'string') paths = [declaration]
+	else if (Array.isArray(declaration)) paths = declaration as string[]
+	else if (declaration && typeof declaration === 'object') {
+		const block = (declaration as Record<string, unknown>)['paths']
+		paths = Array.isArray(block) ? (block as string[]) : []
+	} else paths = fs.existsSync(path.resolve(root, DEFAULT_MCP_PATH)) ? [DEFAULT_MCP_PATH] : []
+
+	const files: StampJson[] = []
+	for (const rel of paths) {
+		const abs = path.resolve(root, rel)
+		try {
+			const content = JSON.parse(fs.readFileSync(abs, 'utf8')) as unknown
+			if (content && typeof content === 'object' && !Array.isArray(content)) {
+				files.push({ path: toRelative(root, abs), content: content as Record<string, unknown> })
+			}
+		} catch {
+			// Missing or unreadable: nothing to stamp.
+		}
+	}
+	return files
+}
+
+function toRelative(root: string, abs: string): string {
+	return path.relative(root, abs).split(path.sep).join('/')
 }
 
 export const realVersionFs: VersionFs = {
@@ -66,13 +110,28 @@ export const realVersionFs: VersionFs = {
 		const manifest = manifestExists ? (JSON.parse(realJsonIo.read(manifestPath)) as Record<string, unknown>) : null
 
 		const packagePath = readPackagePath(root, realJsonIo)
-		const pkgJsonPath = packagePath === null ? null : path.join(root, packagePath, 'package.json')
 		const packageJson =
-			pkgJsonPath !== null && realJsonIo.exists(pkgJsonPath)
-				? (JSON.parse(realJsonIo.read(pkgJsonPath)) as Record<string, unknown>)
-				: null
+			packagePath === null ? null : readJsonFile(realJsonIo, path.join(root, packagePath, 'package.json'))
+		const rootPackageJson = packagePath === null ? readJsonFile(realJsonIo, path.join(root, 'package.json')) : null
 
-		return { manifestExists, manifest, packagePath, packageJson }
+		const uext = universalPluginExtension((manifest ?? {}) as PluginManifest)
+		const skillsDir = resolveSkillsDir(root, uext.skills as string | undefined)
+		const pinFs = realPinFs(skillsDir)
+		const skillFiles = pinFs
+			.listSkillFiles()
+			.map((abs) => ({ path: toRelative(root, abs), content: pinFs.readFile(abs) }))
+
+		return {
+			manifestExists,
+			manifest,
+			packagePath,
+			packageJson,
+			rootPackageJson,
+			skillFiles,
+			workspace: Object.fromEntries(discoverWorkspace(root)),
+			mcpFiles: gatherMcpFiles(root, uext['mcpServers']),
+			pinsMapExists: fs.existsSync(path.join(root, PINS_MAP_PATH)),
+		}
 	},
 	apply(root, plan) {
 		applyVersionPlan(root, plan, realJsonIo)
@@ -115,5 +174,28 @@ export function gatherDriftState(root: string): DriftState {
 	const skillsDir = resolveSkillsDir(root, uext.skills as string | undefined)
 	const skillFiles = realPinFs(skillsDir).listSkillFiles().map(read)
 
-	return { manifest, packagePath, packageJson, vendorManifests, catalogs, skillFiles }
+	return {
+		manifest,
+		packagePath,
+		packageJson,
+		vendorManifests,
+		catalogs,
+		skillFiles,
+		mcpServers: authoredMcpServers(root, uext['mcpServers']),
+	}
+}
+
+/** The authored `mcpServers` maps the stamp writes into: an inline declaration (which lives in
+ *  `plugin.json`) and each declared file. */
+function authoredMcpServers(root: string, declaration: unknown): { path: string; servers: Record<string, unknown> }[] {
+	const serversOf = (block: Record<string, unknown>) => {
+		const inner = block['mcpServers']
+		return (inner && typeof inner === 'object' && !Array.isArray(inner) ? inner : block) as Record<string, unknown>
+	}
+	const maps = gatherMcpFiles(root, declaration).map((file) => ({ path: file.path, servers: serversOf(file.content) }))
+	if (declaration && typeof declaration === 'object' && !Array.isArray(declaration)) {
+		const block = declaration as Record<string, unknown>
+		if (!Array.isArray(block['paths'])) maps.push({ path: 'plugin.json', servers: serversOf(block) })
+	}
+	return maps
 }

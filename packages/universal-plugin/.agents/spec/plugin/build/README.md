@@ -17,12 +17,12 @@ component paths (harness wins on conflict). The canonical wrapper (`$schema`, `e
 derived manifest.
 
 Build is the **dev-consumable** derivation — it runs constantly while authoring a plugin, is
-deterministic, and needs no network. Producing the **release form** — pinning the `npx <cli>@<version>`
-references a plugin's skills carry to the versions being shipped — is a separate release-time step that
-lives in [`plugin bundle`](../bundle/README.md), not here (root `spec.md` placement map). Build does
-not touch skill pins. The one version pin build *does* stamp is a different object: a package
-specifier inside an `mcpServers` entry's `args`, which is manifest content build already derives —
-authored abstractly with a marker, stamped concretely here, exactly as hook casing is.
+deterministic, and needs no network. **Build never decides a version.** It derives files from source
+and copies whatever `plugin.json` carries; moving the version, and writing it into the places that
+restate it (the `npx <cli>@<version>` pins in skills, the `mcpServers` entries marked for pinning),
+is [`plugin version`](../version/README.md)'s stamp
+([ADR-0010](../../design/decisions/0010-version-policy.md), the derive/stamp seam). Build does not
+touch skill pins, and it copies a marked `mcpServers` entry as authored.
 
 Follows the AXI output contract ([../../axi/](../../axi/README.md)).
 
@@ -42,15 +42,16 @@ Follows the AXI output contract ([../../axi/](../../axi/README.md)).
 - **Row status** — one row per vendor: `built` (derived output written, or planned under `--dry-run`),
   `canonical` (root `plugin.json` serves the vendor and nothing was derived), `skipped` (an unknown
   vendor key), or `failed` (a write threw). Any `failed` row exits 1.
-- **Pin marker** — `"pinToPluginVersion": true` on an `mcpServers` entry: the build directive that
-  stamps the entry's package specifier with the manifest version. It never reaches a vendor.
+- **Pin marker** — `"pinToPluginVersion": true` on an `mcpServers` entry: a directive for
+  `plugin version`, which stamps the entry's package specifier. Build only strips it, so it never
+  reaches a vendor.
 
 **Non-goals** — checking a manifest without deriving output (`plugin validate`); scaffolding a new
 project (`plugin init`); publishing or installing manifests (the `cyberplace` package); the shared
 output-contract mechanics themselves ([`../../axi/`](../../axi/README.md) owns those); **resolving or
-pinning the `npx <cli>@<version>` references a plugin's skills carry** — that is the release-time
-[`plugin bundle`](../bundle/README.md) step, not a build step (the MCP-invocation pin is a
-different object — see above).
+or stamping any version, including the `npx <cli>@<version>` references a plugin's skills carry
+and the pin on a marked `mcpServers` entry** — that is [`plugin version`](../version/README.md),
+not a build step.
 
 ## Use Cases
 
@@ -122,34 +123,22 @@ different object — see above).
   substitute for a declared one the build failed to read. A declared directory that does not exist
   warns, naming the path; the undeclared default being absent does not. A declaration in none of
   the three forms warns and reads no skills, rather than falling through to the default.
-- **An MCP invocation is pinned only on an explicit marker** — a plugin whose MCP server is its own
-  npm package writes `{"command": "npx", "args": ["-y", "<pkg>", "mcp"]}`, and nothing pins it: a
-  consumer on 1.4.0 gets 1.4.0's skills and whatever `npx` resolves as latest for the server. The
-  version is known at build time and nowhere else — `mcp.json` expands only `${PLUGIN_ROOT}` and
-  `${PLUGIN_DATA}`, so a runtime placeholder would arrive at the client literally. An `mcpServers`
-  entry therefore opts in with `"pinToPluginVersion": true`, and the build rewrites that entry's
-  package specifier in `args` to `<pkg>@<manifest version>`. The specifier is the **first argument
-  that is not a runner flag** (`-y`, `--yes`), so an `args` list that omits the flag entirely is
-  located the same way; every other argument is carried through exactly as authored. The marker is required and a name match
-  is never used — a plugin may publish its server under a package name that is not the plugin's, and
-  `npx -y widget-cli` must not be stamped with this plugin's version. An **already-pinned**
-  specifier is **overwritten**, warning when the authored version differs: the marker declares that
-  this package's version *is* the plugin's, and a version that is derived is never also authored
-  ([ADR-0010](../../design/decisions/0010-version-policy.md) §1, whose derived-artifact table carries
-  this pin). Each guard warns and leaves the
-  entry untouched rather than failing the build: a `command` that is not `npx`/`upx`, a manifest with
-  no `version`, or `args` carrying no package specifier.
-- **The marker never reaches a vendor** — `pinToPluginVersion` is a build directive, not part of any
+- **A marked MCP entry is copied as authored** — a plugin whose MCP server is its own npm package
+  opts an `mcpServers` entry into version pinning with `"pinToPluginVersion": true`.
+  `plugin version` writes the plugin's version into that entry's package specifier in the authored
+  source (inline in `plugin.json`, or in the declared mcp file), keeping the marker. Build never
+  does: it carries the entry's `args` through exactly as authored, so a build raises none of the
+  warnings it used to raise for re-pins, a command that is not a runner, a missing specifier or a
+  manifest with no version. The marker is required and a name match is never used — a plugin may
+  publish its server under a package name that is not the plugin's.
+- **The marker never reaches a vendor** — `pinToPluginVersion` is a directive, not part of any
   vendor's schema, so it is stripped from every derived manifest and derived MCP file. Delivery
   follows the hooks rule: with no entry marked, the canonical `mcpServers` declaration passes through
-  as authored and nothing is derived; with an entry marked, the pinned, marker-stripped servers map
-  is delivered — inline when the canonical declared it inline, else as `<vendor-dir>/mcp.json` with
+  as authored and nothing is derived; with an entry marked, the marker-stripped servers map is
+  delivered — inline when the canonical declared it inline, else as `<vendor-dir>/mcp.json` with
   the vendor's `mcpServers` field repointed there. The authored `mcp.json` is never rewritten.
-  `copilot-cli` reads the canonical manifest directly, so there is no derived manifest to repoint, and
-  `mcp.json` is not one of the paths its spec mode moves, so there is no derived file to deliver
-  either. The build warns that the pin is not delivered, the same remedy
-  [ADR-0011](../../design/decisions/0011-warn-and-drop-unrepresentable-hook-handlers.md) uses for a
-  handler the vendor cannot run.
+  `copilot-cli` reads the canonical manifest and `mcp.json` directly, so nothing is derived for it;
+  because the authored source carries the pin, it gets the pin with no warning.
 - **The build copies no governance** ([ADR-0017](../../design/decisions/0017-retire-governance-for-reference.md),
   superseding ADR-0016) — a skill loads a reference through the `reference` skill in the
   `cyber-agent-harness` plugin, which resolves the name at run time from the project, user, and
@@ -250,6 +239,36 @@ different object — see above).
   as likely a manifest nobody has configured yet as one an upgrade left behind, and erroring on it
   would fail builds this rule has no quarrel with. `doctor` still reports it as `legacy-manifest`,
   which is what the empty state's `doctor` pointer is for.
+- **Script entries compile into self-contained `.mjs`** ([ADR-0019](../../design/decisions/0019-build-compiles-skill-scripts.md))
+  — `extensions["org.cyberuni.universal-plugin"].scripts` maps an output path to a source, both
+  relative to the plugin root (`"skills/doctor/scripts/doctor.mjs": "src/skills/doctor.ts"`, or
+  `{ "source", "command" }`). Each entry compiles with rolldown into one ES module: Node built-ins stay
+  imports and every other import is inlined; an entry that inlines a dependency is minified, one that
+  inlines only its own files stays readable. The output is written to the declared path and committed.
+  The declaration never reaches a derived manifest, and `--vendor` does not narrow it.
+  - Each compiled file starts with a header naming its source, then assigns
+    `globalThis.__SKILL_SCRIPT__ = { package, bin, version, entry, commands }`: the package and bin of
+    the `packagePath` `package.json` (`null` without one), the canonical `plugin.json`'s version
+    (never `package.json`'s), the file's own path, and every declared command path mapped to its
+    entry. A hashbang in the code stays the first line.
+  - The result carries one `scripts` row per entry. A write reports `compiled` or `unchanged`;
+    `--dry-run` writes nothing and reports `unchanged`, `missing`, `stale` (anything but the embedded
+    version differs), or `version` (only the embedded version differs — drift, which
+    `publish check-version` reports). The summary appends `scripts <n>`.
+  - An entry whose source is missing, or that imports something that cannot be inlined, reports
+    `failed` with a warning and exits 1; the manifests and the other entries still derive. A malformed
+    declaration warns and compiles the entries that parse.
+  - A compiled file over 150 KB warns that the skill should call the installed CLI instead
+    (`pnpm exec <bin>`, with a pinned `npx` fallback).
+  - The build never moves the embedded version on its own: `plugin version` stamps it into the header
+    ([`plugin/version/`](../version/README.md)), so a stamped script stays `unchanged` here.
+- **A skill's links stay inside its folder** — pnpm links or copies each skill folder on its own
+  into an agent's skill directory, and a plugin cache keeps only what the plugin ships, so a skill
+  does not always travel with its package (issue #177). A relative Markdown link (inline, image, or
+  reference definition) in any `.md` file of a skill whose target climbs above the skill folder
+  resolves to nothing there. The build warns once per such link, naming the file, the line, and the
+  target, and says to copy the file into the skill or link it by URL. URLs, absolute paths, anchors,
+  and links inside code are not checked. It is a warning, not an error: the manifests still derive.
 - **Next-step suggestion** — a successful build's stderr ends with a next step that looks forward
   and names a command or skill that ships (a hint an agent follows into `unknown command` is a dead
   end). It is never `plugin validate`: a build already ran those checks before writing, and validate's
@@ -284,7 +303,7 @@ graph TD
   SIG -->|no| R_EMPTY[TOON built 0 · stderr nothing to build, names doctor · exit 0]
   EMPTY -->|no| VAL{manifest valid for the targets?}
   VAL -->|no| E_VAL[exit 1 · list each error · write nothing]
-  VAL -->|yes| READ[read skills, hooks, mcpServers once · pin marked MCP entries]
+  VAL -->|yes| READ[read skills, hooks, mcpServers once]
   READ --> V[for each target vendor: derive, see below]
   V --> CAT{repository carries a catalog for a built vendor?}
   CAT -->|no| OUT
@@ -298,7 +317,7 @@ graph TD
 ```mermaid
 graph TD
   A[derive for one vendor] --> CAN{copilot-cli?}
-  CAN -->|yes| WARN[warn: harness override and marked MCP entry not delivered · warn per dropped handler]
+  CAN -->|yes| WARN[warn: harness override not delivered · warn per dropped handler]
   WARN --> NS[copy agents as .agent.md, commands, rules · translate hooks · copy a declared lspServers path]
   NS --> ANY{anything derived into com.github.copilot/?}
   ANY -->|yes| R_NS[row: built at com.github.copilot/]
@@ -309,7 +328,7 @@ graph TD
   HK -->|yes| HKW[derive vendor-dir/hooks.json · repoint, or omit hooks when nothing is left]
   HK -->|no| MCP
   HKW --> MCP{a marked MCP entry?}
-  MCP -->|yes, inline| MCPI[pinned servers inline in the manifest]
+  MCP -->|yes, inline| MCPI[marker-stripped servers inline in the manifest]
   MCP -->|yes, by path| MCPF[derive vendor-dir/mcp.json · repoint]
   MCP -->|no| W
   MCPI --> W
@@ -381,26 +400,19 @@ Grouped by use case; 1:1 with [`build.feature`](./build.feature).
 | inline | cursor, hooks declared inline | `inline hooks in the manifest are translated too` |
 | dry run | cursor, `--dry-run` | `--dry-run derives no hooks file` |
 
-### MCP invocation pinning and delivery
+### MCP invocation: copied as authored, and delivery
 
 | Edge | Path (Given) | Scenario |
 |---|---|---|
-| pin | a marked `npx -y <pkg>` entry | `a marked mcpServers entry is pinned to the manifest version` |
+| as authored | a marked entry pinned at `0.9.0`, manifest `0.10.0` | `a marked mcpServers entry is copied as authored` |
+| no version | a marked entry with no version in `args` | `a marked entry with no version in its args is not stamped by build` |
 | strip marker | a marked entry | `the marker is stripped from the derived manifest` |
 | unmarked | no marker | `an unmarked entry is left alone` |
-| unrelated | an unmarked entry beside a marked one | `an unrelated invocation beside a marked one is not stamped` |
-| scoped | a marked `@scope/pkg` entry | `a scoped package name keeps its scope when pinned` |
-| overwrite | a marked entry pinned to another version | `an already-pinned specifier is overwritten with a warning` |
-| same version | a marked entry already at the manifest version | `a specifier already at the manifest version is rewritten without a warning` |
-| no runner flag | a marked entry with no `-y` | `an args list carrying no runner flag is pinned at its first argument` |
-| upx | a marked entry running `upx` | `a marked entry running upx is pinned too` |
-| guard: runner | a marked entry running `node` | `a marked entry whose command is not a package runner warns and is left alone` |
-| guard: version | a marked entry, no manifest `version` | `a marked entry cannot be pinned when the manifest carries no version` |
-| guard: specifier | a marked entry whose `args` is only `-y` | `a marked entry with no package specifier in args warns and is left alone` |
+| no warning | a marked entry running `node` | `a marked entry that build cannot or will not pin raises no warning` |
 | path delivery | `mcpServers` by path, an entry marked | `a path declaration with a marked entry gets a derived mcp file and is repointed` |
 | path, unmarked | `mcpServers` by path, nothing marked | `a path declaration with nothing marked derives no mcp file and keeps pointing at the authored one` |
 | dry run | `mcpServers` by path, `--dry-run` | `--dry-run derives no mcp file` |
-| copilot | copilot-cli, a marked entry | `copilot-cli is warned that a marked entry is not pinned for it` |
+| copilot | copilot-cli, a marked entry | `copilot-cli raises no warning for a marked entry` |
 
 ### The Copilot spec-mode namespace
 
@@ -507,6 +519,28 @@ Grouped by use case; 1:1 with [`build.feature`](./build.feature).
 | unsourced | a bare name | `a dependency without a source is never added to the catalog` |
 | not read | codex, which reads no dependency | `a catalog of a runtime that reads no dependency is not checked` |
 
+### Script entries compile into self-contained `.mjs`
+
+| Edge | Path (Given) | Scenario |
+|---|---|---|
+| compile | a TypeScript entry importing only Node built-ins | `a script entry compiles into a self-contained .mjs in the skill` |
+| inline | an entry importing an installed package | `a script entry's dependencies are inlined and minified` |
+| header | `packagePath` with a bin, a command on the entry | `a compiled script embeds the package, bin, plugin version and command map` |
+| not a component | any `scripts` declaration | `the scripts declaration never reaches a derived manifest` |
+| dry run: current | rebuilt, nothing changed | `--dry-run reports a current compiled script as unchanged` |
+| dry run: stale | the source changed | `--dry-run reports a compiled script behind its source as stale` |
+| dry run: version | only `plugin.json`'s version moved | `--dry-run reports a compiled script behind only on its version as version` |
+| guard: unresolved | an import that resolves nowhere | `a script entry that cannot be made self-contained fails` |
+| guard: missing | a source that does not exist | `a script entry whose source is missing fails` |
+| budget | an entry over 150 KB | `a compiled script over the size budget warns` |
+
+### A skill's links stay inside its folder
+
+| Edge | Path (Given) | Scenario |
+|---|---|---|
+| escapes | `../../readme.md` from `SKILL.md` | `a relative link that leaves the skill folder warns` |
+| stays inside | `../SKILL.md` from `references/` | `a relative link that stays inside the skill folder is not reported` |
+
 ### The build copies no governance
 
 | Edge | Path (Given) | Scenario |
@@ -523,10 +557,12 @@ Grouped by use case; 1:1 with [`build.feature`](./build.feature).
 ## References
 
 - ADR-0007 (this project) — the canonical manifest and the target set (`vendors ?? harnesses` keys).
-- ADR-0010 (this project) — the version policy: the MCP pin (§1) and the catalog entry's derived
-  version (§3).
+- [ADR-0010](../../design/decisions/0010-version-policy.md) (this project) — the version policy and
+  the derive/stamp seam: build derives, `plugin version` stamps. Also the catalog entry's derived
+  version.
 - ADR-0011 (this project) — hook translation, and warning on and dropping a handler a vendor cannot run.
 - ADR-0014 (this project) — the build refreshes the repository-local catalogs.
 - ADR-0015 (this project) — Copilot CLI's spec-mode namespace.
 - ADR-0017 (this project) — governance retired for the `reference` skill; the build copies none.
 - ADR-0018 (this project) — dependencies checked against the catalogs the build refreshes.
+- ADR-0019 (this project) — skill script entries compiled into committed, self-contained `.mjs`.

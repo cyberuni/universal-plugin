@@ -17,7 +17,7 @@ Both verbs resolve `.agents/universal-plugin.json` from the current working dire
 every other top-level key** on write.
 
 **Reserved key.** `packagePath` is the CLI's own config (a **string**, read by `plugin version` and
-`publish sync-version`, relative to the plugin root), not a plugin-registered array. `config add`
+`plugin version --from-package`, relative to the plugin root), not a plugin-registered array. `config add`
 **rejects** `--key packagePath`, failing loud rather than coercing it into config's array shape — a
 wrong `packagePath` is fixed by editing the file directly. `config get --key packagePath` **reads** it
 as the string it is (reopened for issue #79), so a skill asks the CLI where the npm package lives

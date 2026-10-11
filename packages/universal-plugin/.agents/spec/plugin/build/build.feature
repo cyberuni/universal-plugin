@@ -277,28 +277,41 @@ Feature: plugin build — derive per-vendor manifests
     Then ".cursor-plugin/hooks.json" is NOT written
     And the exit code is 0
 
-  # ── MCP invocation pinning (issue #56) ──
+  # ── MCP invocation: copied as authored (issue #56, amended by #179) ──
+  #
+  # Build derives and never decides a version. An mcpServers entry marked pinToPluginVersion is
+  # copied exactly as authored; `plugin version` stamps the version into the authored entry (see
+  # plugin/version/). The only thing build does to a marked entry is strip the marker, which is a
+  # directive no vendor's schema knows.
 
-  Scenario: a marked mcpServers entry is pinned to the manifest version
+  Scenario: a marked mcpServers entry is copied as authored
+    Given the manifest version is "0.10.0"
+    And the manifest declares mcpServers inline with entry "srv" running "npx" with args "-y", "cyber-asana@0.9.0", "mcp"
+    And the "srv" entry sets "pinToPluginVersion" true
+    And the manifest declares harnesses for "claude-code"
+    When I run "universal-plugin plugin build"
+    Then ".claude-plugin/plugin.json" mcpServers entry "srv" has args "-y", "cyber-asana@0.9.0", "mcp"
+    And stderr is empty
+    And the exit code is 0
+
+  Scenario: a marked entry with no version in its args is not stamped by build
     Given the manifest version is "0.10.0"
     And the manifest declares mcpServers inline with entry "srv" running "npx" with args "-y", "cyber-asana", "mcp"
     And the "srv" entry sets "pinToPluginVersion" true
     And the manifest declares harnesses for "claude-code"
     When I run "universal-plugin plugin build"
-    Then ".claude-plugin/plugin.json" mcpServers entry "srv" has args "-y", "cyber-asana@0.10.0", "mcp"
+    Then ".claude-plugin/plugin.json" mcpServers entry "srv" has args "-y", "cyber-asana", "mcp"
     And the exit code is 0
 
   Scenario: the marker is stripped from the derived manifest
     Given the manifest version is "0.10.0"
-    And the manifest declares mcpServers inline with entry "srv" running "npx" with args "-y", "cyber-asana", "mcp"
+    And the manifest declares mcpServers inline with entry "srv" running "npx" with args "-y", "cyber-asana@0.9.0", "mcp"
     And the "srv" entry sets "pinToPluginVersion" true
     And the manifest declares harnesses for "claude-code"
     When I run "universal-plugin plugin build"
     Then ".claude-plugin/plugin.json" does not contain "pinToPluginVersion"
     And the canonical "plugin.json" is left unchanged
 
-  # The marker is required precisely because a plugin may publish its server under a package name
-  # that is not the plugin's own, so a name match would be unsound in both directions.
   Scenario: an unmarked entry is left alone
     Given the manifest version is "0.10.0"
     And the manifest declares mcpServers inline with entry "srv" running "npx" with args "-y", "cyber-asana", "mcp"
@@ -307,90 +320,14 @@ Feature: plugin build — derive per-vendor manifests
     Then ".claude-plugin/plugin.json" mcpServers entry "srv" has args "-y", "cyber-asana", "mcp"
     And the exit code is 0
 
-  Scenario: an unrelated invocation beside a marked one is not stamped
-    Given the manifest version is "0.10.0"
-    And the manifest declares mcpServers inline with entry "srv" running "npx" with args "-y", "cyber-asana", "mcp"
-    And the "srv" entry sets "pinToPluginVersion" true
-    And the manifest declares an mcpServers entry "other" running "npx" with args "-y", "some-other-cli"
-    And the manifest declares harnesses for "claude-code"
-    When I run "universal-plugin plugin build"
-    Then ".claude-plugin/plugin.json" mcpServers entry "other" has args "-y", "some-other-cli"
-
-  Scenario: a scoped package name keeps its scope when pinned
-    Given the manifest version is "0.10.0"
-    And the manifest declares mcpServers inline with entry "srv" running "npx" with args "--yes", "@cyberuni/server", "mcp"
-    And the "srv" entry sets "pinToPluginVersion" true
-    And the manifest declares harnesses for "claude-code"
-    When I run "universal-plugin plugin build"
-    Then ".claude-plugin/plugin.json" mcpServers entry "srv" has args "--yes", "@cyberuni/server@0.10.0", "mcp"
-
-  Scenario: an already-pinned specifier is overwritten with a warning
-    Given the manifest version is "0.10.0"
-    And the manifest declares mcpServers inline with entry "srv" running "npx" with args "-y", "cyber-asana@0.9.0", "mcp"
-    And the "srv" entry sets "pinToPluginVersion" true
-    And the manifest declares harnesses for "claude-code"
-    When I run "universal-plugin plugin build"
-    Then ".claude-plugin/plugin.json" mcpServers entry "srv" has args "-y", "cyber-asana@0.10.0", "mcp"
-    And stderr contains "0.9.0"
-    And the exit code is 0
-
-  Scenario: a specifier already at the manifest version is rewritten without a warning
-    Given the manifest version is "0.10.0"
-    And the manifest declares mcpServers inline with entry "srv" running "npx" with args "-y", "cyber-asana@0.10.0", "mcp"
-    And the "srv" entry sets "pinToPluginVersion" true
-    And the manifest declares harnesses for "claude-code"
-    When I run "universal-plugin plugin build"
-    Then ".claude-plugin/plugin.json" mcpServers entry "srv" has args "-y", "cyber-asana@0.10.0", "mcp"
-    And stderr does not contain "pinToPluginVersion"
-
-  Scenario: an args list carrying no runner flag is pinned at its first argument
-    Given the manifest version is "0.10.0"
-    And the manifest declares mcpServers inline with entry "srv" running "npx" with args "cyber-asana", "mcp"
-    And the "srv" entry sets "pinToPluginVersion" true
-    And the manifest declares harnesses for "claude-code"
-    When I run "universal-plugin plugin build"
-    Then ".claude-plugin/plugin.json" mcpServers entry "srv" has args "cyber-asana@0.10.0", "mcp"
-    And the exit code is 0
-
-  # `upx` is the second runner word the spec commits to; the negative below covers a command that is
-  # neither, so the accepted set needs both its members exercised.
-  Scenario: a marked entry running upx is pinned too
-    Given the manifest version is "0.10.0"
-    And the manifest declares mcpServers inline with entry "srv" running "upx" with args "-y", "cyber-asana", "mcp"
-    And the "srv" entry sets "pinToPluginVersion" true
-    And the manifest declares harnesses for "claude-code"
-    When I run "universal-plugin plugin build"
-    Then ".claude-plugin/plugin.json" mcpServers entry "srv" has args "-y", "cyber-asana@0.10.0", "mcp"
-    And the exit code is 0
-
-  Scenario: a marked entry whose command is not a package runner warns and is left alone
+  Scenario: a marked entry that build cannot or will not pin raises no warning
     Given the manifest version is "0.10.0"
     And the manifest declares mcpServers inline with entry "srv" running "node" with args "./server.js"
     And the "srv" entry sets "pinToPluginVersion" true
     And the manifest declares harnesses for "claude-code"
     When I run "universal-plugin plugin build"
     Then ".claude-plugin/plugin.json" mcpServers entry "srv" has args "./server.js"
-    And stderr contains "srv"
-    And the exit code is 0
-
-  Scenario: a marked entry cannot be pinned when the manifest carries no version
-    Given the manifest has no version
-    And the manifest declares mcpServers inline with entry "srv" running "npx" with args "-y", "cyber-asana", "mcp"
-    And the "srv" entry sets "pinToPluginVersion" true
-    And the manifest declares harnesses for "claude-code"
-    When I run "universal-plugin plugin build"
-    Then ".claude-plugin/plugin.json" mcpServers entry "srv" has args "-y", "cyber-asana", "mcp"
-    And stderr contains "version"
-    And the exit code is 0
-
-  Scenario: a marked entry with no package specifier in args warns and is left alone
-    Given the manifest version is "0.10.0"
-    And the manifest declares mcpServers inline with entry "srv" running "npx" with args "-y"
-    And the "srv" entry sets "pinToPluginVersion" true
-    And the manifest declares harnesses for "claude-code"
-    When I run "universal-plugin plugin build"
-    Then ".claude-plugin/plugin.json" mcpServers entry "srv" has args "-y"
-    And stderr contains "srv"
+    And stderr is empty
     And the exit code is 0
 
   # Delivery follows the hooks rule: derive a file only for a vendor whose form differs from the
@@ -398,11 +335,11 @@ Feature: plugin build — derive per-vendor manifests
   Scenario: a path declaration with a marked entry gets a derived mcp file and is repointed
     Given the manifest version is "0.10.0"
     And the manifest declares mcpServers "./mcp.json"
-    And the authored "mcp.json" declares entry "srv" running "npx" with args "-y", "cyber-asana", "mcp" and the marker
+    And the authored "mcp.json" declares entry "srv" running "npx" with args "-y", "cyber-asana@0.9.0", "mcp" and the marker
     And the manifest declares harnesses for "claude-code"
     When I run "universal-plugin plugin build"
     Then ".claude-plugin/mcp.json" is written
-    And ".claude-plugin/mcp.json" entry "srv" has args "-y", "cyber-asana@0.10.0", "mcp"
+    And ".claude-plugin/mcp.json" entry "srv" has args "-y", "cyber-asana@0.9.0", "mcp"
     And ".claude-plugin/mcp.json" does not contain "pinToPluginVersion"
     And ".claude-plugin/plugin.json" contains mcpServers "./.claude-plugin/mcp.json"
     And the authored "mcp.json" is left unchanged
@@ -419,21 +356,21 @@ Feature: plugin build — derive per-vendor manifests
   Scenario: --dry-run derives no mcp file
     Given the manifest version is "0.10.0"
     And the manifest declares mcpServers "./mcp.json"
-    And the authored "mcp.json" declares entry "srv" running "npx" with args "-y", "cyber-asana", "mcp" and the marker
+    And the authored "mcp.json" declares entry "srv" running "npx" with args "-y", "cyber-asana@0.9.0", "mcp" and the marker
     And the manifest declares harnesses for "claude-code"
     When I run "universal-plugin plugin build --dry-run"
     Then ".claude-plugin/mcp.json" is NOT written
     And the exit code is 0
 
-  # Copilot CLI reads the canonical manifest and its mcp file directly, so there is no derived
-  # manifest to repoint and no derived file to deliver — the warning is the whole remedy.
-  Scenario: copilot-cli is warned that a marked entry is not pinned for it
+  # Copilot CLI reads the canonical manifest and its mcp file directly. The authored source now
+  # carries the pin (stamped by `plugin version`), so copilot-cli gets it with nothing to warn about.
+  Scenario: copilot-cli raises no warning for a marked entry
     Given the manifest version is "0.10.0"
-    And the manifest declares mcpServers inline with entry "srv" running "npx" with args "-y", "cyber-asana", "mcp"
+    And the manifest declares mcpServers inline with entry "srv" running "npx" with args "-y", "cyber-asana@0.9.0", "mcp"
     And the "srv" entry sets "pinToPluginVersion" true
     And the manifest declares harnesses for "copilot-cli"
     When I run "universal-plugin plugin build"
-    Then stderr contains "copilot-cli"
+    Then stderr does not contain "pinToPluginVersion"
     And the canonical "plugin.json" is left unchanged
     And the exit code is 0
 
@@ -911,6 +848,90 @@ Feature: plugin build — derive per-vendor manifests
     And the manifest declares harnesses for "codex" and the dependency "cyber-asana"
     When I run "universal-plugin plugin build"
     Then the build reports no dependency issue
+
+  # ── Script entries compile into self-contained .mjs (ADR-0019) ──
+  # A skill linked or copied on its own (pnpm, a plugin cache) cannot reach back into its package, so
+  # each declared entry compiles into one file that imports nothing but Node built-ins.
+
+  Scenario: a script entry compiles into a self-contained .mjs in the skill
+    Given the manifest declares scripts { "skills/demo/scripts/a.mjs": "src/a.ts" }
+    And "src/a.ts" is TypeScript that imports only Node built-ins
+    When I run "universal-plugin plugin build --format json"
+    Then the exit code is 0
+    And "skills/demo/scripts/a.mjs" exists and carries no type annotation
+    And the result's scripts lists "skills/demo/scripts/a.mjs" with status "compiled"
+    And running "node skills/demo/scripts/a.mjs" from any directory succeeds
+
+  Scenario: a script entry's dependencies are inlined and minified
+    Given the manifest declares scripts { "skills/demo/scripts/a.mjs": "src/a.ts" }
+    And "src/a.ts" imports an installed package "tiny"
+    When I run "universal-plugin plugin build"
+    Then "skills/demo/scripts/a.mjs" imports nothing but Node built-ins
+    And its code is minified
+
+  Scenario: a compiled script embeds the package, bin, plugin version and command map
+    Given plugin.json carries version "1.2.3"
+    And packagePath names a package.json with name "@acme/demo", version "0.0.0-development" and bin "demo"
+    And the manifest declares scripts { "skills/demo/scripts/a.mjs": { "source": "src/a.ts", "command": "task get" } }
+    When I run "universal-plugin plugin build"
+    Then "skills/demo/scripts/a.mjs" assigns globalThis.__SKILL_SCRIPT__ = { "package": "@acme/demo", "bin": "demo", "version": "1.2.3", "entry": "skills/demo/scripts/a.mjs", "commands": { "task get": "skills/demo/scripts/a.mjs" } }
+
+  Scenario: the scripts declaration never reaches a derived manifest
+    Given the manifest declares harnesses for "claude-code" and scripts { "skills/demo/scripts/a.mjs": "src/a.ts" }
+    When I run "universal-plugin plugin build"
+    Then ".claude-plugin/plugin.json" has no "scripts" key
+
+  Scenario: --dry-run reports a current compiled script as unchanged
+    Given "skills/demo/scripts/a.mjs" was compiled and nothing has changed since
+    When I run "universal-plugin plugin build --dry-run --format json"
+    Then the result's scripts lists "skills/demo/scripts/a.mjs" with status "unchanged"
+
+  Scenario: --dry-run reports a compiled script behind its source as stale
+    Given "skills/demo/scripts/a.mjs" was compiled and "src/a.ts" has changed since
+    When I run "universal-plugin plugin build --dry-run --format json"
+    Then the result's scripts lists "skills/demo/scripts/a.mjs" with status "stale"
+    And "skills/demo/scripts/a.mjs" is unchanged
+
+  Scenario: --dry-run reports a compiled script behind only on its version as version
+    Given "skills/demo/scripts/a.mjs" was compiled at plugin version "1.0.0"
+    And plugin.json now carries version "1.1.0" and the source is unchanged
+    When I run "universal-plugin plugin build --dry-run --format json"
+    Then the result's scripts lists "skills/demo/scripts/a.mjs" with status "version"
+
+  Scenario: a script entry that cannot be made self-contained fails
+    Given the manifest declares harnesses for "claude-code" and scripts { "a.mjs": "src/a.ts" }
+    And "src/a.ts" imports "not-installed", which resolves nowhere
+    When I run "universal-plugin plugin build"
+    Then the exit code is 1
+    And stderr contains "Failed to compile src/a.ts"
+    And ".claude-plugin/plugin.json" is written
+
+  Scenario: a script entry whose source is missing fails
+    Given the manifest declares scripts { "a.mjs": "src/missing.ts" }
+    When I run "universal-plugin plugin build"
+    Then the exit code is 1
+    And stderr contains "script source \"src/missing.ts\" for a.mjs not found"
+
+  Scenario: a compiled script over the size budget warns
+    Given a script entry that compiles to more than 150 KB
+    When I run "universal-plugin plugin build"
+    Then the exit code is 0
+    And stderr contains a warning naming the size, the 150 KB budget, and "pnpm exec"
+
+  # ── A skill's links stay inside its folder (issue #177) ──
+  # pnpm links or copies each skill folder on its own, so a link that climbs out of it resolves to
+  # nothing there.
+
+  Scenario: a relative link that leaves the skill folder warns
+    Given a skill "demo" whose "SKILL.md" links to "../../readme.md" on line 5
+    When I run "universal-plugin plugin build"
+    Then the exit code is 0
+    And stderr contains a warning naming "skills/demo/SKILL.md:5" and "../../readme.md"
+
+  Scenario: a relative link that stays inside the skill folder is not reported
+    Given a skill "demo" whose "references/r.md" links to "../SKILL.md"
+    When I run "universal-plugin plugin build"
+    Then stderr contains no warning about a link outside the skill folder
 
   # ── Governance copies retired (ADR-0017) ──
   # The build no longer copies governances into skills; a skill loads a reference through the
