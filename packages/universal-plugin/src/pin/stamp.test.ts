@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import type { PinFs } from '../pin/fs.js'
-import type { BundlePin, VersionSource } from './bundle.js'
-import { bundlePins, isPinExempt } from './bundle.js'
+import type { PinFs } from './fs.js'
+import type { StampedPin, VersionSource } from './stamp.js'
+import { isPinExempt, stampPins } from './stamp.js'
 
 function fakeFs(files: Record<string, string>): PinFs & { files: Record<string, string> } {
 	return {
@@ -25,15 +25,15 @@ function fakeWorkspace(entries: Record<string, string | undefined>): VersionSour
 
 // ── Pin from workspace ──
 // Scenario: bundle pins a workspace CLI to its local package.json version
-describe('bundlePins — pin from workspace', () => {
+describe('stampPins — pin from workspace', () => {
 	it('rewrites a concrete pin to the workspace version', () => {
 		const fs = fakeFs({ '/skills/x/SKILL.md': 'npx cyberplace@0.0.9' })
 		const workspace = fakeWorkspace({ cyberplace: '0.1.0' })
 
-		const result = bundlePins(fs, workspace)
+		const result = stampPins(fs, workspace)
 
 		expect(fs.files['/skills/x/SKILL.md']).toBe('npx cyberplace@0.1.0')
-		expect(result.pins).toEqual<BundlePin[]>([
+		expect(result.pins).toEqual<StampedPin[]>([
 			{ package: 'cyberplace', current: '0.0.9', resolved: '0.1.0', status: 'pinned' },
 		])
 	})
@@ -43,20 +43,20 @@ describe('bundlePins — pin from workspace', () => {
 		const fs = fakeFs({ '/skills/x/SKILL.md': 'npx cyberplace@<version>' })
 		const workspace = fakeWorkspace({ cyberplace: '0.1.0' })
 
-		bundlePins(fs, workspace)
+		stampPins(fs, workspace)
 
 		expect(fs.files['/skills/x/SKILL.md']).toBe('npx cyberplace@0.1.0')
 	})
 
 	// Scenario: bundle pins to the workspace version even when a registry would resolve
-	// differently, and resolves with no network access — structurally guaranteed: bundlePins
+	// differently, and resolves with no network access — structurally guaranteed: stampPins
 	// takes a VersionSource, never a registry client or fetch, so there is no network path to
 	// diverge from the workspace value.
 	it('has no registry/network dependency to diverge from the workspace value', () => {
 		const fs = fakeFs({ '/skills/x/SKILL.md': 'npx cyberplace@0.0.9' })
 		const workspace = fakeWorkspace({ cyberplace: '0.1.0' })
 
-		const result = bundlePins(fs, workspace)
+		const result = stampPins(fs, workspace)
 
 		expect(fs.files['/skills/x/SKILL.md']).toContain('0.1.0')
 		expect(fs.files['/skills/x/SKILL.md']).not.toContain('0.2.0')
@@ -66,15 +66,15 @@ describe('bundlePins — pin from workspace', () => {
 
 // ── Idempotent ──
 // Scenario: a pin already at the workspace version is left unchanged
-describe('bundlePins — idempotent', () => {
+describe('stampPins — idempotent', () => {
 	it('leaves a pin already at the workspace version unchanged', () => {
 		const fs = fakeFs({ '/skills/x/SKILL.md': 'npx cyberplace@0.1.0' })
 		const workspace = fakeWorkspace({ cyberplace: '0.1.0' })
 
-		const result = bundlePins(fs, workspace)
+		const result = stampPins(fs, workspace)
 
 		expect(fs.files['/skills/x/SKILL.md']).toBe('npx cyberplace@0.1.0')
-		expect(result.pins).toEqual<BundlePin[]>([
+		expect(result.pins).toEqual<StampedPin[]>([
 			{ package: 'cyberplace', current: '0.1.0', resolved: '0.1.0', status: 'unchanged' },
 		])
 	})
@@ -82,15 +82,15 @@ describe('bundlePins — idempotent', () => {
 
 // ── Best-effort on a broken workspace entry ──
 // Scenario: a workspace package whose local package.json is unreadable warns and skips
-describe('bundlePins — unreadable workspace entry', () => {
+describe('stampPins — unreadable workspace entry', () => {
 	it('warns, skips the package, and leaves the file untouched', () => {
 		const fs = fakeFs({ '/skills/x/SKILL.md': 'npx cyberfleet@0.0.1' })
 		const workspace = fakeWorkspace({ cyberfleet: undefined })
 
-		const result = bundlePins(fs, workspace)
+		const result = stampPins(fs, workspace)
 
 		expect(fs.files['/skills/x/SKILL.md']).toBe('npx cyberfleet@0.0.1')
-		expect(result.pins).toEqual<BundlePin[]>([
+		expect(result.pins).toEqual<StampedPin[]>([
 			{ package: 'cyberfleet', current: '0.0.1', resolved: '0.0.1', status: 'skipped' },
 		])
 		expect(result.warnings.some((w) => w.includes('cyberfleet'))).toBe(true)
@@ -113,7 +113,7 @@ describe('isPinExempt', () => {
 	})
 })
 
-describe('bundlePins — pin-exempt skill', () => {
+describe('stampPins — pin-exempt skill', () => {
 	// Scenario: a skill marked as pin-exempt is never rewritten
 	it('never rewrites a pin-exempt skill and emits no pins row for its packages', () => {
 		const fs = fakeFs({
@@ -122,7 +122,7 @@ describe('bundlePins — pin-exempt skill', () => {
 		})
 		const workspace = fakeWorkspace({ 'universal-plugin': '9.9.9' })
 
-		const result = bundlePins(fs, workspace)
+		const result = stampPins(fs, workspace)
 
 		expect(fs.files['/skills/upgrade-plugin/SKILL.md']).toContain('npx universal-plugin@1.2.3')
 		expect(fs.files['/skills/upgrade-plugin/SKILL.md']).toContain('npx universal-plugin@<old-version>')
@@ -137,7 +137,7 @@ describe('bundlePins — pin-exempt skill', () => {
 		})
 		const workspace = fakeWorkspace({ 'universal-plugin': '0.2.1' })
 
-		const result = bundlePins(fs, workspace)
+		const result = stampPins(fs, workspace)
 
 		expect(fs.files['/skills/upgrade-plugin/SKILL.md']).toContain('npx universal-plugin@<version>')
 		expect(result.pins).toEqual([])
@@ -146,15 +146,15 @@ describe('bundlePins — pin-exempt skill', () => {
 
 // ── External / non-workspace pins ──
 // Scenario: a pin for a package with no workspace entry is left untouched
-describe('bundlePins — external package', () => {
+describe('stampPins — external package', () => {
 	it('leaves an external pin untouched and reports it skipped', () => {
 		const fs = fakeFs({ '/skills/x/SKILL.md': 'npx gherkin-cli@0.0.1' })
 		const workspace = fakeWorkspace({})
 
-		const result = bundlePins(fs, workspace)
+		const result = stampPins(fs, workspace)
 
 		expect(fs.files['/skills/x/SKILL.md']).toBe('npx gherkin-cli@0.0.1')
-		expect(result.pins).toEqual<BundlePin[]>([
+		expect(result.pins).toEqual<StampedPin[]>([
 			{ package: 'gherkin-cli', current: '0.0.1', resolved: '0.0.1', status: 'skipped' },
 		])
 	})
@@ -162,15 +162,15 @@ describe('bundlePins — external package', () => {
 
 // ── Write control ──
 // Scenario: --dry-run reports resolved pins without writing them
-describe('bundlePins — dry-run', () => {
+describe('stampPins — dry-run', () => {
 	it('resolves and reports without writing', () => {
 		const fs = fakeFs({ '/skills/x/SKILL.md': 'npx cyberplace@0.0.9' })
 		const workspace = fakeWorkspace({ cyberplace: '0.1.0' })
 
-		const result = bundlePins(fs, workspace, { dryRun: true })
+		const result = stampPins(fs, workspace, { dryRun: true })
 
 		expect(fs.files['/skills/x/SKILL.md']).toBe('npx cyberplace@0.0.9')
-		expect(result.pins).toEqual<BundlePin[]>([
+		expect(result.pins).toEqual<StampedPin[]>([
 			{ package: 'cyberplace', current: '0.0.9', resolved: '0.1.0', status: 'pinned' },
 		])
 	})
@@ -179,12 +179,12 @@ describe('bundlePins — dry-run', () => {
 // ── AXI output contract — pins shape ──
 // Scenario: a bundle prints TOON pins rows and a pre-computed aggregate (data-shape half; the
 // rendering itself is exercised at the CLI/e2e layer)
-describe('bundlePins — multiple packages', () => {
+describe('stampPins — multiple packages', () => {
 	it('returns one row per package with a status the aggregate can be derived from', () => {
 		const fs = fakeFs({ '/skills/x/SKILL.md': 'npx cyberplace@0.0.9 and npx cyberfleet@0.0.1' })
 		const workspace = fakeWorkspace({ cyberplace: '0.1.0', cyberfleet: '0.0.1' })
 
-		const result = bundlePins(fs, workspace)
+		const result = stampPins(fs, workspace)
 
 		expect(result.pins).toHaveLength(2)
 		for (const pin of result.pins) {
@@ -198,13 +198,13 @@ describe('bundlePins — multiple packages', () => {
 })
 
 // ── Runner selection ──
-describe('bundlePins — runner selection', () => {
+describe('stampPins — runner selection', () => {
 	// Scenario: --runner upx emits the upx runner word when pinning a workspace CLI
 	it('emits upx on every rewritten ref when --runner upx is given', () => {
 		const fs = fakeFs({ '/skills/x/SKILL.md': 'npx cyberplace@0.0.9' })
 		const workspace = fakeWorkspace({ cyberplace: '0.1.0' })
 
-		bundlePins(fs, workspace, { runner: 'upx' })
+		stampPins(fs, workspace, { runner: 'upx' })
 
 		expect(fs.files['/skills/x/SKILL.md']).toBe('upx cyberplace@0.1.0')
 	})
@@ -214,7 +214,7 @@ describe('bundlePins — runner selection', () => {
 		const fs = fakeFs({ '/skills/x/SKILL.md': 'npx cyberplace@0.0.9' })
 		const workspace = fakeWorkspace({ cyberplace: '0.1.0' })
 
-		bundlePins(fs, workspace)
+		stampPins(fs, workspace)
 
 		expect(fs.files['/skills/x/SKILL.md']).toBe('npx cyberplace@0.1.0')
 	})
@@ -224,7 +224,7 @@ describe('bundlePins — runner selection', () => {
 		const fs = fakeFs({ '/skills/x/SKILL.md': 'upx cyberplace@0.0.9' })
 		const workspace = fakeWorkspace({ cyberplace: '0.1.0' })
 
-		bundlePins(fs, workspace)
+		stampPins(fs, workspace)
 
 		expect(fs.files['/skills/x/SKILL.md']).toBe('upx cyberplace@0.1.0')
 	})
@@ -234,19 +234,19 @@ describe('bundlePins — runner selection', () => {
 		const fs = fakeFs({ '/skills/x/SKILL.md': 'upx cyberplace@0.0.9' })
 		const workspace = fakeWorkspace({ cyberplace: '0.1.0' })
 
-		bundlePins(fs, workspace, { runner: 'npx' })
+		stampPins(fs, workspace, { runner: 'npx' })
 
 		expect(fs.files['/skills/x/SKILL.md']).toBe('npx cyberplace@0.1.0')
 	})
 })
 
 // Scenario: no pins to resolve is a definitive empty state
-describe('bundlePins — empty state', () => {
+describe('stampPins — empty state', () => {
 	it('returns no pins when no skill references an npx <pkg>@<pin>', () => {
 		const fs = fakeFs({ '/skills/x/SKILL.md': 'no references here' })
 		const workspace = fakeWorkspace({})
 
-		const result = bundlePins(fs, workspace)
+		const result = stampPins(fs, workspace)
 
 		expect(result.pins).toEqual([])
 	})

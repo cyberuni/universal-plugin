@@ -1,7 +1,7 @@
 import * as path from 'node:path'
-import { type BundlePin, bundlePins } from '../bundle/bundle.js'
 import { getPackagePath } from '../config/config.js'
 import type { PinFs } from '../pin/fs.js'
+import { type StampedPin, stampPins } from '../pin/stamp.js'
 import { applyVersionPlan } from '../version/fs.js'
 import type { VersionPlan } from '../version/version.js'
 import type { SyncVersionFs } from './fs.js'
@@ -70,10 +70,10 @@ export function syncVersion(root: string, syncFs: SyncVersionFs): SyncVersionRes
  *  derived, and `plugin bundle` owns them, so this calls bundle's own rewriter with a version source
  *  that knows only the synced package — every other package's pin is left as it is, and pin-exempt
  *  skills stay exempt. */
-export function syncSkillPins(pinFs: PinFs, packageName: string, version: string): BundlePin[] {
+export function syncSkillPins(pinFs: PinFs, packageName: string, version: string): StampedPin[] {
 	const source = {
 		resolve: (pkg: string) =>
 			pkg === packageName ? { inWorkspace: true as const, version } : { inWorkspace: false as const },
 	}
-	return bundlePins(pinFs, source).pins.filter((pin) => pin.package === packageName)
+	return stampPins(pinFs, source).pins.filter((pin) => pin.package === packageName)
 }

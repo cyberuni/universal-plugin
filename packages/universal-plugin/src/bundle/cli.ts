@@ -3,10 +3,9 @@ import { Command } from 'commander'
 import { readManifest, universalPluginExtension } from '../build/build.js'
 import { ROOT_OPTION, resolveRoot } from '../cli-options.js'
 import { output } from '../output.js'
-import { realPinFs, resolveSkillsDir } from '../pin/fs.js'
-import type { BundlePin } from './bundle.js'
-import { bundlePins } from './bundle.js'
-import { discoverWorkspace, realVersionSource, writePinsMap } from './fs.js'
+import { discoverWorkspace, realPinFs, realVersionSource, resolveSkillsDir, writePinsMap } from '../pin/fs.js'
+import type { StampedPin } from '../pin/stamp.js'
+import { stampPins } from '../pin/stamp.js'
 
 const TRUNCATE_THRESHOLD = 20
 const NEXT_STEP = '→ review and commit the pinned skills\n'
@@ -46,7 +45,7 @@ export function bundleCommand(): Command {
 				const pinFs = realPinFs(skillsDir)
 				const versionSource = realVersionSource(discoverWorkspace(root))
 
-				const result = bundlePins(pinFs, versionSource, { dryRun: opts.dryRun, runner })
+				const result = stampPins(pinFs, versionSource, { dryRun: opts.dryRun, runner })
 
 				if (!opts.dryRun) writePinsMap(root, result.pins)
 
@@ -63,7 +62,7 @@ export function bundleCommand(): Command {
 				output(
 					{ pins: result.pins },
 					{
-						pins: shown.map((r: BundlePin) => ({
+						pins: shown.map((r: StampedPin) => ({
 							package: r.package,
 							current: r.current,
 							resolved: r.resolved,

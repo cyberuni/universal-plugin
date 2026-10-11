@@ -8,9 +8,8 @@
  *  the release PR rather than after publish (issue #164). */
 
 import * as semver from 'semver'
-
-import { isPinExempt } from '../bundle/bundle.js'
 import { extractPins } from '../pin/pin.js'
+import { isPinExempt } from '../pin/stamp.js'
 import { currentVersion, joinRelative } from './version.js'
 
 export type DriftKind = 'package' | 'manifest' | 'vendor-manifest' | 'catalog' | 'skill-pin'

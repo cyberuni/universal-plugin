@@ -1,22 +1,22 @@
-import type { PinFs } from '../pin/fs.js'
-import { extractPins } from '../pin/pin.js'
+import type { PinFs } from './fs.js'
+import { extractPins } from './pin.js'
 
-type BundleStatus = 'pinned' | 'unchanged' | 'skipped'
+type StampStatus = 'pinned' | 'unchanged' | 'skipped'
 
 /** The outcome of resolving one distinct in-scope package's pin against the workspace. */
-export interface BundlePin {
+export interface StampedPin {
 	package: string
 	current: string
 	resolved: string
-	status: BundleStatus
+	status: StampStatus
 }
 
-export interface BundleResult {
-	pins: BundlePin[]
+export interface StampResult {
+	pins: StampedPin[]
 	warnings: string[]
 }
 
-export interface BundleOptions {
+export interface StampOptions {
 	dryRun?: boolean
 	/** Runner word to write on every rewritten reference. Omitted preserves each reference's
 	 *  existing runner word (an `npx` ref stays `npx`, an `upx` ref stays `upx`) while still
@@ -51,7 +51,7 @@ const FRONTMATTER_PATTERN = /^---\r?\n([\s\S]*?)\r?\n---/
 const PIN_EXEMPT_PATTERN = /(^|\n)\s*pin-exempt:\s*true\s*(\n|$)/
 
 /** True when a SKILL.md's frontmatter declares `metadata.pin-exempt: true` — its version strings
- *  are documentation/illustration, never rewritten by `bundle`. Nesting under `metadata` is not
+ *  are documentation/illustration, never rewritten by a stamp. Nesting under `metadata` is not
  *  enforced structurally (no YAML dependency); the key's presence anywhere in the frontmatter block
  *  is the marker. */
 export function isPinExempt(skillMdContent: string): boolean {
@@ -76,7 +76,7 @@ function isUnderExemptDir(filePath: string, exemptDirs: Set<string>): boolean {
  *  resolves against the workspace, rewrites every occurrence to that package's local version. A
  *  pin-exempt skill (and every file under its directory) is excluded entirely — never scanned,
  *  never rewritten, never reported. */
-export function bundlePins(pinFs: PinFs, versionSource: VersionSource, opts: BundleOptions = {}): BundleResult {
+export function stampPins(pinFs: PinFs, versionSource: VersionSource, opts: StampOptions = {}): StampResult {
 	const files = pinFs.listSkillFiles()
 	const contents = new Map<string, string>()
 	for (const file of files) contents.set(file, pinFs.readFile(file))
@@ -99,7 +99,7 @@ export function bundlePins(pinFs: PinFs, versionSource: VersionSource, opts: Bun
 	}
 
 	const warnings: string[] = []
-	const pins: BundlePin[] = []
+	const pins: StampedPin[] = []
 
 	for (const [pkg, currents] of currentsByPkg) {
 		const current = currents[0]!
