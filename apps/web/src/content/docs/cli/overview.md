@@ -27,7 +27,7 @@ Manifest authoring lives under the `plugin` command group. The other groups sit 
 | `plugin init` | Scaffold a canonical `plugin.json`, and register it in the [local marketplace](../marketplace/) |
 | [`plugin install`](../install/) | Install the plugin under development into the runtimes it targets (and `plugin uninstall`) |
 | `plugin version <bump>` | Move the version across every file that carries one |
-| `plugin bundle` | Pin skill `npx` references to workspace versions |
+| [`plugin bundle`](../bundle/) | Pin the skills' `npx`/`upx` references to workspace versions, and write `.plugin/pins.json` |
 | [`config`](../config/) | Read and write plugin-registered config in `.agents/universal-plugin.json` |
 | `prepare` / `sync` | Detect and apply cross-vendor sync actions for an installed plugin |
 | `publish sync-version` | Copy the package version into the canonical `plugin.json` and the skills' pins of that package, and rebuild the vendor manifests |
