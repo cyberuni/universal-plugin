@@ -146,13 +146,13 @@ The namespace **replaces** the root rather than supplementing it, and an explici
 the manifest does **not** opt back into root loading. The move landed in **1.0.80-0** and the
 runtime's own changelog labels it breaking. Evidence and its confidence, including which kinds were
 proven by experiment:
-[`.research/copilot-spec-mode-namespace/`](../../../../../../.research/copilot-spec-mode-namespace/conclusion.md).
+[`.research/copilot-spec-mode-namespace/`](https://github.com/cyberuni/universal-plugin/blob/main/.research/copilot-spec-mode-namespace/conclusion.md).
 The published CLI plugin reference still says spec support is "additive on top of standard plugin
 loading" and documents only the root layout — it is stale; do not build against it.
 
 ### What the build derives
 
-`plugin build` derives the tree ([ADR-0015](../../../../.agents/spec/design/decisions/0015-copilot-spec-mode-namespace.md)),
+`plugin build` derives the tree ([ADR-0015](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/design/decisions/0015-copilot-spec-mode-namespace.md)),
 so **authoring stays at the canonical locations**:
 
 - `agents`, `commands` and `rules` are copied, resolved through the same `pathValue` contract

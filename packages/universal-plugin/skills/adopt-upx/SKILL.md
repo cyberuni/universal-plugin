@@ -9,7 +9,7 @@ metadata:
 
 Rewrites `npx <pkg>@<version>` references inside `SKILL.md` files to a caret range on `upx` — the
 fast local-first runner shipped by `universal-plugin` (see the package
-[`readme.md`](../../readme.md#upx--the-fast-package-runner) for the `upx` contract).
+[`readme.md`](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/readme.md#upx-the-fast-package-runner) for the `upx` contract).
 
 ## When to use
 

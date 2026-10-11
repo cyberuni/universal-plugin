@@ -22,6 +22,8 @@ One call writes:
   own package moves to the new version, other pnpm-workspace CLIs to their workspace versions, and
   external packages are left alone. A skill with `metadata.pin-exempt: true` is skipped;
 - `.plugin/pins.json`;
+- the version each compiled skill script (`scripts` in the extension) embeds in its header — only the
+  header moves;
 - each authored `mcpServers` entry marked `pinToPluginVersion: true`, inline or in the mcp file. The
   marker stays.
 

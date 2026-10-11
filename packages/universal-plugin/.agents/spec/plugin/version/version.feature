@@ -208,6 +208,14 @@ Feature: plugin version — move the plugin's version, and keep every version-ca
     When I run "universal-plugin plugin version --from-package --root <root>"
     Then ".plugin/pins.json" is indented with two spaces and ends in a newline
 
+  Scenario: a compiled script's embedded version is stamped and nothing else in it
+    Given "skills/a/scripts/a.mjs" is a compiled skill script embedding version "1.2.3"
+    And its compiled code carries "npx my-cli@1.2.3"
+    When I run "universal-plugin plugin version 1.3.0 --root <root>"
+    Then the script's header embeds version "1.3.0"
+    And the rest of the script, "npx my-cli@1.2.3" included, is unchanged
+    And "universal-plugin plugin build --dry-run" reports the script "unchanged"
+
   Scenario: a marked inline mcpServers entry is stamped and keeps its marker
     Given "plugin.json" carries an inline mcpServers entry running "npx -y my-cli@1.2.3 mcp" marked "pinToPluginVersion"
     When I run "universal-plugin plugin version --from-package --root <root>"
@@ -466,6 +474,13 @@ Feature: plugin version — move the plugin's version, and keep every version-ca
     When I run "universal-plugin publish check-version --root <root>"
     Then the exit code is 1
     And stderr ends with "/universal-plugin:version"
+
+  Scenario: a compiled script behind on its version is drift, reported once
+    Given "packagePath" names a package at "0.9.0"
+    And a compiled skill script embeds version "0.8.0" and its inlined code pins the package at "0.7.0"
+    When I run "universal-plugin publish check-version --root <root>"
+    Then the exit code is 1
+    And the script is reported once, with version "0.8.0" and kind "compiled-script"
 
   Scenario: check-version fails loud without a canonical manifest
     Given an empty root

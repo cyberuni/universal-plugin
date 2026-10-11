@@ -464,3 +464,88 @@ test('a semantic-release placeholder is reported as unstamped, not as version-dr
 	expect(codes).not.toContain('version-drift')
 	expect(detail('unstamped')).toBe('package.json holds 0.0.0-development, which the release replaces')
 })
+
+test('a copied doctor script with no CLI beside it runs the pinned npx fallback', () => {
+	// A copy, as pnpm's fallback makes: four levels up is not the package root.
+	const copy = path.join(root, '.claude/skills/pnpm-universal-plugin-doctor/scripts/doctor.mjs')
+	fs.mkdirSync(path.dirname(copy), { recursive: true })
+	fs.copyFileSync(doctor, copy)
+	const bin = path.join(root, 'fake-bin')
+	fs.mkdirSync(bin)
+	const log = path.join(root, 'npx.log')
+	fs.writeFileSync(path.join(bin, 'npx'), `#!/bin/sh\necho "$@" >> ${log}\nexit 1\n`, { mode: 0o755 })
+	writeManifest('1.0.0')
+	spawnSync('node', [copy, '--root', root], {
+		encoding: 'utf8',
+		env: { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH}` },
+	})
+	const own = JSON.parse(fs.readFileSync(path.resolve('package.json'), 'utf8')) as { version: string }
+	const calls = fs.readFileSync(log, 'utf8').trim().split('\n')
+	expect(calls.length).toBeGreaterThan(0)
+	for (const call of calls) expect(call.startsWith(`universal-plugin@${own.version} `)).toBe(true)
+})
+
+test('a skill link that leaves the skill folder is a skill-link-escapes finding', () => {
+	writeManifest('1.0.0')
+	writeSkill('See [the readme](../../readme.md).')
+	expect(findings()).toContain('skill-link-escapes')
+})
+
+function writeScriptManifest(version: string) {
+	write(
+		'plugin.json',
+		`${JSON.stringify({
+			$schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json',
+			name: 'demo',
+			version,
+			description: 'a demo plugin',
+			extensions: {
+				'org.cyberuni.universal-plugin': {
+					vendors: ['claude-code'],
+					scripts: { 'skills/demo/scripts/a.mjs': 'src/a.ts' },
+				},
+			},
+		})}\n`,
+	)
+}
+
+function buildRoot() {
+	const r = spawnSync('node', [path.resolve('bin/universal-plugin.mjs'), 'plugin', 'build', '--root', root], {
+		encoding: 'utf8',
+	})
+	expect(r.status).toBe(0)
+}
+
+test('a compiled script behind its source is a stale-script finding', () => {
+	writeScriptManifest('1.0.0')
+	writeSkill('demo')
+	write('src/a.ts', 'console.log(1)\n')
+	buildRoot()
+	expect(findings()).not.toContain('stale-script')
+
+	write('src/a.ts', 'console.log(2)\n')
+	expect(findings()).toContain('stale-script')
+})
+
+test('a compiled script that was never compiled is a stale-script finding', () => {
+	writeScriptManifest('1.0.0')
+	writeSkill('demo')
+	write('src/a.ts', 'console.log(1)\n')
+	expect(detail('stale-script')).toContain('not compiled')
+})
+
+test('a compiled script on an old version is version drift, not also stale-script', () => {
+	writeScriptManifest('1.0.0')
+	writeSkill('demo')
+	write('src/a.ts', 'console.log(1)\n')
+	buildRoot()
+	writeScriptManifest('1.1.0')
+	// Rebuild the manifests but not the script: only its embedded version is behind.
+	const script = fs.readFileSync(path.join(root, 'skills/demo/scripts/a.mjs'), 'utf8')
+	buildRoot()
+	fs.writeFileSync(path.join(root, 'skills/demo/scripts/a.mjs'), script)
+
+	const codes = findings()
+	expect(codes).not.toContain('stale-script')
+	expect(codes.filter((c) => c === 'version-drift')).toEqual(['version-drift'])
+})

@@ -3,6 +3,8 @@ import * as path from 'node:path'
 import { Command, Option } from 'commander'
 
 import { ROOT_OPTION, resolveRoot } from '../cli-options.js'
+import { compileScripts } from '../compile/compile.js'
+import { rolldownCompiler } from '../compile/rolldown.js'
 import { output } from '../output.js'
 import { type BuildResult, buildPlugin, type VendorRow } from './build.js'
 
@@ -44,7 +46,7 @@ export function buildCommand(): Command {
 		.addOption(new Option('--json').hideHelp())
 		.addOption(ROOT_OPTION)
 		.addHelpText('after', '\nExample:\n  $ universal-plugin plugin build --vendor claude-code\n')
-		.action((opts: BuildCliOptions) => {
+		.action(async (opts: BuildCliOptions) => {
 			try {
 				const root = resolveRoot(opts.root)
 				const result = buildPlugin(root, {
@@ -53,8 +55,10 @@ export function buildCommand(): Command {
 					verbose: opts.verbose,
 					clean: opts.clean,
 				})
+				// Script entries are vendor-neutral, so `--vendor` does not narrow them.
+				const scripts = await compileScripts(root, { dryRun: opts.dryRun }, rolldownCompiler)
 
-				for (const warning of result.warnings) {
+				for (const warning of [...result.warnings, ...scripts.warnings]) {
 					process.stderr.write(`warn: ${warning}\n`)
 				}
 
@@ -65,20 +69,24 @@ export function buildCommand(): Command {
 					failed: result.rows.filter((r) => r.status === 'failed'),
 					canonical: result.rows.filter((r) => r.status === 'canonical'),
 					catalogs: result.catalogs,
+					scripts: scripts.rows,
 					dependencyIssues: result.dependencyIssues,
 					summary: result.summary,
-					warnings: result.warnings,
+					warnings: [...result.warnings, ...scripts.warnings],
 				}
 				const counts = `built ${built}, skipped ${skipped}, failed ${failed}`
 				const catalogSummary = result.catalogs.length > 0 ? `, catalogs ${result.catalogs.length}` : ''
+				const scriptSummary = scripts.rows.length > 0 ? `, scripts ${scripts.rows.length}` : ''
 				output(jsonResult, {
 					vendors: result.rows.map((r: VendorRow) => ({ vendor: r.vendor, path: r.path, status: r.status })),
 					catalogs: result.catalogs.map((r) => ({ path: r.path, status: r.status })),
-					summary: (canonical > 0 ? `${counts}, served by plugin.json ${canonical}` : counts) + catalogSummary,
+					...(scripts.rows.length > 0 && { scripts: scripts.rows.map((r) => ({ path: r.path, status: r.status })) }),
+					summary:
+						(canonical > 0 ? `${counts}, served by plugin.json ${canonical}` : counts) + catalogSummary + scriptSummary,
 				})
 
 				process.stderr.write(nextStep(result, process.cwd()))
-				if (failed > 0) process.exitCode = 1
+				if (failed > 0 || scripts.summary.failed > 0) process.exitCode = 1
 				// The issues were already printed as warnings; strict mode only changes what they cost.
 				if (opts.strictDependencies && result.dependencyIssues.length > 0) {
 					process.stderr.write(

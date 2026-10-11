@@ -80,6 +80,7 @@ It writes:
   package moves to the new version, other pnpm-workspace CLIs to their workspace versions, and external
   packages are left alone. A skill with `metadata.pin-exempt: true` is skipped;
 - `.plugin/pins.json`;
+- the version each [compiled skill script](../build/#compiling-skill-scripts) embeds in its header;
 - each authored `mcpServers` entry marked `pinToPluginVersion`, inline or in the mcp file, keeping the marker.
 
 | Flag | Description |

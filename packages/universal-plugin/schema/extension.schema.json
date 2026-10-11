@@ -53,6 +53,37 @@
 		"outputStyles": {
 			"$ref": "#/$defs/pathValue",
 			"description": "Output style resources. Default: ./output-styles/."
+		},
+		"scripts": {
+			"type": "object",
+			"description": "Skill script entries 'plugin build' compiles into self-contained .mjs files. Keyed by the output path, relative to the plugin root (e.g. skills/doctor/scripts/doctor.mjs); each value is the source path, relative to the plugin root, or { source, command } where command is the CLI command path the entry runs. Never written to a derived manifest.",
+			"propertyNames": {
+				"pattern": "\\.mjs$"
+			},
+			"additionalProperties": {
+				"oneOf": [
+					{
+						"type": "string",
+						"minLength": 1
+					},
+					{
+						"type": "object",
+						"required": ["source"],
+						"additionalProperties": false,
+						"properties": {
+							"source": {
+								"type": "string",
+								"minLength": 1
+							},
+							"command": {
+								"type": "string",
+								"minLength": 1,
+								"description": "The CLI command path this entry runs (e.g. 'plugin build'). Every compiled script carries the map of these to their entries."
+							}
+						}
+					}
+				]
+			}
 		}
 	},
 	"$defs": {

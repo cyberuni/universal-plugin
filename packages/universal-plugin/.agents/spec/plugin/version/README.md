@@ -30,9 +30,9 @@ verb decides the version and writes it into the places that restate it.
 - **Stamped place** — a file that restates the version in the source tree and so is written by this
   verb, not by `build`: the `npx`/`upx <cli>@<version>` pins in every text file under the skills
   directory (Markdown, `json`/`yaml`/`txt`, and scripts `.js .mjs .cjs .ts .mts .cts .sh .py`),
-  `.plugin/pins.json`, and each authored `mcpServers` entry marked `pinToPluginVersion`. The compiled
-  script's embedded version (#177) is a future stamped place; the stamping pass is the hook point for
-  it.
+  `.plugin/pins.json`, each authored `mcpServers` entry marked `pinToPluginVersion`, and the version
+  each compiled skill script embeds in its header
+  ([ADR-0019](../../design/decisions/0019-build-compiles-skill-scripts.md)).
 - **`packagePath`** — the CLI's own config key in `.agents/universal-plugin.json` (beside the
   canonical `plugin.json`), naming the directory holding the npm package that ships this plugin, as a
   path relative to the plugin root (`--root`, else cwd). It is not read from the manifest's extensions
@@ -116,6 +116,11 @@ One call writes all of these, and a failing guard writes none.
   versions, and external packages are untouched. A skill marked `metadata.pin-exempt: true` is
   excluded entirely.
 - **`.plugin/pins.json`**, the key-sorted map of own and workspace pins.
+- **Compiled skill scripts.** Each file under the skills directory that carries a compiled-script
+  header has the header's `version` rewritten to the new one, and nothing else in the file. The pin
+  stamp skips these files: a pin the compiled code inlines came from its source, so rewriting it
+  would leave the script behind its source. A script behind its source is `plugin build`'s to
+  re-derive. Stamped rows read `stamped`, and `--no-build` does not skip them.
 - **Marked `mcpServers` entries.** Each authored entry with `pinToPluginVersion: true` is stamped in
   place: inline in `plugin.json` under `extensions["org.cyberuni.universal-plugin"].mcpServers`, or
   in the declared mcp file(s), or the spec-fixed `./mcp.json`. The marker stays so the next stamp
@@ -153,7 +158,11 @@ missed sync fails the release PR rather than the published package.
   the manifest's skills path pinning the package (`npx`/`upx <package>@<version>`, either `-y` or
   `--yes`); and each `mcpServers` entry marked `pinToPluginVersion` (kind `mcp-pin`). Pins are read
   with the stamper's reader and skip what it skips: a pin-exempt skill, and a pin that is not a
-  version (`<version>`, `latest`, a range).
+  version (`<version>`, `latest`, a range). A compiled skill script
+  ([ADR-0019](../../design/decisions/0019-build-compiles-skill-scripts.md)) is compared by the version
+  its header embeds (kind `compiled-script`), and only by that: a pin its inlined code carries is not
+  a second surface, and a script whose source moved on is `plugin build`'s `stale` report, not drift.
+  One file is never reported twice.
 - **Unstamped, not drifted.** A place holding `0.0.0-development` is reported in a separate
   `unstamped` list and never as drift: a semantic-release repo commits the placeholder, and the
   release stamps it. `check-version` prints `<path> is unstamped (0.0.0-development) — the release
@@ -353,6 +362,7 @@ Grouped by concern; 1:1 with [`version.feature`](./version.feature).
 | mcp file | marked entry in `./mcp.json` | `a marked entry in an authored mcp file is stamped and keeps its marker` |
 | mcp untouched | file with nothing to move | `an mcp file with nothing to move is left unwritten` |
 | mcp warn | marked entry, command not a runner | `a marked entry that cannot be stamped warns and does not fail` |
+| compiled script | a compiled script at the old version | `a compiled script's embedded version is stamped and nothing else in it` |
 | dry run | `--dry-run` | `--dry-run plans every stamped place and writes none` |
 
 ### Keep the npm package.json in lockstep
@@ -410,6 +420,7 @@ Grouped by concern; 1:1 with [`version.feature`](./version.feature).
 | manifest only | manifest source, vendor behind | `a vendor manifest left behind points at plugin build` |
 | disagree | package and manifest differ | `a package and manifest that disagree point at the version skill` |
 | not a version | pins `<version>` and `latest` | `a pin that is not a version is not compared` |
+| compiled script | a compiled script's embedded version behind | `a compiled script behind on its version is drift, reported once` |
 | guard: no manifest | empty root | `check-version fails loud without a canonical manifest` |
 
 ### Deprecated aliases

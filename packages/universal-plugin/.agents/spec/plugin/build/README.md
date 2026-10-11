@@ -239,6 +239,36 @@ not a build step.
   as likely a manifest nobody has configured yet as one an upgrade left behind, and erroring on it
   would fail builds this rule has no quarrel with. `doctor` still reports it as `legacy-manifest`,
   which is what the empty state's `doctor` pointer is for.
+- **Script entries compile into self-contained `.mjs`** ([ADR-0019](../../design/decisions/0019-build-compiles-skill-scripts.md))
+  — `extensions["org.cyberuni.universal-plugin"].scripts` maps an output path to a source, both
+  relative to the plugin root (`"skills/doctor/scripts/doctor.mjs": "src/skills/doctor.ts"`, or
+  `{ "source", "command" }`). Each entry compiles with rolldown into one ES module: Node built-ins stay
+  imports and every other import is inlined; an entry that inlines a dependency is minified, one that
+  inlines only its own files stays readable. The output is written to the declared path and committed.
+  The declaration never reaches a derived manifest, and `--vendor` does not narrow it.
+  - Each compiled file starts with a header naming its source, then assigns
+    `globalThis.__SKILL_SCRIPT__ = { package, bin, version, entry, commands }`: the package and bin of
+    the `packagePath` `package.json` (`null` without one), the canonical `plugin.json`'s version
+    (never `package.json`'s), the file's own path, and every declared command path mapped to its
+    entry. A hashbang in the code stays the first line.
+  - The result carries one `scripts` row per entry. A write reports `compiled` or `unchanged`;
+    `--dry-run` writes nothing and reports `unchanged`, `missing`, `stale` (anything but the embedded
+    version differs), or `version` (only the embedded version differs — drift, which
+    `publish check-version` reports). The summary appends `scripts <n>`.
+  - An entry whose source is missing, or that imports something that cannot be inlined, reports
+    `failed` with a warning and exits 1; the manifests and the other entries still derive. A malformed
+    declaration warns and compiles the entries that parse.
+  - A compiled file over 150 KB warns that the skill should call the installed CLI instead
+    (`pnpm exec <bin>`, with a pinned `npx` fallback).
+  - The build never moves the embedded version on its own: `plugin version` stamps it into the header
+    ([`plugin/version/`](../version/README.md)), so a stamped script stays `unchanged` here.
+- **A skill's links stay inside its folder** — pnpm links or copies each skill folder on its own
+  into an agent's skill directory, and a plugin cache keeps only what the plugin ships, so a skill
+  does not always travel with its package (issue #177). A relative Markdown link (inline, image, or
+  reference definition) in any `.md` file of a skill whose target climbs above the skill folder
+  resolves to nothing there. The build warns once per such link, naming the file, the line, and the
+  target, and says to copy the file into the skill or link it by URL. URLs, absolute paths, anchors,
+  and links inside code are not checked. It is a warning, not an error: the manifests still derive.
 - **Next-step suggestion** — a successful build's stderr ends with a next step that looks forward
   and names a command or skill that ships (a hint an agent follows into `unknown command` is a dead
   end). It is never `plugin validate`: a build already ran those checks before writing, and validate's
@@ -489,6 +519,28 @@ Grouped by use case; 1:1 with [`build.feature`](./build.feature).
 | unsourced | a bare name | `a dependency without a source is never added to the catalog` |
 | not read | codex, which reads no dependency | `a catalog of a runtime that reads no dependency is not checked` |
 
+### Script entries compile into self-contained `.mjs`
+
+| Edge | Path (Given) | Scenario |
+|---|---|---|
+| compile | a TypeScript entry importing only Node built-ins | `a script entry compiles into a self-contained .mjs in the skill` |
+| inline | an entry importing an installed package | `a script entry's dependencies are inlined and minified` |
+| header | `packagePath` with a bin, a command on the entry | `a compiled script embeds the package, bin, plugin version and command map` |
+| not a component | any `scripts` declaration | `the scripts declaration never reaches a derived manifest` |
+| dry run: current | rebuilt, nothing changed | `--dry-run reports a current compiled script as unchanged` |
+| dry run: stale | the source changed | `--dry-run reports a compiled script behind its source as stale` |
+| dry run: version | only `plugin.json`'s version moved | `--dry-run reports a compiled script behind only on its version as version` |
+| guard: unresolved | an import that resolves nowhere | `a script entry that cannot be made self-contained fails` |
+| guard: missing | a source that does not exist | `a script entry whose source is missing fails` |
+| budget | an entry over 150 KB | `a compiled script over the size budget warns` |
+
+### A skill's links stay inside its folder
+
+| Edge | Path (Given) | Scenario |
+|---|---|---|
+| escapes | `../../readme.md` from `SKILL.md` | `a relative link that leaves the skill folder warns` |
+| stays inside | `../SKILL.md` from `references/` | `a relative link that stays inside the skill folder is not reported` |
+
 ### The build copies no governance
 
 | Edge | Path (Given) | Scenario |
@@ -513,3 +565,4 @@ Grouped by use case; 1:1 with [`build.feature`](./build.feature).
 - ADR-0015 (this project) — Copilot CLI's spec-mode namespace.
 - ADR-0017 (this project) — governance retired for the `reference` skill; the build copies none.
 - ADR-0018 (this project) — dependencies checked against the catalogs the build refreshes.
+- ADR-0019 (this project) — skill script entries compiled into committed, self-contained `.mjs`.
