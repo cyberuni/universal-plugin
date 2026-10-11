@@ -38,9 +38,9 @@ contract:
 - **Read the reserved key as a string** — `--key packagePath` prints the declared `packagePath`, the
   CLI's own string config, not a plugin-registered array. Under `--format json` stdout is the raw
   JSON string, or `null` when none is declared (absent key, missing file, empty or non-string value —
-  the same reading `plugin version` and `publish sync-version` apply). The TOON default shows the
+  the same reading `plugin version` applies). The TOON default shows the
   value (`(none)` when undeclared), that it is relative to the plugin root, and a summary. Exit 0 in
-  both cases; stderr's next step is `→ universal-plugin publish sync-version` when declared. This is
+  both cases; stderr's next step is `→ universal-plugin plugin version --from-package` when declared. This is
   how a skill (e.g. `doctor`) learns `packagePath` from the CLI rather than re-reading the file
   (issue #79).
 - **Missing --key fails loud** — a missing `--key` exits non-zero naming the flag; the command never

@@ -13,6 +13,15 @@ Feature: plugin bundle — materialize the release form
     Then the exit code is 1
     And stderr contains "No plugin.json found"
 
+  # ── Deprecation ──
+
+  Scenario: bundle warns that it is deprecated and points at plugin version
+    Given a skill "skills/x/SKILL.md" contains "npx cyberplace@0.0.9"
+    When I run "universal-plugin plugin bundle"
+    Then stderr contains "warn: plugin bundle is deprecated and will be removed in the next minor release — use plugin version, which stamps the skill pins"
+    And "skills/x/SKILL.md" contains "npx cyberplace@0.1.0"
+    And the exit code is 0
+
   # ── Pin from workspace ──
 
   Scenario: bundle pins a workspace CLI to its local package.json version
@@ -101,6 +110,12 @@ Feature: plugin bundle — materialize the release form
     When I run "universal-plugin plugin bundle"
     Then ".plugin/pins.json" is JSON mapping "cyberplace" to "0.1.0"
     And the exit code is 0
+
+  Scenario: the pins map takes the repository's JSON format from .editorconfig
+    Given a skill "skills/x/SKILL.md" contains "npx cyberplace@0.0.9"
+    And an ".editorconfig" at the root sets "indent_style = space" and "indent_size = 2" for "*.json"
+    When I run "universal-plugin plugin bundle"
+    Then ".plugin/pins.json" is indented with two spaces
 
   Scenario: --dry-run does not write .plugin/pins.json
     Given a skill "skills/x/SKILL.md" contains "npx cyberplace@0.0.9"

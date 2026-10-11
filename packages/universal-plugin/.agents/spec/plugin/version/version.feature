@@ -69,6 +69,176 @@ Feature: plugin version — move the plugin's version, and keep every version-ca
     When I run "universal-plugin plugin version patch --root <root>"
     Then "plugin.json" is indented with four spaces
 
+  # ── Pick the version source ──
+
+  Scenario: --from-package stamps the version the package already carries
+    Given the manifest version is "1.2.3"
+    And ".agents/universal-plugin.json" declares packagePath "packages/mypkg"
+    And "packages/mypkg/package.json" exists at version "1.3.0"
+    When I run "universal-plugin plugin version --from-package --root <root>"
+    Then the exit code is 0
+    And "plugin.json" contains version "1.3.0"
+
+  Scenario: --from-package leaves the package.json untouched
+    Given ".agents/universal-plugin.json" declares packagePath "packages/mypkg"
+    And "packages/mypkg/package.json" exists at version "1.3.0"
+    When I run "universal-plugin plugin version --from-package --root <root>"
+    Then "packages/mypkg/package.json" is unchanged
+    And the result does not report "packages/mypkg/package.json"
+
+  Scenario: --from-package re-stamps the version the manifest already carries
+    Given the manifest version is "1.3.0"
+    And ".agents/universal-plugin.json" declares packagePath "packages/mypkg"
+    And "packages/mypkg/package.json" exists at version "1.3.0"
+    When I run "universal-plugin plugin version --from-package --root <root>"
+    Then the exit code is 0
+
+  Scenario: --from-package reads the plugin root package.json when no packagePath is declared
+    Given no ".agents/universal-plugin.json" exists
+    And "package.json" at the plugin root exists at version "2.0.0"
+    When I run "universal-plugin plugin version --from-package --root <root>"
+    Then "plugin.json" contains version "2.0.0"
+
+  Scenario: --from-package names where it looked when there is no package
+    Given no ".agents/universal-plugin.json" exists
+    And the plugin root has no "package.json"
+    When I run "universal-plugin plugin version --from-package --root <root>"
+    Then the exit code is 1
+    And stderr contains "packagePath is not set"
+    And stderr contains "no package.json"
+
+  Scenario: --from-package refuses a package without a version
+    Given "package.json" at the plugin root has no "version"
+    When I run "universal-plugin plugin version --from-package --root <root>"
+    Then the exit code is 1
+    And stderr contains "No version found in package.json"
+
+  Scenario: --from-package refuses the semantic-release placeholder
+    Given "package.json" at the plugin root exists at version "0.0.0-development"
+    When I run "universal-plugin plugin version --from-package --root <root>"
+    Then the exit code is 1
+    And stderr contains "0.0.0-development"
+
+  Scenario: a version and --from-package together are refused
+    When I run "universal-plugin plugin version 1.4.0 --from-package --root <root>"
+    Then the exit code is 1
+    And stderr contains "not both"
+
+  Scenario: neither a version nor --from-package is refused
+    When I run "universal-plugin plugin version --root <root>"
+    Then the exit code is 1
+    And stderr contains "--from-package"
+
+  Scenario: a release type is refused where packagePath is declared
+    Given the manifest version is "1.2.3"
+    And ".agents/universal-plugin.json" declares packagePath "packages/mypkg"
+    And "packages/mypkg/package.json" exists at version "1.2.3"
+    When I run "universal-plugin plugin version minor --root <root>"
+    Then the exit code is 1
+    And stderr contains "packages/mypkg/package.json"
+    And stderr contains "--from-package"
+    And "plugin.json" still contains version "1.2.3"
+
+  Scenario: an explicit version is still taken where packagePath is declared
+    Given the manifest version is "1.2.3"
+    And ".agents/universal-plugin.json" declares packagePath "packages/mypkg"
+    And "packages/mypkg/package.json" exists at version "1.2.3"
+    When I run "universal-plugin plugin version 1.4.0 --root <root>"
+    Then "plugin.json" contains version "1.4.0"
+    And "packages/mypkg/package.json" contains version "1.4.0"
+
+  Scenario: an explicit version replaces an unstamped manifest without --force
+    Given the manifest version is "0.0.0-development"
+    When I run "universal-plugin plugin version 1.0.0 --root <root>"
+    Then the exit code is 0
+    And "plugin.json" contains version "1.0.0"
+
+  # ── Stamp the places that restate the version ──
+
+  Scenario: skill pins are stamped in Markdown and in scripts
+    Given the plugin's package "my-cli" is at version "1.3.0"
+    And "skills/use/SKILL.md" contains "npx -y my-cli@1.2.3 go"
+    And "skills/use/scripts/run.mjs" contains "npx my-cli@1.2.3"
+    When I run "universal-plugin plugin version --from-package --root <root>"
+    Then "skills/use/SKILL.md" contains "npx -y my-cli@1.3.0 go"
+    And "skills/use/scripts/run.mjs" contains "npx my-cli@1.3.0"
+
+  Scenario: skill pins are stamped in json, yaml and txt files
+    Given the plugin's package "my-cli" is at version "1.3.0"
+    And a "json", a "yaml" and a "txt" file under "skills/use" each pin "upx my-cli@1.2.3"
+    When I run "universal-plugin plugin version --from-package --root <root>"
+    Then each of those files pins "my-cli@1.3.0"
+
+  Scenario: a workspace CLI pins to its workspace version and an external package is untouched
+    Given the plugin's package "my-cli" is at version "1.3.0"
+    And a workspace member "other-cli" is at version "4.5.6"
+    And a skill pins "my-cli@1.2.3", "other-cli@0.0.1" and "left-pad@1.0.0"
+    When I run "universal-plugin plugin version --from-package --root <root>"
+    Then the skill pins "my-cli@1.3.0", "other-cli@4.5.6" and "left-pad@1.0.0"
+
+  Scenario: a pin-exempt skill is excluded entirely
+    Given a skill with frontmatter "metadata.pin-exempt: true" pins "my-cli@1.2.3"
+    When I run "universal-plugin plugin version --from-package --root <root>"
+    Then that skill's files are unchanged
+    And ".plugin/pins.json" has no entry from that skill
+
+  Scenario: .plugin/pins.json maps the pins, key-sorted
+    Given the plugin's package "my-cli" is at version "1.3.0"
+    And a workspace member "other-cli" is at version "4.5.6"
+    And skills pin both
+    When I run "universal-plugin plugin version --from-package --root <root>"
+    Then ".plugin/pins.json" is a map with keys "my-cli" and "other-cli" in that order
+    And it holds "1.3.0" and "4.5.6"
+
+  Scenario: no pins map is written when there is nothing to map
+    Given no skill pins a package the plugin versions
+    And no ".plugin/pins.json" exists
+    When I run "universal-plugin plugin version --from-package --root <root>"
+    Then no ".plugin/pins.json" is written
+
+  Scenario: an existing pins map is kept current
+    Given ".plugin/pins.json" exists
+    And no skill pins a package the plugin versions
+    When I run "universal-plugin plugin version --from-package --root <root>"
+    Then ".plugin/pins.json" is rewritten as an empty map
+
+  Scenario: the pins map takes the repository's JSON format
+    Given an ".editorconfig" at the root sets "indent_style = space" and "indent_size = 2" for "*.json"
+    And a skill pins the plugin's package
+    When I run "universal-plugin plugin version --from-package --root <root>"
+    Then ".plugin/pins.json" is indented with two spaces and ends in a newline
+
+  Scenario: a marked inline mcpServers entry is stamped and keeps its marker
+    Given "plugin.json" carries an inline mcpServers entry running "npx -y my-cli@1.2.3 mcp" marked "pinToPluginVersion"
+    When I run "universal-plugin plugin version --from-package --root <root>"
+    Then that entry in "plugin.json" runs "npx -y my-cli@1.3.0 mcp"
+    And it still carries "pinToPluginVersion"
+
+  Scenario: a marked entry in an authored mcp file is stamped and keeps its marker
+    Given "plugin.json" declares mcpServers "./mcp.json"
+    And "mcp.json" has an entry running "npx -y my-cli@1.2.3 mcp" marked "pinToPluginVersion"
+    When I run "universal-plugin plugin version --from-package --root <root>"
+    Then that entry in "mcp.json" runs "npx -y my-cli@1.3.0 mcp"
+    And it still carries "pinToPluginVersion"
+
+  Scenario: an mcp file with nothing to move is left unwritten
+    Given "mcp.json" has no entry marked "pinToPluginVersion"
+    When I run "universal-plugin plugin version --from-package --root <root>"
+    Then "mcp.json" is unchanged
+
+  Scenario: a marked entry that cannot be stamped warns and does not fail
+    Given a marked mcpServers entry whose command is "node"
+    When I run "universal-plugin plugin version --from-package --root <root>"
+    Then the exit code is 0
+    And stderr contains a warning naming that entry
+
+  Scenario: --dry-run plans every stamped place and writes none
+    Given skills, an mcp file and the pins map would all change
+    When I run "universal-plugin plugin version --from-package --dry-run --root <root>"
+    Then the exit code is 0
+    And the result lists "plugin.json", the skill file, "mcp.json" and ".plugin/pins.json" as planned
+    And none of those files is written
+
   # ── Keep the npm package.json in lockstep ──
 
   Scenario: the packagePath package.json moves to the same version
@@ -196,6 +366,14 @@ Feature: plugin version — move the plugin's version, and keep every version-ca
     Then stdout contains a row for "plugin.json"
     And stdout contains the updated count
 
+  Scenario: rows say updated, stamped or derived and the summary counts each
+    Given a skill pin, a marked mcp entry and a declared "claude-code" harness
+    When I run "universal-plugin plugin version --from-package --root <root>"
+    Then "plugin.json" is reported as updated
+    And the skill file and "mcp.json" are reported as stamped
+    And ".claude-plugin/plugin.json" is reported as derived
+    And the summary counts each action
+
   Scenario: --format json returns the from, to, and written fields
     Given the manifest version is "1.2.3"
     When I run "universal-plugin plugin version patch --format json --root <root>"
@@ -208,6 +386,12 @@ Feature: plugin version — move the plugin's version, and keep every version-ca
     Given the manifest version is "1.2.3"
     When I run "universal-plugin plugin version patch --root <root>"
     Then stderr contains a next-step line
+    And stderr contains "→ review and commit the stamped files"
+
+  Scenario: --no-build points at plugin build
+    Given the manifest version is "1.2.3"
+    When I run "universal-plugin plugin version patch --no-build --root <root>"
+    Then stderr ends with "→ universal-plugin plugin build"
 
   # ── Check that every file agrees ──
 
@@ -224,7 +408,7 @@ Feature: plugin version — move the plugin's version, and keep every version-ca
     When I run "universal-plugin publish check-version --root <root>"
     Then the exit code is 1
     And stdout names "plugin.json", the vendor manifest, the catalog and the skill file
-    And stderr ends with "→ universal-plugin publish sync-version"
+    And stderr ends with "→ universal-plugin plugin version --from-package"
 
   Scenario: without packagePath the canonical manifest is the reference
     Given no "packagePath" is declared
@@ -234,12 +418,12 @@ Feature: plugin version — move the plugin's version, and keep every version-ca
     Then the exit code is 1
     And stderr contains ".claude-plugin/plugin.json is 0.9.0, plugin.json is 1.0.0"
 
-  Scenario: a skill pin left behind points at sync-version
+  Scenario: a skill pin left behind points at plugin version
     Given "packagePath" names a package at "0.9.0"
     And every file but one skill pin carries "0.9.0"
     When I run "universal-plugin publish check-version --root <root>"
     Then the exit code is 1
-    And stderr ends with "→ universal-plugin publish sync-version"
+    And stderr ends with "→ universal-plugin plugin version --from-package"
 
   Scenario: a pin that is not a version is not compared
     Given "packagePath" names a package at "0.9.0"
@@ -247,11 +431,58 @@ Feature: plugin version — move the plugin's version, and keep every version-ca
     When I run "universal-plugin publish check-version --root <root>"
     Then the skill file is not reported
 
+  Scenario: a marked mcpServers entry left behind is drift
+    Given "packagePath" names a package at "0.9.0"
+    And a marked mcpServers entry pins the package at "0.8.0"
+    When I run "universal-plugin publish check-version --root <root>"
+    Then the exit code is 1
+    And stdout names the file holding that entry
+
+  Scenario: a place at 0.0.0-development is unstamped, not drifted
+    Given "packagePath" names a package at "0.0.0-development"
+    And the manifest version is "1.2.3"
+    When I run "universal-plugin publish check-version --root <root>"
+    Then the exit code is 0
+    And stderr contains "package.json is unstamped (0.0.0-development) — the release stamps it"
+    And the summary reads "checked" with "drifted 0" and "unstamped 1"
+
+  Scenario: nothing drifts when no file holds a real version
+    Given the package and the manifest both carry "0.0.0-development"
+    When I run "universal-plugin publish check-version --root <root>"
+    Then the exit code is 0
+    And no file is reported as drifted
+
+  Scenario: a vendor manifest left behind points at plugin build
+    Given no "packagePath" is declared
+    And the manifest version is "1.0.0"
+    And only ".claude-plugin/plugin.json" carries "0.9.0"
+    When I run "universal-plugin publish check-version --root <root>"
+    Then the exit code is 1
+    And stderr ends with "→ universal-plugin plugin build"
+
+  Scenario: a package and manifest that disagree point at the version skill
+    Given "packagePath" names a package at "0.9.0"
+    And the manifest version is "0.8.0"
+    When I run "universal-plugin publish check-version --root <root>"
+    Then the exit code is 1
+    And stderr ends with "/universal-plugin:version"
+
   Scenario: check-version fails loud without a canonical manifest
     Given an empty root
     When I run "universal-plugin publish check-version --root <root>"
     Then the exit code is 1
     And stderr contains "No plugin.json found"
+
+  # ── Deprecated aliases ──
+
+  Scenario: publish sync-version warns and runs the --from-package stamp
+    Given the plugin's package "my-cli" is at version "1.3.0"
+    And a skill pins "my-cli@1.2.3"
+    When I run "universal-plugin publish sync-version --root <root>"
+    Then the exit code is 0
+    And stderr contains "publish sync-version is deprecated and will be removed in the next minor release — use plugin version --from-package"
+    And "plugin.json" contains version "1.3.0"
+    And the skill pins "my-cli@1.3.0"
 
   # ── Print the command reference ──
 
@@ -261,3 +492,4 @@ Feature: plugin version — move the plugin's version, and keep every version-ca
     And stdout contains "--preid"
     And stdout contains "--no-build"
     And stdout contains "--dry-run"
+    And stdout contains "--from-package"

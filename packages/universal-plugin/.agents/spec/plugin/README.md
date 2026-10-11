@@ -5,16 +5,18 @@ project root (Agent Plugins Specification v1.0.0 form) is the source of truth; t
 into what each vendor expects and keep it well-formed:
 
 - [`build/`](./build/README.md) — `universal-plugin plugin build` derives per-vendor manifests
-  (dev-consumable form; no pins).
-- [`bundle/`](./bundle/README.md) — `universal-plugin plugin bundle` materializes the release form,
-  pinning the plugin's skill `npx <cli>@<version>` references to their shipping workspace versions.
+  (dev-consumable form; it derives and never decides a version).
+- [`bundle/`](./bundle/README.md) — `universal-plugin plugin bundle` is a deprecated alias that
+  still pins the plugin's skill `npx <cli>@<version>` references to their shipping workspace
+  versions, and warns; `plugin version` stamps them now.
 - [`validate/`](./validate/README.md) — `universal-plugin plugin validate` checks the canonical
   manifest against the schema and vendor rules.
 - [`init/`](./init/README.md) — `universal-plugin plugin init` scaffolds a new plugin project.
 - [`install/`](./install/README.md) — `universal-plugin plugin install` puts the working copy into the
   runtimes the manifest declares, and `plugin uninstall` takes it back out.
 - [`version/`](./version/README.md) — `universal-plugin plugin version` moves the plugin's version:
-  it writes the two authored numbers and re-derives the rest through `build`'s writer.
+  it stamps the authored numbers and every place that restates the version (skill pins, the pins
+  map, marked `mcpServers` entries), then re-derives the rest through `build`'s writer.
 
 > **Name note.** This `plugin` group is the manifest **authoring** engine (build / validate / init).
 > It is **not** the old `plugin` install/registry verbs (`add` / `remove` / `update` / `find` /
