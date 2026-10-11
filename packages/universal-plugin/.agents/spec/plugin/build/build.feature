@@ -849,6 +849,21 @@ Feature: plugin build — derive per-vendor manifests
     When I run "universal-plugin plugin build"
     Then the build reports no dependency issue
 
+  # ── A skill's links stay inside its folder (issue #177) ──
+  # pnpm links or copies each skill folder on its own, so a link that climbs out of it resolves to
+  # nothing there.
+
+  Scenario: a relative link that leaves the skill folder warns
+    Given a skill "demo" whose "SKILL.md" links to "../../readme.md" on line 5
+    When I run "universal-plugin plugin build"
+    Then the exit code is 0
+    And stderr contains a warning naming "skills/demo/SKILL.md:5" and "../../readme.md"
+
+  Scenario: a relative link that stays inside the skill folder is not reported
+    Given a skill "demo" whose "references/r.md" links to "../SKILL.md"
+    When I run "universal-plugin plugin build"
+    Then stderr contains no warning about a link outside the skill folder
+
   # ── Governance copies retired (ADR-0017) ──
   # The build no longer copies governances into skills; a skill loads a reference through the
   # reference skill. A committed references/governances/ folder is skill content like any other.

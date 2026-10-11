@@ -24,6 +24,7 @@ import {
 import { formatCatalogIssues, validateCatalogContent } from '../marketplace/validation.js'
 import { stripPinMarkers } from '../pin/pin.js'
 import { vendorRuleViolations } from '../validate/validation.js'
+import { escapingLinks } from './skill-links.js'
 
 type VendorId = 'claude-code' | 'cursor' | 'codex' | 'copilot-cli'
 
@@ -354,6 +355,7 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 	// fix however many vendors are targeted.
 	warnings.push(...validateDependencies(declaredDependencies).warnings)
 	const skills = readSkills(root, manifest, warnings)
+	warnings.push(...skillLinkWarnings(root, skills))
 	const canonicalHooks = readCanonicalHooks(root, componentConfig['hooks'], warnings)
 	// A marked entry's version is stamped into the authored declaration by `plugin version`; the build
 	// copies it as authored and only strips the marker, so it never decides a version (#179).
@@ -628,6 +630,26 @@ function readSkills(root: string, manifest: PluginManifest, warnings: string[]):
 		skills.push(...listSkillFiles(skillsDir).map((skillPath) => parseSkill(skillPath)))
 	}
 	return skills
+}
+
+/** One warning per relative Markdown link that leaves its skill's folder. A skill linked or copied on
+ *  its own — pnpm's agent-skill links, a plugin cache — carries only its folder, so the link resolves
+ *  to nothing there (issue #177). */
+function skillLinkWarnings(root: string, skills: Skill[]): string[] {
+	const warnings: string[] = []
+	for (const skill of skills) {
+		const skillDir = path.dirname(skill.path)
+		for (const file of listFilesRecursive(skillDir).filter((f) => f.endsWith('.md'))) {
+			const fileInSkill = path.relative(skillDir, file).split(path.sep).join('/')
+			const shown = path.relative(root, file).split(path.sep).join('/')
+			for (const link of escapingLinks(fs.readFileSync(file, 'utf8'), fileInSkill)) {
+				warnings.push(
+					`${shown}:${link.line} links to "${link.target}", outside the skill folder — a skill linked or copied on its own (pnpm, a plugin cache) cannot reach it; copy the file into the skill or link it by URL`,
+				)
+			}
+		}
+	}
+	return warnings
 }
 
 function listSkillFiles(dir: string): string[] {

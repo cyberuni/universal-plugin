@@ -239,6 +239,13 @@ not a build step.
   as likely a manifest nobody has configured yet as one an upgrade left behind, and erroring on it
   would fail builds this rule has no quarrel with. `doctor` still reports it as `legacy-manifest`,
   which is what the empty state's `doctor` pointer is for.
+- **A skill's links stay inside its folder** — pnpm links or copies each skill folder on its own
+  into an agent's skill directory, and a plugin cache keeps only what the plugin ships, so a skill
+  does not always travel with its package (issue #177). A relative Markdown link (inline, image, or
+  reference definition) in any `.md` file of a skill whose target climbs above the skill folder
+  resolves to nothing there. The build warns once per such link, naming the file, the line, and the
+  target, and says to copy the file into the skill or link it by URL. URLs, absolute paths, anchors,
+  and links inside code are not checked. It is a warning, not an error: the manifests still derive.
 - **Next-step suggestion** — a successful build's stderr ends with a next step that looks forward
   and names a command or skill that ships (a hint an agent follows into `unknown command` is a dead
   end). It is never `plugin validate`: a build already ran those checks before writing, and validate's
@@ -488,6 +495,13 @@ Grouped by use case; 1:1 with [`build.feature`](./build.feature).
 | sourced | an object carrying `source` | `a dependency that names its source is listed in the catalog` |
 | unsourced | a bare name | `a dependency without a source is never added to the catalog` |
 | not read | codex, which reads no dependency | `a catalog of a runtime that reads no dependency is not checked` |
+
+### A skill's links stay inside its folder
+
+| Edge | Path (Given) | Scenario |
+|---|---|---|
+| escapes | `../../readme.md` from `SKILL.md` | `a relative link that leaves the skill folder warns` |
+| stays inside | `../SKILL.md` from `references/` | `a relative link that stays inside the skill folder is not reported` |
 
 ### The build copies no governance
 

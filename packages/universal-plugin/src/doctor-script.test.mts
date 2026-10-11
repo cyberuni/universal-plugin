@@ -484,3 +484,9 @@ test('a copied doctor script with no CLI beside it runs the pinned npx fallback'
 	expect(calls.length).toBeGreaterThan(0)
 	for (const call of calls) expect(call.startsWith(`universal-plugin@${own.version} `)).toBe(true)
 })
+
+test('a skill link that leaves the skill folder is a skill-link-escapes finding', () => {
+	writeManifest('1.0.0')
+	writeSkill('See [the readme](../../readme.md).')
+	expect(findings()).toContain('skill-link-escapes')
+})

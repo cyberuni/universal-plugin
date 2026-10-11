@@ -252,6 +252,13 @@ if (build === null) {
 				warning,
 				'declare the path under harnesses.<vendor> for the vendors that read it, or leave it — the build already drops it',
 			)
+		} else if (/outside the skill folder/.test(warning)) {
+			add(
+				'skill-link-escapes',
+				'medium',
+				warning,
+				'copy the linked file into the skill and link it relatively, or link it by URL',
+			)
 		} else if (/^Unknown vendor/.test(warning)) {
 			add('unknown-vendor', 'medium', warning, 'fix the vendor id in plugin.json')
 		} else {
