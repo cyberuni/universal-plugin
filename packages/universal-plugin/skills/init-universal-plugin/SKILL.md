@@ -140,7 +140,7 @@ Three asks leave this skill rather than routing inside it. Hand them over instea
 route: **`doctor-universal-plugin`** reports what is declared, built, stale, or drifting; **`version`** moves the
 number; **`remove-plugin`** deletes derived manifests or the plugin itself.
 
-Every route ends in the same two commands. Scaffold with the CLI that shipped beside this skill:
+Every route ends in the same two commands. Scaffold with this skill's launcher, which runs the project's installed CLI or the pinned `npx` one:
 
 ```bash
 node scripts/init.mjs --name <plugin-name> --vendor claude-code --vendor cursor

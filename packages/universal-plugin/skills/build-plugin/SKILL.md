@@ -39,15 +39,15 @@ grep -n "plugin build" package.json
 
 If a script already runs `plugin build`, run that script (for example `pnpm plugin:build`). It
 carries the project's own `--root` and whatever it chains after the build, such as a formatter over
-the written JSON. Otherwise run the launcher shipped beside this skill:
+the written JSON. Otherwise run this skill's launcher:
 
 ```bash
 node scripts/build.mjs --root <plugin-root>
 ```
 
-Resolve `scripts/build.mjs` against this skill's own directory. It runs the CLI that shipped beside
-it, so nothing is downloaded and the build cannot resolve a different version from the one installed.
-`npx universal-plugin plugin build` is the fallback. `--root` defaults to the working directory and
+Resolve `scripts/build.mjs` against this skill's own directory. It runs the CLI the project installed
+(`pnpm exec universal-plugin`), else the CLI pinned to the version this skill shipped with
+(`npx universal-plugin@<version>`), so it works in a skill that was linked or copied on its own. `--root` defaults to the working directory and
 must name the directory that holds the canonical `plugin.json`.
 
 The command never prompts, so it is safe to run unattended.

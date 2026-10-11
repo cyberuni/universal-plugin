@@ -19,8 +19,9 @@ and that judgment belongs to the skill that owns the write.
 node scripts/doctor.mjs
 ```
 
-Resolve that path against this skill's own directory. It runs the CLI that shipped beside it against
-the current working directory, so nothing is downloaded; add `--root <path>` to diagnose elsewhere.
+Resolve that path against this skill's own directory. It asks the project's installed CLI
+(`pnpm exec universal-plugin`), else the CLI pinned to this skill's version (`npx`), about the
+current working directory; add `--root <path>` to diagnose elsewhere.
 Add `--marketplace-root <path>` (repeatable) to also check a **separately-cloned** shared marketplace
 repository (e.g. a local clone of `cyberuni/marketplace`) — see
 [Catalogs are checked at the repository root](#catalogs-are-checked-at-the-repository-root).

@@ -141,6 +141,26 @@ of the CLI should call it instead of compiling it in: `pnpm exec <bin>` in the p
 the CLI is guaranteed because pnpm links only direct dependencies, with the pinned `npx` fallback
 below.
 
+### Call the installed CLI when it is too big to compile
+
+universal-plugin's own skills do this for every command that runs the CLI (`plugin build`,
+`plugin init`, `plugin version`, `marketplace add`, `marketplace init`, `marketplace validate`). The
+full CLI is far over the budget, so one source, `src/skill-scripts/run-cli.ts`, is declared once per
+command:
+
+```json
+"scripts": {
+  "skills/build-plugin/scripts/build.mjs": { "source": "src/skill-scripts/run-cli.ts", "command": "plugin build" },
+  "skills/version/scripts/version.mjs": { "source": "src/skill-scripts/run-cli.ts", "command": "plugin version" }
+}
+```
+
+Each compiled file is about 2 KB. It finds its command in the embedded command map, by looking up
+its own `entry`, and runs `pnpm exec <bin> <command> ...`. When the project has no such CLI, it runs
+`npx <package>@<version> <command> ...`, with the version the file embeds. It never looks beside
+itself, so a copied skill works the same as a linked one. The scripts that stand alone, such as
+`doctor.mjs`, are compiled from `src/skill-scripts/` and ask the CLI the same way.
+
 ### Keep a pinned `npx` fallback
 
 Resolving the script's path is model behavior, not a guarantee, so keep one line in the skill body
@@ -154,6 +174,8 @@ string so the release finds it:
 ```js
 const [npx, ...npxArgs] = 'npx my-cli@1.4.0'.split(' ')
 ```
+
+A compiled script takes the version from `globalThis.__SKILL_SCRIPT__.version` instead.
 
 The release keeps every such pin current, in Markdown and in scripts:
 [`plugin version`](../../cli/overview/#plugin-version-stamps-every-place) re-pins the plugin's own
