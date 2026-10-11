@@ -40,7 +40,7 @@ Two mitigations were used in practice, in escalating order:
 
 ### It trades reproducibility for speed, by design
 
-[`plugin bundle`](../../cli/bundle/) pins skills to an **exact** version at release. Adopting `upx` deliberately widens
+[`plugin version`](../../cli/overview/#plugin-version-stamps-every-place) pins skills to an **exact** version at release. Adopting `upx` deliberately widens
 that pin to a caret range (`^<major>`, or `^0.<minor>` for a 0.x package). The version a skill runs
 is then whatever satisfying copy happens to be nearest — which may not be the version the skill was
 written and tested against. A stale global install that still satisfies the range wins silently.
@@ -118,8 +118,9 @@ guarantee, and a git-sourced install has no dependency tree. One line covers bot
 Pin the fallback to the version that shipped the skill, and regenerate it at release. A skill states
 the flags and output of its own version, so an unpinned fallback can hand an agent a CLI its
 documentation does not describe. Write the fallback as `npx <pkg>@<version>` and the release keeps it
-current: `publish sync-version` re-pins the plugin's own package inside `changeset version`, and
-[`plugin bundle`](../../cli/bundle/) re-pins every workspace package the skills reference.
+current: [`plugin version`](../../cli/overview/#plugin-version-stamps-every-place) re-pins the
+plugin's own package and every other workspace package the skills reference, whichever release tool
+calls it.
 
 ## Choosing a runner
 
