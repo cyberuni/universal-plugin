@@ -162,13 +162,19 @@ export function compareScript(existing: string | null, compiled: string): Script
 	if (existing === null) return 'missing'
 	if (existing === compiled) return 'unchanged'
 	const expected = embeddedData(compiled)
-	const actual = embeddedData(existing)
-	if (expected === null || actual === null || actual.version === expected.version) return 'stale'
-	const restamped = existing.replace(
-		`${DATA_PREFIX}${JSON.stringify(actual)};`,
-		`${DATA_PREFIX}${JSON.stringify({ ...actual, version: expected.version })};`,
+	if (expected === null) return 'stale'
+	return stampScript(existing, expected.version) === compiled ? 'version' : 'stale'
+}
+
+/** The compiled file with `version` written into its header, and nothing else changed — the stamp
+ *  `plugin version` applies (#179). `null` when the file carries no header or already holds it. */
+export function stampScript(content: string, version: string | null): string | null {
+	const data = embeddedData(content)
+	if (data === null || data.version === version) return null
+	return content.replace(
+		`${DATA_PREFIX}${JSON.stringify(data)};`,
+		`${DATA_PREFIX}${JSON.stringify({ ...data, version })};`,
 	)
-	return restamped === compiled ? 'version' : 'stale'
 }
 
 /** A warning when a compiled script is over the budget; `null` within it. */

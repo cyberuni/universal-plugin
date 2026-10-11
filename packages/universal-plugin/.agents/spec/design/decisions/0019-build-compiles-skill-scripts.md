@@ -55,8 +55,10 @@ So a script a skill runs has to be one file that reaches back into nothing.
    `pnpm exec <bin>`, else `npx <package>@<version>`. The build is the only step that knows every
    entry. universal-plugin depends on no such library.
 7. **The version comes from `plugin.json`, never `package.json`.** The build never decides a version
-   (#179). `plugin version` and `publish sync-version` stamp `plugin.json` and re-derive through the
-   build, so a compiled script carries each stamp.
+   (#179). `plugin version` is the stamp: it writes the new version into each compiled script's
+   header, and nothing else in the file, in the same run that stamps `plugin.json`. The pin stamp
+   skips compiled scripts, because a pin their inlined code carries came from the source; rewriting it
+   would leave the script behind its source.
 8. **Drift and staleness never name the same file.** `publish check-version` reads the embedded
    version of a compiled script as a `compiled-script` surface, and skips the `npx` pins its inlined
    code may carry. The build's `stale` excludes a difference in the version alone. A script behind on

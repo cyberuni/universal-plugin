@@ -260,7 +260,8 @@ not a build step.
     declaration warns and compiles the entries that parse.
   - A compiled file over 150 KB warns that the skill should call the installed CLI instead
     (`pnpm exec <bin>`, with a pinned `npx` fallback).
-  - `plugin version` and `publish sync-version` compile the entries with the manifests they re-derive.
+  - The build never moves the embedded version on its own: `plugin version` stamps it into the header
+    ([`plugin/version/`](../version/README.md)), so a stamped script stays `unchanged` here.
 - **A skill's links stay inside its folder** — pnpm links or copies each skill folder on its own
   into an agent's skill directory, and a plugin cache keeps only what the plugin ships, so a skill
   does not always travel with its package (issue #177). A relative Markdown link (inline, image, or

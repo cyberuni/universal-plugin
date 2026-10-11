@@ -3,6 +3,7 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
+import { composeScript, embeddedData, type ScriptData } from '../compile/scripts.js'
 import { realVersionFs } from './fs.js'
 import {
 	currentVersion,
@@ -270,6 +271,42 @@ describe('planVersion — stamp the skills', () => {
 
 	it('keeps an existing pins map current even when it is now empty', () => {
 		expect(plan({ ...own, pinsMapExists: true }, '1.3.0').json).toEqual([{ path: PINS_MAP_PATH, content: {} }])
+	})
+})
+
+describe('planVersion — stamp compiled skill scripts (#177)', () => {
+	const own: Partial<VersionState> = { rootPackageJson: { name: 'my-cli', version: '1.2.3' } }
+	const rel = 'skills/a/scripts/a.mjs'
+	const data = (version: string | null): ScriptData => ({
+		package: 'my-cli',
+		bin: 'my-cli',
+		version,
+		entry: rel,
+		commands: { go: rel },
+	})
+	const compiled = (version: string | null, code = 'run()\n') =>
+		composeScript(code, { output: rel, source: 'src/a.ts' }, data(version))
+
+	it('stamps the version a compiled script embeds, and nothing else in it', () => {
+		const result = plan({ ...own, skillFiles: [{ path: rel, content: compiled('1.2.3') }] }, '1.3.0')
+		expect(result.files).toEqual([{ path: rel, content: compiled('1.3.0') }])
+		expect(result.rows).toContainEqual({ path: rel, action: 'stamped' })
+	})
+
+	it('stamps a script compiled before the plugin had a version', () => {
+		const result = plan({ ...own, skillFiles: [{ path: rel, content: compiled(null) }] }, '1.3.0')
+		expect(embeddedData(result.files[0]?.content ?? '')?.version).toBe('1.3.0')
+	})
+
+	it('leaves a pin the compiled code inlines to the build', () => {
+		const content = compiled('1.2.3', "spawn('npx my-cli@1.2.3 go')\n")
+		const result = plan({ ...own, skillFiles: [{ path: rel, content }] }, '1.3.0')
+		expect(result.files).toEqual([{ path: rel, content: compiled('1.3.0', "spawn('npx my-cli@1.2.3 go')\n") }])
+	})
+
+	it('writes nothing for a script already on the version', () => {
+		const result = plan({ ...own, skillFiles: [{ path: rel, content: compiled('1.3.0') }] }, '1.3.0', { force: true })
+		expect(result.files).toEqual([])
 	})
 })
 

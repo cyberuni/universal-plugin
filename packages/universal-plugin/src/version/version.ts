@@ -8,13 +8,14 @@
  *  The seam is derive vs stamp (#179). `plugin build` derives each runtime's files from source and
  *  never decides a version. This command takes a known version and writes it into every place that
  *  carries one: the canonical `plugin.json`, the `packagePath` `package.json`, the `npx`/`upx` pins in
- *  the skills' files (Markdown and scripts alike), `.plugin/pins.json`, and each authored `mcpServers`
- *  entry marked `pinToPluginVersion`. The per-vendor manifests and the repository catalogs are then
+ *  the skills' files (Markdown and scripts alike), the version each compiled skill script embeds
+ *  (#177), `.plugin/pins.json`, and each authored `mcpServers` entry marked `pinToPluginVersion`. The per-vendor manifests and the repository catalogs are then
  *  re-derived by calling `plugin build`, which owns them. */
 
 import * as semver from 'semver'
 
 import { UP_NAMESPACE } from '../build/build.js'
+import { embeddedData, stampScript } from '../compile/scripts.js'
 import { type McpPinNote, stampMcpServers } from '../pin/pin.js'
 import { type StampedPin, stampPins } from '../pin/stamp.js'
 
@@ -89,7 +90,7 @@ export interface VersionPlan {
 	/** The rewritten `package.json` and its root-relative path; `null` when no package is written
 	 *  (none declared, or `--from-package` read the number from it). */
 	packageJson: { path: string; content: Record<string, unknown> } | null
-	/** Skill files whose pins moved. */
+	/** Skill files whose pins moved, and compiled skill scripts whose embedded version moved. */
 	files: StampFile[]
 	/** Authored `mcpServers` files whose marked entries moved, and `.plugin/pins.json`. */
 	json: StampJson[]
@@ -239,7 +240,11 @@ function stampSkillPins(
 	state: VersionState,
 	to: string,
 ): { files: StampFile[]; pins: StampedPin[]; warnings: string[] } {
-	const contents = new Map((state.skillFiles ?? []).map((f) => [f.path, f.content]))
+	// A compiled script is stamped through its header (`stampCompiledScripts`). A pin its inlined code
+	// carries is the source's, and rewriting it would leave the script behind its source.
+	const contents = new Map(
+		(state.skillFiles ?? []).filter((f) => embeddedData(f.content) === null).map((f) => [f.path, f.content]),
+	)
 	const written = new Map<string, string>()
 	const ownName = ownPackage(state).json?.['name']
 	const workspace = state.workspace ?? {}
@@ -264,6 +269,17 @@ function stampSkillPins(
 		pins: result.pins,
 		warnings: result.warnings,
 	}
+}
+
+/** Stamps the version each compiled skill script embeds (#177). Only the header moves; the compiled
+ *  code is the build's, and a script behind its source is `plugin build`'s to re-derive. */
+function stampCompiledScripts(state: VersionState, to: string): StampFile[] {
+	const files: StampFile[] = []
+	for (const file of state.skillFiles ?? []) {
+		const stamped = stampScript(file.content, to)
+		if (stamped !== null) files.push({ path: file.path, content: stamped })
+	}
+	return files
 }
 
 /** The flat, key-sorted `{ "<package>": "<version>" }` map of the pins the stamp resolved, so a
@@ -324,9 +340,8 @@ export function planVersion(state: VersionState, opts: VersionOptions): VersionP
 	// A plugin whose skills pin nothing this repository versions gets no map — unless it already had one.
 	if (Object.keys(map).length > 0 || state.pinsMapExists) json.push({ path: PINS_MAP_PATH, content: map })
 
-	// #177's compiled skill scripts join the stamp here once they exist: their embedded version is one
-	// more place this plan writes.
-	for (const file of skills.files) rows.push({ path: file.path, action: 'stamped' })
+	const files = [...skills.files, ...stampCompiledScripts(state, to)]
+	for (const file of files) rows.push({ path: file.path, action: 'stamped' })
 	for (const file of json) rows.push({ path: file.path, action: 'stamped' })
 
 	return {
@@ -334,7 +349,7 @@ export function planVersion(state: VersionState, opts: VersionOptions): VersionP
 		to,
 		manifest: inline.manifest,
 		packageJson,
-		files: skills.files,
+		files,
 		json,
 		pins: skills.pins,
 		warnings: [...notes.map(formatMcpNote), ...skills.warnings],

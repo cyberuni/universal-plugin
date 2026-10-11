@@ -10,6 +10,7 @@ import {
 	SCRIPT_GLOBAL,
 	type ScriptData,
 	sizeWarning,
+	stampScript,
 } from './scripts.js'
 
 const entry = { output: 'skills/a/scripts/a.mjs', source: 'src/a.ts' }
@@ -170,5 +171,17 @@ describe('sizeWarning', () => {
 		expect(sizeWarning('a.mjs', 300 * 1024, 'tool')).toBe(
 			'a.mjs is 300 KB, over the 150 KB budget for a compiled skill script — have the skill call the installed CLI (pnpm exec tool, with a pinned npx fallback) instead',
 		)
+	})
+})
+
+describe('stampScript', () => {
+	it('writes the version into the header and changes nothing else', () => {
+		const before = composeScript('run()\n', entry, data({ version: '1.0.0' }))
+		expect(stampScript(before, '1.1.0')).toBe(composeScript('run()\n', entry, data({ version: '1.1.0' })))
+	})
+
+	it('is null for a file with no header, or one already on the version', () => {
+		expect(stampScript('run()\n', '1.1.0')).toBeNull()
+		expect(stampScript(composeScript('run()\n', entry, data({ version: '1.1.0' })), '1.1.0')).toBeNull()
 	})
 })

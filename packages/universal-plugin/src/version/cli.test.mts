@@ -377,3 +377,33 @@ test('publish sync-version warns and runs the --from-package stamp', () => {
 	expect(r.stderr).toContain('publish sync-version is deprecated')
 	expect(read('skills/use/SKILL.md')).toContain('my-cli@1.3.0')
 })
+
+// ── Compiled skill scripts (#177) ──
+
+test('the stamp moves a compiled script to the new version, leaving it current for the build', () => {
+	seedManifest({
+		extensions: {
+			'org.cyberuni.universal-plugin': {
+				harnesses: { 'claude-code': {} },
+				scripts: { 'skills/a/scripts/a.mjs': 'src/a.ts' },
+			},
+		},
+	})
+	fs.mkdirSync(path.join(root, 'src'))
+	fs.writeFileSync(path.join(root, 'src/a.ts'), 'console.log(1)\n')
+	const cli = (...args: string[]) =>
+		spawnSync('node', [bin, ...args, '--root', root], {
+			encoding: 'utf8',
+			env: { ...process.env, NODE_NO_WARNINGS: '1' },
+		})
+	expect(cli('plugin', 'build').status).toBe(0)
+
+	const r = run('1.3.0', '--format', 'json')
+
+	expect(r.status).toBe(0)
+	expect(JSON.parse(r.stdout).written).toContain('skills/a/scripts/a.mjs')
+	expect(fs.readFileSync(path.join(root, 'skills/a/scripts/a.mjs'), 'utf8')).toContain('"version":"1.3.0"')
+	expect(cli('publish', 'check-version').status).toBe(0)
+	const dry = JSON.parse(cli('plugin', 'build', '--dry-run', '--format', 'json').stdout)
+	expect(dry.scripts[0].status).toBe('unchanged')
+})
