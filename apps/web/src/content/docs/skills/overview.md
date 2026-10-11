@@ -47,9 +47,11 @@ installed.
 node scripts/doctor.mjs
 ```
 
-Every skill body keeps a pinned `npx` fallback for the case where the path cannot be resolved. See
-[Running a CLI your own plugin ships](../../concepts/npx-and-upx/#running-a-cli-your-own-plugin-ships)
-for the four requirements that make the pattern work.
+The launcher reaches the CLI by climbing out of the skill to the package root. That works when the
+skill is installed with its package, and when pnpm links it as a symlink. When pnpm copies the skill
+folder on its own, there is no package to reach, and every skill body keeps a pinned `npx` fallback
+for that case. For your own plugin, compile each script into the skill instead, so a copy works too:
+see [Running a CLI your own plugin ships](../../concepts/npx-and-upx/#running-a-cli-your-own-plugin-ships).
 
 ## Why four skills and not one
 
