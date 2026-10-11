@@ -2,6 +2,7 @@
 
 **Status:** accepted
 **Date:** 2026-08-18
+**Amended:** 2026-10-11 — the derive/stamp seam (#179)
 **Builds on:** [0007](./0007-adopt-agent-plugins-spec-canonical.md) — its derived-not-authored manifest
 model, extended here to the `version` field specifically.
 
@@ -40,12 +41,29 @@ artifact in the repository is **derived** from it and is never authored by hand:
 
 | Artifact | Written by |
 | --- | --- |
-| `.claude-plugin/plugin.json`, `.cursor-plugin/plugin.json`, `.codex-plugin/plugin.json`, root copilot manifest | `plugin build` |
-| Repository-local marketplace catalogs | `marketplace init` |
-| `npx`/`upx <cli>@<version>` pins inside `skills/**` | `plugin bundle` |
-| A marked `mcpServers` invocation's package specifier (`pinToPluginVersion`) | `plugin build` |
+| `.claude-plugin/plugin.json`, `.cursor-plugin/plugin.json`, `.codex-plugin/plugin.json`, root copilot manifest | `plugin build` (derived) |
+| Repository-local marketplace catalogs | `plugin build` (derived, [0014](./0014-build-refreshes-catalogs.md)) |
+| `npx`/`upx <cli>@<version>` pins in every file under `skills/**`, scripts included | `plugin version` (stamped) |
+| `.plugin/pins.json` | `plugin version` (stamped) |
+| A marked `mcpServers` invocation's package specifier (`pinToPluginVersion`), in the authored declaration | `plugin version` (stamped) |
+| The version embedded in a compiled skill script (#177) | `plugin version` (stamped), once compiled scripts exist |
 
 "Owns" is about the value every artifact reads, not about who chooses it. Choosing is §2.
+
+**Amended (issue #179).** The table above replaces one that split the writes across `plugin build`,
+`plugin bundle` and `marketplace init`. No single command wrote every place, so a release could move
+one and leave the rest. The table now follows one seam, **derive vs stamp**:
+
+- **Derive: `plugin build`.** It produces each runtime's files from source and never decides a
+  version. A derived manifest copies whatever `plugin.json` carries, and a marked `mcpServers` entry
+  is copied as authored with only its marker stripped. `build` never reads a `package.json` to pick
+  a number, so it can run at any time under any release tool.
+- **Stamp: `plugin version`.** It takes a known version and writes it into every stamped place in
+  one call, then calls `build` to re-derive the rest. After that one call every place agrees.
+
+`plugin bundle` and `publish sync-version` are deprecated aliases of the stamp. They warn for one
+minor release and are then removed. "Bundle" no longer means pinning; producing self-contained skill
+scripts (#177) is "compile".
 
 There is no second plugin version. A repository that ships more than one plugin has one canonical
 manifest per plugin, each owning its own number.
@@ -71,6 +89,28 @@ changeset version  →  publish sync-version  →  plugin build
 
 Running `plugin version` in a changesets repository is a mistake, not an alternative: it picks a
 number changesets is about to pick again.
+
+**Amended (issue #179).** The stamp takes the number from one of three sources, and the release tool
+decides which one it calls:
+
+| Source | Call | Used by |
+| --- | --- | --- |
+| Author bump | `plugin version minor` | Plain repositories (no `packagePath`) |
+| Explicit number | `plugin version 1.4.0` | semantic-release: `@semantic-release/exec` `prepareCmd` |
+| The package's `package.json` | `plugin version --from-package` | changesets and release-please, after their bump |
+
+The changesets chain is now `changeset version → plugin version --from-package → plugin build` (the
+stamp re-derives through `build` unless given `--no-build`). Only one place picks the number: with
+`packagePath` declared, a release type (`plugin version minor`) is refused and names the package to
+bump instead. The explicit and `--from-package` forms stay allowed there, because release tools call
+them.
+
+semantic-release writes the version only inside its publish run, and `package.json` holds
+`0.0.0-development` until then. The stamped files exist only in the published package unless the
+release commits them back (`@semantic-release/git`), and the git-sourced channels (Copilot CLI and
+GitHub-hosted marketplaces) read `plugin.json` from the repository. The commit-back is therefore
+required for those channels; without it they are unsupported under this model. A place still holding
+`0.0.0-development` is reported as *unstamped*, not as drift.
 
 The direction differs; the ownership does not. In both models the canonical manifest is what every
 derived artifact reads, and `package.json` is a peer that must agree — never an input any derived
@@ -160,8 +200,9 @@ Detection on the release PR is what catches a release tool that moved one number
 
 - The canonical `plugin.json` `version` is quotable as the plugin's version anywhere, with no "which
   one" qualifier. `.agents/spec/plugin/version/README.md`'s deferred policy question is closed.
-- `plugin version` and `publish sync-version` are not two ways to do one thing; §2 makes them the two
-  release models, selected by `packagePath`. Neither gains a flag to override the other.
+- `plugin version` is the one stamp for both release models; §2 selects which version source a
+  repository calls, by `packagePath`. (Before #179, `publish sync-version` was the npm-side command;
+  it is now a deprecated alias of `plugin version --from-package`.)
 - #45 (`init` generating a repository-local `marketplace.json`) and #29 (local Codex marketplace
   metadata) both derive the entry version from the canonical manifest of the plugin the entry's
   source resolves to. Neither introduces an authored version, and neither needs to ask this question
