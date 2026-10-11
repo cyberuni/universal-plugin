@@ -4,7 +4,7 @@ import * as path from 'node:path'
 
 import { detectIndent } from '../json.js'
 import { gatherCatalogRepo } from '../marketplace/fs.js'
-import type { InitPlan, InitState, RepoState } from './init.js'
+import type { ChangesetsState, InitPlan, InitState, RepoState } from './init.js'
 
 /** Gathers the filesystem state `planInit` needs and applies the plan it returns. The manifest is
  *  written tab-indented (the repo default); `package.json` keeps its own indentation. */
@@ -46,11 +46,33 @@ function packageJsonPath(root: string): string {
 	return path.join(root, 'package.json')
 }
 
+function readJson(file: string): Record<string, unknown> | null {
+	return fs.existsSync(file) ? (JSON.parse(fs.readFileSync(file, 'utf8')) as Record<string, unknown>) : null
+}
+
+/** The changesets workspace the plugin is released from: the repository root, or the plugin root
+ *  outside a repository, when it carries `.changeset/`. */
+function gatherChangesets(root: string, repo: RepoState | undefined): ChangesetsState | undefined {
+	const pluginPath = repo?.pluginPath ?? ''
+	const workspace = pluginPath === '' ? root : path.join(root, ...pluginPath.split('/').map(() => '..'))
+	if (!fs.existsSync(path.join(workspace, '.changeset'))) return undefined
+	return { pluginPath, packageJson: readJson(packageJsonPath(workspace)) }
+}
+
+function writeJson(file: string, value: Record<string, unknown>): void {
+	const indent = detectIndent(fs.readFileSync(file, 'utf8'))
+	fs.writeFileSync(file, `${JSON.stringify(value, null, indent)}\n`)
+}
+
 export const realInitFs: InitFs = {
 	gather(root) {
-		const pj = packageJsonPath(root)
-		const packageJson = fs.existsSync(pj) ? (JSON.parse(fs.readFileSync(pj, 'utf8')) as Record<string, unknown>) : null
-		return { manifestExists: fs.existsSync(manifestPath(root)), packageJson, repo: gatherRepo(root) }
+		const repo = gatherRepo(root)
+		return {
+			manifestExists: fs.existsSync(manifestPath(root)),
+			packageJson: readJson(packageJsonPath(root)),
+			repo,
+			changesets: gatherChangesets(root, repo),
+		}
 	},
 	apply(root, plan) {
 		fs.writeFileSync(manifestPath(root), `${JSON.stringify(plan.manifest, null, '\t')}\n`)
@@ -62,10 +84,9 @@ export const realInitFs: InitFs = {
 			fs.mkdirSync(path.dirname(file), { recursive: true })
 			fs.writeFileSync(file, catalog.content)
 		}
-		if (plan.packageJson) {
-			const pj = packageJsonPath(root)
-			const indent = detectIndent(fs.readFileSync(pj, 'utf8'))
-			fs.writeFileSync(pj, `${JSON.stringify(plan.packageJson, null, indent)}\n`)
+		if (plan.packageJson) writeJson(packageJsonPath(root), plan.packageJson)
+		if (plan.workspacePackageJson) {
+			writeJson(path.join(root, plan.workspacePackageJson.path), plan.workspacePackageJson.content)
 		}
 	},
 }

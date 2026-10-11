@@ -116,6 +116,16 @@ no approval; report those rather than asking.
 One case needs asking even when nothing is overwritten: two vendor manifests that disagree on a
 shared field. A silent pick there is a silent behavior change for one runtime.
 
+An npm-shipped plugin (`--npm`) in a changesets repository gets one more plan line. When the
+repository root carries `.changeset/` and its `package.json` `version` script is exactly
+`changeset version`, `plugin init --npm` rewrites that script to
+`changeset version && universal-plugin publish sync-version --root <plugin-root>` and adds
+`universal-plugin` to the root `devDependencies`. Without it the first Version Packages PR moves
+`package.json` and leaves the plugin version behind. Show the new script and the devDependency in the
+plan, and ask before running init: it rewrites the user's root `package.json`. If the user declines,
+run init without `--npm` and wire `files` by hand. A custom `version` script is never rewritten;
+init prints the line to append, so relay it and let the user place it.
+
 ## 4. Apply
 
 Route by what Phase 2 found. Read exactly the reference for the work at hand — do not load all six.
@@ -163,7 +173,8 @@ marketplace name, the owner, and every other entry alone, so it is safe over a c
 edited. Generating catalogs for a repository that already holds several plugins, and writing the
 README install section, is the `marketplace` skill's job.
 
-`plugin init` writes a **minimal** manifest — `$schema`, `name`, and the vendor list. It never reads
+`plugin init` writes a **minimal** manifest — `$schema`, `name`, the vendor list, and, with `--npm`,
+the package's `version`. It never reads
 an existing vendor manifest, so shared metadata and per-vendor overrides are carried in by hand
 afterwards, per the reference you routed to.
 

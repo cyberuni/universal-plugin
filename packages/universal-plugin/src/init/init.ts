@@ -29,6 +29,8 @@ export interface InitOptions {
 	npm: boolean
 	/** `--no-marketplace` opts out of the local catalogs; the default is to write them. */
 	marketplace?: boolean
+	/** The running CLI's own version, which the changesets wiring pins its devDependency to. */
+	cliVersion?: string
 }
 
 /** Where the plugin sits in its repository, and what catalogs that repository already carries.
@@ -45,11 +47,22 @@ export interface RepoState {
 	catalogs: Record<string, string>
 }
 
+/** A changesets workspace the plugin is released from: the directory carrying `.changeset/`, which
+ *  is the repository root (or the plugin root outside a repository). */
+export interface ChangesetsState {
+	/** POSIX path from the workspace root to the plugin root; empty when they are the same. */
+	pluginPath: string
+	/** The parsed workspace-root `package.json`, or `null` when absent. */
+	packageJson: Record<string, unknown> | null
+}
+
 export interface InitState {
 	manifestExists: boolean
 	/** The parsed root `package.json`, or `null` when absent. */
 	packageJson: Record<string, unknown> | null
 	repo?: RepoState
+	/** Present only when the workspace root carries a `.changeset/` directory. */
+	changesets?: ChangesetsState
 }
 
 export interface FileRow {
@@ -70,6 +83,9 @@ export interface InitPlan {
 	dirs: string[]
 	/** The rewritten `package.json` to write, or `null` when `--npm` was not passed. */
 	packageJson: Record<string, unknown> | null
+	/** The rewritten changesets workspace-root `package.json`, at a path relative to the plugin root,
+	 *  when it is a different file from `packageJson` and init wires the version sync into it. */
+	workspacePackageJson: { path: string; content: Record<string, unknown> } | null
 	catalogs: CatalogArtifact[]
 	rows: FileRow[]
 	/** What was skipped and why — the caller reports these; none of them is a failure. */
@@ -102,6 +118,54 @@ export function wireFiles(pkg: Record<string, unknown>, vendorPaths: string[]): 
 		if (!files.includes(entry)) files.push(entry)
 	}
 	return { ...pkg, files }
+}
+
+const CHANGESET_VERSION = 'changeset version'
+const SYNC_VERSION = 'universal-plugin publish sync-version'
+const CLI_PACKAGE = 'universal-plugin'
+
+/** The command a changesets `version` script runs after `changeset version`, so the plugin manifest
+ *  follows the package it ships in on every Version Packages PR. */
+function syncVersionCommand(pluginPath: string): string {
+	return `${SYNC_VERSION} --root ${pluginPath === '' ? '.' : pluginPath}`
+}
+
+/** Wires the plugin's version sync into a changesets workspace-root `package.json`. Only the stock
+ *  `changeset version` script is rewritten — changesets runs no npm lifecycle scripts and
+ *  changesets/action calls `run version`, so the root script is the only hook. A custom or absent
+ *  script is left alone, and the caller is told the line to add. `universal-plugin` joins the root
+ *  devDependencies so CI runs the locked version. Returns `null` content when nothing changes. */
+export function wireChangesets(
+	pkg: Record<string, unknown>,
+	pluginPath: string,
+	cliVersion: string | undefined,
+): { content: Record<string, unknown> | null; note?: string } {
+	const scripts = (typeof pkg.scripts === 'object' && pkg.scripts !== null ? pkg.scripts : {}) as Record<
+		string,
+		unknown
+	>
+	const script = typeof scripts.version === 'string' ? scripts.version : undefined
+	if (script?.includes(SYNC_VERSION)) return { content: null }
+
+	const command = syncVersionCommand(pluginPath)
+	if (script?.trim() !== CHANGESET_VERSION) {
+		const note =
+			script === undefined
+				? `changesets: add a root "version" script so the plugin version follows each release: "${CHANGESET_VERSION} && ${command}"`
+				: `changesets: the root "version" script is custom; append "&& ${command}" so the plugin version follows each release`
+		return { content: null, note }
+	}
+
+	const next: Record<string, unknown> = {
+		...pkg,
+		scripts: { ...scripts, version: `${CHANGESET_VERSION} && ${command}` },
+	}
+	const deps = (pkg.dependencies ?? {}) as Record<string, unknown>
+	const devDeps = (pkg.devDependencies ?? {}) as Record<string, unknown>
+	if (!(CLI_PACKAGE in deps) && !(CLI_PACKAGE in devDeps)) {
+		next.devDependencies = { ...devDeps, [CLI_PACKAGE]: cliVersion ? `^${cliVersion}` : 'latest' }
+	}
+	return { content: next }
 }
 
 /** The local marketplace a repository carries is named after the repository, not after the plugin:
@@ -144,8 +208,8 @@ function catalogOwner(
 }
 
 /** The plugin's own entry in every selected vendor's catalog, folded into whatever the repository
- *  already carries. Nothing here authors a version: the entry carries the canonical manifest's, and
- *  the manifest `init` writes carries none (ADR-0010). */
+ *  already carries. Nothing here authors a version: the entry carries the canonical manifest's, which
+ *  is the package's version under `--npm` and none otherwise (ADR-0010). */
 function planCatalogs(
 	state: InitState,
 	opts: InitOptions,
@@ -208,6 +272,12 @@ export function planInit(
 
 	const name = opts.name ?? rootDirName
 	const manifest = buildManifest(name, opts.vendors)
+	// A plugin shipped in an npm package takes that package's version, so the manifest is complete
+	// (Codex requires one) and `publish sync-version` has the same number to move from.
+	const packageVersion = state.packageJson?.version
+	if (opts.npm && typeof packageVersion === 'string' && packageVersion !== '') {
+		manifest.version = packageVersion
+	}
 	const dirs = opts.scaffold ? [...SCAFFOLD_DIRS] : []
 	const rows: FileRow[] = [{ path: 'plugin.json', action: 'created' }]
 	const notes: string[] = []
@@ -229,8 +299,42 @@ export function planInit(
 		rows.push({ path: 'package.json', action: 'updated' })
 	}
 
+	let workspacePackageJson: InitPlan['workspacePackageJson'] = null
+	const changesets = state.changesets
+	if (opts.npm && changesets) {
+		const sameFile = changesets.pluginPath === ''
+		const rootPkg = sameFile ? packageJson : changesets.packageJson
+		if (rootPkg === null) {
+			notes.push(
+				`changesets: no package.json at the workspace root to wire; add a "version" script running "${CHANGESET_VERSION} && ${syncVersionCommand(changesets.pluginPath)}"`,
+			)
+		} else {
+			const wired = wireChangesets(rootPkg as Record<string, unknown>, changesets.pluginPath, opts.cliVersion)
+			if (wired.note) notes.push(wired.note)
+			if (wired.content && sameFile) {
+				packageJson = wired.content
+			} else if (wired.content) {
+				const toWorkspace = changesets.pluginPath
+					.split('/')
+					.map(() => '..')
+					.join('/')
+				workspacePackageJson = { path: `${toWorkspace}/package.json`, content: wired.content }
+				rows.push({ path: workspacePackageJson.path, action: 'updated' })
+			}
+		}
+	}
+
 	const created = rows.filter((r) => r.action === 'created').length
 	const updated = rows.filter((r) => r.action === 'updated').length
 	const unchanged = rows.filter((r) => r.action === 'unchanged').length
-	return { manifest, dirs, packageJson, catalogs, rows, notes, summary: { created, updated, unchanged } }
+	return {
+		manifest,
+		dirs,
+		packageJson,
+		workspacePackageJson,
+		catalogs,
+		rows,
+		notes,
+		summary: { created, updated, unchanged },
+	}
 }
