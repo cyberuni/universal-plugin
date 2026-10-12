@@ -22,7 +22,7 @@ rather than reported as success.
 ## Install
 
 Ships with the `universal-plugin` plugin. It is invoked in Claude Code as
-`/universal-plugin:build-plugin`.
+`/universal-plugin:build-plugin` (pnpm install: `pnpm-universal-plugin-build-plugin`).
 
 ## References
 

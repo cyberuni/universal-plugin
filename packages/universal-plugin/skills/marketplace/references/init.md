@@ -127,5 +127,5 @@ with the current source, so neither `codex plugin remove` nor a version bump is 
 the cache when a session starts, so the session you are in keeps the old copy — start a new one.
 
 The catalog entry's version is derived from the canonical manifest, so a version move updates both
-(`/universal-plugin:version` owns that). Codex itself does not read the entry's version; keeping it
+(`/universal-plugin:version` (pnpm install: `pnpm-universal-plugin-version`) owns that). Codex itself does not read the entry's version; keeping it
 true is this project's policy, so the catalog never states a version the plugin does not have.

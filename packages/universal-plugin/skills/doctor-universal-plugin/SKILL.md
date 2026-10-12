@@ -71,32 +71,32 @@ Each `code` below is what the script emits.
 
 | Finding | What it means | Repair |
 | --- | --- | --- |
-| `no-manifest` | no root `plugin.json` — this is not a plugin yet | `/universal-plugin:init-universal-plugin` |
-| `legacy-manifest` | root `plugin.json` with neither `$schema` nor `extensions` — a single-vendor manifest on the canonical path | `/universal-plugin:init-universal-plugin`, adopt route |
-| `vendor-only` | a vendor manifest with no canonical manifest above it | `/universal-plugin:init-universal-plugin`, adopt route |
-| `unbuilt` | a declared vendor whose output path holds no file — that runtime sees no plugin | `/universal-plugin:build-plugin` |
-| `stale` | a derived manifest older than `plugin.json`; for a derived directory (`com.github.copilot/`), its newest file is what is compared | `/universal-plugin:build-plugin` |
+| `no-manifest` | no root `plugin.json` — this is not a plugin yet | `/universal-plugin:init-universal-plugin` (pnpm install: `pnpm-universal-plugin-init-universal-plugin`) |
+| `legacy-manifest` | root `plugin.json` with neither `$schema` nor `extensions` — a single-vendor manifest on the canonical path | `/universal-plugin:init-universal-plugin` (pnpm install: `pnpm-universal-plugin-init-universal-plugin`), adopt route |
+| `vendor-only` | a vendor manifest with no canonical manifest above it | `/universal-plugin:init-universal-plugin` (pnpm install: `pnpm-universal-plugin-init-universal-plugin`), adopt route |
+| `unbuilt` | a declared vendor whose output path holds no file — that runtime sees no plugin | `/universal-plugin:build-plugin` (pnpm install: `pnpm-universal-plugin-build-plugin`) |
+| `stale` | a derived manifest older than `plugin.json`; for a derived directory (`com.github.copilot/`), its newest file is what is compared | `/universal-plugin:build-plugin` (pnpm install: `pnpm-universal-plugin-build-plugin`) |
 | `hand-edited` | a derived manifest that `build` would rewrite — the edit is already lost, it just has not been overwritten yet | move the field to the canonical manifest or to `harnesses.<vendor>`, then rebuild |
 | `unknown-vendor` | a `vendors` entry no build target matches; reported as `skipped` plus a warning | fix the id in `plugin.json` |
 | `unsupported-component` | a component path on the shared extension names a component one targeted vendor has none of (`agents` for Codex, `rules` for Claude Code, …); the build leaves it out of that vendor's manifest | declare the path under `harnesses.<vendor>` for the vendors that read it, or leave it — nothing is lost |
-| `stale-script` | a compiled skill script (`scripts` in the extension) is missing, or no longer matches what its source compiles to. A script that differs only in its embedded version is `version-drift` instead, never both | `/universal-plugin:build-plugin`, then commit the compiled script |
-| `script-compile-failed` | a declared script entry could not be compiled into one self-contained file — usually an import that does not resolve from the plugin root | fix the entry, then `/universal-plugin:build-plugin` |
+| `stale-script` | a compiled skill script (`scripts` in the extension) is missing, or no longer matches what its source compiles to. A script that differs only in its embedded version is `version-drift` instead, never both | `/universal-plugin:build-plugin` (pnpm install: `pnpm-universal-plugin-build-plugin`), then commit the compiled script |
+| `script-compile-failed` | a declared script entry could not be compiled into one self-contained file — usually an import that does not resolve from the plugin root | fix the entry, then `/universal-plugin:build-plugin` (pnpm install: `pnpm-universal-plugin-build-plugin`) |
 | `script-over-budget` | a compiled skill script is over the 150 KB budget | have the skill call the installed CLI instead: `pnpm exec <bin>` with a pinned `npx` fallback |
 | `skill-link-escapes` | a relative Markdown link in a skill climbs out of the skill folder (`../../readme.md`). pnpm links or copies each skill folder on its own, and a plugin cache keeps only what ships, so the link resolves to nothing there | copy the file into the skill and link it relatively, or link it by URL |
-| `undeliverable-override` | `harnesses["copilot-cli"]` sets fields that reach nothing | `/universal-plugin:init-universal-plugin`, update route — move them to a vendor that has a derived manifest, or drop them |
+| `undeliverable-override` | `harnesses["copilot-cli"]` sets fields that reach nothing | `/universal-plugin:init-universal-plugin` (pnpm install: `pnpm-universal-plugin-init-universal-plugin`), update route — move them to a vendor that has a derived manifest, or drop them |
 | `codex-fields-missing` | Codex is targeted without `version` or `description`; the build fails and writes **nothing at all**, including for the other vendors | add both to the canonical top level |
-| `version-drift` | one file carries a different version from the release's number — the canonical manifest, a derived vendor manifest, a catalog entry, a skill pin, a marked `mcpServers` entry, or the version a compiled skill script embeds; one finding per file, named by path | `/universal-plugin:version` (for a package-sourced drift, `universal-plugin plugin version --from-package`); then [offer the CI check](#offer-the-check-to-ci) |
-| `unstamped` | a place holds `0.0.0-development`, semantic-release's placeholder. The release has not stamped it yet, so it is not drift (severity low) | in `prepareCmd`, `plugin version ${nextRelease.version}`, and commit the stamped files back with `@semantic-release/git`; see `/universal-plugin:version` |
-| `unreleased-content` | shipped content was committed after the commit that set the current version — a consumer keyed on that version never re-extracts it | `/universal-plugin:version` |
-| `copilot-root-components` | agents, commands, rules, hooks, or LSP servers sit at the plugin root with no copy under `com.github.copilot/` — Copilot CLI reads them only from there in spec mode, so it loads none of them, silently | `/universal-plugin:build-plugin` |
-| `stale-github-plugin` | a leftover `.github/plugin/plugin.json` from an older build — shadowed by root and no longer generated | `/universal-plugin:remove-plugin` |
-| `shadowing-manifest` | a `.plugin/plugin.json` exists — it outranks root in Copilot CLI's search order and silently shadows the canonical manifest | `/universal-plugin:remove-plugin` |
-| `no-vendors` | no vendor is declared, so the build writes nothing and no runtime reads the plugin. When the repository carries `vendorExtensions` or a `.plugin/plugin.json`, the build stops rather than reporting an empty result, and the detail says so — read it beside `legacy-manifest` and `shadowing-manifest`, which name the signals | `/universal-plugin:init-universal-plugin`, adopt route when `vendorExtensions` or `.plugin/plugin.json` is present, else update route |
+| `version-drift` | one file carries a different version from the release's number — the canonical manifest, a derived vendor manifest, a catalog entry, a skill pin, a marked `mcpServers` entry, or the version a compiled skill script embeds; one finding per file, named by path | `/universal-plugin:version` (pnpm install: `pnpm-universal-plugin-version`) (for a package-sourced drift, `universal-plugin plugin version --from-package`); then [offer the CI check](#offer-the-check-to-ci) |
+| `unstamped` | a place holds `0.0.0-development`, semantic-release's placeholder. The release has not stamped it yet, so it is not drift (severity low) | in `prepareCmd`, `plugin version ${nextRelease.version}`, and commit the stamped files back with `@semantic-release/git`; see `/universal-plugin:version` (pnpm install: `pnpm-universal-plugin-version`) |
+| `unreleased-content` | shipped content was committed after the commit that set the current version — a consumer keyed on that version never re-extracts it | `/universal-plugin:version` (pnpm install: `pnpm-universal-plugin-version`) |
+| `copilot-root-components` | agents, commands, rules, hooks, or LSP servers sit at the plugin root with no copy under `com.github.copilot/` — Copilot CLI reads them only from there in spec mode, so it loads none of them, silently | `/universal-plugin:build-plugin` (pnpm install: `pnpm-universal-plugin-build-plugin`) |
+| `stale-github-plugin` | a leftover `.github/plugin/plugin.json` from an older build — shadowed by root and no longer generated | `/universal-plugin:remove-plugin` (pnpm install: `pnpm-universal-plugin-remove-plugin`) |
+| `shadowing-manifest` | a `.plugin/plugin.json` exists — it outranks root in Copilot CLI's search order and silently shadows the canonical manifest | `/universal-plugin:remove-plugin` (pnpm install: `pnpm-universal-plugin-remove-plugin`) |
+| `no-vendors` | no vendor is declared, so the build writes nothing and no runtime reads the plugin. When the repository carries `vendorExtensions` or a `.plugin/plugin.json`, the build stops rather than reporting an empty result, and the detail says so — read it beside `legacy-manifest` and `shadowing-manifest`, which name the signals | `/universal-plugin:init-universal-plugin` (pnpm install: `pnpm-universal-plugin-init-universal-plugin`), adopt route when `vendorExtensions` or `.plugin/plugin.json` is present, else update route |
 | `package-path-missing` | `packagePath` names a directory with no readable `package.json` | fix `packagePath`, or create the package |
 | `package-path-unknown` | the CLI could not report `packagePath` (a version too old to read it), so `version-drift` and `unreleased-content` were skipped rather than guessed | upgrade universal-plugin |
 | `misplaced-package-path` | `plugin.json` declares `packagePath` under `extensions["org.cyberuni.universal-plugin"]`, where the CLI never reads it — the plugin is silently treated as not shipping to npm | move it to `.agents/universal-plugin.json`, relative to the plugin root |
 | `unparsable-manifest` | root `plugin.json` is not valid JSON | fix the syntax error |
-| `invalid-catalog` | a marketplace catalog — at the repository root, or at a `--marketplace-root` clone — is not a shape its runtime loads — it is found, read, and refused at install time, in the user's terminal | `/universal-plugin:marketplace` |
+| `invalid-catalog` | a marketplace catalog — at the repository root, or at a `--marketplace-root` clone — is not a shape its runtime loads — it is found, read, and refused at install time, in the user's terminal | `/universal-plugin:marketplace` (pnpm install: `pnpm-universal-plugin-marketplace`) |
 | `marketplace-root-missing` | a `--marketplace-root` path does not exist, so it could not be checked at all | clone the marketplace repository, or fix the path |
 
 ## Catalogs are checked at the repository root
@@ -105,7 +105,7 @@ The marketplace catalogs sit above the plugin in a monorepo, so the catalog chec
 repository root rather than `--root`. It reports only a catalog that would be **refused**: a missing
 one is not a fault, and nothing here has an opinion on which catalogs a repository ought to carry.
 
-The detail names the key at fault, so hand it to `/universal-plugin:marketplace` as it stands. An
+The detail names the key at fault, so hand it to `/universal-plugin:marketplace` (pnpm install: `pnpm-universal-plugin-marketplace`) as it stands. An
 entry's fields are derived from the plugin's `plugin.json`, and the catalog's own `name` and `owner`
 are authored in the catalog — which half is at fault decides where the repair goes.
 
@@ -157,7 +157,7 @@ holding `0.0.0-development` is reported as `unstamped`, not as `version-drift`.
 
 Files diverge when someone ran `npm version`, or when a release tool (changesets, release-please,
 semantic-release) moved `package.json` and nothing stamped the number on. All of it is
-`/universal-plugin:version`'s to fix — never patch one file by hand to match another.
+`/universal-plugin:version` (pnpm install: `pnpm-universal-plugin-version`)'s to fix — never patch one file by hand to match another.
 
 ### Offer the check to CI
 
@@ -172,7 +172,7 @@ it does not, offer to add it — ask first, because both are the user's files:
   semantic-release bot opens.
 
 Use the locked `universal-plugin` from the repository's devDependencies when it has one; otherwise
-`npx universal-plugin@0.13.0`, pinned. This check matters most where the release tool picks the
+`npx universal-plugin@0.14.0`, pinned. This check matters most where the release tool picks the
 number, because nothing else runs between that bump and publish.
 
 ## Unreleased content
@@ -191,7 +191,7 @@ Two cases are deliberately silent. A plugin that declares `packagePath` is skipp
 release picks the number ([ADR-0010](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/design/decisions/0010-version-policy.md) §2) and content waiting ahead of the last released version is the
 normal state of a branch. A tree with no git history is skipped rather than guessed at.
 
-The repair is the bump, and it belongs to `/universal-plugin:version`. Judge first whether the change
+The repair is the bump, and it belongs to `/universal-plugin:version` (pnpm install: `pnpm-universal-plugin-version`). Judge first whether the change
 is meant to ship — content that is still being worked on is not a finding to act on.
 
 ## Rules
