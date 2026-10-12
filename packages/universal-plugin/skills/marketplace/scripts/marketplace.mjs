@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Compiled by `universal-plugin plugin build` from src/skill-scripts/run-cli.ts. Edit the source, not this file.
-globalThis.__SKILL_SCRIPT__ = {"package":"universal-plugin","bin":"universal-plugin","version":"0.12.2","entry":"skills/marketplace/scripts/marketplace.mjs","commands":{"marketplace add":"skills/marketplace/scripts/add.mjs","marketplace init":"skills/marketplace/scripts/marketplace.mjs","marketplace validate":"skills/marketplace/scripts/validate.mjs","plugin build":"skills/build-plugin/scripts/build.mjs","plugin init":"skills/init-universal-plugin/scripts/init.mjs","plugin version":"skills/version/scripts/version.mjs"}};
+globalThis.__SKILL_SCRIPT__ = {"package":"universal-plugin","bin":"universal-plugin","version":"0.13.0","entry":"skills/marketplace/scripts/marketplace.mjs","commands":{"marketplace add":"skills/marketplace/scripts/add.mjs","marketplace init":"skills/marketplace/scripts/marketplace.mjs","marketplace validate":"skills/marketplace/scripts/validate.mjs","plugin build":"skills/build-plugin/scripts/build.mjs","plugin init":"skills/init-universal-plugin/scripts/init.mjs","plugin version":"skills/version/scripts/version.mjs"}};
 import { spawnSync } from "node:child_process";
 //#region src/compile/scripts.ts
 /** The global the header assigns the script data to. Framework-neutral: a script's own code, or the

@@ -1,5 +1,28 @@
 # universal-plugin
 
+## 0.13.0
+
+### Minor Changes
+
+- d89e609: `plugin build` compiles skill script entries into self-contained `.mjs` files. Declare them under `extensions["org.cyberuni.universal-plugin"].scripts`, mapping an output path to a source (`"skills/doctor/scripts/doctor.mjs": "src/skills/doctor.ts"`, or `{ "source", "command" }`). Each entry is compiled with rolldown: Node built-ins stay imports and everything else is inlined, so the script works from a skill that pnpm links or copies on its own. Commit the output.
+  
+  - Each compiled file embeds `globalThis.__SKILL_SCRIPT__`: the package and bin that ship the plugin, the version from `plugin.json`, and a map from every declared command path to its entry.
+  - `--dry-run` reports each committed script as `unchanged`, `missing`, `stale` or `version`. `doctor` reports a missing or stale one as `stale-script`. A script behind only on its embedded version is `version-drift`, which `publish check-version` now checks, so one file is never reported twice.
+  - A compiled script over 150 KB warns that the skill should call the installed CLI instead.
+  - `plugin version` stamps the new version into each compiled script's header, and nothing else in it. Pins inside compiled code are left to the build.
+- 517d001: Add `publish check-version`, a read-only check that fails when the `packagePath` `package.json`, `plugin.json`, the derived vendor manifests, the repository catalogs, or the skill `npx`/`upx` pins carry different versions, naming each file left behind. `doctor` now reports one `version-drift` finding per such file, and offers to add the check to the repository's verify script or CI.
+- ec08877: `plugin init --npm` copies the package `version` into the `plugin.json` it writes, and in a changesets repository wires the root `version` script (`changeset version && universal-plugin plugin version --from-package --root <plugin-root>`) plus a `universal-plugin` devDependency. A custom `version` script is left alone and init prints the line to add. A script still running `publish sync-version` is told to switch.
+- b105a4d: `plugin version` is now the single version stamp. One call writes the version into `plugin.json`, the `packagePath` `package.json`, the `npx`/`upx` pins in every skill file (scripts included), `.plugin/pins.json`, and each authored `mcpServers` entry marked `pinToPluginVersion`, then re-derives the vendor manifests. It takes the number from a release type, an explicit version (semantic-release's `prepareCmd`), or the new `--from-package` (changesets and release-please). Where `packagePath` is declared, a release type is refused, because the release picks the number.
+  
+  `plugin build` no longer decides any version: a marked `mcpServers` entry is copied as authored and only its marker is stripped. `plugin bundle` and `publish sync-version` are deprecated aliases that warn, and are removed in the next minor release. `publish check-version` and `doctor` report a place holding `0.0.0-development` as unstamped rather than as drift, and compare the marked `mcpServers` pin too.
+- d89e609: `plugin build` warns on a relative Markdown link in a skill that climbs out of the skill folder (`../../readme.md`). pnpm links or copies each skill folder on its own, so such a link resolves to nothing there. `doctor` reports it as `skill-link-escapes`.
+
+### Patch Changes
+
+- ab48ed1: Fix universal-plugin's own skill scripts when pnpm copies a skill instead of linking it. The six that run a CLI command (`plugin build`, `plugin init`, `plugin version`, `marketplace add`, `marketplace init`, `marketplace validate`) call the installed CLI (`pnpm exec universal-plugin`), else `npx universal-plugin@<version>` pinned to the plugin's version. `doctor`, `rewrite-upx` and `install-docs` are self-contained. `doctor` now accepts a `$schema` only when it is hosted on `agent-plugins.org`, not a URL that merely mentions the name.
+- d5e6c0d: `plugin build`, `plugin version`, `publish sync-version` and `plugin init` now write JSON in the format the file already has: its indentation, line ending, trailing newline, and the original text of every value they leave unchanged, so an array a formatter collapsed onto one line stays there. A new file, or one with no indentation to read, takes the indentation `.editorconfig` sets for it.
+- ca9abcb: Document in the `plugin-design` reference that `rules` is for the HCF of all agents only, and that role- or task-scoped guidance ships as a reference loaded on demand.
+
 ## 0.12.2
 
 ### Patch Changes
