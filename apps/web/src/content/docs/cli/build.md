@@ -68,6 +68,32 @@ The vendor reports `built` at `com.github.copilot/` when it derives any of this,
 namespace copy exists, Copilot CLI loads none of them and says nothing — `/universal-plugin:doctor-universal-plugin`
 reports that as `copilot-root-components`.
 
+## pnpm names for skill references
+
+pnpm installs a skill as `pnpm-<package>-<skill>`, and a scoped `@scope/name` package becomes
+`pnpm-@scope+name-<skill>`. A reference written as `/<plugin>:<skill>` resolves to nothing there, and
+agents give up with "skill not found". Write the reference once, in the plugin form. The build adds the
+pnpm name beside it, in every `SKILL.md` and Markdown file under a skill:
+
+```md
+Run `/my-plugin:doctor` (pnpm install: `pnpm-@scope+my-plugin-doctor`) first.
+```
+
+- **The name comes from the package.** The build reads `name` in the plugin root's `package.json`, not
+  the plugin name. Without a package name, nothing is rewritten.
+- **Only skills this package ships.** A reference to another plugin, or to a skill the plugin does not
+  have, stays as written, without a warning.
+- **A rebuild changes nothing.** A reference that already carries the suffix is skipped.
+- **Fenced code is left alone**, because the added text would break a command. So is an inline span that
+  holds more than the reference, such as `/my-plugin:doctor --fix`.
+
+Consumers who install through pnpm can add one line to their `AGENTS.md` as a fallback for references
+the build did not rewrite:
+
+> When a skill is referenced as `/<pkg>:<skill>` and no skill by that name exists, use the pnpm-installed skill `pnpm-<pkg>-<skill>` (scoped `@scope/name` becomes `pnpm-@scope+name-<skill>`).
+
+Skill names printed by a CLI script are not rewritten.
+
 ## Compiling skill scripts
 
 A skill does not always travel with its package. pnpm 12.11 links the skills of a project's direct

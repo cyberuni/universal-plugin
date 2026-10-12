@@ -1597,3 +1597,40 @@ describe('buildPlugin — script entries (#177)', () => {
 		expect(derived).not.toHaveProperty('scripts')
 	})
 })
+
+describe('buildPlugin — pnpm names beside skill references', () => {
+	function setup(packageName: string | null) {
+		writeManifest({ name: 'p', version: '1.0.0', extensions: up({ vendors: ['claude-code'] }) })
+		if (packageName) fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ name: packageName }))
+		writeSkill('a', '---\nname: a\n---\n\nThen run /p:b.\n')
+		writeSkill('b', '---\nname: b\n---\n')
+		fs.mkdirSync(path.join(dir, 'skills', 'a', 'references'))
+		fs.writeFileSync(path.join(dir, 'skills', 'a', 'references', 'r.md'), 'Use /p:b here.\n')
+	}
+	const read = (rel: string) => fs.readFileSync(path.join(dir, 'skills', rel), 'utf8')
+
+	it('rewrites SKILL.md and the Markdown under it using the scoped package name, once', () => {
+		setup('@s/p')
+		buildPlugin(dir)
+		buildPlugin(dir)
+		expect(read('a/SKILL.md')).toContain('Then run `/p:b` (pnpm install: `pnpm-@s+p-b`).')
+		expect(read('a/references/r.md')).toBe('Use `/p:b` (pnpm install: `pnpm-@s+p-b`) here.\n')
+	})
+
+	it('keeps the rewrite when the Claude invocation flags are written', () => {
+		setup('p')
+		writeSkill('a', '---\nname: a\ninvocation-policy: user\n---\n\nThen run /p:b.\n')
+		buildPlugin(dir)
+		expect(read('a/SKILL.md')).toContain('disable-model-invocation: true')
+		expect(read('a/SKILL.md')).toContain('(pnpm install: `pnpm-p-b`)')
+	})
+
+	it('writes nothing on a dry run, and nothing when the package name is unknown', () => {
+		setup('p')
+		buildPlugin(dir, { dryRun: true })
+		expect(read('a/SKILL.md')).not.toContain('pnpm install')
+		fs.rmSync(path.join(dir, 'package.json'))
+		buildPlugin(dir)
+		expect(read('a/SKILL.md')).not.toContain('pnpm install')
+	})
+})

@@ -25,6 +25,7 @@ import { formatCatalogIssues, validateCatalogContent } from '../marketplace/vali
 import { stripPinMarkers } from '../pin/pin.js'
 import { vendorRuleViolations } from '../validate/validation.js'
 import { escapingLinks } from './skill-links.js'
+import { addPnpmNames } from './skill-references.js'
 
 type VendorId = 'claude-code' | 'cursor' | 'codex' | 'copilot-cli'
 
@@ -360,6 +361,7 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 	warnings.push(...validateDependencies(declaredDependencies).warnings)
 	const skills = readSkills(root, manifest, warnings)
 	warnings.push(...skillLinkWarnings(root, skills))
+	writePnpmNames(root, manifest, skills, opts, written)
 	const canonicalHooks = readCanonicalHooks(root, componentConfig['hooks'], warnings)
 	// A marked entry's version is stamped into the authored declaration by `plugin version`; the build
 	// copies it as authored and only strips the marker, so it never decides a version (#179).
@@ -654,6 +656,42 @@ function skillLinkWarnings(root: string, skills: Skill[]): string[] {
 		}
 	}
 	return warnings
+}
+
+/** Adds the pnpm name beside each `/<plugin>:<skill>` reference to a skill this package ships, in every
+ *  Markdown file under a skill. The name comes from the package's own `package.json`; with none, the
+ *  references stay as written. A reference to another plugin cannot be resolved here, and is left
+ *  without a warning because it is usually a legitimate one. */
+function writePnpmNames(
+	root: string,
+	manifest: PluginManifest,
+	skills: Skill[],
+	opts: BuildOptions,
+	written: string[],
+) {
+	const packageName = readPackageName(root)
+	if (!packageName || typeof manifest.name !== 'string') return
+	const target = { plugin: manifest.name, packageName, skills: new Set(skills.map((s) => s.name)) }
+	for (const skill of skills) {
+		for (const file of listFilesRecursive(path.dirname(skill.path)).filter((f) => f.endsWith('.md'))) {
+			const before = fs.readFileSync(file, 'utf8')
+			const after = addPnpmNames(before, target)
+			if (after === before) continue
+			if (!opts.dryRun) fs.writeFileSync(file, after)
+			written.push(file)
+			// The Claude flag pass rewrites SKILL.md from this copy; it must start from the rewritten text.
+			if (file === skill.path) skill.content = after
+		}
+	}
+}
+
+function readPackageName(root: string): string | undefined {
+	try {
+		const name = (JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')) as { name?: unknown }).name
+		return typeof name === 'string' && name !== '' ? name : undefined
+	} catch {
+		return undefined
+	}
 }
 
 function listSkillFiles(dir: string): string[] {
