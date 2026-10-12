@@ -49,7 +49,7 @@ Copilot CLI's search order is `.plugin/plugin.json` → `plugin.json` → `.gith
 
 Removing a vendor is a manifest edit first and a deletion second — deleting only the file leaves the
 vendor declared, and the next build writes it straight back. That edit belongs to
-`/universal-plugin:init-universal-plugin`'s update route; come back here for the file.
+`/universal-plugin:init-universal-plugin` (pnpm install: `pnpm-universal-plugin-init-universal-plugin`)'s update route; come back here for the file.
 
 ## Remove the whole plugin
 

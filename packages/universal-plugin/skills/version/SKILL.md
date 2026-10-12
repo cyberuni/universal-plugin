@@ -74,7 +74,7 @@ node scripts/version.mjs --from-package
 ```
 
 Resolve that path against this skill's own directory; it runs the project's installed CLI
-(`pnpm exec universal-plugin`), else `npx universal-plugin@0.13.0` pinned to this skill's version.
+(`pnpm exec universal-plugin`), else `npx universal-plugin@0.14.0` pinned to this skill's version.
 `universal-plugin plugin version` on the `PATH` is the fallback. The command never prompts, so it is safe to run unattended once the
 source is decided.
 
@@ -123,7 +123,7 @@ Every guard resolves before the first write, so a failed run leaves the tree unt
 
 | Message names | What it means | Do this |
 |---|---|---|
-| a missing `plugin.json` | not at a plugin root, or the plugin was never scaffolded | `cd` to the plugin root, or run `/universal-plugin:init-universal-plugin` |
+| a missing `plugin.json` | not at a plugin root, or the plugin was never scaffolded | `cd` to the plugin root, or run `/universal-plugin:init-universal-plugin` (pnpm install: `pnpm-universal-plugin-init-universal-plugin`) |
 | no version to bump from | the manifest has never carried a `version` | pass an explicit version (`plugin version 0.1.0`) to set the first one |
 | an unknown version or release type | the argument is neither a release type nor valid semver | use one of the values in the table above |
 | a target that does not advance | the requested version is not greater than the current one | pick a higher version, or pass `--force` if the user genuinely wants to move backward |

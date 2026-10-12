@@ -86,7 +86,7 @@ what only that component does; the `plugin-design` reference is the authority on
 
 - **Never hand-edit a derived manifest.** `plugin build` owns `.claude-plugin/plugin.json` and its
   siblings; an edit there survives until the next build and no longer.
-- **Never hand-edit a `version` field.** That move belongs to `/universal-plugin:version`.
+- **Never hand-edit a `version` field.** That move belongs to `/universal-plugin:version` (pnpm install: `pnpm-universal-plugin-version`).
 - **The canonical schema is closed.** A vendor-only field cannot be added at the top level; it goes
   under that vendor's `harnesses` entry or nowhere.
 - Root `plugin.json` is not a build artifact. It is both the source of truth and the file Copilot CLI
