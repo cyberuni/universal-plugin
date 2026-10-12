@@ -2,7 +2,10 @@ import { spawnSync } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
-import { afterAll, afterEach, beforeAll, beforeEach, expect, test } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, expect, test, vi } from 'vitest'
+
+// Every case spawns the doctor script, which spawns the CLI and git; a cold CI runner exceeds the 5s default.
+vi.setConfig({ testTimeout: 30_000 })
 
 /** The `doctor` skill's script is the home of the ADR-0010 §6 check: a runtime keys its plugin cache
  *  on the version, so content committed after the commit that set the current one never reaches a
