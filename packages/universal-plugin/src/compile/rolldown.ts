@@ -1,7 +1,7 @@
 import { isBuiltin } from 'node:module'
 import * as path from 'node:path'
-
 import type { ScriptCompiler } from './scripts.js'
+import { explainTsconfigFailure, failedExtends } from './tsconfig-diagnosis.js'
 
 /** Compiles an entry with rolldown, the engine under tsdown. Node built-ins stay imports; everything
  *  else is inlined, so the file runs from a skill folder with no `node_modules` beside it.
@@ -39,6 +39,10 @@ export const rolldownCompiler: ScriptCompiler = {
 			if (!inlinesDependency) return chunk.code
 			const minified = await bundle.generate({ format: 'esm', codeSplitting: false, minify: true })
 			return (minified.output[0] as { code: string }).code
+		} catch (error) {
+			// rolldown's message names the `extends` it could not load but not the file declaring it.
+			const spec = failedExtends(error)
+			throw spec ? new Error(explainTsconfigFailure(sourcePath, root, spec), { cause: error }) : error
 		} finally {
 			await bundle.close()
 		}

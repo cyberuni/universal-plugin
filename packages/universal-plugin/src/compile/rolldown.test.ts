@@ -52,4 +52,15 @@ describe('rolldownCompiler', () => {
 		write('src/a.ts', "import x from 'not-installed'\nconsole.log(x)\n")
 		await expect(rolldownCompiler.compile(path.join(dir, 'src/a.ts'), dir)).rejects.toThrow(/not-installed/)
 	})
+
+	it('names the tsconfig file and the extends path when rolldown cannot load one', async () => {
+		write('tsconfig.json', JSON.stringify({ files: [], references: [{ path: './packages/a' }] }))
+		write('packages/a/tsconfig.json', JSON.stringify({ extends: './tsconfig.esm' }))
+		write('packages/a/tsconfig.esm.json', '{\n\t// shared base\n\t"extends": "shared-config/tsconfig/base",\n}\n')
+		write('packages/a/src/a.ts', 'console.log(1)\n')
+
+		await expect(rolldownCompiler.compile(path.join(dir, 'packages/a/src/a.ts'), dir)).rejects.toThrow(
+			/packages\/a\/tsconfig\.esm\.json extends "shared-config\/tsconfig\/base".*\.json/,
+		)
+	})
 })
