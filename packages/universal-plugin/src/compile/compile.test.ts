@@ -138,6 +138,17 @@ describe('compileScripts', () => {
 		expect(result.summary.failed).toBe(2)
 	})
 
+	it('warns, naming file, line and code point, about an invisible character left in the output', async () => {
+		manifest({ 'a.mjs': 'src/a.ts' })
+		write('src/a.ts', '// note\u200B\nconst x = 1\u00AD\n')
+
+		const result = await compileScripts(dir, {}, echo)
+
+		expect(result.warnings).toEqual([
+			'a.mjs:3:8 U+200B and 1 more: invisible character in the compiled script that the build could not escape — skill checks reject it; write it as an escape in a string literal in the source',
+		])
+	})
+
 	it('reports a malformed declaration as a warning and compiles the valid entries', async () => {
 		manifest({ 'a.js': 'src/a.ts', 'b.mjs': 'src/b.ts' })
 		write('src/b.ts', 'b()\n')

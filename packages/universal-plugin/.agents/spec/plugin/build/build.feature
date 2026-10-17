@@ -942,6 +942,17 @@ Feature: plugin build — derive per-vendor manifests
     Then the exit code is 0
     And stderr contains a warning naming the size, the 150 KB budget, and "pnpm exec"
 
+  Scenario: a compiled script keeps a dependency's invisible characters escaped
+    Given a script entry that inlines a dependency whose string literal is '\u{FEFF}'
+    When I run "universal-plugin plugin build"
+    Then the compiled script holds "\uFEFF" and no raw U+FEFF
+
+  Scenario: an invisible character the build cannot escape warns
+    Given a script entry whose source holds a raw U+200B in a comment
+    When I run "universal-plugin plugin build"
+    Then the exit code is 0
+    And stderr contains a warning naming the compiled file, its line and column, and "U+200B"
+
   # ── A skill's links stay inside its folder (issue #177) ──
   # pnpm links or copies each skill folder on its own, so a link that climbs out of it resolves to
   # nothing there.

@@ -147,6 +147,10 @@ package; the skill gets only the built file.
 - **Keep scripts small.** Over 150 KB the build warns. A skill that needs most of your CLI should call
   the installed CLI instead: `pnpm exec <bin>`, which this channel guarantees because pnpm links only
   direct dependencies, with a pinned `npx <pkg>@<version>` fallback.
+- **No hidden characters.** rolldown prints a dependency's `'\u{FEFF}'` as the raw character, which
+  skill checks reject because it can hide instructions. The build writes every invisible character
+  inside a string, template or regular-expression literal back as a `\uXXXX` escape. One it cannot
+  escape, such as one in a comment, warns with its file, line and code point.
 - **The scripts declaration is build input.** It never reaches a vendor manifest, and `--vendor` does
   not narrow it.
 

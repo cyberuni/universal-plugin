@@ -1,6 +1,7 @@
 import { isBuiltin } from 'node:module'
 import * as path from 'node:path'
 import type { Plugin } from 'rolldown'
+import { escapeInvisible, isInvisible, type LiteralSpan } from './invisible.js'
 import { neutralizeMainGuards } from './main-guard.js'
 import type { ScriptBundleOptions, ScriptCompiler } from './scripts.js'
 import { explainTsconfigFailure, failedExtends } from './tsconfig-diagnosis.js'
@@ -61,9 +62,9 @@ export const rolldownCompiler: ScriptCompiler = {
 					`imports ${external.join(', ')}, which could not be inlined — install it where the plugin root resolves it`,
 				)
 			const inlinesDependency = chunk.moduleIds.some((id) => id.split(path.sep).includes('node_modules'))
-			if (!inlinesDependency) return chunk.code
+			if (!inlinesDependency) return await escapeLiterals(chunk.code)
 			const minified = await bundle.generate({ ...output, minify: true })
-			return (minified.output[0] as { code: string }).code
+			return await escapeLiterals((minified.output[0] as { code: string }).code)
 		} catch (error) {
 			// rolldown's message names the `extends` it could not load but not the file declaring it.
 			const spec = failedExtends(error)
@@ -81,4 +82,51 @@ function resolveAlias({ alias }: ScriptBundleOptions, root: string): Record<stri
 	return Object.fromEntries(
 		Object.entries(alias).map(([from, to]) => [from, /^\.\.?\//.test(to) ? path.resolve(root, to) : to]),
 	)
+}
+
+/** rolldown prints a dependency's escaped invisible characters raw (issue #190); this writes them back
+ *  as escapes inside every string, untagged template and regular-expression literal. */
+async function escapeLiterals(code: string): Promise<string> {
+	if (![...code].some(isInvisible)) return code
+	const { parseAst } = await import('rolldown/parseAst')
+	const spans: LiteralSpan[] = []
+	collectSpans(parseAst(code) as unknown as AstNode, spans)
+	return escapeInvisible(code, spans)
+}
+
+interface AstNode {
+	type: string
+	start: number
+	end: number
+	[key: string]: unknown
+}
+
+function isNode(value: unknown): value is AstNode {
+	return typeof value === 'object' && value !== null && typeof (value as AstNode).type === 'string'
+}
+
+function collectSpans(node: AstNode, spans: LiteralSpan[]): void {
+	if (node.type === 'Literal') {
+		if (typeof node['value'] === 'string') spans.push({ start: node.start, end: node.end, kind: 'string' })
+		else if (node['regex'] !== undefined) spans.push({ start: node.start, end: node.end, kind: 'regex' })
+		return
+	}
+	// A tag can read a template's raw text, which an escape would change, so its quasis stay as written.
+	if (node.type === 'TaggedTemplateExpression') {
+		visit(node['tag'], spans)
+		for (const expression of (node['quasi'] as AstNode)['expressions'] as AstNode[]) collectSpans(expression, spans)
+		return
+	}
+	if (node.type === 'TemplateElement') {
+		spans.push({ start: node.start, end: node.end, kind: 'template' })
+		return
+	}
+	for (const [key, value] of Object.entries(node)) {
+		if (key !== 'parent') visit(value, spans)
+	}
+}
+
+function visit(value: unknown, spans: LiteralSpan[]): void {
+	if (Array.isArray(value)) for (const item of value) visit(item, spans)
+	else if (isNode(value)) collectSpans(value, spans)
 }

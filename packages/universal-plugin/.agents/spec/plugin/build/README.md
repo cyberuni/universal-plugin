@@ -271,6 +271,13 @@ not a build step.
     declaration warns and compiles the entries that parse.
   - A compiled file over 150 KB warns that the skill should call the installed CLI instead
     (`pnpm exec <bin>`, with a pinned `npx` fallback).
+  - A compiled file holds no raw invisible character inside a literal (issue #190). rolldown prints a
+    dependency's `'\u{FEFF}'` as the character itself, which skill checks reject because it can hide
+    instructions. Every control (other than tab, line feed and carriage return), format,
+    line-separator, paragraph-separator or default-ignorable code point inside a string, untagged
+    template or regular-expression literal is written back as a `\uXXXX` escape with the same value.
+    One the build cannot escape (in a comment, an identifier, or a tagged template, whose tag can read
+    the raw text) warns, naming the file, line, column and code point.
   - The build never moves the embedded version on its own: `plugin version` stamps it into the header
     ([`plugin/version/`](../version/README.md)), so a stamped script stays `unchanged` here.
 - **A skill's links stay inside its folder** — pnpm links or copies each skill folder on its own
@@ -546,6 +553,8 @@ Grouped by use case; 1:1 with [`build.feature`](./build.feature).
 | guard: unresolved | an import that resolves nowhere | `a script entry that cannot be made self-contained fails` |
 | guard: missing | a source that does not exist | `a script entry whose source is missing fails` |
 | budget | an entry over 150 KB | `a compiled script over the size budget warns` |
+| invisible: literal | a dependency whose literal escapes U+FEFF | `a compiled script keeps a dependency's invisible characters escaped` |
+| invisible: elsewhere | an invisible character in a comment | `an invisible character the build cannot escape warns` |
 
 ### A skill's links stay inside its folder
 

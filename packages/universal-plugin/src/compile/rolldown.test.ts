@@ -62,6 +62,32 @@ describe('rolldownCompiler', () => {
 		expect(stdout).toBe('a cli ran with lib\n')
 	})
 
+	it("keeps a dependency's invisible characters escaped in strings, templates and regular expressions", async () => {
+		write('node_modules/tiny/package.json', JSON.stringify({ name: 'tiny', type: 'module', main: 'index.js' }))
+		write(
+			'node_modules/tiny/index.js',
+			[
+				'export function kind(s) {',
+				// biome-ignore lint/suspicious/noTemplateCurlyInString: this is the dependency's source, which holds a template literal
+				"\tswitch (s) { case '\\u{FEFF}': return 'bom'; case '\\x02': return 'doc'; case `\\x1f${s}`: return 'us' }",
+				"\treturn /\\u200B/u.test(s) ? 'zwsp' : String.raw`\\x18`",
+				'}',
+				'',
+			].join('\n'),
+		)
+		write(
+			'src/a.ts',
+			"import { kind } from 'tiny'\nconsole.log(kind('\\u{FEFF}'), kind('\\x02'), kind('\\u200B'), kind('-'))\n",
+		)
+
+		const code = await rolldownCompiler.compile(path.join(dir, 'src/a.ts'), dir)
+
+		expect([...code].filter((c) => /[\p{Cc}\p{Cf}]/u.test(c) && c !== '\n')).toEqual([])
+		const out = path.join(dir, 'out.mjs')
+		fs.writeFileSync(out, code)
+		expect(execFileSync(process.execPath, [out], { encoding: 'utf8' })).toBe('bom doc zwsp \\x18\n')
+	})
+
 	it('rejects an entry with an import that cannot be inlined', async () => {
 		write('src/a.ts', "import x from 'not-installed'\nconsole.log(x)\n")
 		await expect(rolldownCompiler.compile(path.join(dir, 'src/a.ts'), dir)).rejects.toThrow(/not-installed/)
