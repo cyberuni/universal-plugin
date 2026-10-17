@@ -245,6 +245,11 @@ not a build step.
   `{ "source", "command" }`). Each entry compiles with rolldown into one ES module: Node built-ins stay
   imports and every other import is inlined; an entry that inlines a dependency is minified, one that
   inlines only its own files stays readable. The output is written to the declared path and committed.
+  - An entry may import another script that is itself a CLI. Only the entry's main guard survives the
+    compile: in every inlined module, `import.meta.main`, `import.meta.url === pathToFileURL(…).href`,
+    and `fileURLToPath(import.meta.url) === process.argv[1]` (either side, or `process.argv[1]` wrapped
+    in a call such as `realpathSync`) become `false`. Inlined modules share the output's
+    `import.meta.url`, so without this every inlined CLI would run too (issue #192).
   The declaration never reaches a derived manifest, and `--vendor` does not narrow it.
   - Each compiled file starts with a header naming its source, then assigns
     `globalThis.__SKILL_SCRIPT__ = { package, bin, version, entry, commands }`: the package and bin of

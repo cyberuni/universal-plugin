@@ -1,7 +1,21 @@
 import { isBuiltin } from 'node:module'
 import * as path from 'node:path'
+import type { Plugin } from 'rolldown'
+import { neutralizeMainGuards } from './main-guard.js'
 import type { ScriptCompiler } from './scripts.js'
 import { explainTsconfigFailure, failedExtends } from './tsconfig-diagnosis.js'
+
+/** Keeps only the entry's main guard, so an entry that imports another script runs one CLI. */
+function onlyEntryMain(): Plugin {
+	return {
+		name: 'universal-plugin:only-entry-main',
+		transform(code, id) {
+			if (this.getModuleInfo(id)?.isEntry) return null
+			const out = neutralizeMainGuards(code)
+			return out === undefined ? null : { code: out }
+		},
+	}
+}
 
 /** Compiles an entry with rolldown, the engine under tsdown. Node built-ins stay imports; everything
  *  else is inlined, so the file runs from a skill folder with no `node_modules` beside it.
@@ -17,6 +31,7 @@ export const rolldownCompiler: ScriptCompiler = {
 			input: sourcePath,
 			cwd: root,
 			platform: 'node',
+			plugins: [onlyEntryMain()],
 			// An import rolldown cannot resolve would stay an import — a script that fails in the skill
 			// folder — so it fails the compile. Every other log is rolldown's to keep to itself.
 			onLog(_level, log) {

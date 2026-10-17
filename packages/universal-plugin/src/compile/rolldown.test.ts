@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
@@ -46,6 +47,19 @@ describe('rolldownCompiler', () => {
 		expect(code).not.toContain('from "tiny"')
 		expect(code).toContain('toUpperCase')
 		expect(code.split('\n').filter(Boolean).length).toBe(1)
+	})
+
+	it("runs only the entry's CLI when the entry imports another script that has its own (issue #192)", async () => {
+		const guard = 'process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href'
+		const head = "import { realpathSync } from 'node:fs'\nimport { pathToFileURL } from 'node:url'\n"
+		write('src/lib.ts', `${head}export const name: string = 'lib'\nif (${guard}) console.log('lib cli ran')\n`)
+		write('src/a.ts', `${head}import { name } from './lib.js'\nif (${guard}) console.log('a cli ran with ' + name)\n`)
+
+		const code = await rolldownCompiler.compile(path.join(dir, 'src/a.ts'), dir)
+		write('out/a.mjs', code)
+		const stdout = execFileSync(process.execPath, [path.join(dir, 'out/a.mjs'), '--help'], { encoding: 'utf8' })
+
+		expect(stdout).toBe('a cli ran with lib\n')
 	})
 
 	it('rejects an entry with an import that cannot be inlined', async () => {
