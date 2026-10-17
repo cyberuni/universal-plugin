@@ -20,6 +20,7 @@ universal-plugin plugin build [options]
 | `--verbose` | Print field-by-field transformation decisions |
 | `--clean` | Delete generated manifests before building |
 | `--strict-dependencies` | Fail when a refreshed catalog cannot resolve a declared dependency |
+| `--check` | Write nothing; exit 1 when a compiled script is missing, stale, or on another version |
 | `--root <path>` | Plugin root directory (default: current directory) |
 | `--format json` | Output as JSON |
 
@@ -142,11 +143,16 @@ package; the skill gets only the built file.
 
 - **Commit the output,** as you commit the vendor manifests, so a git-sourced install carries it too.
   `--dry-run` reports each script as `unchanged`, `missing`, `stale` (its source or imports moved on)
-  or `version` (only its embedded version did). `/universal-plugin:doctor-universal-plugin` reports a
-  missing or stale script as `stale-script`.
+  or `version` (only its embedded version did), and exits 0. In CI, run `plugin build --check`: it
+  writes nothing and exits 1 naming each script that is behind. `/universal-plugin:doctor-universal-plugin`
+  reports a missing or stale script as `stale-script`.
 - **Keep scripts small.** Over 150 KB the build warns. A skill that needs most of your CLI should call
   the installed CLI instead: `pnpm exec <bin>`, which this channel guarantees because pnpm links only
   direct dependencies, with a pinned `npx <pkg>@<version>` fallback.
+- **No hidden characters.** rolldown prints a dependency's `'\u{FEFF}'` as the raw character, which
+  skill checks reject because it can hide instructions. The build writes every invisible character
+  inside a string, template or regular-expression literal back as a `\uXXXX` escape. One it cannot
+  escape, such as one in a comment, warns with its file, line and code point.
 - **The scripts declaration is build input.** It never reaches a vendor manifest, and `--vendor` does
   not narrow it.
 

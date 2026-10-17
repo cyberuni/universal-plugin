@@ -200,15 +200,6 @@ test('the build leaves a committed governance copy as it is', () => {
 	expect(r.stdout).not.toMatch(/governance/)
 })
 
-// Scenario: --check is no longer a flag
-test('--check fails loud as an unknown flag and writes nothing', () => {
-	const r = build('--check')
-
-	expect(r.status).toBe(1)
-	expect(r.stderr).toMatch(/--check/)
-	expect(built()).toBe(false)
-})
-
 // Issue #147: a bare dependency the catalog does not list ships a plugin nobody can install. The
 // build warns by default and fails under --strict-dependencies.
 function writeDependentPlugin() {
@@ -273,6 +264,31 @@ test('compiles declared script entries and reports a row for each', () => {
 	const run = spawnSync('node', [path.join(workspacePackage, 'skills/a/scripts/a.mjs')], { encoding: 'utf8' })
 	expect(run.stdout).toBe('ran 1\n')
 	expect(JSON.parse(build('--dry-run', '--format', 'json').stdout).scripts[0].status).toBe('unchanged')
+})
+
+// Scenarios: --check passes / fails naming each compiled script that is behind; --dry-run exits 0 (issue #191)
+test('--check exits 1 naming a missing or stale script, writes nothing, and --dry-run stays 0', () => {
+	const manifestPath = path.join(workspacePackage, 'plugin.json')
+	const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+	manifest.extensions['org.cyberuni.universal-plugin'].scripts = { 'a.mjs': 'src/a.ts', 'b.mjs': 'src/b.ts' }
+	fs.writeFileSync(manifestPath, JSON.stringify(manifest))
+	fs.mkdirSync(path.join(workspacePackage, 'src'))
+	fs.writeFileSync(path.join(workspacePackage, 'src/a.ts'), "console.log('a')\n")
+	fs.writeFileSync(path.join(workspacePackage, 'src/b.ts'), "console.log('b')\n")
+	expect(build().status).toBe(0)
+	expect(build('--check').status).toBe(0)
+
+	fs.writeFileSync(path.join(workspacePackage, 'src/a.ts'), "console.log('a2')\n")
+	fs.rmSync(path.join(workspacePackage, 'b.mjs'))
+	const before = fs.readFileSync(path.join(workspacePackage, 'a.mjs'), 'utf8')
+
+	const r = build('--check')
+
+	expect(r.status).toBe(1)
+	expect(r.stderr).toContain('error: 2 compiled scripts are behind: a.mjs (stale), b.mjs (missing)')
+	expect(fs.readFileSync(path.join(workspacePackage, 'a.mjs'), 'utf8')).toBe(before)
+	expect(fs.existsSync(path.join(workspacePackage, 'b.mjs'))).toBe(false)
+	expect(build('--dry-run').status).toBe(0)
 })
 
 test('exits 1 when a script entry fails to compile', () => {

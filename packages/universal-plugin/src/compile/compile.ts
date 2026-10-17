@@ -3,6 +3,7 @@ import * as path from 'node:path'
 
 import { readManifest, universalPluginExtension } from '../build/build.js'
 import { getPackagePath } from '../config/config.js'
+import { findInvisible, formatCodePoint } from './invisible.js'
 import {
 	binName,
 	commandMap,
@@ -91,6 +92,8 @@ export async function compileScripts(
 		const bytes = Buffer.byteLength(content)
 		const overBudget = sizeWarning(entry.output, bytes, bin)
 		if (overBudget !== null) warnings.push(overBudget)
+		const hidden = findInvisible(content)
+		if (hidden.length > 0) warnings.push(invisibleWarning(entry.output, hidden))
 
 		const existing = fs.existsSync(outputPath) ? fs.readFileSync(outputPath, 'utf8') : null
 		const comparison = compareScript(existing, content)
@@ -109,6 +112,15 @@ export async function compileScripts(
 /** The bundle options the entry sets, and none it does not. */
 function bundleOptions({ alias, keepNames }: ScriptEntry): ScriptBundleOptions {
 	return { ...(alias === undefined ? {} : { alias }), ...(keepNames === undefined ? {} : { keepNames }) }
+}
+
+/** The compiler escapes invisible characters inside literals; one left elsewhere (a comment, an
+ *  identifier, a tagged template) is named so the author can find it before a skill check does. */
+function invisibleWarning(output: string, hidden: ReturnType<typeof findInvisible>): string {
+	const [first] = hidden
+	const at = `${output}:${first?.line}:${first?.column} ${formatCodePoint(first?.codePoint ?? 0)}`
+	const more = hidden.length > 1 ? ` and ${hidden.length - 1} more` : ''
+	return `${at}${more}: invisible character in the compiled script that the build could not escape — skill checks reject it; write it as an escape in a string literal in the source`
 }
 
 /** The `package.json` at `packagePath` (`.agents/universal-plugin.json`), which names the package and

@@ -144,8 +144,8 @@ not a build step.
   `cyber-agent-harness` plugin, which resolves the name at run time from the project, user, and
   plugin tiers and falls back to the skill's own `references/<name>.md`. A folder a skill commits at
   `references/governances/` is skill content like any other: the build neither reads nor rewrites it.
-  `--check`, which existed only to compare those copies with their source, is gone, so passing it
-  fails loud as an unknown flag.
+  The `--check` that compared those copies with their source is gone; the flag now checks compiled
+  scripts instead (issue #191, below).
 - **Merge then strip** — per-harness fields from `harnesses.<vendor>` are merged over the shared
   metadata and component paths; the canonical wrapper (`$schema`, `extensions`) and the orchestration
   keys (`vendors`, `packagePath`, `harnesses`) never appear in output.
@@ -260,6 +260,9 @@ not a build step.
     `--dry-run` writes nothing and reports `unchanged`, `missing`, `stale` (anything but the embedded
     version differs), or `version` (only the embedded version differs — drift, which
     `publish check-version` reports). The summary appends `scripts <n>`.
+  - `--check` is the CI form of that dry run (issue #191): it writes nothing, and when any script is
+    `missing`, `stale` or `version` it prints an error naming each one with its status and exits 1.
+    `--dry-run` alone still exits 0 whatever it reports, so a caller that reads its rows keeps working.
   - An entry's object form can also set bundle options (issue #187): `alias` (a map from import
     specifier to the specifier or plugin-root-relative path the bundle resolves instead) and
     `keepNames` (keep function and class names, through minifying too). An option of the wrong shape
@@ -271,6 +274,13 @@ not a build step.
     declaration warns and compiles the entries that parse.
   - A compiled file over 150 KB warns that the skill should call the installed CLI instead
     (`pnpm exec <bin>`, with a pinned `npx` fallback).
+  - A compiled file holds no raw invisible character inside a literal (issue #190). rolldown prints a
+    dependency's `'\u{FEFF}'` as the character itself, which skill checks reject because it can hide
+    instructions. Every control (other than tab, line feed and carriage return), format,
+    line-separator, paragraph-separator or default-ignorable code point inside a string, untagged
+    template or regular-expression literal is written back as a `\uXXXX` escape with the same value.
+    One the build cannot escape (in a comment, an identifier, or a tagged template, whose tag can read
+    the raw text) warns, naming the file, line, column and code point.
   - The build never moves the embedded version on its own: `plugin version` stamps it into the header
     ([`plugin/version/`](../version/README.md)), so a stamped script stays `unchanged` here.
 - **A skill's links stay inside its folder** — pnpm links or copies each skill folder on its own
@@ -541,11 +551,16 @@ Grouped by use case; 1:1 with [`build.feature`](./build.feature).
 | dry run: current | rebuilt, nothing changed | `--dry-run reports a current compiled script as unchanged` |
 | dry run: stale | the source changed | `--dry-run reports a compiled script behind its source as stale` |
 | dry run: version | only `plugin.json`'s version moved | `--dry-run reports a compiled script behind only on its version as version` |
+| check: current | rebuilt, nothing changed | `--check passes when every compiled script is current` |
+| check: behind | one source changed, one output deleted | `--check fails naming each compiled script that is behind` |
+| check: dry run stays 0 | a stale script, `--dry-run` | `--dry-run exits 0 when a compiled script is behind` |
 | dynamic import | a dependency calling `import(variable)`, or dynamically importing a module it inlines | `a dynamic import left to run time does not fail a script entry` |
 | bundle options | an entry setting `alias` and `keepNames` | `a script entry's alias and keepNames reach the bundle` |
 | guard: unresolved | an import that resolves nowhere | `a script entry that cannot be made self-contained fails` |
 | guard: missing | a source that does not exist | `a script entry whose source is missing fails` |
 | budget | an entry over 150 KB | `a compiled script over the size budget warns` |
+| invisible: literal | a dependency whose literal escapes U+FEFF | `a compiled script keeps a dependency's invisible characters escaped` |
+| invisible: elsewhere | an invisible character in a comment | `an invisible character the build cannot escape warns` |
 
 ### A skill's links stay inside its folder
 
@@ -559,7 +574,6 @@ Grouped by use case; 1:1 with [`build.feature`](./build.feature).
 | Edge | Path (Given) | Scenario |
 |---|---|---|
 | left alone | a committed `references/governances/` file | `the build leaves a skill's references/governances/ folder as it is` |
-| guard: `--check` | `--check` | `--check is no longer a flag` |
 
 ### Print the command reference
 

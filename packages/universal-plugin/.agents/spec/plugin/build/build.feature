@@ -922,6 +922,24 @@ Feature: plugin build — derive per-vendor manifests
     Then "skills/demo/scripts/a.mjs" inlines "tiny/esm.js" in place of "tiny"
     And running "node skills/demo/scripts/a.mjs" prints the function's original name
 
+  Scenario: --check passes when every compiled script is current
+    Given "skills/demo/scripts/a.mjs" was compiled and nothing has changed since
+    When I run "universal-plugin plugin build --check"
+    Then the exit code is 0
+
+  Scenario: --check fails naming each compiled script that is behind
+    Given "a.mjs" and "b.mjs" were compiled
+    And "src/a.ts" has changed since and "b.mjs" was deleted
+    When I run "universal-plugin plugin build --check"
+    Then the exit code is 1
+    And stderr contains "a.mjs (stale), b.mjs (missing)"
+    And "a.mjs" is unchanged and "b.mjs" is not written
+
+  Scenario: --dry-run exits 0 when a compiled script is behind
+    Given "skills/demo/scripts/a.mjs" was compiled and "src/a.ts" has changed since
+    When I run "universal-plugin plugin build --dry-run"
+    Then the exit code is 0
+
   Scenario: a script entry that cannot be made self-contained fails
     Given the manifest declares harnesses for "claude-code" and scripts { "a.mjs": "src/a.ts" }
     And "src/a.ts" imports "not-installed", which resolves nowhere
@@ -941,6 +959,17 @@ Feature: plugin build — derive per-vendor manifests
     When I run "universal-plugin plugin build"
     Then the exit code is 0
     And stderr contains a warning naming the size, the 150 KB budget, and "pnpm exec"
+
+  Scenario: a compiled script keeps a dependency's invisible characters escaped
+    Given a script entry that inlines a dependency whose string literal is '\u{FEFF}'
+    When I run "universal-plugin plugin build"
+    Then the compiled script holds "\uFEFF" and no raw U+FEFF
+
+  Scenario: an invisible character the build cannot escape warns
+    Given a script entry whose source holds a raw U+200B in a comment
+    When I run "universal-plugin plugin build"
+    Then the exit code is 0
+    And stderr contains a warning naming the compiled file, its line and column, and "U+200B"
 
   # ── A skill's links stay inside its folder (issue #177) ──
   # pnpm links or copies each skill folder on its own, so a link that climbs out of it resolves to
@@ -967,12 +996,6 @@ Feature: plugin build — derive per-vendor manifests
     Then the exit code is 0
     And "skills/init/references/governances/plugin-design.md" is unchanged
     And the result reports no governance copy
-
-  Scenario: --check is no longer a flag
-    When I run "universal-plugin plugin build --check"
-    Then the exit code is 1
-    And stderr contains "--check"
-    And no vendor manifest is written
 
   Scenario: --help prints a concise reference
     When I run "universal-plugin plugin build --help"
