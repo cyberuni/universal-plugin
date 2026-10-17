@@ -1,5 +1,17 @@
 # universal-plugin
 
+## 0.15.0
+
+### Minor Changes
+
+- 30858ab: `plugin build --check` writes nothing and exits 1 when a compiled script is `missing`, `stale` or `version`, naming each one, so CI can fail on a committed script that is behind its source without parsing `--dry-run --format json`. `--dry-run` alone still exits 0.
+- 104a784: A script entry can set `alias` and `keepNames` for its bundle: `{ "source": "src/a.ts", "alias": { "jsonc-parser": "jsonc-parser/lib/esm/main.js" }, "keepNames": true }`.
+
+### Patch Changes
+
+- 30858ab: `plugin build` now writes invisible characters in a compiled script's string, template and regular-expression literals as `\uXXXX` escapes, so a script that inlines a dependency such as `yaml` passes invisible-Unicode skill checks. It warns, naming the file, line and code point, about any it cannot escape.
+- 104a784: `plugin build` no longer fails a script entry whose inlined code dynamically imports a module it already inlines, or calls `import(variable)`.
+
 ## 0.14.1
 
 ### Patch Changes
