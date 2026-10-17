@@ -14,7 +14,7 @@ const argv = process.argv.slice(2)
 const verbose = argv.includes('--verbose')
 const rootFlag = argv.indexOf('--root')
 const root = path.resolve(rootFlag === -1 ? process.cwd() : (argv[rootFlag + 1] ?? process.cwd()))
-// A shared marketplace repository (e.g. cyberuni/marketplace) is cloned separately from any plugin
+// A shared marketplace repository (e.g. cyberuni/cyberplace) is cloned separately from any plugin
 // repo, so it is named explicitly rather than discovered — repeatable, one clone per flag.
 const marketplaceRoots = argv.flatMap((arg, i) => (arg === '--marketplace-root' ? [argv[i + 1]] : [])).filter(Boolean)
 

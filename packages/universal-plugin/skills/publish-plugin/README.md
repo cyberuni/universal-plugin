@@ -12,7 +12,7 @@ for each vendor catalog that exists, then open one PR that updates all of them t
 
 The plugin being published and the marketplace it is going into are different repos, and the current
 working directory could be either. The skill checks the cwd's remote against the target marketplace
-repo (`cyberuni/marketplace` by default) before doing anything else:
+repo (`cyberuni/cyberplace` by default) before doing anything else:
 
 - cwd is the plugin → the marketplace repo gets cloned or forked, as it always did.
 - cwd is already the marketplace → work happens in place; the plugin's metadata is read from wherever

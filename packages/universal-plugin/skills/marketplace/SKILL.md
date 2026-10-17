@@ -77,7 +77,7 @@ Copilot CLI. The reverse does not hold: Claude Code rejects the Codex catalog fo
   have published will not understand why nobody can install.
 - **Ask before editing the README**, and before `--force` replaces anything a user may have written
   by hand.
-- Listing a plugin in the shared `cyberuni/marketplace` repository is a different job: use
+- Listing a plugin in the shared `cyberuni/cyberplace` repository is a different job: use
   `publish-plugin`.
 
 ## Related skills

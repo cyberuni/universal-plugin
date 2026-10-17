@@ -7,7 +7,7 @@ description: Use this skill whenever the user wants to publish, release, submit,
 
 Guides adding an already-packaged plugin to a marketplace repo by opening a pull request. Each vendor runtime may have its own marketplace manifest file inside the marketplace repo — update every one that exists.
 
-**Default marketplace repo:** `cyberuni/marketplace` (adjust if the user targets a different one)
+**Default marketplace repo:** `cyberuni/cyberplace` (adjust if the user targets a different one)
 
 Listing a plugin in a shared repository is not the only way to distribute it. A repository can carry
 its own catalog and let users add it directly as a marketplace. That is the `marketplace` skill; the
@@ -34,7 +34,7 @@ is the common case.
 
 ### 0a. Identify the marketplace repo
 
-Default to `cyberuni/marketplace` unless the user names another one.
+Default to `cyberuni/cyberplace` unless the user names another one.
 
 ### 0b. Identify which repo the cwd is
 
@@ -279,15 +279,15 @@ Otherwise, the marketplace repo is elsewhere and needs a working copy. If the us
 (org member), work directly:
 
 ```bash
-gh repo clone cyberuni/marketplace
-cd marketplace
+gh repo clone cyberuni/cyberplace
+cd cyberplace
 ```
 
 If a fork is needed:
 
 ```bash
-gh repo fork cyberuni/marketplace --clone --remote
-cd marketplace
+gh repo fork cyberuni/cyberplace --clone --remote
+cd cyberplace
 git fetch upstream && git merge upstream/main
 ```
 
@@ -316,7 +316,7 @@ git push origin add-<plugin-name>
 
 ```bash
 gh pr create \
-  --repo cyberuni/marketplace \
+  --repo cyberuni/cyberplace \
   --title "Add <plugin-name> v<version>" \
   --body "$(cat <<'EOF'
 ## Plugin

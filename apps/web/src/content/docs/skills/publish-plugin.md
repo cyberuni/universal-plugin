@@ -3,7 +3,7 @@ title: publish-plugin
 description: List an already-packaged plugin in a shared marketplace repository by opening a pull request.
 ---
 
-Adds an already-packaged plugin to a marketplace repository (`cyberuni/marketplace` by default) by
+Adds an already-packaged plugin to a marketplace repository (`cyberuni/cyberplace` by default) by
 opening a pull request that updates every vendor marketplace file the repository carries.
 
 Listing a plugin in a shared repository is not the only way to distribute it: a repository can carry
