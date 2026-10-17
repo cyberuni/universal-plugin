@@ -75,6 +75,25 @@ describe('compileScripts', () => {
 		})
 	})
 
+	it('passes each entry its own bundle options, and none to an entry that sets none', async () => {
+		manifest({
+			'a.mjs': { source: 'src/a.ts', alias: { x: 'y' }, keepNames: true },
+			'b.mjs': 'src/a.ts',
+		})
+		write('src/a.ts', 'run()\n')
+		const seen: unknown[] = []
+		const recording: ScriptCompiler = {
+			compile: async (source, root, options) => {
+				seen.push(options)
+				return echo.compile(source, root)
+			},
+		}
+
+		await compileScripts(dir, {}, recording)
+
+		expect(seen).toEqual([{ alias: { x: 'y' }, keepNames: true }, {}])
+	})
+
 	it('a dry run writes nothing and reports how each committed file compares', async () => {
 		manifest({ 'a.mjs': 'src/a.ts', 'b.mjs': 'src/b.ts', 'c.mjs': 'src/c.ts', 'd.mjs': 'src/d.ts' }, '1.0.0')
 		for (const s of ['a', 'b', 'c', 'd']) write(`src/${s}.ts`, `${s}()\n`)

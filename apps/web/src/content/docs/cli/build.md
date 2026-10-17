@@ -125,6 +125,21 @@ package; the skill gets only the built file.
   built-ins and its own files keeps readable output. One that inlines a dependency is minified. An
   import the build cannot inline (a package that is not installed) fails that entry and the build
   exits 1.
+- **A dynamic import of a variable stays.** `import(id)` with a specifier known only at run time is
+  left in the output for Node to resolve then, so a library that loads plugins this way still
+  compiles.
+- **Set bundle options per entry.** The object form also takes `alias`, a map from an import to the
+  package specifier or plugin-root-relative path to bundle instead, and `keepNames`, which keeps
+  function and class names for code that reads them at run time:
+
+  ```json
+  "skills/ref/scripts/ref.mjs": {
+    "source": "src/skills/ref.ts",
+    "alias": { "jsonc-parser": "jsonc-parser/lib/esm/main.js" },
+    "keepNames": true
+  }
+  ```
+
 - **Commit the output,** as you commit the vendor manifests, so a git-sourced install carries it too.
   `--dry-run` reports each script as `unchanged`, `missing`, `stale` (its source or imports moved on)
   or `version` (only its embedded version did). `/universal-plugin:doctor-universal-plugin` reports a

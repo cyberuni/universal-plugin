@@ -9,9 +9,11 @@ import {
 	compareScript,
 	composeScript,
 	parseScriptEntries,
+	type ScriptBundleOptions,
 	type ScriptComparison,
 	type ScriptCompiler,
 	type ScriptData,
+	type ScriptEntry,
 	sizeWarning,
 } from './scripts.js'
 
@@ -77,7 +79,7 @@ export async function compileScripts(
 				entry: entry.output,
 				commands,
 			}
-			content = composeScript(await compiler.compile(sourcePath, root), entry, data)
+			content = composeScript(await compiler.compile(sourcePath, root, bundleOptions(entry)), entry, data)
 		} catch (err) {
 			warnings.push(
 				`Failed to compile ${entry.source} → ${entry.output}: ${err instanceof Error ? err.message : String(err)}`,
@@ -102,6 +104,11 @@ export async function compileScripts(
 		rows.push({ path: entry.output, source: entry.source, status: 'compiled', bytes })
 	}
 	return { rows, written, warnings, summary: summarize(rows) }
+}
+
+/** The bundle options the entry sets, and none it does not. */
+function bundleOptions({ alias, keepNames }: ScriptEntry): ScriptBundleOptions {
+	return { ...(alias === undefined ? {} : { alias }), ...(keepNames === undefined ? {} : { keepNames }) }
 }
 
 /** The `package.json` at `packagePath` (`.agents/universal-plugin.json`), which names the package and
