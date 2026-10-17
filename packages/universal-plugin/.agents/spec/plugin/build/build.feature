@@ -869,6 +869,14 @@ Feature: plugin build — derive per-vendor manifests
     Then "skills/demo/scripts/a.mjs" imports nothing but Node built-ins
     And its code is minified
 
+  Scenario: an entry that imports another CLI script runs only its own CLI
+    Given the manifest declares scripts { "skills/demo/scripts/a.mjs": "src/a.ts" }
+    And "src/a.ts" and "src/lib.ts" each guard a CLI on import.meta.url being the main module
+    And "src/a.ts" imports "src/lib.ts"
+    When I run "universal-plugin plugin build"
+    And I run "node skills/demo/scripts/a.mjs --help"
+    Then only the CLI of "src/a.ts" runs
+
   Scenario: a compiled script embeds the package, bin, plugin version and command map
     Given plugin.json carries version "1.2.3"
     And packagePath names a package.json with name "@acme/demo", version "0.0.0-development" and bin "demo"
