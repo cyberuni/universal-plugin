@@ -23,7 +23,7 @@ Resolve that path against this skill's own directory. It asks the project's inst
 (`pnpm exec universal-plugin`), else the CLI pinned to this skill's version (`npx`), about the
 current working directory; add `--root <path>` to diagnose elsewhere.
 Add `--marketplace-root <path>` (repeatable) to also check a **separately-cloned** shared marketplace
-repository (e.g. a local clone of `cyberuni/marketplace`) — see
+repository (e.g. a local clone of `cyberuni/cyberplace`) — see
 [Catalogs are checked at the repository root](#catalogs-are-checked-at-the-repository-root).
 It never prompts and never writes, so it is safe to run unattended.
 
@@ -109,7 +109,7 @@ The detail names the key at fault, so hand it to `/universal-plugin:marketplace`
 entry's fields are derived from the plugin's `plugin.json`, and the catalog's own `name` and `owner`
 are authored in the catalog — which half is at fault decides where the repair goes.
 
-A **shared** marketplace repository (e.g. `cyberuni/marketplace`) is a repository of its own — a bad
+A **shared** marketplace repository (e.g. `cyberuni/cyberplace`) is a repository of its own — a bad
 entry that reached it by another path (a hand-edited entry, a PR from a different tool, a curator
 edit) is invisible to a `doctor` run inside any plugin's own repo, because that run never sees the
 shared repository at all. Clone it separately and name the clone explicitly:

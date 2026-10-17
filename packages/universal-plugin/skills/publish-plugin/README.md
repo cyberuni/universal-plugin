@@ -12,7 +12,7 @@ for each vendor catalog that exists, then open one PR that updates all of them t
 
 The plugin being published and the marketplace it is going into are different repos, and the current
 working directory could be either. The skill checks the cwd's remote against the target marketplace
-repo (`cyberuni/marketplace` by default) before doing anything else:
+repo (`cyberuni/cyberplace` by default) before doing anything else:
 
 - cwd is the plugin → the marketplace repo gets cloned or forked, as it always did.
 - cwd is already the marketplace → work happens in place; the plugin's metadata is read from wherever
@@ -29,6 +29,14 @@ from, so publishing a plugin whose plain dependency the catalog does not list pu
 nobody can install. The skill lists such a dependency in the same PR, or stops and asks for it to be
 published first. A dependency that names another marketplace only needs that marketplace in the
 catalog's `allowCrossMarketplaceDependenciesOn`, which the skill offers to add.
+
+## Some marketplaces take no pull requests
+
+A curated directory, such as `anthropics/claude-plugins-official`, closes pull requests from
+outsiders and takes new plugins through a form. When the user has only read access to the target,
+the skill reads its workflows and Contributing section live, and, if it is curated, drafts the entry
+in the catalog's own shape and hands over the submission link instead of opening a PR. It checks
+each time rather than storing the catalog's rules, because those rules change.
 
 ## Why this is not the `marketplace` skill
 

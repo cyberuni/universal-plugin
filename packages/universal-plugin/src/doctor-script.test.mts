@@ -241,7 +241,7 @@ test('a repository whose catalogs load reports nothing about them', () => {
 	expect(findings()).not.toContain('invalid-catalog')
 })
 
-// A shared marketplace repository (e.g. cyberuni/marketplace) is cloned separately from the plugin —
+// A shared marketplace repository (e.g. cyberuni/cyberplace) is cloned separately from the plugin —
 // nothing at the plugin's own repository root sees a bad entry that reached it another way (issue #74).
 test('a bad entry in a separately-cloned marketplace repository is reported via --marketplace-root', () => {
 	seedRelease()
