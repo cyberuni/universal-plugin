@@ -27,6 +27,7 @@ function nextStep(result: BuildResult, cwd: string): string {
 interface BuildCliOptions {
 	vendor?: string
 	dryRun?: boolean
+	check?: boolean
 	verbose?: boolean
 	clean?: boolean
 	strictDependencies?: boolean
@@ -39,6 +40,7 @@ export function buildCommand(): Command {
 	cmd
 		.option('--vendor <id>', 'Build only the named vendor')
 		.option('--dry-run', 'Print what would be written without writing')
+		.option('--check', 'Write nothing; exit 1 when a compiled script is missing, stale, or on another version')
 		.option('--verbose', 'Print field-by-field transformation decisions')
 		.option('--clean', 'Delete generated manifests before building')
 		.option('--strict-dependencies', 'Fail when a refreshed catalog cannot resolve a declared dependency')
@@ -49,14 +51,17 @@ export function buildCommand(): Command {
 		.action(async (opts: BuildCliOptions) => {
 			try {
 				const root = resolveRoot(opts.root)
+				// `--check` is a dry run that fails on a behind script, for CI (issue #191); `--dry-run`
+				// alone stays a report that exits 0.
+				const dryRun = opts.dryRun || opts.check
 				const result = buildPlugin(root, {
 					vendor: opts.vendor,
-					dryRun: opts.dryRun,
+					dryRun,
 					verbose: opts.verbose,
 					clean: opts.clean,
 				})
 				// Script entries are vendor-neutral, so `--vendor` does not narrow them.
-				const scripts = await compileScripts(root, { dryRun: opts.dryRun }, rolldownCompiler)
+				const scripts = await compileScripts(root, { dryRun }, rolldownCompiler)
 
 				for (const warning of [...result.warnings, ...scripts.warnings]) {
 					process.stderr.write(`warn: ${warning}\n`)
@@ -87,6 +92,15 @@ export function buildCommand(): Command {
 
 				process.stderr.write(nextStep(result, process.cwd()))
 				if (failed > 0 || scripts.summary.failed > 0) process.exitCode = 1
+				if (opts.check && scripts.summary.behind > 0) {
+					const behind = scripts.rows
+						.filter((r) => r.status === 'missing' || r.status === 'stale' || r.status === 'version')
+						.map((r) => `${r.path} (${r.status})`)
+					process.stderr.write(
+						`error: ${behind.length} compiled ${behind.length === 1 ? 'script is' : 'scripts are'} behind: ${behind.join(', ')} — run "universal-plugin plugin build" and commit the result (--check)\n`,
+					)
+					process.exitCode = 1
+				}
 				// The issues were already printed as warnings; strict mode only changes what they cost.
 				if (opts.strictDependencies && result.dependencyIssues.length > 0) {
 					process.stderr.write(

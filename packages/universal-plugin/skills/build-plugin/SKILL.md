@@ -58,6 +58,7 @@ The command never prompts, so it is safe to run unattended.
 | `--vendor <id>` | Build one vendor (`claude-code`, `cursor`, `codex`, `copilot-cli`), and refresh only its catalog |
 | `--verbose` | Print each field-level decision the derivation made |
 | `--strict-dependencies` | Fail when a refreshed catalog cannot resolve a declared dependency. Use in CI |
+| `--check` | Write nothing; exit 1 when a compiled script is `missing`, `stale`, or `version`. Use in CI |
 | `--format json` | The same result as JSON, for scripts |
 
 `--clean` also exists. It deletes derived manifests before rewriting them, so reach for it only
