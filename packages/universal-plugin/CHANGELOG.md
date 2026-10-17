@@ -1,5 +1,14 @@
 # universal-plugin
 
+## 0.14.1
+
+### Patch Changes
+
+- ebf7ebe: The `publish-plugin`, `marketplace`, and `doctor-universal-plugin` skills now name `cyberuni/cyberplace` as the default shared marketplace, replacing the retired `cyberuni/marketplace`.
+- fb60407: `plugin build` now names the tsconfig file and the `extends` path when rolldown cannot load one, and says to add `.json`, instead of reporting only `Tsconfig not found`.
+- ebf7ebe: `publish-plugin` now checks whether the target marketplace takes pull requests at all. With only read access, it reads the target's workflows and Contributing section live; for a curated catalog that closes outside PRs or takes submissions by form, it drafts the entry in that catalog's own shape and hands over the submission link instead of opening a PR.
+- 490dd69: `plugin build` now keeps only the entry's main guard when a script entry imports another script that is itself a CLI. Inlined modules share the compiled file's `import.meta.url`, so before this every inlined CLI ran alongside the entry's.
+
 ## 0.14.0
 
 ### Minor Changes
