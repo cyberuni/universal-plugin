@@ -67,6 +67,32 @@ describe('rolldownCompiler', () => {
 		await expect(rolldownCompiler.compile(path.join(dir, 'src/a.ts'), dir)).rejects.toThrow(/not-installed/)
 	})
 
+	it('compiles a dependency that imports a variable, leaving the import to run time (#187)', async () => {
+		write('node_modules/loader/package.json', JSON.stringify({ name: 'loader', type: 'module', main: 'index.js' }))
+		write('node_modules/loader/index.js', 'export function load(id) {\n\treturn import(id)\n}\n')
+		write('src/a.ts', "import { load } from 'loader'\nconst m = await load('node:path')\nconsole.log(typeof m.join)\n")
+
+		const code = await rolldownCompiler.compile(path.join(dir, 'src/a.ts'), dir)
+
+		expect(code).toMatch(/import\(\w+\)/)
+		write('out/a.mjs', code)
+		expect(execFileSync(process.execPath, [path.join(dir, 'out/a.mjs')], { encoding: 'utf8' })).toBe('function\n')
+	})
+
+	it('compiles a dependency that dynamically imports a module the chunk already inlines (#187)', async () => {
+		write('node_modules/loader/package.json', JSON.stringify({ name: 'loader', type: 'module', main: 'index.js' }))
+		write(
+			'node_modules/loader/index.js',
+			"export function name() {\n\treturn 'loader'\n}\nexport function self() {\n\treturn import('./index.js')\n}\n",
+		)
+		write('src/a.ts', "import { self } from 'loader'\nconsole.log((await self()).name())\n")
+
+		const code = await rolldownCompiler.compile(path.join(dir, 'src/a.ts'), dir)
+
+		write('out/a.mjs', code)
+		expect(execFileSync(process.execPath, [path.join(dir, 'out/a.mjs')], { encoding: 'utf8' })).toBe('loader\n')
+	})
+
 	it('names the tsconfig file and the extends path when rolldown cannot load one', async () => {
 		write('tsconfig.json', JSON.stringify({ files: [], references: [{ path: './packages/a' }] }))
 		write('packages/a/tsconfig.json', JSON.stringify({ extends: './tsconfig.esm' }))

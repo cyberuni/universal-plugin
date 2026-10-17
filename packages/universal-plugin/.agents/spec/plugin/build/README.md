@@ -260,6 +260,8 @@ not a build step.
     `--dry-run` writes nothing and reports `unchanged`, `missing`, `stale` (anything but the embedded
     version differs), or `version` (only the embedded version differs — drift, which
     `publish check-version` reports). The summary appends `scripts <n>`.
+  - An `import(variable)` is left to run time, and a dynamic import of a module the file already
+    inlines resolves in place; neither fails the entry (issue #187).
   - An entry whose source is missing, or that imports something that cannot be inlined, reports
     `failed` with a warning and exits 1; the manifests and the other entries still derive. A malformed
     declaration warns and compiles the entries that parse.
@@ -535,6 +537,7 @@ Grouped by use case; 1:1 with [`build.feature`](./build.feature).
 | dry run: current | rebuilt, nothing changed | `--dry-run reports a current compiled script as unchanged` |
 | dry run: stale | the source changed | `--dry-run reports a compiled script behind its source as stale` |
 | dry run: version | only `plugin.json`'s version moved | `--dry-run reports a compiled script behind only on its version as version` |
+| dynamic import | a dependency calling `import(variable)`, or dynamically importing a module it inlines | `a dynamic import left to run time does not fail a script entry` |
 | guard: unresolved | an import that resolves nowhere | `a script entry that cannot be made self-contained fails` |
 | guard: missing | a source that does not exist | `a script entry whose source is missing fails` |
 | budget | an entry over 150 KB | `a compiled script over the size budget warns` |

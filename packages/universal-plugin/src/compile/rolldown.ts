@@ -45,7 +45,11 @@ export const rolldownCompiler: ScriptCompiler = {
 			if (chunk?.type !== 'chunk' || rest.some((o) => o.type === 'chunk')) {
 				throw new Error('compiles to more than one file')
 			}
-			const external = [...chunk.imports, ...chunk.dynamicImports].filter((id) => !isBuiltin(id))
+			// A dynamic import of a module the chunk already inlines is listed as the chunk itself; the code
+			// resolves it in place. An `import(variable)` is not listed at all: it is left to run time.
+			const external = [...chunk.imports, ...chunk.dynamicImports].filter(
+				(id) => !isBuiltin(id) && id !== chunk.fileName,
+			)
 			if (external.length > 0)
 				throw new Error(
 					`imports ${external.join(', ')}, which could not be inlined — install it where the plugin root resolves it`,

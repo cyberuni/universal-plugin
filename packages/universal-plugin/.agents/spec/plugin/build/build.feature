@@ -906,6 +906,15 @@ Feature: plugin build — derive per-vendor manifests
     When I run "universal-plugin plugin build --dry-run --format json"
     Then the result's scripts lists "skills/demo/scripts/a.mjs" with status "version"
 
+  Scenario: a dynamic import left to run time does not fail a script entry
+    Given the manifest declares scripts { "skills/demo/scripts/a.mjs": "src/a.ts" }
+    And "src/a.ts" imports an installed package that calls "import(id)" with a variable
+    And the package also dynamically imports one of its own modules the file inlines
+    When I run "universal-plugin plugin build"
+    Then the exit code is 0
+    And the result's scripts lists "skills/demo/scripts/a.mjs" with status "compiled"
+    And "skills/demo/scripts/a.mjs" keeps the "import(id)" call
+
   Scenario: a script entry that cannot be made self-contained fails
     Given the manifest declares harnesses for "claude-code" and scripts { "a.mjs": "src/a.ts" }
     And "src/a.ts" imports "not-installed", which resolves nowhere
