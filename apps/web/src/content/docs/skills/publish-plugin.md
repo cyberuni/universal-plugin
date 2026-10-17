@@ -13,7 +13,10 @@ skill](../marketplace/); the two compose, and neither replaces the other.
 ## The four steps
 
 1. **Locate** — work out which of the two repos in play (the plugin, and the marketplace) the
-   current directory is, rather than assuming.
+   current directory is, rather than assuming. With only read access to the marketplace, the skill
+   also reads its workflows and Contributing section. A curated catalog that closes outside pull
+   requests (for example `anthropics/claude-plugins-official`) gets a drafted entry and the
+   submission link instead of a PR.
 2. **Pre-flight** — validate the plugin's `plugin.json` carries the required metadata, that each
    targeted vendor manifest exists and passed `plugin build`, and that any shipped skills have valid
    frontmatter. Nothing proceeds until every check passes.
@@ -38,6 +41,7 @@ skill](../marketplace/); the two compose, and neither replaces the other.
 | Entry installs nothing for a monorepo plugin | Source was `url`/root-clone instead of `git-subdir` |
 | Install fails resolving a dependency | List a plain dependency in the same marketplace, or allow a named marketplace in `allowCrossMarketplaceDependenciesOn` |
 | `marketplace validate` fails | Fix the reported shape before opening the PR |
+| PR closed automatically as soon as it opened | The target is curated; use its submission route instead of a PR |
 
 ## See also
 

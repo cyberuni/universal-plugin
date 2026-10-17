@@ -5,7 +5,7 @@ description: Use this skill whenever the user wants to publish, release, submit,
 
 # Publish Universal Plugin
 
-Guides adding an already-packaged plugin to a marketplace repo by opening a pull request. Each vendor runtime may have its own marketplace manifest file inside the marketplace repo — update every one that exists.
+Guides adding an already-packaged plugin to a marketplace repo by opening a pull request, or, for a curated marketplace that takes no pull requests, by drafting the submission. Each vendor runtime may have its own marketplace manifest file inside the marketplace repo — update every one that exists.
 
 **Default marketplace repo:** `cyberuni/cyberplace` (adjust if the user targets a different one)
 
@@ -17,7 +17,7 @@ two compose, and neither replaces the other.
 
 Publishing has four steps:
 
-0. **Locate** — work out which repo is which, and where the plugin and the marketplace each live
+0. **Locate** — work out which repo is which, where the plugin and the marketplace each live, and whether the marketplace takes PRs at all
 1. **Pre-flight** — validate the plugin is ready
 2. **Prepare entries** — build the entry for each vendor marketplace file that exists, and resolve the plugin's dependencies against the target marketplace
 3. **Submit PR** — one PR that updates all relevant marketplace files
@@ -62,6 +62,36 @@ the user:
 
 Every pre-flight check and entry field in Steps 1–2 reads from the plugin location, not the cwd.
 Step 3 branches on whether the marketplace location is already the cwd.
+
+### 0c. Check how the marketplace takes submissions
+
+Some marketplaces are curated directories that do not take plugins by pull request, for example
+`anthropics/claude-plugins-official`. Check the target live every time; do not rely on what you
+remember about a catalog, because its rules change.
+
+```bash
+gh repo view <marketplace-repo> --json viewerPermission -q .viewerPermission
+```
+
+If the result is `READ` (no write access):
+
+1. List the target's `.github/workflows/` and read any workflow that closes pull requests from
+   outsiders. Note what it lets through, if anything.
+2. Read the README's Contributing section (or `CONTRIBUTING.md`) for the submission route.
+
+If submission is form-only, or a workflow closes outside pull requests automatically, **do not open
+a PR**. Switch to drafting the submission:
+
+- Run Step 1's pre-flight as usual.
+- Resolve dependencies (2f) against the target's **live** catalog, read from its default branch. A
+  plain dependency the catalog does not list cannot be added through a form, so tell the user it
+  will not resolve there.
+- Write the entry in the shape the catalog's existing entries use, not the shape in 2c. For example,
+  when existing entries pin `git-subdir` sources with `ref` and `sha`, use the plugin's release tag
+  and that tag's commit.
+- Hand the user the drafted entry and the submission link the target names. Skip Step 3.
+
+Otherwise (write access, or a fork-and-PR route the target accepts), continue to Step 1.
 
 ---
 
@@ -377,6 +407,7 @@ Return the PR URL to the user when done.
 | Entry installs nothing for a monorepo plugin | `source` was `url`/root-clone instead of `git-subdir` — redo 2b/2c with the plugin's actual repo-relative path |
 | Install fails resolving a dependency | 2f was skipped — list the plain dependency in this marketplace, or allow the named marketplace in `allowCrossMarketplaceDependenciesOn` |
 | `marketplace validate` fails after 2g | Fix the reported shape before opening the PR — do not open it while validation fails |
+| PR closed automatically as soon as it opened | The target is curated — redo 0c and use its submission route instead of a PR |
 | Entry's `repository`/`source.url` points at the marketplace repo | Step 0 role detection was skipped or overridden wrongly — re-check which repo the cwd is |
 
 ---

@@ -30,6 +30,14 @@ nobody can install. The skill lists such a dependency in the same PR, or stops a
 published first. A dependency that names another marketplace only needs that marketplace in the
 catalog's `allowCrossMarketplaceDependenciesOn`, which the skill offers to add.
 
+## Some marketplaces take no pull requests
+
+A curated directory, such as `anthropics/claude-plugins-official`, closes pull requests from
+outsiders and takes new plugins through a form. When the user has only read access to the target,
+the skill reads its workflows and Contributing section live, and, if it is curated, drafts the entry
+in the catalog's own shape and hands over the submission link instead of opening a PR. It checks
+each time rather than storing the catalog's rules, because those rules change.
+
 ## Why this is not the `marketplace` skill
 
 `marketplace` generates a repository's own local catalog — no submission, no shared listing, no PR.
