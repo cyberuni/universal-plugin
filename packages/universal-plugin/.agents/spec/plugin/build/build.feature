@@ -915,6 +915,13 @@ Feature: plugin build — derive per-vendor manifests
     And the result's scripts lists "skills/demo/scripts/a.mjs" with status "compiled"
     And "skills/demo/scripts/a.mjs" keeps the "import(id)" call
 
+  Scenario: a script entry's alias and keepNames reach the bundle
+    Given the manifest declares scripts { "skills/demo/scripts/a.mjs": { "source": "src/a.ts", "alias": { "tiny": "tiny/esm.js" }, "keepNames": true } }
+    And "src/a.ts" imports "tiny" and prints the name of a function it inlines
+    When I run "universal-plugin plugin build"
+    Then "skills/demo/scripts/a.mjs" inlines "tiny/esm.js" in place of "tiny"
+    And running "node skills/demo/scripts/a.mjs" prints the function's original name
+
   Scenario: a script entry that cannot be made self-contained fails
     Given the manifest declares harnesses for "claude-code" and scripts { "a.mjs": "src/a.ts" }
     And "src/a.ts" imports "not-installed", which resolves nowhere

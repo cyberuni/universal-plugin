@@ -13,11 +13,21 @@
 
 /** One declared entry: where the compiled file goes and what it is compiled from, both relative to
  *  the plugin root. `command` is the CLI command path the entry runs (`plugin build`), when it runs
- *  one. */
-export interface ScriptEntry {
+ *  one. `alias` and `keepNames` are the bundle options an entry can set (issue #187). */
+export interface ScriptEntry extends ScriptBundleOptions {
 	output: string
 	source: string
 	command?: string
+}
+
+/** The bundle options an entry can set.
+ *
+ *  - `alias` maps an import specifier to the one the bundle resolves instead: a package
+ *    (`jsonc-parser/lib/esm/main.js`) or a path relative to the plugin root (`./src/shim.ts`).
+ *  - `keepNames` keeps the `name` of functions and classes, for code that reads it at run time. */
+export interface ScriptBundleOptions {
+	alias?: Record<string, string>
+	keepNames?: boolean
 }
 
 /** The data every compiled script carries, read at run time from `globalThis[SCRIPT_GLOBAL]`. */
@@ -81,14 +91,29 @@ function parseEntry(output: string, value: unknown): ScriptEntry | string {
 	if (value === null || typeof value !== 'object' || Array.isArray(value)) {
 		return `scripts "${output}" must map to a source path or { source, command }`
 	}
-	const { source, command } = value as Record<string, unknown>
+	const { source, command, alias, keepNames } = value as Record<string, unknown>
 	if (typeof source !== 'string' || source.length === 0) return `scripts "${output}" has no source`
 	if (command !== undefined && (typeof command !== 'string' || command.trim().length === 0)) {
 		return `scripts "${output}" has a command that is not a command path`
 	}
-	return command === undefined
-		? { output: normalized, source }
-		: { output: normalized, source, command: command.trim().split(/\s+/).join(' ') }
+	if (alias !== undefined && !isStringMap(alias)) {
+		return `scripts "${output}" has an alias that is not a map from import specifier to replacement`
+	}
+	if (keepNames !== undefined && typeof keepNames !== 'boolean') {
+		return `scripts "${output}" has a keepNames that is not true or false`
+	}
+	return {
+		output: normalized,
+		source,
+		...(command === undefined ? {} : { command: command.trim().split(/\s+/).join(' ') }),
+		...(alias === undefined ? {} : { alias }),
+		...(keepNames === undefined ? {} : { keepNames }),
+	}
+}
+
+function isStringMap(value: unknown): value is Record<string, string> {
+	if (value === null || typeof value !== 'object' || Array.isArray(value)) return false
+	return Object.entries(value).every(([k, v]) => k.length > 0 && typeof v === 'string' && v.length > 0)
 }
 
 /** A `/`-separated path relative to the plugin root, without `./`; `null` when it is absolute or
@@ -185,8 +210,8 @@ export function sizeWarning(output: string, bytes: number, bin: string | null): 
 	return `${output} is ${kb(bytes)}, over the ${kb(SIZE_BUDGET_BYTES)} budget for a compiled skill script — have the skill call ${call} instead`
 }
 
-/** Compiles one entry into a single self-contained ES module. Implemented by an adapter (rolldown);
- *  rejects when the entry cannot be made self-contained. */
+/** Compiles one entry into a single self-contained ES module, with the bundle options the entry
+ *  sets. Implemented by an adapter (rolldown); rejects when the entry cannot be made self-contained. */
 export interface ScriptCompiler {
-	compile(sourcePath: string, root: string): Promise<string>
+	compile(sourcePath: string, root: string, options?: ScriptBundleOptions): Promise<string>
 }

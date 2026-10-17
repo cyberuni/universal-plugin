@@ -2,7 +2,7 @@ import { isBuiltin } from 'node:module'
 import * as path from 'node:path'
 import type { Plugin } from 'rolldown'
 import { neutralizeMainGuards } from './main-guard.js'
-import type { ScriptCompiler } from './scripts.js'
+import type { ScriptBundleOptions, ScriptCompiler } from './scripts.js'
 import { explainTsconfigFailure, failedExtends } from './tsconfig-diagnosis.js'
 
 /** Keeps only the entry's main guard, so an entry that imports another script runs one CLI. */
@@ -22,16 +22,22 @@ function onlyEntryMain(): Plugin {
  *
  *  An entry that inlines only its own source keeps readable output — in effect its types are
  *  stripped. One that inlines a dependency is minified, because that is the code the size budget is
- *  for. rolldown is loaded only when a plugin declares a script. */
+ *  for. rolldown is loaded only when a plugin declares a script.
+ *
+ *  An entry's `alias` becomes `resolve.alias`, with a relative target resolved from the plugin root;
+ *  its `keepNames` is passed to both outputs, so minifying keeps the names too. */
 export const rolldownCompiler: ScriptCompiler = {
-	async compile(sourcePath, root) {
+	async compile(sourcePath, root, options = {}) {
 		const { rolldown } = await import('rolldown')
 		const unresolved: string[] = []
+		const alias = resolveAlias(options, root)
+		const output = { format: 'esm', codeSplitting: false, keepNames: options.keepNames ?? false } as const
 		const bundle = await rolldown({
 			input: sourcePath,
 			cwd: root,
 			platform: 'node',
 			plugins: [onlyEntryMain()],
+			...(alias === undefined ? {} : { resolve: { alias } }),
 			// An import rolldown cannot resolve would stay an import — a script that fails in the skill
 			// folder — so it fails the compile. Every other log is rolldown's to keep to itself.
 			onLog(_level, log) {
@@ -40,7 +46,7 @@ export const rolldownCompiler: ScriptCompiler = {
 		})
 		try {
 			if (unresolved.length > 0) throw new Error(unresolved.join('\n'))
-			const readable = await bundle.generate({ format: 'esm', codeSplitting: false })
+			const readable = await bundle.generate(output)
 			const [chunk, ...rest] = readable.output
 			if (chunk?.type !== 'chunk' || rest.some((o) => o.type === 'chunk')) {
 				throw new Error('compiles to more than one file')
@@ -56,7 +62,7 @@ export const rolldownCompiler: ScriptCompiler = {
 				)
 			const inlinesDependency = chunk.moduleIds.some((id) => id.split(path.sep).includes('node_modules'))
 			if (!inlinesDependency) return chunk.code
-			const minified = await bundle.generate({ format: 'esm', codeSplitting: false, minify: true })
+			const minified = await bundle.generate({ ...output, minify: true })
 			return (minified.output[0] as { code: string }).code
 		} catch (error) {
 			// rolldown's message names the `extends` it could not load but not the file declaring it.
@@ -66,4 +72,13 @@ export const rolldownCompiler: ScriptCompiler = {
 			await bundle.close()
 		}
 	},
+}
+
+/** The entry's alias with each relative target (`./`, `../`) made absolute from the plugin root, so it
+ *  does not depend on where rolldown resolves from; `undefined` when the entry sets none. */
+function resolveAlias({ alias }: ScriptBundleOptions, root: string): Record<string, string> | undefined {
+	if (alias === undefined || Object.keys(alias).length === 0) return undefined
+	return Object.fromEntries(
+		Object.entries(alias).map(([from, to]) => [from, /^\.\.?\//.test(to) ? path.resolve(root, to) : to]),
+	)
 }

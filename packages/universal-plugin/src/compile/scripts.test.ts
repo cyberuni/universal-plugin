@@ -70,6 +70,33 @@ describe('parseScriptEntries', () => {
 		])
 	})
 
+	it('reads the bundle options an entry sets', () => {
+		expect(
+			parseScriptEntries({
+				'a.mjs': { source: 'a.ts', alias: { 'jsonc-parser': 'jsonc-parser/lib/esm/main.js' }, keepNames: true },
+			}),
+		).toEqual({
+			entries: [
+				{ output: 'a.mjs', source: 'a.ts', alias: { 'jsonc-parser': 'jsonc-parser/lib/esm/main.js' }, keepNames: true },
+			],
+			errors: [],
+		})
+	})
+
+	it('rejects an alias that is not a string map, or a keepNames that is not a boolean', () => {
+		expect(
+			parseScriptEntries({
+				'a.mjs': { source: 'a.ts', alias: ['x'] },
+				'b.mjs': { source: 'b.ts', alias: { x: 1 } },
+				'c.mjs': { source: 'c.ts', keepNames: 'yes' },
+			}).errors,
+		).toEqual([
+			'scripts "a.mjs" has an alias that is not a map from import specifier to replacement',
+			'scripts "b.mjs" has an alias that is not a map from import specifier to replacement',
+			'scripts "c.mjs" has a keepNames that is not true or false',
+		])
+	})
+
 	it('rejects two entries claiming one command', () => {
 		expect(
 			parseScriptEntries({ 'a.mjs': { source: 'a.ts', command: 'go' }, 'b.mjs': { source: 'b.ts', command: 'go' } })
