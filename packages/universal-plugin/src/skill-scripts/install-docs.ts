@@ -6,6 +6,8 @@ import { execFileSync } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 
+import { adaptSource, type MarketplaceTarget } from '../marketplace/marketplace.js'
+
 const argv = process.argv.slice(2)
 const rootFlag = argv.indexOf('--root')
 const root = path.resolve(rootFlag === -1 ? process.cwd() : (argv[rootFlag + 1] ?? process.cwd()))
@@ -53,6 +55,18 @@ const sections = []
 
 const pluginNames = (catalog: any) => (catalog?.plugins ?? []).map((p: any) => p.name).filter(Boolean)
 
+// A runtime installs only the entries whose source kind it supports, and it reads the Claude catalog
+// when it has none of its own. List what it can install, and say which plugins it cannot.
+const installableNames = (target: MarketplaceTarget, catalog: any): string[] =>
+	(catalog?.plugins ?? [])
+		.filter((p: any) => p?.name && p.source !== undefined && !('omitted' in adaptSource(target, p.source)))
+		.map((p: any) => p.name)
+
+const notInstallable = (installed: string[], label: string): string => {
+	const missing = pluginNames(claude).filter((name: string) => !installed.includes(name))
+	return missing.length === 0 ? '' : `\n\nNot installable on ${label}: ${missing.join(', ')}.`
+}
+
 if (claude) {
 	const names = pluginNames(claude)
 	const installs = (names.length > 0 ? names : ['<plugin>']).map((n: string) => `/plugin install ${n}@${claude.name}`)
@@ -61,18 +75,21 @@ if (claude) {
 }
 
 if (copilot) {
-	const names = pluginNames(copilot)
+	const names = installableNames('copilot', copilot)
 	const installs = (names.length > 0 ? names : ['<plugin>']).map(
 		(n: string) => `copilot plugin install ${n}@${copilot.name}`,
 	)
 	targets.push('copilot-cli')
 	sections.push(
-		['**GitHub Copilot CLI**', '', '```', `copilot plugin marketplace add ${repoRef}`, ...installs, '```'].join('\n'),
+		[
+			['**GitHub Copilot CLI**', '', '```', `copilot plugin marketplace add ${repoRef}`, ...installs, '```'].join('\n'),
+			notInstallable(names, 'Copilot CLI'),
+		].join(''),
 	)
 }
 
 if (codex) {
-	const names = pluginNames(codex)
+	const names = installableNames('codex', codex)
 	// Codex installs with `plugin add`; Copilot CLI installs with `plugin install`. Not interchangeable.
 	const installs = (names.length > 0 ? names : ['<plugin>']).map((n: string) => `codex plugin add ${n}@${codex.name}`)
 	targets.push('codex')
@@ -86,7 +103,9 @@ if (codex) {
 			'```',
 			'',
 			'Start a new session before using the plugin.',
-		].join('\n'),
+		]
+			.join('\n')
+			.concat(notInstallable(names, 'Codex')),
 	)
 }
 

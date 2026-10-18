@@ -208,19 +208,155 @@ export function absoluteSource(origin: MarketplaceOrigin, source: string | Catal
 	return { source: 'git-subdir', url: origin.url, path: subdir }
 }
 
-/** The source forms each runtime installs from./** The source forms each runtime installs from.
+/** The source forms each runtime installs from.
  *
  *  Every runtime takes a repository path. Beyond that they diverge, and the divergence is not
  *  cosmetic: a catalog is read at install time in someone else's terminal, so a source a runtime
  *  cannot resolve is a failure far from here. Claude Code's schema documents the full tagged set
- *  (<https://json.schemastore.org/claude-code-marketplace.json>). Codex documents npm alongside a
- *  local path. Copilot CLI and Cursor document local paths only, which is why an npm entry reaches
- *  two catalogs rather than four (`.research/local-marketplaces`, and issue #86). */
+ *  (<https://json.schemastore.org/claude-code-marketplace.json>). The rest was found by running the
+ *  CLIs (`.research/local-marketplaces`, "Remote entry sources"):
+ *
+ *  - Codex installs `npm`, `url` and `git-subdir`, and silently drops a `github` entry.
+ *  - Copilot CLI installs `github` (also with `path`) and `url`, and refuses the *whole*
+ *    marketplace over a single `npm` or `git-subdir` entry.
+ *  - Cursor's shipped bundle resolves `github`, `url` and `git-subdir`, all by git URL, and has no
+ *    `npm` source. Read from the bundle, not run. */
 export const TARGET_SOURCE_KINDS: Record<MarketplaceTarget, readonly string[]> = {
 	claude: ['path', 'npm', 'github', 'url', 'git-subdir'],
-	codex: ['path', 'npm'],
-	copilot: ['path'],
-	cursor: ['path'],
+	codex: ['path', 'npm', 'url', 'git-subdir'],
+	copilot: ['path', 'github', 'url'],
+	cursor: ['path', 'github', 'url', 'git-subdir'],
+}
+
+/** The kind name used to decide whether a runtime accepts a source: a repository path, or the tag. */
+export function sourceKindOf(source: string | CatalogSource): string {
+	if (isLocalCatalogSource(source)) return 'path'
+	return typeof source === 'string' ? 'path' : source.source
+}
+
+/** The runtimes that read `.claude-plugin/marketplace.json` when they find no catalog of their own
+ *  ahead of it. Copilot CLI looks in `.github/plugin/` before `.claude-plugin/` (verified by running
+ *  it against a repository carrying both). Cursor's bundle lists `.cursor-plugin/marketplace.json`
+ *  first (read, not run). Codex prefers `.agents/plugins/marketplace.json` (E-CODEX-M22). So a
+ *  catalog of the runtime's own shields it from whatever the Claude catalog holds. */
+export const CLAUDE_CATALOG_READERS: readonly MarketplaceTarget[] = ['codex', 'copilot', 'cursor']
+
+export type SourceAdaptation = { source: string | CatalogSource } | { omitted: string }
+
+function pickPins(source: CatalogSource): Record<string, string> {
+	const pins: Record<string, string> = {}
+	if (typeof source.ref === 'string') pins.ref = source.ref
+	if (typeof source.sha === 'string') pins.sha = source.sha
+	return pins
+}
+
+/** A git URL ending in `.git`, which Cursor requires of `url` and `git-subdir`. Only a GitHub URL is
+ *  known to serve the same repository with the suffix, so any other host's URL is left as written. */
+function withGitSuffix(url: string): string | undefined {
+	if (/\.git$/.test(url)) return url
+	return GITHUB_URL.test(url) ? `${url.replace(/\/+$/, '')}.git` : undefined
+}
+
+/** Turns a source into the closest one a runtime installs, or says why none exists.
+ *
+ *  A mapping is made only where it is lossless: `github` becomes a `url` (or, with a `path`, a
+ *  `git-subdir`) on Codex, and a `git-subdir` on a GitHub URL becomes `github` + `path` on Copilot
+ *  CLI. `ref` and `sha` pins cross with it. Anything else the runtime cannot install is omitted,
+ *  because writing it would have the runtime drop the entry or refuse the whole catalog. */
+export function adaptSource(target: MarketplaceTarget, source: string | CatalogSource): SourceAdaptation {
+	const kind = sourceKindOf(source)
+	if (kind === 'path' || typeof source === 'string') return { source }
+	const supported = TARGET_SOURCE_KINDS[target].includes(kind)
+
+	// Codex has no `github` source and Cursor's `github` carries no `path`; both state the same
+	// repository as a `.git` URL, with a `git-subdir` when a subdirectory is named.
+	const viaUrl = target === 'codex' || (target === 'cursor' && typeof source.path === 'string')
+	if (viaUrl && kind === 'github' && typeof source.repo === 'string') {
+		const url = `https://github.com/${source.repo}.git`
+		return typeof source.path === 'string'
+			? { source: { source: 'git-subdir', url, path: source.path, ...pickPins(source) } }
+			: { source: { source: 'url', url, ...pickPins(source) } }
+	}
+	if (
+		target === 'copilot' &&
+		kind === 'git-subdir' &&
+		typeof source.url === 'string' &&
+		typeof source.path === 'string'
+	) {
+		const match = GITHUB_URL.exec(source.url.trim())
+		if (match) return { source: { source: 'github', repo: match[1] as string, path: source.path, ...pickPins(source) } }
+		return { omitted: 'git-subdir is installable only from a GitHub URL, which is mapped to github with a path' }
+	}
+	if (!supported) return { omitted: `${kind} source is not supported by ${target}` }
+	if (target === 'cursor' && (kind === 'url' || kind === 'git-subdir') && typeof source.url === 'string') {
+		const url = withGitSuffix(source.url)
+		if (url === undefined) return { omitted: `cursor requires a ".git" URL for a ${kind} source` }
+		return { source: url === source.url ? source : { ...source, url } }
+	}
+	return { source }
+}
+
+export interface OmittedEntry {
+	name: string
+	reason: string
+}
+
+/** Applies `adaptSource` to every entry of a serialized catalog: an entry is rewritten where a
+ *  mapping exists and removed where none does. The content comes back untouched when nothing
+ *  changed, so a catalog that needed no adapting is not reformatted. */
+export function adaptCatalogContent(
+	target: MarketplaceTarget,
+	content: string,
+): { content: string; omitted: OmittedEntry[] } {
+	let parsed: unknown
+	try {
+		parsed = JSON.parse(content)
+	} catch {
+		return { content, omitted: [] }
+	}
+	if (typeof parsed !== 'object' || parsed === null || !Array.isArray((parsed as Record<string, unknown>).plugins)) {
+		return { content, omitted: [] }
+	}
+	const catalog = parsed as Record<string, unknown>
+	const omitted: OmittedEntry[] = []
+	let changed = false
+	const plugins: unknown[] = []
+	for (const entry of catalog.plugins as unknown[]) {
+		if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) {
+			plugins.push(entry)
+			continue
+		}
+		const record = entry as Record<string, unknown>
+		const source = record.source
+		if (typeof source !== 'string' && (typeof source !== 'object' || source === null)) {
+			plugins.push(entry)
+			continue
+		}
+		const adapted = adaptSource(target, source as string | CatalogSource)
+		if ('omitted' in adapted) {
+			omitted.push({ name: typeof record.name === 'string' ? record.name : '(unnamed)', reason: adapted.omitted })
+			changed = true
+		} else if (adapted.source !== source) {
+			plugins.push({ ...record, source: adapted.source })
+			changed = true
+		} else {
+			plugins.push(entry)
+		}
+	}
+	if (!changed) return { content, omitted }
+	return { content: json({ ...catalog, plugins }), omitted }
+}
+
+/** The catalog a runtime that also reads the Claude catalog should carry of its own, derived from
+ *  the Claude one: the same identity and entries, each adapted to what that runtime installs. */
+export function deriveSharedCatalog(target: MarketplaceTarget, claudeContent: string): string {
+	const claude = parseCatalog(claudeContent, TARGET_CATALOG_PATHS.claude)
+	const metadata = existingMetadata(claude)
+	const base = JSON.parse(serializeTarget(target, metadata, [])[0]?.content ?? '{}') as Record<string, unknown>
+	const plugins = Array.isArray(claude.plugins) ? claude.plugins : []
+	const adapted = adaptCatalogContent(target, json({ plugins }))
+	base.plugins = (JSON.parse(adapted.content) as { plugins: unknown[] }).plugins
+	return json(base)
 }
 
 /** Folds one plugin's entry into a catalog that may already exist, and returns the artifact to

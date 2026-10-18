@@ -201,6 +201,12 @@ function initCommand(): Command {
 					})),
 					summary: `${results.length} targets`,
 				})
+				for (const row of results) {
+					for (const entry of row.omitted ?? []) {
+						process.stderr.write(`warning: omitted "${entry.name}" from ${row.target}: ${entry.reason}\n`)
+					}
+					if (row.reason) process.stderr.write(`${row.target}: ${row.reason}\n`)
+				}
 				process.stderr.write(
 					'Generated repository metadata only; no marketplace publication, registration, installation, authentication, or provisioning occurred.\n',
 				)

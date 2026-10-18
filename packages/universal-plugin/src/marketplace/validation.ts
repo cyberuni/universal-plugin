@@ -1,4 +1,4 @@
-import type { MarketplaceTarget } from './marketplace.js'
+import { adaptSource, type CatalogSource, type MarketplaceTarget, sourceKindOf } from './marketplace.js'
 
 /** One thing a catalog says that its runtime will reject, named by where it says it. */
 export interface CatalogIssue {
@@ -196,12 +196,44 @@ function validateCodex(catalog: Json): CatalogIssue[] {
 	return issues
 }
 
+/** What a runtime does with a source kind it cannot install: Copilot CLI refuses the whole
+ *  catalog, Codex drops the entry without a word, Cursor skips it. All three leave the plugin
+ *  uninstallable, so each is an issue rather than a note
+ *  (`.research/local-marketplaces`, "Remote entry sources"). */
+const REJECTION: Partial<Record<MarketplaceTarget, string>> = {
+	copilot: 'Copilot CLI refuses the whole catalog',
+	codex: 'Codex silently drops the entry',
+	cursor: 'Cursor skips the entry',
+}
+
+/** Entries whose source `target` cannot install, one issue each. A source `adaptSource` can map is
+ *  still an issue here: this checks what a catalog says, not what the generator could have written. */
+export function sourceKindIssues(target: MarketplaceTarget, catalog: unknown): CatalogIssue[] {
+	if (!isObject(catalog) || !Array.isArray(catalog.plugins) || target === 'claude') return []
+	const issues: CatalogIssue[] = []
+	catalog.plugins.forEach((entry, index) => {
+		if (!isObject(entry)) return
+		const source = entry.source
+		if (typeof source !== 'string' && !isObject(source)) return
+		const adapted = adaptSource(target, source as string | CatalogSource)
+		const unchanged = 'source' in adapted && adapted.source === source
+		if (unchanged) return
+		const kind = sourceKindOf(source as string | CatalogSource)
+		const fix = 'source' in adapted ? ` — write ${JSON.stringify(adapted.source)}` : ' — omit the entry'
+		issues.push({
+			path: `plugins[${index}].source`,
+			message: `${kind} source is not installable by ${target}; ${REJECTION[target]}${fix}`,
+		})
+	})
+	return issues
+}
+
 /** Every issue a target's runtime would raise against this catalog, empty when it loads. */
 export function validateCatalog(target: MarketplaceTarget, catalog: unknown): CatalogIssue[] {
 	if (!isObject(catalog)) return [{ path: '', message: `catalog must be a JSON object, not ${typeName(catalog)}` }]
-	return target === 'codex' ? validateCodex(catalog) : validateClaudeShaped(catalog)
+	const shape = target === 'codex' ? validateCodex(catalog) : validateClaudeShaped(catalog)
+	return [...shape, ...sourceKindIssues(target, catalog)]
 }
-
 /** The same check against a catalog still in its serialized form. Text that does not parse is one
  *  issue rather than a thrown error, so a caller checking four files reports all four. */
 export function validateCatalogContent(target: MarketplaceTarget, content: string): CatalogIssue[] {

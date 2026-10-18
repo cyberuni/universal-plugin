@@ -74,8 +74,12 @@ test('an npm source reaches the runtimes that install from npm and is skipped fo
 			['cursor', 'skipped'],
 		])
 		// A skip says which runtime and why, because the alternative is a catalog refused at install.
-		expect(result[2]?.reason).toMatch(/npm source is not supported by copilot/)
-		expect(fs.existsSync(path.join(root, '.github/plugin/marketplace.json'))).toBe(false)
+		expect(result[2]?.reason).toMatch(/npm source is not supported by copilot; "repobuddy" is left out of/)
+		// Copilot CLI would otherwise read the Claude catalog and refuse it over the npm entry, so it
+		// gets a catalog of its own, which it reads first, without the entry.
+		expect(result[2]?.reason).toMatch(/does not read the Claude one/)
+		expect(entries(root, '.github/plugin/marketplace.json')).toEqual([])
+		expect(entries(root, '.cursor-plugin/marketplace.json')).toEqual([])
 		expect(entries(root, '.agents/plugins/marketplace.json')[0]).toMatchObject({
 			name: 'repobuddy',
 			source: { source: 'npm', package: 'repobuddy' },
@@ -223,12 +227,13 @@ test('a rewritten source reaches only the runtimes that resolve it', () => {
 
 		const result = addToMarketplace(root, 'pods@palo', { from })
 
-		// git-subdir is a Claude Code source form; the other three document local paths only.
+		// Codex installs git-subdir. Copilot CLI cannot, and the host is not GitHub, so there is no
+		// github + path to map it to. Cursor wants a ".git" URL, which this one already is.
 		expect(result.map((row) => [row.target, row.status])).toEqual([
 			['claude', 'added'],
-			['codex', 'skipped'],
+			['codex', 'added'],
 			['copilot', 'skipped'],
-			['cursor', 'skipped'],
+			['cursor', 'added'],
 		])
 		expect(entries(root, '.claude-plugin/marketplace.json')[0]).toMatchObject({
 			source: {
@@ -353,13 +358,19 @@ test('lists one plugin out of a monorepo, pinned to a tag', () => {
 			metadata: { description: 'Agent config evals' },
 		})
 
-		// git-subdir is a Claude Code source form, so the other three cannot resolve it.
+		// A git-subdir on a GitHub URL is a github source with a path on Copilot CLI.
 		expect(result.map((row) => [row.target, row.status])).toEqual([
 			['claude', 'added'],
-			['codex', 'skipped'],
-			['copilot', 'skipped'],
-			['cursor', 'skipped'],
+			['codex', 'added'],
+			['copilot', 'added'],
+			['cursor', 'added'],
 		])
+		expect(entries(root, '.github/plugin/marketplace.json')[0]).toMatchObject({
+			source: { source: 'github', repo: 'cyberuni/cyber-sdd', path: 'plugins/aced', ref: 'v1.2.0' },
+		})
+		expect(entries(root, '.agents/plugins/marketplace.json')[0]).toMatchObject({
+			source: { source: 'git-subdir', url: 'https://github.com/cyberuni/cyber-sdd.git', path: 'plugins/aced' },
+		})
 		// The entry is named for the plugin's directory, not for the repository holding it.
 		expect(entries(root, '.claude-plugin/marketplace.json')[0]).toEqual({
 			name: 'aced',

@@ -10,8 +10,12 @@ import {
 import { deriveMetadata } from './init.js'
 import {
 	absoluteSource,
+	adaptCatalogContent,
+	adaptSource,
 	assertMarketplaceName,
 	type CatalogSource,
+	CLAUDE_CATALOG_READERS,
+	deriveSharedCatalog,
 	isLocalCatalogSource,
 	type MarketplaceMetadata,
 	type MarketplacePlugin,
@@ -19,8 +23,8 @@ import {
 	mergeCatalogEntry,
 	originFromUrl,
 	sameCatalogContent,
+	sourceKindOf,
 	TARGET_CATALOG_PATHS,
-	TARGET_SOURCE_KINDS,
 } from './marketplace.js'
 import { type PluginSpec, parsePluginSpec, type SourceKind } from './spec.js'
 import { formatCatalogIssues, validateCatalogContent } from './validation.js'
@@ -68,12 +72,6 @@ export interface MarketplaceAddResult {
 	source: string
 	path: string
 	reason?: string
-}
-
-/** The kind name used to decide whether a runtime accepts a source, from the source itself. */
-function sourceKindOf(source: string | CatalogSource): string {
-	if (isLocalCatalogSource(source)) return 'path'
-	return typeof source === 'string' ? 'path' : source.source
 }
 
 /** A source rendered for the result table — one short cell, not a JSON blob. */
@@ -227,26 +225,73 @@ export function addToMarketplace(
 		source: resolved.source,
 		metadata: entryMetadata(resolved.metadata, opts.metadata),
 	}
-	const kind = sourceKindOf(resolved.source)
 	const rendered = describeSource(resolved.source)
 
-	const planned = selectedTargets(opts.targets).map((target) => {
+	const targets = selectedTargets(opts.targets)
+	const readCatalogFile = (target: MarketplaceTarget) => {
+		const file = path.join(root, TARGET_CATALOG_PATHS[target])
+		return fs.exists(file) ? fs.read(file) : undefined
+	}
+	// What the Claude catalog will say once this entry is in it, or says now when it is not being
+	// written. Copilot CLI and Cursor read it when they have no catalog of their own.
+	const claudeAfter = targets.includes('claude')
+		? mergeCatalogEntry('claude', metadata, plugin, () => readCatalogFile('claude'), { keepForeignSource: false })
+				.content
+		: readCatalogFile('claude')
+
+	const planned = targets.map((target) => {
 		const catalogPath = TARGET_CATALOG_PATHS[target]
 		const file = path.join(root, catalogPath)
-		const existing = fs.exists(file) ? fs.read(file) : undefined
-		if (!TARGET_SOURCE_KINDS[target].includes(kind)) {
+		const existing = readCatalogFile(target)
+		const adapted = adaptSource(target, resolved.source)
+		if ('omitted' in adapted) {
+			const reason = `${adapted.omitted}; "${name}" is left out of ${catalogPath}`
+			// A runtime with no catalog of its own reads the Claude one, and this entry would break it
+			// there. Writing its own catalog, without the entry, shields it.
+			const shielded =
+				existing === undefined &&
+				CLAUDE_CATALOG_READERS.includes(target) &&
+				target !== 'codex' &&
+				claudeAfter !== undefined
+					? { path: catalogPath, content: deriveSharedCatalog(target, claudeAfter) }
+					: undefined
 			return {
 				target,
 				catalogPath,
 				file,
 				existing,
-				skipped: `${kind} source is not supported by ${target}`,
-				artifact: undefined,
+				skipped: shielded
+					? `${reason}; wrote the catalog without it so ${target} does not read the Claude one`
+					: reason,
+				artifact: shielded,
 			}
 		}
+		const changed = adapted.source !== resolved.source
+		// A runtime without a catalog of its own that would otherwise read the Claude one starts from
+		// that file's entries, so writing its catalog does not drop the plugins it could install.
+		const base =
+			existing ??
+			(CLAUDE_CATALOG_READERS.includes(target) &&
+			target !== 'codex' &&
+			claudeAfter !== undefined &&
+			adaptCatalogContent(target, claudeAfter).omitted.length > 0
+				? deriveSharedCatalog(target, claudeAfter)
+				: undefined)
 		// `add` was asked for this source, so it is the one caller that replaces an existing one.
-		const artifact = mergeCatalogEntry(target, metadata, plugin, () => existing, { keepForeignSource: false })
-		return { target, catalogPath, file, existing, skipped: undefined, artifact }
+		const artifact = mergeCatalogEntry(target, metadata, { ...plugin, source: adapted.source }, () => base, {
+			keepForeignSource: false,
+		})
+		return {
+			target,
+			catalogPath,
+			file,
+			existing,
+			skipped: undefined,
+			artifact,
+			mapped: changed
+				? `${sourceKindOf(resolved.source)} source written as ${describeSource(adapted.source)}`
+				: undefined,
+		}
 	})
 
 	for (const entry of planned) {
@@ -272,15 +317,15 @@ export function addToMarketplace(
 
 	const results: MarketplaceAddResult[] = planned.map((entry) => {
 		const row = { target: entry.target, entry: name, source: rendered, path: entry.catalogPath }
-		if (entry.skipped || !entry.artifact) {
-			return { ...row, status: 'skipped' as const, source: rendered, reason: entry.skipped }
-		}
+		if (entry.skipped) return { ...row, status: 'skipped' as const, reason: entry.skipped }
+		if (!entry.artifact) return { ...row, status: 'skipped' as const }
+		const mapped = 'mapped' in entry ? { reason: entry.mapped } : {}
 		if (entry.existing !== undefined && sameCatalogContent(entry.existing, entry.artifact.content)) {
-			return { ...row, status: 'unchanged' as const }
+			return { ...row, ...mapped, status: 'unchanged' as const }
 		}
-		if (opts.dryRun) return { ...row, status: 'planned' as const }
+		if (opts.dryRun) return { ...row, ...mapped, status: 'planned' as const }
 		const existed = entry.existing !== undefined && catalogEntry(entry.existing, name) !== undefined
-		return { ...row, status: existed ? ('updated' as const) : ('added' as const) }
+		return { ...row, ...mapped, status: existed ? ('updated' as const) : ('added' as const) }
 	})
 
 	if (!opts.dryRun) {
