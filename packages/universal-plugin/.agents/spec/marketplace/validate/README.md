@@ -52,6 +52,15 @@ service.
   entries carrying a required `name` and a `source` — the `local` object form included, which the
   Claude rules reject. No entry `version` is required
   (`.research/local-marketplaces`, E-CODEX-M16).
+- A source kind the target's runtime cannot install is an issue on `plugins[i].source`, naming the kind,
+  the runtime and what it does with the entry (Copilot CLI refuses the whole catalog, Codex silently
+  drops the entry, Cursor skips it), and the source to write where a mapping exists. The kinds are
+  `TARGET_SOURCE_KINDS`: Codex `path npm url git-subdir`, Copilot CLI `path github url`, Cursor
+  `path github url git-subdir` (a `.git` URL). Claude Code accepts all.
+- A runtime with no catalog of its own reads `.claude-plugin/marketplace.json`, so for Codex, Copilot CLI
+  and Cursor a missing catalog is checked against the Claude file's entries: if the runtime would reject
+  or drop one, the target is `invalid`, reported against the Claude path, and the issue says which
+  catalog to write to shield it. A runtime with a catalog of its own is judged by that file alone.
 - A `./` source is checked for existence under `--root`. A source that resolves nowhere satisfies
   every schema and still installs nothing.
 - In the Claude catalog — Claude Code is the only runtime that reads plugin dependencies — each listed
@@ -98,6 +107,8 @@ this command:
 | self-qualified | a dependency qualified with this catalog's name | `a dependency that names its marketplace is not held to the listing` |
 | local manifest dependency | a `./` plugin's manifest declares a dependency the catalog does not list | `a local plugin's declared dependency is checked against the catalog` |
 | cross-marketplace | a dependency on another marketplace, not allowlisted | `a cross-marketplace dependency needs the allowlist` |
+| unsupported source | a Copilot catalog listing an npm entry | `a source kind the runtime cannot install is reported` |
+| shared catalog | no Copilot catalog, an npm entry in the Claude one | `a runtime reading the Claude catalog is checked against it` |
 | Codex rules | the Codex catalog with its local source | `the Codex catalog is judged by Codex rules` |
 | not JSON | a catalog that is not JSON | `a catalog that is not JSON is one issue, not a crash` |
 | machine output | `--format json` | `json output carries the rows and the issues` |

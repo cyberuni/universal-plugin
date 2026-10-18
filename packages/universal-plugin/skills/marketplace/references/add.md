@@ -47,20 +47,32 @@ must be the full 40-character hash, which the schema requires.
 
 ## 2. Choose targets, and know what will be skipped
 
-Not every runtime installs from every source. Only a repository path reaches all four:
+Not every runtime installs from every source. Found by running the CLIs, not from the schema:
 
 | Source | Claude Code | Codex | Copilot CLI | Cursor |
 | --- | --- | --- | --- | --- |
 | path | yes | yes | yes | yes |
 | npm | yes | yes | — | — |
-| github, url, git-subdir | yes | — | — | — |
+| github | yes | written as `url` | yes (also with `path`) | yes; with `path`, written as `git-subdir` |
+| url | yes | yes | yes | yes, `.git` URL |
+| git-subdir | yes | yes | on a GitHub URL, written as `github` + `path`; otherwise — | yes, `.git` URL |
 
-A target that cannot resolve the source is reported `skipped` with the reason, and no file is
-written for it. That is deliberate: a source a runtime refuses is an install failure in someone
-else's terminal. Say which targets were skipped and why — do not report "added" and leave the user
-to discover that two catalogs have no entry.
+Cursor's row is read from its shipped bundle, not run. Where the table says "written as", the command
+rewrites the source for that catalog and keeps `ref` and `sha`; nothing is lost.
 
-With no target flags all four are selected, so the skips are the normal case for an npm package.
+A target that still cannot resolve the source is reported `skipped` with the reason, naming the entry
+and the runtime, and the entry is not written to that catalog. That is deliberate: Copilot CLI refuses
+the **whole** catalog over one `npm` or `git-subdir` entry, and Codex drops a `github` entry without a
+word. Say which targets were skipped and why — do not report "added" and leave the user to discover
+that two catalogs have no entry.
+
+Copilot CLI and Cursor also read `.claude-plugin/marketplace.json` when they have no catalog of their
+own. So a skip for either one writes its catalog anyway, derived from the Claude one without the entry:
+a catalog of its own is read first and shields it. Tell the user those two files appeared and why.
+
+With no target flags all four are selected, so skips are the normal case for an npm package.
+Plugins that only npm can deliver reach Copilot CLI and Cursor only if they are vendored into this
+repository as a `./` path, which this command does not do.
 
 ## 3. Supply the metadata
 
@@ -127,8 +139,8 @@ own git remote — which is also how `--from` resolves one. A marketplace with n
 there is no URL to rewrite against, and a bare path would name a directory this repository does not
 have.
 
-Both rewritten forms are Claude Code source types, so expect Codex, Copilot CLI, and Cursor to be
-skipped for a subdirectory plugin.
+A subdirectory plugin reaches Codex and Cursor as `git-subdir`, and Copilot CLI as `github` + `path`
+when the repository is on GitHub; on another host Copilot CLI is skipped.
 
 ## 6. Validate
 

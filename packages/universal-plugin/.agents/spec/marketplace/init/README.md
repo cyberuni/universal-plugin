@@ -93,6 +93,15 @@ proving a discovered plugin will install successfully in every vendor runtime.
   that is not JSON has nothing to preserve and is regenerated whole under `--force`.
 - Folding reads the existing catalog, so it happens only after that path is proved to resolve within
   `--root`.
+- Each runtime's catalog holds only entries that runtime installs. A kept entry is rewritten where a
+  lossless mapping exists (`github` to `url` on Codex, `git-subdir` on GitHub to `github` + `path` on
+  Copilot CLI) and left out where none does; each omission is reported on the row (`omitted`, and a
+  warning on stderr naming the entry and the runtime). See `marketplace add` for the kinds and mappings.
+- A runtime with no catalog of its own starts from the kept entries of the Claude catalog it would
+  otherwise read. Copilot CLI and Cursor read `.claude-plugin/marketplace.json` when their own catalog
+  is absent, and one entry they cannot install makes Copilot CLI refuse it whole, so when `--claude` is
+  selected and the Claude catalog holds such an entry, `init` also writes the Copilot and Cursor catalogs
+  even if they were not selected. Their own catalogs come first in their search, which shields them.
 - A result row's plugin list names what the catalog ends up listing, discovered and kept alike.
 - Generation is deterministic: candidates sort by plugin name and equivalent existing JSON is
   `unchanged` regardless of object-key order or whitespace.
@@ -190,6 +199,8 @@ flowchart TD
 | foreign entry kept | the catalog lists an entry with a non-local source | `an entry discovery cannot produce survives a regeneration` |
 | stale local dropped | the catalog lists a `./` entry discovery no longer finds | `a local entry discovery no longer finds is dropped` |
 | foreign source kept | a discovered plugin's entry names a non-local source | `a discovered plugin distributed elsewhere keeps that source` |
+| per-runtime kinds | kept entries a runtime cannot install | `a runtime's catalog leaves out the entries it cannot install` |
+| shielding | Claude catalog with an npm entry, `--claude` only | `a catalog that shields a runtime from the Claude catalog is always written` |
 | foreign convergence | the catalog already carries a kept entry | `a kept entry is not a conflict on rerun` |
 | unparseable existing | the existing catalog is not JSON | `a catalog that is not JSON is regenerated under force` |
 | allowlist kept | the catalog carries `allowCrossMarketplaceDependenciesOn`; `--force` | `a forced regeneration keeps the cross-marketplace allowlist` |

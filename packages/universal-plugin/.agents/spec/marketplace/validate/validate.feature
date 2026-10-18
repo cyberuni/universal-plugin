@@ -91,3 +91,18 @@ Feature: marketplace validate — check the local catalogs against the schema ea
     When I run "universal-plugin marketplace validate --format json --root <root>"
     Then stdout is a JSON array of rows carrying target status path and issues
     And the exit code is 0
+
+  Scenario: a source kind the runtime cannot install is reported
+    Given the Copilot catalog lists an entry with an npm source
+    When I run "universal-plugin marketplace validate --copilot --root <root>"
+    Then the Copilot target is reported invalid
+    And an issue names key "plugins[0].source", the kind "npm", and that Copilot CLI refuses the whole catalog
+    And the exit code is 1
+
+  Scenario: a runtime reading the Claude catalog is checked against it
+    Given the Claude catalog lists an entry with an npm source
+    And no Copilot catalog exists
+    When I run "universal-plugin marketplace validate --copilot --root <root>"
+    Then the Copilot target is reported invalid against the Claude catalog path
+    And the issue says to write the Copilot catalog to shield it
+    And the exit code is 1

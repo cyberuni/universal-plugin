@@ -28,8 +28,8 @@ resolves to a real plugin.
 | Entry point | Trigger | Inputs | Outcome |
 |---|---|---|---|
 | `marketplace add <path>` | A maintainer lists a plugin held outside the scan roots. | A `./`-prefixed path, or any path with `--path`. | Every selected catalog gains an entry whose source is that path. |
-| `marketplace add npm:<pkg>` | A plugin is distributed through npm. | A package name. | Claude and Codex gain an npm entry; Copilot and Cursor are skipped. |
-| `marketplace add <owner>/<repo>` | A plugin is distributed from a forge. | An `owner/repo` slug or a git URL. | Claude gains the entry; the other three are skipped. |
+| `marketplace add npm:<pkg>` | A plugin is distributed through npm. | A package name. | Claude and Codex gain an npm entry; Copilot and Cursor are skipped, and shielded from the Claude catalog. |
+| `marketplace add <owner>/<repo>` | A plugin is distributed from a forge. | An `owner/repo` slug or a git URL. | Claude and Copilot gain a `github` entry; Codex gains the same repository as a `url` (or `git-subdir`) entry; Cursor gains `github`, or `git-subdir` when a subdirectory is named. |
 | `marketplace add <plugin>@<marketplace>` | A maintainer re-lists a plugin another marketplace publishes. | An installed marketplace, or `--from <dir>`. | The copied entry's own source and metadata are written. |
 | `marketplace add … --dry-run` | A maintainer reviews the entry and the skips. | Any spec plus `--dry-run`. | The plan is reported and no catalog changes. |
 | `marketplace add … --force` | A maintainer replaces an entry already listed differently. | A conflicting entry name plus `--force`. | Only that entry is replaced. |
@@ -61,13 +61,26 @@ resolves to a real plugin.
 
 ### Source and target decisions
 
-- Every runtime installs from a repository path. Beyond that: Claude Code accepts the schema's full
-  tagged set (`npm`, `github`, `url`, `git-subdir`), Codex accepts `npm`, and Copilot CLI and Cursor
-  accept neither.
-- A selected target that cannot resolve the source is reported `skipped` with the reason and no file
-  is written for it. Writing a source a runtime refuses moves the failure to install time, in
-  another user's terminal.
-- With no target flags, all four are selected, so skipping is the ordinary outcome for a non-local
+- Every runtime installs from a repository path. Beyond that, found by running the CLIs
+  (`.research/local-marketplaces`, "Remote entry sources"): Claude Code accepts the schema's full
+  tagged set (`npm`, `github`, `url`, `git-subdir`); Codex accepts `npm`, `url` and `git-subdir` and
+  silently drops `github`; Copilot CLI accepts `github` (with or without `path`) and `url`, and refuses
+  the **whole** catalog over one `npm` or `git-subdir` entry; Cursor accepts `github`, `url` and
+  `git-subdir` by `.git` URL and has no `npm` (read from its bundle, not run).
+- Where a lossless mapping exists the source is rewritten for that catalog, keeping `ref` and `sha`:
+  `github` becomes a `url` on Codex (a `git-subdir` when it names a `path`, as on Cursor, whose `github`
+  carries no path), and a `git-subdir` on a GitHub URL becomes `github` + `path` on Copilot CLI. A Cursor
+  `url` or `git-subdir` must end in `.git`; a GitHub URL is given the suffix and any other is not.
+- A selected target that still cannot resolve the source is reported `skipped` with the reason, naming
+  the entry and the runtime, and the entry is not written to that catalog. Writing a source a runtime
+  refuses moves the failure to install time, in another user's terminal.
+- **Shielding.** Copilot CLI and Cursor read `.claude-plugin/marketplace.json` when they find no catalog
+  of their own ahead of it (Copilot CLI looks in `.github/plugin/` first, verified by running it;
+  Cursor lists `.cursor-plugin/` first, from its bundle). When a skip leaves such a runtime with no
+  catalog and the Claude catalog holds an entry it cannot install, `add` writes that runtime's catalog
+  anyway, derived from the Claude one with the unsupported entries left out, so the runtime stops reading
+  the Claude file. A catalog the runtime already has is never rewritten by a skip.
+- With no target flags, all four are selected, so a skip is the ordinary outcome for a non-local
   source rather than an error.
 
 ### Metadata decisions
@@ -157,7 +170,7 @@ flowchart TD
 |---|---|---|
 | path source | a `./`-prefixed path | `a path source reaches every runtime` |
 | npm source | an `npm:`-prefixed package | `an npm source reaches the runtimes that install from npm` |
-| github source | an `owner/repo` slug | `a forge source reaches the runtime that resolves it` |
+| github source | an `owner/repo` slug | `a forge source reaches every runtime in the form it installs` |
 | url source | an https or scp-style git URL | `a git URL is read as a url source` |
 | scope not separator | a scoped package name | `a leading scope marker is not a marketplace separator` |
 | marketplace spec | `<plugin>@<marketplace>` | `a marketplace spec names an entry to copy` |
@@ -178,7 +191,8 @@ flowchart TD
 | Edge | Path (Given) | Scenario |
 |---|---|---|
 | unsupported skip | an npm source with every target selected | `a target that cannot resolve the source is skipped with its reason` |
-| no write on skip | a skipped target | `a skipped target's catalog is not written` |
+| shielded skip | an npm source, Copilot and Cursor without catalogs | `a skipped target is shielded from the Claude catalog` |
+| mapped source | a source a runtime states another way | `a source is mapped where the mapping loses nothing` |
 | manifest metadata | a path source whose plugin.json carries fields | `a path source takes its metadata from the plugin manifest` |
 | installed package | an npm source present in node_modules | `an installed package supplies its own metadata` |
 | flags win | supplied metadata and discovered metadata disagree | `a metadata flag overrides what was discovered` |

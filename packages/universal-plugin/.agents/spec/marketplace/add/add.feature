@@ -13,16 +13,33 @@ Feature: marketplace add — list a plugin that lives elsewhere
     When I run "universal-plugin marketplace add npm:repobuddy --root <root>"
     Then the Claude and Codex targets are reported added with an npm source
     And the Copilot and Cursor targets are reported skipped
-    And each skip names the source kind and the runtime that cannot resolve it
+    And each skip names the source kind, the entry, and the runtime that cannot resolve it
 
-  Scenario: a skipped target's catalog is not written
+  Scenario: a skipped target is shielded from the Claude catalog
     When I run "universal-plugin marketplace add npm:repobuddy --root <root>"
-    Then no Copilot catalog exists
+    Then the Copilot and Cursor catalogs exist and do not list "repobuddy"
+    And they list every other entry of the Claude catalog they can install
 
-  Scenario: a forge source reaches the runtime that resolves it
+  Scenario: a skip leaves an existing catalog untouched
+    Given a Copilot catalog already exists
+    When I run "universal-plugin marketplace add npm:repobuddy --root <root>"
+    Then the Copilot target is reported skipped
+    And the Copilot catalog is unchanged
+
+  Scenario: a forge source reaches every runtime in the form it installs
     When I run "universal-plugin marketplace add cyberuni/universal-plugin --root <root>"
-    Then the Claude target is reported added with a github source naming that repository
-    And the Codex, Copilot, and Cursor targets are reported skipped
+    Then the Claude, Copilot, and Cursor targets are reported added with a github source naming that repository
+    And the Codex target is reported added with a url source naming "https://github.com/cyberuni/universal-plugin.git"
+
+  Scenario: a source is mapped where the mapping loses nothing
+    When I run "universal-plugin marketplace add cyberuni/cyber-sdd --subdir plugins/aced --ref v1.2.0 --root <root>"
+    Then the Claude and Codex entries carry a git-subdir source with ref "v1.2.0"
+    And the Copilot entry carries a github source with path "plugins/aced" and ref "v1.2.0"
+
+  Scenario: a git-subdir off GitHub is skipped for Copilot
+    Given marketplace "palo" originates at "https://code.pan.run/ui/palo.git" and lists "pods" at "./plugins/pods"
+    When I run "universal-plugin marketplace add pods@palo --from <dir> --root <root>"
+    Then the Copilot target is reported skipped naming the entry and the runtime
 
   Scenario: a git URL is read as a url source
     When I run "universal-plugin marketplace add https://example.com/o/r.git --claude --root <root>"

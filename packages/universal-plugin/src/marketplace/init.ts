@@ -2,14 +2,18 @@ import * as path from 'node:path'
 
 import { type MarketplaceFs, realMarketplaceFs } from './fs.js'
 import {
+	adaptCatalogContent,
 	assertMarketplaceName,
+	CLAUDE_CATALOG_READERS,
 	catalogEntryNames,
 	type MarketplaceOwner,
 	type MarketplacePlugin,
 	type MarketplaceStatus,
 	type MarketplaceTarget,
 	mergeDiscoveredCatalog,
+	type OmittedEntry,
 	serializeTarget,
+	TARGET_CATALOG_PATHS,
 } from './marketplace.js'
 import { formatCatalogIssues, validateCatalogContent } from './validation.js'
 
@@ -28,6 +32,8 @@ export interface MarketplaceResult {
 	paths: string[]
 	plugins: string[]
 	reason?: string
+	/** Entries the runtime cannot install, left out of its catalog. */
+	omitted?: OmittedEntry[]
 }
 
 interface RootMetadata {
@@ -174,6 +180,23 @@ function normalizeJson(value: unknown): unknown {
 	)
 }
 
+/** The entries a runtime with no catalog of its own would have read from the Claude one, as the
+ *  starting point for its catalog. Codex states an entry its own way, so those are re-shaped. */
+function sharedStart(target: MarketplaceTarget, claudeContent: string | undefined): string | undefined {
+	if (claudeContent === undefined) return undefined
+	if (target !== 'codex') return claudeContent
+	const plugins = (JSON.parse(claudeContent) as { plugins?: Record<string, unknown>[] }).plugins ?? []
+	return JSON.stringify({
+		plugins: plugins.map((entry) => ({
+			name: entry.name,
+			...(typeof entry.version === 'string' ? { version: entry.version } : {}),
+			source: entry.source,
+			policy: { installation: 'AVAILABLE', authentication: 'ON_INSTALL' },
+			category: 'Productivity',
+		})),
+	})
+}
+
 export function initializeMarketplace(
 	rootInput: string,
 	opts: MarketplaceInitOptions = {},
@@ -182,24 +205,52 @@ export function initializeMarketplace(
 	const root = path.resolve(rootInput)
 	const metadata = deriveMetadata(root, fs, opts)
 	const plugins = discoverPlugins(root, fs, opts.scanDirs)
-	const targets = selectedTargets(opts.targets)
-	const derived = targets.map((target) => ({ target, artifacts: serializeTarget(target, metadata, plugins) }))
-	for (const { artifacts } of derived) {
-		for (const artifact of artifacts) {
-			assertContained(root, path.join(root, artifact.path), fs, 'selected artifact')
-		}
-	}
+	const requested = selectedTargets(opts.targets)
+	const targets = requested.includes('claude')
+		? ['claude' as const, ...requested.filter((t) => t !== 'claude')]
+		: requested
+	const derived = new Map(targets.map((target) => [target, serializeTarget(target, metadata, plugins)]))
+	const readOwn = (artifact: { path: string }) => readCatalog(fs, path.join(root, artifact.path))
 
 	// Discovery describes the plugins this repository holds; a catalog may also list plugins that
 	// live elsewhere, which only `marketplace add` puts there. Each artifact is folded into the file
 	// already on disk so a regeneration never reports those as deletions. Folding reads that file,
 	// so it runs only once the path has been proved to resolve inside --root.
-	const planned = derived.map(({ target, artifacts }) => ({
-		target,
-		artifacts: artifacts.map((artifact) =>
-			mergeDiscoveredCatalog(artifact, readCatalog(fs, path.join(root, artifact.path))),
-		),
-	}))
+	//
+	// What a runtime cannot install is then adapted or left out of its catalog. A runtime with no
+	// catalog of its own yet starts from the Claude one it would otherwise read.
+	const planTarget = (target: MarketplaceTarget, claudeContent: string | undefined) => {
+		const omitted: OmittedEntry[] = []
+		const artifacts = (derived.get(target) ?? []).map((artifact) => {
+			assertContained(root, path.join(root, artifact.path), fs, 'selected artifact')
+			const shared = CLAUDE_CATALOG_READERS.includes(target) ? sharedStart(target, claudeContent) : undefined
+			const merged = mergeDiscoveredCatalog(artifact, readOwn(artifact) ?? shared)
+			const adapted = adaptCatalogContent(target, merged.content)
+			omitted.push(...adapted.omitted)
+			return { path: merged.path, content: adapted.content }
+		})
+		return { target, artifacts, omitted }
+	}
+	const planned: ReturnType<typeof planTarget>[] = []
+	let claudeContent: string | undefined
+	for (const target of targets) {
+		const plan = planTarget(target, claudeContent)
+		if (target === 'claude') claudeContent = plan.artifacts[0]?.content
+		planned.push(plan)
+	}
+	// Copilot CLI and Cursor read the Claude catalog when they find none of their own, and one
+	// entry they cannot install makes Copilot CLI refuse the whole catalog. A catalog of their own
+	// comes first in their search, so writing it shields them even when they were not asked for.
+	const shielded = new Set<MarketplaceTarget>()
+	if (claudeContent !== undefined) {
+		for (const target of ['copilot', 'cursor'] as const) {
+			if (targets.includes(target)) continue
+			if (adaptCatalogContent(target, claudeContent).omitted.length === 0) continue
+			derived.set(target, serializeTarget(target, metadata, plugins))
+			planned.push(planTarget(target, claudeContent))
+			shielded.add(target)
+		}
+	}
 	for (const { target, artifacts } of planned) {
 		for (const artifact of artifacts) {
 			// A catalog the runtime would reject is worse than no catalog: it is discovered, read, and
@@ -222,7 +273,7 @@ export function initializeMarketplace(
 			`error: generated artifact differs: ${conflicts.join(', ')}; rerun with --force to replace selected artifacts`,
 		)
 
-	const results: MarketplaceResult[] = planned.map(({ target, artifacts }) => {
+	const results: MarketplaceResult[] = planned.map(({ target, artifacts, omitted }) => {
 		if (plugins.length === 0)
 			return { target, status: 'empty', paths: [], plugins: [], reason: 'no plugins discovered' }
 		const unchanged = artifacts.every((artifact) => sameArtifact(fs, path.join(root, artifact.path), artifact.content))
@@ -233,6 +284,12 @@ export function initializeMarketplace(
 			// What the catalog ends up listing, not only what discovery contributed, so an entry kept
 			// from the existing file is visible in the report rather than silently present.
 			plugins: [...new Set(artifacts.flatMap((artifact) => catalogEntryNames(artifact.content)))],
+			...(omitted.length > 0 ? { omitted } : {}),
+			...(shielded.has(target)
+				? {
+						reason: `written so ${target} does not read ${TARGET_CATALOG_PATHS.claude}, which lists entries it cannot install`,
+					}
+				: {}),
 		}
 	})
 

@@ -2,8 +2,13 @@ import * as path from 'node:path'
 
 import { catalogDependencyIssues } from '../dependencies/dependencies.js'
 import { type MarketplaceFs, realMarketplaceFs } from './fs.js'
-import { catalogResolution, type MarketplaceTarget, TARGET_CATALOG_PATHS } from './marketplace.js'
-import { type CatalogIssue, validateCatalogContent } from './validation.js'
+import {
+	CLAUDE_CATALOG_READERS,
+	catalogResolution,
+	type MarketplaceTarget,
+	TARGET_CATALOG_PATHS,
+} from './marketplace.js'
+import { type CatalogIssue, sourceKindIssues, validateCatalogContent } from './validation.js'
 
 export interface MarketplaceValidateOptions {
 	targets?: MarketplaceTarget[]
@@ -120,6 +125,18 @@ export function validateMarketplace(
 		const relative = TARGET_CATALOG_PATHS[target]
 		const file = path.join(root, relative)
 		if (!fs.exists(file)) {
+			// With no catalog of its own ahead of it, a runtime reads the Claude one, so what that file
+			// holds is what the runtime installs from. An entry it cannot install is reported here.
+			const claudeFile = path.join(root, TARGET_CATALOG_PATHS.claude)
+			if (CLAUDE_CATALOG_READERS.includes(target) && fs.exists(claudeFile)) {
+				const shared = parseAndCheck(fs.read(claudeFile), (parsed) => sourceKindIssues(target, parsed)).map(
+					(issue) => ({
+						path: issue.path,
+						message: `${issue.message} (read from ${TARGET_CATALOG_PATHS.claude}; write ${relative} to shield ${target} from it)`,
+					}),
+				)
+				if (shared.length > 0) return { target, path: TARGET_CATALOG_PATHS.claude, status: 'invalid', issues: shared }
+			}
 			return {
 				target,
 				path: relative,

@@ -26,6 +26,11 @@ error: catalog ".claude-plugin/marketplace.json" does not match the marketplace 
 | `invalid` | the runtime would refuse it; the issues say why |
 | `missing` | no catalog at that path, which is only a failure under `--required` |
 
+A source the runtime cannot install is an issue too: `npm` or `git-subdir` for Copilot CLI (it refuses
+the whole catalog), `github` for Codex (silently dropped), `npm` for Cursor. A runtime with no catalog
+of its own is checked against `.claude-plugin/marketplace.json`, because that is the file it reads;
+the fix is to run `init` or `add` so the runtime gets a catalog of its own.
+
 ## Fixing what it reports
 
 Fix an issue in the source it comes from, then regenerate. An entry's fields are derived, so an
