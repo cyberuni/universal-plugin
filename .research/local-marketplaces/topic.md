@@ -143,3 +143,31 @@ marketplace, and of the two that take a directory only one follows a symlink out
   the CLI loader's alone?
 - Does Claude Code's `skills-dir` adoption place any constraint on a plugin's contents that a
   marketplace install does not?
+
+## Third round, October 2026 — remote entry sources
+
+Question: which entry `source` kinds (`npm`, `github`, `url`, `git-subdir`, `path`) does each of Copilot CLI, Cursor and Codex install from, and does Copilot CLI or Cursor install a remote entry read from `.claude-plugin/marketplace.json`? Prompted by `spikyuni/marketplace`: 11 remote plugins, installable from Claude Code (11) and Codex (9) and from neither Copilot CLI nor Cursor.
+
+Method: one-entry fixture marketplaces (`.claude-plugin/marketplace.json`, only `source` varied), added and installed with the real CLIs against sandbox `COPILOT_HOME` / `CODEX_HOME` directories (copilot 1.0.92, codex-cli 0.159.3). Cursor was not run; its bundle (2026.09.28) and docs were read.
+
+### Results
+
+| Kind | Copilot CLI (run) | Codex (run) | Cursor (bundle read) |
+|---|---|---|---|
+| `path` | installs | installs | accepts |
+| `github` | installs, incl. `path` subdir (E-COPILOT-M5) | **silently dropped** (E-CODEX-M21) | accepts |
+| `url` | installs | installs | accepts, URL must end `.git` |
+| `git-subdir` | **rejects the whole marketplace** (E-COPILOT-M4) | installs | accepts |
+| `npm` | **rejects the whole marketplace** | installs | not in schema |
+
+### Findings
+
+- Copilot CLI does install remote entries from `.claude-plugin/marketplace.json`, for `github` and `url`. The 2026-08-18 "local paths only" was a reading of the docs and was never run; the docs (E-COPILOT-M6) in fact list github and url.
+- Copilot CLI's schema failure is all-or-nothing: one `npm` or `git-subdir` entry makes the entire marketplace unaddable. That is why `spikyuni` installs 0 plugins rather than the 1 (`research-workbench`) that its source kind would allow.
+- Codex's own `.agents/plugins/marketplace.json` outranks `.claude-plugin/` (E-CODEX-M22). `spikyuni`'s 9 Codex plugins are the npm ones from its `.agents` catalog; the brief's premise that `quill` and `research-workbench` install from Codex does not hold. Their `.claude-plugin` entries would be `git-subdir` (works) and `github` (dropped), but the Codex catalog omits them.
+- Cursor accepts four kinds in the shipped schema, undocumented (E-CUR-M8, E-CUR-M9). Unverified end to end.
+
+### Open questions
+
+- Whether Cursor's IDE team-marketplace import resolves remote kinds the way the CLI bundle's schema suggests.
+- Why `copilot plugin list` omitted remote installs in the sandbox.

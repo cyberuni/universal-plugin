@@ -1,8 +1,8 @@
-# Conclusion — Local marketplaces and install instructions (August 2026)
+# Conclusion — Local marketplaces and install instructions (updated October 2026)
 
 ## Last updated
 
-2026-08-18
+2026-10-18
 
 ## Question
 
@@ -39,6 +39,36 @@ requires no `owner` and tolerates extra fields, so the stricter schema wins.
 `owner` is an object on Claude Code and on Cursor, and its `name` is required. A string there is a
 schema error rather than a tolerated shorthand: `claude plugin validate` reports `owner: Invalid
 input: expected object, received string` and fails (E-CC-M8).
+
+## Remote entry sources (October 2026)
+
+Which entry `source` kinds each runtime installs from, tested by running the CLIs (Cursor: bundle and docs read, not run).
+
+| Kind | Claude Code | Codex | Copilot CLI | Cursor |
+|---|---|---|---|---|
+| `path` | yes | yes | yes | yes |
+| `github` | yes | **no, silently dropped** | yes (also with `path`) | yes (bundle) |
+| `url` | yes | yes | yes | yes, `.git` URL (bundle) |
+| `git-subdir` | yes | yes | **no, rejects the whole marketplace** | yes (bundle) |
+| `npm` | yes | yes | **no, rejects the whole marketplace** | **no** (bundle) |
+| Confidence | High | High | High (install record not confirmed in `plugin list`: medium-high) | Medium-high, unrun; docs list paths only |
+
+Answer to the two questions: Copilot CLI **does** install a remote entry read from `.claude-plugin/marketplace.json`, for `github` and `url` only. Cursor very likely does for `github`, `url` and `git-subdir`, unverified. This overturns "local paths only" below.
+
+Why `spikyuni/marketplace` installs nothing on Copilot CLI: 10 of its 11 entries are `npm` or `git-subdir`, and one invalid entry rejects the marketplace. Its Codex plugins are the 9 npm entries of its own `.agents/plugins/marketplace.json`, which Codex prefers over `.claude-plugin/`; `quill` and `research-workbench` are not in it.
+
+### Recommended `TARGET_SOURCE_KINDS`
+
+- `claude`: unchanged, `path npm github url git-subdir`.
+- `codex`: `path npm url git-subdir`. Do not emit `github` (dropped silently); map a GitHub repo to a `url` entry with the `.git` URL.
+- `copilot`: `path github url`. Emit nothing `npm` or `git-subdir`, since a single one breaks the entire catalog; `git-subdir` can become `github` + `path` when the repo is on GitHub.
+- `cursor`: `path github url git-subdir`, pending a real Cursor check. Safe conservative choice until then: `path github url`. Never `npm`.
+
+When a plugin's source kind is outside a runtime's list, the generator should omit that entry from that runtime's catalog, not write it. This matters most for `.claude-plugin/marketplace.json`, which Copilot and Cursor also read: a shared Claude catalog containing an `npm` entry makes Copilot refuse the whole catalog.
+
+### Vendoring npm plugins
+
+For an `npm` plugin Copilot CLI and Cursor cannot install from the npm source. Vendoring (committing a built copy into the marketplace repo as a `path` entry) works on every runtime, and the only alternative is a separate GitHub repo of the built plugin listed as `github`. Recommend vendoring only for npm-sourced plugins, with a generated copy and a CI check that it matches the published package, and listing GitHub-hosted plugins as `github`/`url` rather than copying them. Where a plugin is also on GitHub, prefer that over vendoring.
 
 ### Installing a plugin under development
 
