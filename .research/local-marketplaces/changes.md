@@ -73,3 +73,13 @@ catalog for the same reason — both stated as Codex's requirement. Codex has no
 entry's version stays derived from the canonical manifest because ADR-0010 §3 says a catalog entry
 never authors one, and it is now simply omitted when there is none to derive.
 
+
+## 2026-10-18 — remote entry source kinds, run for Copilot CLI and Codex
+
+Opened for the question of which entry source kinds each runtime installs from, after `spikyuni/marketplace` (all remote entries) installed from Claude Code and Codex but not Copilot CLI or Cursor.
+
+**Contradicts the 2026-08-18 findings.** The August verdict that Copilot CLI and Cursor "document local paths only" is wrong for both. Copilot CLI documents `github` and `url` sources and installs them (E-COPILOT-M5, E-COPILOT-M6). Cursor's shipped schema accepts `github`, `url` and `git-subdir` (E-CUR-M8), though its page documents only paths (E-CUR-M9). The August reading had not run a remote entry.
+
+**New.** Copilot rejects an entire marketplace over one `npm` or `git-subdir` entry (E-COPILOT-M4). Codex installs `npm`, `url` and `git-subdir` but silently drops `github` (E-CODEX-M20, E-CODEX-M21). Codex prefers `.agents/plugins/marketplace.json` over `.claude-plugin/` (E-CODEX-M22). Codex 0.147.0 → 0.159.3 and Copilot CLI → 1.0.92 since the first rounds; no earlier local-path result was re-run.
+
+Conclusion changed materially: yes (new section "Remote entry sources").
