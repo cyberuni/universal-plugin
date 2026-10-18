@@ -358,3 +358,15 @@ Feature: marketplace init — derive local marketplace metadata
     When I run "universal-plugin marketplace init --claude --root <root>"
     Then the command fails naming the --force remedy
     And rerunning it with "--force" writes a catalog listing "alpha"
+
+  Scenario: a runtime's catalog leaves out the entries it cannot install
+    Given the Claude catalog lists "repobuddy" with an npm source and "sdd" with a github source
+    When I run "universal-plugin marketplace init --force --root <root>"
+    Then the Copilot and Cursor catalogs do not list "repobuddy"
+    And the Codex catalog lists "sdd" with a url source
+    And the report names "repobuddy" as omitted from Copilot and Cursor
+
+  Scenario: a catalog that shields a runtime from the Claude catalog is always written
+    Given the Claude catalog lists "repobuddy" with an npm source
+    When I run "universal-plugin marketplace init --claude --force --root <root>"
+    Then the Copilot and Cursor catalogs are also written, without "repobuddy"

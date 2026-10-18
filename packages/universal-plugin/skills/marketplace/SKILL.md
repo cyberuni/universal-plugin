@@ -56,7 +56,11 @@ disk is usually `add`.
 | Cursor | `.cursor-plugin/marketplace.json` | nothing; an admin imports the repository as a team marketplace |
 
 Three of the four read `.claude-plugin/marketplace.json`, so one file covers Claude Code, Codex, and
-Copilot CLI. The reverse does not hold: Claude Code rejects the Codex catalog for its missing
+Copilot CLI. Not every plugin in it installs everywhere: a runtime installs only the source kinds it
+supports (`references/add.md` has the table), so a catalog can list plugins a runtime cannot install.
+Copilot CLI refuses the whole catalog over one `npm` or `git-subdir` entry. The generator therefore
+writes each runtime's own catalog with only what that runtime installs, and Copilot CLI and Cursor read
+their own catalog before the Claude one, which shields them. State per runtime which plugins install. The reverse does not hold: Claude Code rejects the Codex catalog for its missing
 `owner`.
 
 ## Rules for every route
