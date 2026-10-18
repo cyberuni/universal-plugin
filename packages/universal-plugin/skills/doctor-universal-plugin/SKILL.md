@@ -172,7 +172,7 @@ it does not, offer to add it — ask first, because both are the user's files:
   semantic-release bot opens.
 
 Use the locked `universal-plugin` from the repository's devDependencies when it has one; otherwise
-`npx universal-plugin@0.15.0`, pinned. This check matters most where the release tool picks the
+`npx universal-plugin@0.16.0`, pinned. This check matters most where the release tool picks the
 number, because nothing else runs between that bump and publish.
 
 ## Unreleased content
