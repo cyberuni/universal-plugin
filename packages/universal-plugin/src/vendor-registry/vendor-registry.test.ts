@@ -91,7 +91,7 @@ describe('the shipped local-install facts', () => {
 		expect(shipped['claude-code']?.localPluginLink).toBe(true)
 	})
 
-	it('Cursor takes its local plugin folder from @cyberuni/agent-harness and rejects an out-of-tree symlink', () => {
+	it('Cursor takes its local plugin folder from cyber-agentkit and rejects an out-of-tree symlink', () => {
 		expect(shipped['cursor']).not.toHaveProperty('localPluginDir')
 		expect(loaded['cursor']?.localPluginDir).toBe(path.join(os.homedir(), '.cursor', 'plugins', 'local'))
 		expect(shipped['cursor']?.localPluginLink).toBe(false)

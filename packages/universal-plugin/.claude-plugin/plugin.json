@@ -16,6 +16,6 @@
 	],
 	"skills": "./skills/",
 	"dependencies": [
-		"cyber-agent-harness"
+		"cyber-agentkit"
 	]
 }

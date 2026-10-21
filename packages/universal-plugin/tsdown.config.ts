@@ -29,7 +29,7 @@ export default defineConfig({
 	// `onlyBundle: false` silences the "bundled a dependency" warnings that are the
 	// whole point here.
 	deps: {
-		alwaysBundle: [/^@cyberuni\/agent-harness(\/|$)/, /^@toon-format\/toon(\/|$)/, /^commander(\/|$)/, /^semver(\/|$)/],
+		alwaysBundle: [/^cyber-agentkit(\/|$)/, /^@toon-format\/toon(\/|$)/, /^commander(\/|$)/, /^semver(\/|$)/],
 		onlyBundle: false,
 	},
 })

@@ -209,8 +209,8 @@ changes. `--dry-run` reports the refresh as planned and writes nothing.
 
 Earlier releases copied each governance a skill declared into its `references/governances/` folder,
 and `plugin build --check` failed CI when a copy drifted. Both are gone. A skill now loads a
-reference by name with the `reference` skill in the `cyber-agent-harness` plugin, which runs the
-`@cyberuni/agent-harness` `reference show` command and falls back to the skill's own
+reference by name with the `reference` skill in the `cyber-agentkit` plugin, which runs the
+`cyber-agentkit` `reference show` command and falls back to the skill's own
 `references/<name>.md`.
 
 A `references/governances/` folder a skill already commits is left as it is. Remove `--check` from

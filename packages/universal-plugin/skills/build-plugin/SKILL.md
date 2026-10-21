@@ -132,7 +132,7 @@ Validation runs before the first write, so a failed build leaves the tree untouc
 - **Expect a build to pin skill `npx` references or decide a version.** Build derives and copies
   whatever `plugin.json` carries. Stamping is the release-time `plugin version`, not this step.
 - **Expect a build to copy governances into skills.** A skill loads a reference through the
-  `reference` skill in the `cyber-agent-harness` plugin; the build does not copy them and has no
+  `reference` skill in the `cyber-agentkit` plugin; the build does not copy them and has no
   `--check` flag.
 
 ## Related skills
