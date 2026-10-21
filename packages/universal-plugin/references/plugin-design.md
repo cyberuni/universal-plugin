@@ -285,7 +285,7 @@ A plugin whose MCP server is its own npm package writes an unpinned invocation â
 
 - **Always-on content is the HCF (highest common factor) of all agents.** It holds only the constraints every agent in every role must follow, such as "never commit secrets" or "use Conventional Commits". That set is small.
 - **`rules/` is for the HCF only.** It stays for backward compatibility and for simple single-agent setups where no orchestration is involved. Its scope is narrow on purpose.
-- **Shared guidance is a reference, not a rule.** Content that cuts across components but applies only to some roles or tasks (a design standard, a review checklist, a workflow discipline) belongs in `references/<name>.md`. Whichever agent, skill, command, hook, or MCP server needs it loads it by name on demand, through the `reference` skill in the `cyber-agent-harness` plugin.
+- **Shared guidance is a reference, not a rule.** Content that cuts across components but applies only to some roles or tasks (a design standard, a review checklist, a workflow discipline) belongs in `references/<name>.md`. Whichever agent, skill, command, hook, or MCP server needs it loads it by name on demand, through the `reference` skill in the `cyber-agentkit` plugin.
 
 **Decision tree for guidance:**
 - Every agent, every role (the HCF) â†’ merge into **AGENTS.md**. For Cursor-only delivery, use `rules/` + `commands/setup.md`.
@@ -342,6 +342,6 @@ Portability rules for skill bodies: keep each `SKILL.md` body under 6,000 chars;
 
 ## References
 
-Load `skill-design`, `skill-repo-structure`, and `agent-tool-output` with the `reference` skill in the `cyber-agent-harness` plugin.
+Load `skill-design`, `skill-repo-structure`, and `agent-tool-output` with the `reference` skill in the `cyber-agentkit` plugin.
 
 Spec: https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/spec.md

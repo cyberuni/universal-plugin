@@ -1,7 +1,6 @@
 import * as path from 'node:path'
-
-import { type HarnessId, harnessIds } from '@cyberuni/agent-harness'
 import { Command, Option } from 'commander'
+import { type HarnessId, harnessIds } from 'cyber-agentkit'
 
 import { loadRegistry } from '../vendor-registry/fs.js'
 import { lookupVendor } from '../vendor-registry/vendor-registry.js'

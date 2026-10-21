@@ -4,7 +4,7 @@ export interface VendorConfig {
 	hookGlob: string | null
 	pluginRootSuffix: string | null
 	/** Directory a runtime scans for locally developed plugins, one entry per plugin, or `null` when
-	 *  it has none. `plugin install` writes into it. Where `@cyberuni/agent-harness` knows a
+	 *  it has none. `plugin install` writes into it. Where `cyber-agentkit` knows a
 	 *  harness's `local-plugins` folder, that value is used (see `withLocalPluginDirs`). */
 	localPluginDir: string | null
 	/** Whether that directory's scan follows a symlink whose target sits outside it. When false,
@@ -32,7 +32,7 @@ export function mergeRegistries(base: VendorRegistry, override: VendorRegistry):
 }
 
 /** Fills each vendor's `localPluginDir` from `locate`, which returns the harness's `local-plugins`
- *  folder when `@cyberuni/agent-harness` knows one. A vendor it knows nothing about keeps its
+ *  folder when `cyber-agentkit` knows one. A vendor it knows nothing about keeps its
  *  registry value, or `null`. */
 export function withLocalPluginDirs(
 	registry: Record<string, Omit<VendorConfig, 'localPluginDir'> & { localPluginDir?: string | null }>,

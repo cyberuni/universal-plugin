@@ -2,7 +2,7 @@ import * as fsNode from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 
-import { type HarnessEnvironment, type HarnessId, pluginStorage } from '@cyberuni/agent-harness'
+import { type HarnessEnvironment, type HarnessId, pluginStorage } from 'cyber-agentkit'
 
 import { globalStorePath, storeEntryPath } from '../asset-store/asset-store.js'
 import { entryExists, populateEntry } from '../asset-store/fs.js'

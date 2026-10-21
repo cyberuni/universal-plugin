@@ -141,7 +141,7 @@ not a build step.
   because the authored source carries the pin, it gets the pin with no warning.
 - **The build copies no governance** ([ADR-0017](../../design/decisions/0017-retire-governance-for-reference.md),
   superseding ADR-0016) — a skill loads a reference through the `reference` skill in the
-  `cyber-agent-harness` plugin, which resolves the name at run time from the project, user, and
+  `cyber-agentkit` plugin, which resolves the name at run time from the project, user, and
   plugin tiers and falls back to the skill's own `references/<name>.md`. A folder a skill commits at
   `references/governances/` is skill content like any other: the build neither reads nor rewrites it.
   The `--check` that compared those copies with their source is gone; the flag now checks compiled
