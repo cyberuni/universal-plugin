@@ -47,7 +47,7 @@ node scripts/build.mjs --root <plugin-root>
 
 Resolve `scripts/build.mjs` against this skill's own directory. It runs the CLI the project installed
 (`pnpm exec universal-plugin`), else the CLI pinned to the version this skill shipped with
-(`npx universal-plugin@0.16.0`), so it works in a skill that was linked or copied on its own. `--root` defaults to the working directory and
+(`npx universal-plugin@0.16.1`), so it works in a skill that was linked or copied on its own. `--root` defaults to the working directory and
 must name the directory that holds the canonical `plugin.json`.
 
 The command never prompts, so it is safe to run unattended.

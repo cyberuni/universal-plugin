@@ -43,7 +43,7 @@ node scripts/init.mjs --name <plugin-name> --vendor claude-code --vendor cursor 
 ```
 
 Resolve `scripts/init.mjs` against this skill's directory; it runs the project's installed CLI, else
-the pinned `npx universal-plugin@0.16.0`. Add `--npm` when an npm package ships the plugin,
+the pinned `npx universal-plugin@0.16.1`. Add `--npm` when an npm package ships the plugin,
 which also wires that `package.json`'s `files` to carry the derived manifests, copies its `version`
 into the manifest, and, in a changesets repository, wires the root `version` script to run
 `plugin version --from-package` (SKILL.md Phase 3 asks before that rewrite).
