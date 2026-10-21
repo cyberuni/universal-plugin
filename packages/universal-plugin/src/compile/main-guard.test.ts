@@ -22,4 +22,11 @@ describe('neutralizeMainGuards', () => {
 	it('leaves other uses of import.meta.url alone', () => {
 		expect(neutralizeMainGuards("const here = new URL('.', import.meta.url)")).toBeUndefined()
 	})
+
+	it('scans a long identifier run in linear time', () => {
+		const run = 'a'.repeat(200_000)
+		const start = performance.now()
+		expect(neutralizeMainGuards(`import.meta.url;//# ${run}`)).toBeUndefined()
+		expect(performance.now() - start).toBeLessThan(2000)
+	})
 })

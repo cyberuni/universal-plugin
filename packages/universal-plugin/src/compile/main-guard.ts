@@ -13,12 +13,14 @@
 const ARGS = String.raw`\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\)`
 const META_URL = String.raw`import\.meta\.url`
 const EQ = String.raw`\s*===?\s*`
-const TO_FILE_URL = String.raw`(?:\w+\.)?pathToFileURL${ARGS}\.href`
-const FROM_META_URL = String.raw`(?:\w+\.)?fileURLToPath\(\s*${META_URL}\s*\)`
+const TO_FILE_URL = String.raw`(?<!\w)(?:\w+\.)?pathToFileURL${ARGS}\.href`
+const FROM_META_URL = String.raw`(?<!\w)(?:\w+\.)?fileURLToPath\(\s*${META_URL}\s*\)`
 // `process.argv[1]`, bare or wrapped in up to two calls; each wrapper's parentheses must balance,
 // so the guard's own `if (…)` is never consumed.
 const ARGV = String.raw`process\.argv\[1\]`
-const CALL = String.raw`[\w.]+\(\s*`
+// Anchored at the start of an identifier run, so a long run of `[\w.]` is scanned once, not once per
+// start position.
+const CALL = String.raw`(?<![\w.])[\w.]+\(\s*`
 const ARGV1 = String.raw`(?:${CALL}${CALL}${ARGV}\s*\)\s*\)|${CALL}${ARGV}\s*\)|${ARGV})`
 
 const GUARDS = new RegExp(
@@ -34,6 +36,7 @@ const GUARDS = new RegExp(
 
 /** The code with every recognized main guard replaced by `false`, or `undefined` when it has none. */
 export function neutralizeMainGuards(code: string): string | undefined {
+	if (!code.includes('import.meta')) return undefined
 	const out = code.replace(GUARDS, 'false')
 	return out === code ? undefined : out
 }
