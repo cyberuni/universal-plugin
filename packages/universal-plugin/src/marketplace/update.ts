@@ -142,7 +142,10 @@ function changeEntry(
 		next.source = catalogEntrySource(target, adapted.source)
 	} else if (pinned) {
 		if (!isGitSource(entry.source)) {
-			const kind = sourceKindOf(entry.source as string | CatalogSource)
+			const kind =
+				typeof entry.source === 'string' || (typeof entry.source === 'object' && entry.source !== null)
+					? sourceKindOf(entry.source as string | CatalogSource)
+					: 'missing'
 			throw new Error(
 				`error: "${String(entry.name)}" in ${catalogPath} has a ${kind} source; --ref and --sha apply to a git source`,
 			)
