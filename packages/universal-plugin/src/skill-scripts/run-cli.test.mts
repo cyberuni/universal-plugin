@@ -64,6 +64,7 @@ test('each launcher runs the command it is declared for', () => {
 		'version/scripts/version.mjs': 'plugin version',
 		'marketplace/scripts/add.mjs': 'marketplace add',
 		'marketplace/scripts/marketplace.mjs': 'marketplace init',
+		'marketplace/scripts/update.mjs': 'marketplace update',
 		'marketplace/scripts/validate.mjs': 'marketplace validate',
 	}
 	for (const [script, command] of Object.entries(commands)) {

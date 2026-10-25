@@ -33,10 +33,15 @@ plugin when an admin imports the repository as a team marketplace. So the skill 
 and writes no install command for it. Every command it does emit carries an evidence ID in
 [the research record](https://github.com/cyberuni/universal-plugin/blob/main/.research/local-marketplaces/conclusion.md).
 
+An entry the catalog already lists is changed in place rather than re-added: a new source, a moved
+`ref` or `sha` pin, or one field such as the description or category. Every other field the entry
+carries is kept, including the ones a curator wrote by hand, and each catalog is validated before it
+is written.
+
 The README section is generated from the catalogs on disk, so the marketplace name, the plugin
 names, and the repository slug come from the repository rather than from a model retyping them.
 
 ## See also
 
 - [`publish-plugin`](../publish-plugin/) — lists a packaged plugin in a *shared* marketplace repository instead of the repository's own catalog
-- [Local marketplace](../../cli/marketplace/) — the CLI command reference for `marketplace init`, `add`, and `validate`, for scripting and CI
+- [Local marketplace](../../cli/marketplace/) — the CLI command reference for `marketplace init`, `add`, `update`, and `validate`, for scripting and CI

@@ -44,6 +44,10 @@
 					"source": "src/skill-scripts/run-cli.ts",
 					"command": "marketplace init"
 				},
+				"skills/marketplace/scripts/update.mjs": {
+					"source": "src/skill-scripts/run-cli.ts",
+					"command": "marketplace update"
+				},
 				"skills/marketplace/scripts/validate.mjs": {
 					"source": "src/skill-scripts/run-cli.ts",
 					"command": "marketplace validate"
