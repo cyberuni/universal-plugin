@@ -245,3 +245,11 @@ test('a Codex entry takes only the fields its catalog carries', () => {
 	expect(codex).toMatchObject({ category: 'Developer Tools' })
 	expect(codex).not.toHaveProperty('description')
 })
+
+test('a pin on an entry that names no source fails with a message, not a crash', () => {
+	addToMarketplace(root, 'npm:repobuddy', { targets: ['claude'] })
+	curate(CLAUDE, 'repobuddy', { source: undefined })
+	expect(() => updateMarketplaceEntry(root, 'repobuddy', { targets: ['claude'], ref: 'main' })).toThrow(
+		/has a missing source; --ref and --sha apply to a git source/,
+	)
+})
