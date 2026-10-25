@@ -84,6 +84,17 @@ function marketplaceSpec(value: string): PluginSpec {
 
 const SHA = /^[a-f0-9]{40}$/
 
+/** Whether a source is one of the git-backed forms, the only ones a `ref` or `sha` can pin. */
+export function isGitSource(source: unknown): source is CatalogSource {
+	if (typeof source !== 'object' || source === null || Array.isArray(source)) return false
+	return ['url', 'github', 'git-subdir'].includes((source as CatalogSource).source)
+}
+
+/** The schema requires the full hash, so a short one is refused at input rather than at load. */
+export function assertCommitSha(sha: string): void {
+	if (!SHA.test(sha)) throw new Error(`error: --sha "${sha}" must be a full 40-character commit hash`)
+}
+
 /** A subdirectory as `git-subdir` states it: no leading `./`, no trailing slash. */
 function normalizeSubdir(subdir: string): string {
 	const path = subdir
@@ -123,12 +134,10 @@ function withSubdir(spec: PluginSpec, subdir: string): PluginSpec {
 function withPin(spec: PluginSpec, ref?: string, sha?: string): PluginSpec {
 	if (ref === undefined && sha === undefined) return spec
 	const source = spec.source
-	if (typeof source !== 'object' || !['url', 'github', 'git-subdir'].includes(source.source)) {
+	if (!isGitSource(source)) {
 		throw new Error(`error: --ref and --sha apply to a git source, not to a ${spec.kind} one`)
 	}
-	if (sha !== undefined && !SHA.test(sha)) {
-		throw new Error(`error: --sha "${sha}" must be a full 40-character commit hash`)
-	}
+	if (sha !== undefined) assertCommitSha(sha)
 	return {
 		...spec,
 		source: { ...source, ...(ref === undefined ? {} : { ref }), ...(sha === undefined ? {} : { sha }) },

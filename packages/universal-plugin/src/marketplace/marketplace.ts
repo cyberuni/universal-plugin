@@ -568,6 +568,40 @@ export function refreshCatalogEntry(
 	}
 }
 
+/** A source in the shape a target's catalog states it, once `adaptSource` has settled which source
+ *  that is. Only Codex differs: it tags a repository path `local`. */
+export function catalogEntrySource(target: MarketplaceTarget, source: string | CatalogSource): string | CatalogSource {
+	return target === 'codex' ? codexSource(source) : source
+}
+
+/** The entry a catalog lists under a name, or `undefined` when it lists none. */
+export function findCatalogEntry(
+	content: string,
+	catalogPath: string,
+	name: string,
+): Record<string, unknown> | undefined {
+	const catalog = parseCatalog(content, catalogPath)
+	const entries = Array.isArray(catalog.plugins) ? (catalog.plugins as unknown[]) : []
+	return entries.find(
+		(entry): entry is Record<string, unknown> =>
+			typeof entry === 'object' && entry !== null && (entry as Record<string, unknown>).name === name,
+	)
+}
+
+/** Puts an edited entry back where the entry of the same name sat. The catalog's top level and every
+ *  other entry stay exactly as they were. */
+export function replaceCatalogEntry(content: string, catalogPath: string, entry: Record<string, unknown>): string {
+	const catalog = parseCatalog(content, catalogPath)
+	const entries = Array.isArray(catalog.plugins) ? [...(catalog.plugins as unknown[])] : []
+	const index = entries.findIndex(
+		(candidate) =>
+			typeof candidate === 'object' && candidate !== null && (candidate as Record<string, unknown>).name === entry.name,
+	)
+	if (index === -1) throw new Error(`error: "${String(entry.name)}" is not listed in ${catalogPath}`)
+	entries[index] = entry
+	return json({ ...catalog, plugins: entries })
+}
+
 /** Whether two catalogs say the same thing. Key order and whitespace do not change a catalog's
  *  meaning — the repository formats its own JSON — so a refresh compares this rather than bytes and
  *  leaves a file it agrees with alone. Array order does count. */

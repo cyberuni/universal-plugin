@@ -147,3 +147,54 @@ test('add narrows a monorepo repository to one plugin directory', () => {
 	expect(badPin.status).toBe(1)
 	expect(badPin.stderr).toMatch(/apply to a git source/)
 })
+
+function runUpdate(...args: string[]) {
+	return spawnSync('node', [bin, 'marketplace', 'update', ...args, '--root', root], {
+		encoding: 'utf8',
+		env: { ...process.env, NODE_NO_WARNINGS: '1' },
+	})
+}
+
+test('update changes one entry in place and keeps the fields it was not asked about', () => {
+	expect(runAdd('cyberuni/repobuddy', '--claude', '--ref', 'v1.0.0', '--license', 'MIT').status).toBe(0)
+
+	const preview = runUpdate(
+		'repobuddy',
+		'--claude',
+		'--ref',
+		'v1.1.0',
+		'--category',
+		'productivity',
+		'--dry-run',
+		'--format',
+		'json',
+	)
+	expect(preview.status).toBe(0)
+	expect(JSON.parse(preview.stdout)).toMatchObject([{ target: 'claude', status: 'planned', entry: 'repobuddy' }])
+	expect(preview.stderr).toMatch(/Planned repository metadata only/)
+
+	const result = runUpdate(
+		'repobuddy',
+		'--source',
+		'https://github.com/cyberuni/repobuddy.git',
+		'--category',
+		'productivity',
+		'--unset',
+		'license',
+		'--unset',
+		'ref',
+	)
+	expect(result.status).toBe(0)
+	expect(result.stderr).toMatch(/skipped codex: no catalog at \.agents\/plugins\/marketplace\.json/)
+	expect(result.stderr).toMatch(/no marketplace publication/i)
+	const catalog = JSON.parse(fs.readFileSync(path.join(root, '.claude-plugin/marketplace.json'), 'utf8'))
+	expect(catalog.plugins).toContainEqual({
+		name: 'repobuddy',
+		source: { source: 'url', url: 'https://github.com/cyberuni/repobuddy.git' },
+		category: 'productivity',
+	})
+
+	const empty = runUpdate('repobuddy')
+	expect(empty.status).toBe(1)
+	expect(empty.stderr).toMatch(/nothing to change/)
+})

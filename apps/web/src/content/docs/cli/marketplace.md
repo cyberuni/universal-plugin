@@ -10,9 +10,10 @@ you install the plugin the way a user eventually will.
 Three commands write these catalogs. [`plugin init`](#plugin-init-registers-one-plugin) registers the
 plugin it scaffolds, `marketplace init` derives a catalog for every plugin a repository holds, and
 [`marketplace add`](#marketplace-add-lists-a-plugin-that-lives-elsewhere) lists a plugin that lives
-somewhere else. All three write the same files; none publishes anything. A fourth,
-[`marketplace validate`](#marketplace-validate-checks-what-the-repository-carries), checks that what
-they wrote is what each runtime will load.
+somewhere else. All three write the same files; none publishes anything.
+[`marketplace update`](#marketplace-update-changes-one-entry-in-place) changes an entry one of them
+wrote, and [`marketplace validate`](#marketplace-validate-checks-what-the-repository-carries) checks
+that what they wrote is what each runtime will load.
 
 For the shorter loop that skips the catalog entirely — the working copy dropped straight into a
 runtime's local plugin directory — see [`plugin install`](../install/).
@@ -161,6 +162,41 @@ git remote. One with neither stops the run rather than writing a path that resol
 The catalog is created if the repository has none, named and owned the way `init` names it —
 `--owner` is usually what a curating repository needs, since it has no plugin manifest of its own.
 An entry already listed differently stops the run until you pass `--force`.
+
+## `marketplace update` changes one entry in place
+
+```bash
+universal-plugin marketplace update repobuddy --source https://github.com/cyberuni/repobuddy.git
+```
+
+`add --force` replaces an entry with what `add` can derive, so it drops what it cannot: a
+`category`, an `author`, a field written by hand. `update` changes only what you name and keeps every
+other field, in the order it was in:
+
+| Change | Flags |
+|---|---|
+| Move to a new source | `--source <spec>`, read the way `add` reads its spec, with `--path`, `--npm`, `--github`, `--url`, and `--subdir` |
+| Move a pin | `--ref <ref>`, `--sha <sha>` |
+| Set one field | `--description`, `--version`, `--homepage`, `--repository`, `--license`, `--keywords`, `--category` |
+| Remove a field or a pin | `--unset <field>`, repeatable; `--unset ref` and `--unset sha` remove a pin |
+
+A new git source keeps the pin the old one carried, unless you pass `--ref` or `--sha` with it:
+switching from the `github` shorthand to an https `url` does not change which commit installs.
+`--ref` alone keeps an existing `sha`, so pass `--unset sha` when the new ref moves past it:
+
+```bash
+universal-plugin marketplace update aced --ref v1.3.0 --unset sha
+```
+
+The new source reaches each runtime in the form it installs, as with `add`. A runtime that cannot
+install it is reported `skipped` and keeps the entry it had; a Copilot CLI or Cursor without a catalog
+of its own gets one written to shield it from the Claude catalog. A catalog that does not list the
+entry is skipped too, and an entry no selected catalog lists stops the run with a pointer to `add`.
+The Codex catalog carries only `version` and `category` of the field flags.
+
+Every catalog is validated before anything is written, with the checks `marketplace validate` runs.
+An update that would introduce an issue stops and writes nothing; an issue that was already there is
+left for `validate` to report. `--dry-run` shows the plan.
 
 ## `marketplace validate` checks what the repository carries
 

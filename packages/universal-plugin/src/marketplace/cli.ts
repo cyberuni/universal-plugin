@@ -6,6 +6,7 @@ import { addToMarketplace, ENTRY_METADATA_FIELDS, type MarketplaceAddOptions } f
 import { initializeMarketplace, type MarketplaceInitOptions } from './init.js'
 import type { MarketplaceTarget } from './marketplace.js'
 import type { SourceKind } from './spec.js'
+import { UPDATE_FIELDS, type UpdateField, updateMarketplaceEntry } from './update.js'
 import { validateMarketplace } from './validate.js'
 import { formatCatalogIssues } from './validation.js'
 
@@ -159,6 +160,99 @@ function addCommand(): Command {
 		})
 }
 
+interface UpdateCliOptions extends AddCliOptions {
+	source?: string
+	category?: string
+	unset?: string[]
+}
+
+function updateMetadataFromOptions(opts: UpdateCliOptions): Partial<Record<UpdateField, unknown>> {
+	const metadata: Record<string, unknown> = { ...metadataFromOptions(opts) }
+	for (const field of UPDATE_FIELDS) {
+		const value = opts[field as keyof UpdateCliOptions]
+		if (!(field in metadata) && typeof value === 'string') metadata[field] = value
+	}
+	return metadata
+}
+
+function updateCommand(): Command {
+	return new Command('update')
+		.description("Change one entry already listed in this repository's marketplace catalogs, keeping the rest")
+		.argument('<name>', 'The entry to change, as the catalogs list it')
+		.option('--claude', 'Update the Claude marketplace catalog')
+		.option('--codex', 'Update the Codex marketplace catalog')
+		.option('--copilot', 'Update the Copilot marketplace catalog')
+		.option('--cursor', 'Update the Cursor marketplace catalog')
+		.option('--source <spec>', 'New source, read the way marketplace add reads its spec')
+		.option('--path', 'Read --source as a repository-relative path')
+		.option('--npm', 'Read --source as an npm package name')
+		.option('--github', 'Read --source as an owner/repo GitHub repository')
+		.option('--url', 'Read --source as a git or https URL')
+		.option('--subdir <path>', "The plugin's directory inside the --source repository, for a monorepo")
+		.option('--ref <ref>', 'Branch or tag to pin the git source to')
+		.option('--sha <sha>', 'Commit to pin the git source to (full 40-character hash)')
+		.option('--description <text>', 'Entry description')
+		.option('--version <version>', 'Entry version')
+		.option('--homepage <url>', 'Entry homepage')
+		.option('--repository <url>', 'Entry repository URL')
+		.option('--license <id>', 'Entry license')
+		.option('--keywords <list>', 'Entry keywords, comma-separated')
+		.option('--category <name>', 'Entry category')
+		.option(
+			'--unset <field>',
+			'Remove a field from the entry; ref and sha remove a pin (repeatable)',
+			(value: string, previous: string[] = []) => [...previous, value],
+		)
+		.option('--dry-run', 'Preview the change without writing it')
+		.option('--format <format>', 'Output format: toon or json (default: toon)')
+		.addOption(ROOT_OPTION)
+		.addHelpText(
+			'after',
+			'\nExamples:\n' +
+				'  $ universal-plugin marketplace update aced --source https://github.com/cyberuni/cyber-sdd.git --subdir plugins/aced\n' +
+				'  $ universal-plugin marketplace update aced --ref v1.3.0 --unset sha\n' +
+				'  $ universal-plugin marketplace update repobuddy --category productivity --dry-run\n',
+		)
+		.action((name: string, opts: UpdateCliOptions) => {
+			try {
+				if (opts.format !== undefined && opts.format !== 'toon' && opts.format !== 'json') {
+					throw new Error('error: --format must be "toon" or "json"')
+				}
+				const results = updateMarketplaceEntry(resolveRoot(opts.root), name, {
+					targets: targetsFromOptions(opts),
+					source: opts.source,
+					kind: kindFromOptions(opts),
+					subdir: opts.subdir,
+					ref: opts.ref,
+					sha: opts.sha,
+					metadata: updateMetadataFromOptions(opts),
+					unset: opts.unset,
+					dryRun: opts.dryRun,
+				})
+				output(results, {
+					targets: results.map((row) => ({
+						target: row.target,
+						status: row.status,
+						entry: row.entry,
+						source: row.source,
+						path: row.path,
+						reason: row.reason ?? '-',
+					})),
+					summary: `${results.filter((row) => row.status === 'skipped').length} skipped of ${results.length}`,
+				})
+				for (const row of results.filter((row) => row.status === 'skipped')) {
+					process.stderr.write(`skipped ${row.target}: ${row.reason}\n`)
+				}
+				process.stderr.write(
+					`${opts.dryRun ? 'Planned' : 'Wrote'} repository metadata only; no marketplace publication, registration, installation, authentication, or provisioning occurred.\n`,
+				)
+			} catch (err) {
+				process.stderr.write(`${err instanceof Error ? err.message : String(err)}\n`)
+				process.exitCode = 1
+			}
+		})
+}
+
 function initCommand(): Command {
 	return new Command('init')
 		.description('Generate local marketplace metadata without publishing or provisioning')
@@ -264,5 +358,6 @@ export function marketplaceCommand(): Command {
 		.description('Generate repository-local marketplace metadata')
 		.addCommand(addCommand())
 		.addCommand(initCommand())
+		.addCommand(updateCommand())
 		.addCommand(validateCommand())
 }
