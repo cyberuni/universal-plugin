@@ -75,7 +75,7 @@ export interface MarketplaceAddResult {
 }
 
 /** A source rendered for the result table — one short cell, not a JSON blob. */
-function describeSource(source: string | CatalogSource): string {
+export function describeSource(source: string | CatalogSource): string {
 	if (typeof source === 'string') return source
 	const detail = source.package ?? source.repo ?? source.url ?? source.path
 	return typeof detail === 'string' ? `${source.source}:${detail}` : String(source.source)
@@ -167,7 +167,7 @@ function resolveFromMarketplace(
 	return { source: rewritten, metadata: found }
 }
 
-function selectedTargets(targets?: MarketplaceTarget[]): MarketplaceTarget[] {
+export function selectedTargets(targets?: MarketplaceTarget[]): MarketplaceTarget[] {
 	return targets && targets.length > 0 ? [...new Set(targets)] : ['claude', 'codex', 'copilot', 'cursor']
 }
 
