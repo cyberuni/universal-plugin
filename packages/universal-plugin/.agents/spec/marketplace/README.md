@@ -8,6 +8,8 @@ remote service API. Those operations remain outside this package's charter.
   by a path, a package, a forge slug or URL, or an entry another marketplace publishes.
 - [`init/`](./init/README.md) — discover eligible root-level `plugin.json` manifests below approved
   scan roots and generate each vendor's marketplace catalog.
+- [`update/`](./update/README.md) — change one entry the catalogs already list, in place, keeping
+  every field the request does not name.
 - [`validate/`](./validate/README.md) — check the catalogs a repository carries against the schema
   each vendor's runtime loads, and report the key at fault.
 
