@@ -107,7 +107,9 @@ fallback. Run `--dry-run` first and show the plan, including the skips. The comm
 | `skipped` | that runtime cannot resolve this source; the reason says which |
 
 An entry already listed **differently** stops the run and asks for `--force`. Read what would change
-before passing it: someone wrote that entry, and `--force` is what discards their version.
+before passing it: someone wrote that entry, and `--force` is what discards their version. To change
+a listed entry rather than replace it, use `update` (`references/update.md`), which keeps every field
+it is not asked about.
 
 The catalog is created if the repository has none, named and owned the same way `init` names it —
 from the root `plugin.json` author, with `--marketplace-name` and `--owner` to override. A
