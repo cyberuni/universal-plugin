@@ -35,7 +35,7 @@ the fix is to run `init` or `add` so the runtime gets a catalog of its own.
 
 Fix an issue in the source it comes from, then regenerate. An entry's fields are derived, so an
 npm-style `repository` object belongs fixed in the plugin's `plugin.json` (for a discovered plugin)
-or passed as `--repository <url>` (for an added one).
+or set with `update <name> --repository <url>` (for an added one, `references/update.md`).
 
 The top-level `name` and `owner` live in the catalog itself, and `owner` must be an object —
 `{ "name": "…" }`, never the `"Name <email>"` string `package.json` uses.

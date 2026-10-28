@@ -239,6 +239,14 @@ The `source` field supports the same shapes as Claude Code (`url`, `github`, `gi
 
 If the plugin is already listed (this is an update), find its existing entry, update changed fields, and preserve any curator-added fields not in the standard shape. Do not overwrite `publishedAt` if present — add `"updatedAt": "<today>"` instead.
 
+For a change `marketplace update` covers (a new source, a moved `ref` or `sha` pin, or a field such as `description`, `version`, or `category`), run it in the marketplace checkout rather than editing the catalogs by hand. It keeps every field it is not given, curator fields included, and validates each catalog before writing:
+
+```bash
+npx universal-plugin marketplace update <plugin-name> --source <spec> --dry-run --root .
+```
+
+Drop `--dry-run` once the plan reads right. `updatedAt` and any other field it has no flag for are still set by hand.
+
 Show all prepared entries to the user and ask them to confirm before proceeding.
 
 ### 2f. Resolve the plugin's dependencies
