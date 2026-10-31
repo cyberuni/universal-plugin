@@ -1,6 +1,6 @@
 {
 	"name": "universal-plugin",
-	"version": "0.16.2",
+	"version": "0.16.3",
 	"description": "Universal AI agent plugin build tool",
 	"keywords": [
 		"agent-plugin",

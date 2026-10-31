@@ -1,5 +1,11 @@
 # universal-plugin
 
+## 0.16.3
+
+### Patch Changes
+
+- 3fd0b8c: Include `CHANGELOG.md` in the published package.
+
 ## 0.16.2
 
 ### Patch Changes
