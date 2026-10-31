@@ -36,7 +36,8 @@
 		".codex-plugin",
 		"com.github.copilot",
 		"skills",
-		"agents"
+		"agents",
+		"CHANGELOG.md"
 	],
 	"scripts": {
 		"build": "tsdown",
