@@ -18,7 +18,9 @@ export default defineConfig({
 	// since the plugin directory is a copy of the source checkout rather than an npm
 	// install. This already holds for the published build and is what lets the shipped
 	// skill launchers work from a plugin cache whose `node_modules` is absent or
-	// incomplete; declaring it here makes it explicit rather than incidental.
+	// incomplete; declaring it here makes it explicit rather than incidental. Because
+	// these packages are inlined and nothing else shipped imports them, they live in
+	// `devDependencies`: installing the published package does not need them.
 	//
 	// `@repobuddy/upx` is deliberately absent: it is not reachable from `src/cli.ts`.
 	// The in-flight upx extraction added it so the separate `bin/upx.mjs` shim can
