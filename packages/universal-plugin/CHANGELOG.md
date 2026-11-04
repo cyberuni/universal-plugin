@@ -1,5 +1,17 @@
 # universal-plugin
 
+## 0.17.0
+
+### Minor Changes
+
+- 08e9790: Add `marketplace update <name>`, which changes one entry a repository's catalogs already list and keeps every field it is not asked to change. Move an entry to a new source (a new git source keeps the old pin), bump `--ref` or `--sha`, set one field such as `--description` or `--category`, or remove one with `--unset`. Each catalog is validated before anything is written, and an update that would introduce an issue writes nothing.
+
+### Patch Changes
+
+- 2dc4e84: Depend on `cyber-agentkit` `^2.0.0`. The docs now name `reference load`, which replaces `reference show`.
+- 80582de: Move `commander`, `semver`, `cyber-agentkit`, and `@toon-format/toon` to `devDependencies`. The `universal-plugin` bin already inlines them, so installing the package no longer pulls them in.
+- b53f4c8: The `publish-plugin` skill now changes an entry already listed in the marketplace with `marketplace update` instead of editing the catalogs by hand, so curator fields are kept and each catalog is validated before it is written.
+
 ## 0.16.3
 
 ### Patch Changes
