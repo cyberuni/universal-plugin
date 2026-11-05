@@ -18,7 +18,7 @@ Feature: plugin bundle — materialize the release form
   Scenario: bundle warns that it is deprecated and points at plugin version
     Given a skill "skills/x/SKILL.md" contains "npx cyberplace@0.0.9"
     When I run "universal-plugin plugin bundle"
-    Then stderr contains "warn: plugin bundle is deprecated and will be removed in the next minor release — use plugin version, which stamps the skill pins"
+    Then stderr contains "warn: plugin bundle is deprecated since 0.14.0 and will be removed in a later release — use plugin version, which stamps the skill pins"
     And "skills/x/SKILL.md" contains "npx cyberplace@0.1.0"
     And the exit code is 0
 

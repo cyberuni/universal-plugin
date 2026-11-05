@@ -74,7 +74,7 @@ npx universal-plugin publish check-version            # fail when any place carr
 ```
 
 `publish sync-version` and `plugin bundle` are deprecated aliases of `plugin version --from-package`
-and `plugin version`. They print a warning and are removed in the next minor release.
+and `plugin version`. They print a warning and will be removed in a later release.
 
 ### marketplace
 

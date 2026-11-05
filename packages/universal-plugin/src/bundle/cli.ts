@@ -38,7 +38,7 @@ export function bundleCommand(): Command {
 		.addHelpText('after', '\nExample:\n  $ universal-plugin plugin bundle --dry-run --full\n')
 		.action((opts: BundleCliOptions) => {
 			process.stderr.write(
-				'warn: plugin bundle is deprecated and will be removed in the next minor release — use plugin version, which stamps the skill pins\n',
+				'warn: plugin bundle is deprecated since 0.14.0 and will be removed in a later release — use plugin version, which stamps the skill pins\n',
 			)
 			try {
 				const runner = opts.runner

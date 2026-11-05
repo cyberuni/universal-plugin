@@ -19,7 +19,7 @@ export function publishCommand(): Command {
 		.addOption(ROOT_OPTION)
 		.action((opts: { root?: string; build?: boolean }) => {
 			process.stderr.write(
-				'warn: publish sync-version is deprecated and will be removed in the next minor release — use plugin version --from-package\n',
+				'warn: publish sync-version is deprecated since 0.14.0 and will be removed in a later release — use plugin version --from-package\n',
 			)
 			runVersion(undefined, { ...opts, fromPackage: true })
 		})
