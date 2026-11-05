@@ -45,12 +45,13 @@ Running `universal-plugin plugin build` from the plugin root generates:
 
 ## What gets transformed
 
-Build merges and strips. It does not rewrite the contents of the files a component path names.
+Build merges and strips. Apart from the hooks file, it does not rewrite the contents of the files a component path names.
 
 - **Shared metadata and component paths** are copied from the canonical top level into each vendor manifest.
 - **Vendor-specific fields** in `extensions["org.cyberuni.universal-plugin"].harnesses.<vendor>` are merged over that metadata, and the harness value wins on conflict.
 - **Orchestration keys** never reach a vendor: `$schema`, `extensions`, `vendors`, and `harnesses` are stripped.
 - **Required fields** are enforced per target. Codex requires `version` and `description`, and the build fails before writing anything for any vendor when either is missing.
+- **Hooks** are derived per vendor from one canonical hooks file with PascalCase event names. Claude Code, Codex, and Copilot CLI read PascalCase; Cursor gets camelCase event names and its own flat file shape. A handler type a vendor cannot run is dropped from that vendor's file, and the build warns for each one. A vendor whose form differs from the canonical file gets its own `hooks.json` beside its manifest, and Copilot CLI reads its copy from `com.github.copilot/hooks/hooks.json`.
 - **Skill invocation policy** is projected. A skill declaring `invocation-policy` gets the matching Claude Code frontmatter flag written into its `SKILL.md`. Codex invokes skills natively, so it needs nothing extra, and the build writes nothing outside the plugin tree.
 
 - **Plugin dependencies** declared under `extensions["org.cyberuni.universal-plugin"].dependencies` reach Claude Code, the only runtime that reads one. Every other vendor's manifest is built without them, and the build says which ones it dropped. See [build](../../cli/build/#plugin-dependencies).
@@ -59,9 +60,7 @@ A `harnesses` entry for `copilot-cli` is the one merge that goes nowhere. That v
 
 ### Not translated today
 
-Hook event names diverge by case: PascalCase for Claude Code and Codex, camelCase for Cursor and Copilot CLI. The build copies the `hooks` path through as declared and does not rename events, so one hooks file cannot satisfy both casings. Environment variable references inside hook commands and MCP configs pass through unchanged for the same reason.
-
-Translation is planned, and the design question is what to do with a handler type a target cannot run. See [issue #41](https://github.com/cyberuni/universal-plugin/issues/41).
+Environment variable references inside hook commands and MCP configs pass through unchanged. The build renames hook events, but it does not rewrite the commands a handler runs.
 
 ## Driving it from an agent
 
