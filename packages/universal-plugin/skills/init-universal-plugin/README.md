@@ -47,7 +47,7 @@ hold everywhere belongs in the Markdown body. See `references/frontmatter.md`, w
 ## Boundaries
 
 Plugin authoring only. Setting a repository up to *consume* skills — `AGENTS.md`, the
-`.agents/skills/` layout, per-harness bridges — is `buddy-agent-harness:init`. This skill does not
+`.agents/skills/` layout, per-harness bridges — is `buddy-agent-harness:init-buddy-agent-harness`. This skill does not
 touch CI, repository settings, or unrelated project files.
 
 ## References

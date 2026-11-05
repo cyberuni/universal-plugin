@@ -1,12 +1,12 @@
 # Plugin Design
 
-Authoritative rules for creating, validating, and transforming cross-vendor agent plugins. Apply when creating, auditing, or distributing a plugin; see **skill-design** governance for standalone skill authoring rules.
+Authoritative rules for creating, validating, and transforming cross-vendor agent plugins. Apply when creating, auditing, or distributing a plugin; see the **skill-design** reference for standalone skill authoring rules.
 
 A **plugin** is the distribution unit — it bundles skills, MCP servers, hooks, commands, agents, and other extensions into a single installable package. A **skill** is the capability unit inside a plugin. Install plugins; invoke skills.
 
 ## Source of Truth: root `plugin.json`
 
-Author `plugin.json` at the plugin root as the canonical manifest — the Agent Plugins Specification v1.0.0 shape (closed field set, `additionalProperties: false`). All vendor manifests are derived from it via `build`. This file is never read directly by vendors at runtime; it is the single source that the build layer transforms into each vendor's manifest.
+Author `plugin.json` at the plugin root as the canonical manifest — the Agent Plugins Specification v1.0.0 shape (closed field set, `additionalProperties: false`). All vendor manifests are derived from it via `build`. GitHub Copilot CLI reads this file directly at runtime; every other vendor reads the manifest the build layer derives from it.
 
 Schema declaration (first field, fixed by the spec):
 
@@ -98,8 +98,7 @@ Vendor-specific extension fields:
 │
 ├── hooks/hooks.json              ← canonical hooks (PascalCase, ${PLUGIN_ROOT})
 │
-├── .mcp.json                     ← source of truth (all vendors)
-├── mcp.json -> .mcp.json         ← symlink (Cursor + open-plugin-spec)
+├── mcp.json                      ← MCP config (fixed location, all vendors)
 │
 └── README.md
 ```
@@ -141,11 +140,11 @@ Build reads root `plugin.json`, applies the rules below, writes each vendor's ou
 | Canonical field | Claude Code | Cursor | Codex | Copilot CLI |
 | --- | --- | --- | --- | --- |
 | `skills` | ✓ | ✓ | ✓ | ✓ |
-| `mcpServers` | ✓ → `./.mcp.json` | adapt → `./mcp.json` (symlink) | ✓ → `./.mcp.json` | ✓ |
+| `mcpServers` | ✓ → `./mcp.json` | ✓ → `./mcp.json` | ✓ → `./mcp.json` | ✓ |
 | `commands` | ✓ | ✓ | **omit** | ✓ |
 | `agents` | ✓ | ✓ | **omit** | ✓ |
 | `rules` | **omit** | ✓ | **omit** | **omit** |
-| `hooks` | adapt → PascalCase, `${CLAUDE_PLUGIN_ROOT}` | adapt → camelCase, pass-through env | ✓ → PascalCase, `${PLUGIN_ROOT}` native | adapt → camelCase, pass-through env |
+| `hooks` | adapt → PascalCase, `${CLAUDE_PLUGIN_ROOT}` | adapt → camelCase, pass-through env | ✓ → PascalCase, `${PLUGIN_ROOT}` native | ✓ → PascalCase (selects the Claude-compatible payload) |
 | `lspServers` | ✓ | **omit** | **omit** | **omit** |
 | `outputStyles` | ✓ | **omit** | **omit** | **omit** |
 | `dependencies` | ✓ | **drop + warn** | **drop + warn** | **drop + warn** |
@@ -193,15 +192,15 @@ Canonical hooks file uses **PascalCase** event names. Build translates per vendo
 
 | Canonical (PascalCase) | Claude Code | Cursor | Codex | Copilot CLI |
 | --- | --- | --- | --- | --- |
-| `PreToolUse` | `PreToolUse` | `preToolUse` | `PreToolUse` | `preToolUse` |
-| `PostToolUse` | `PostToolUse` | `postToolUse` | `PostToolUse` | `postToolUse` |
+| `PreToolUse` | `PreToolUse` | `preToolUse` | `PreToolUse` | `PreToolUse` |
+| `PostToolUse` | `PostToolUse` | `postToolUse` | `PostToolUse` | `PostToolUse` |
 | `PostToolUseFailure` | `PostToolUseFailure` | — (drop+warn) | — (drop+warn) | — (drop+warn) |
-| `SessionStart` | `SessionStart` | `sessionStart` | `SessionStart` | `sessionStart` |
-| `SessionEnd` | `SessionEnd` | `sessionEnd` | `SessionEnd` | `sessionEnd` |
-| `Stop` | `Stop` | — (drop+warn) | — (drop+warn) | `agentStop` |
+| `SessionStart` | `SessionStart` | `sessionStart` | `SessionStart` | `SessionStart` |
+| `SessionEnd` | `SessionEnd` | `sessionEnd` | `SessionEnd` | `SessionEnd` |
+| `Stop` | `Stop` | — (drop+warn) | — (drop+warn) | `Stop` |
 | `UserPromptSubmit` | `UserPromptSubmit` | `beforeSubmitPrompt` | — (drop+warn) | — (drop+warn) |
-| `Notification` | `Notification` | — (drop+warn) | — (drop+warn) | `notification` |
-| `PermissionRequest` | `PermissionRequest` | — (drop+warn) | — (drop+warn) | `permissionRequest` |
+| `Notification` | `Notification` | — (drop+warn) | — (drop+warn) | `Notification` |
+| `PermissionRequest` | `PermissionRequest` | — (drop+warn) | — (drop+warn) | `PermissionRequest` |
 | `SubagentStart` | — | `subagentStart` | — | — |
 | `SubagentStop` | — | `subagentStop` | — | — |
 | `PreCompact` | `PreCompact` | `preCompact` | — | — |
@@ -230,20 +229,9 @@ Events not in this table: pass through for `claude-code`; drop + warn for all ot
 
 Build generates vendor-specific versions. Do not hand-author the generated hook files.
 
-## MCP: Symlink Rule
+## MCP: `mcp.json`
 
-`.mcp.json` is the source of truth. `mcp.json` is always a symlink — never a regular file.
-
-```bash
-ln -sf .mcp.json mcp.json
-```
-
-| Runtime | Reads |
-| --- | --- |
-| Claude Code, Codex | `.mcp.json` |
-| Cursor, open-plugin-spec | `mcp.json` (via symlink) |
-
-If the repo needs explicit symlink tracking: `mcp.json symlink` in `.gitattributes`. MCP server startup failures are non-fatal.
+`mcp.json` at the plugin root is the Agent Plugins Specification's fixed MCP location, Author it as a regular file. `build` points each derived manifest at it, unless it has to change an entry for that vendor; then it writes the changed copy beside the vendor manifest. MCP server startup failures are non-fatal.
 
 ### Pinning a self-published server to the plugin version
 
@@ -271,9 +259,9 @@ A plugin whose MCP server is its own npm package writes an unpinned invocation �
 
 ## Component Authoring Rules
 
-**Skills:** Author `skills/<name>/SKILL.md` following the **skill-design** governance. Within a plugin, reference MCP tools by fully qualified name: `{plugin-name}:{server-name}__{tool-name}`. Use the **slash-invocation** governance when a skill needs a user-only, model-only, or explicit both-invocation policy.
+**Skills:** Author `skills/<name>/SKILL.md` following the **skill-design** reference. Within a plugin, reference MCP tools by fully qualified name: `{plugin-name}:{server-name}__{tool-name}`. Use the **slash-invocation** reference when a skill needs a user-only, model-only, or explicit both-invocation policy.
 
-**Commands:** One `.md` file per command in `commands/`. Filename (minus extension) is the command identifier. Optional frontmatter: `description`, `argument-hint`, `allowed-tools`, `disable-model-invocation`. `$ARGUMENTS` expands to user input.
+**Commands:** One `.md` file per command in `commands/`. Filename (minus extension) is the command identifier. Optional frontmatter: `description`, `argument-hint`, `allowed-tools`, `disable-model-invocation`. `$ARGUMENTS` expands to user input on Claude Code and stays literal on other runtimes.
 
 **Agents:** One `.md` file per agent in `agents/`. Required frontmatter: `name` (1–64 lowercase alphanumeric + hyphens), `description` (≤ 1024 chars). Body is the agent system prompt.
 
@@ -306,9 +294,9 @@ A plugin whose MCP server is its own npm package writes an unpinned invocation �
 
 | Scope | Claude Code | Cursor | Codex |
 | --- | --- | --- | --- |
-| **Personal** | `~/.claude/plugins/local/<name>` symlink | `~/.cursor/plugins/local/<name>` symlink + reload | `~/.agents/plugins/marketplace.json` |
+| **Personal** | `universal-plugin plugin install`, then restart | `universal-plugin plugin install` (copies), then reload the window | `~/.agents/plugins/marketplace.json` |
 | **Team** | npm private package | Cursor Teams admin import | `.agents/plugins/marketplace.json` in repo |
-| **Public** | PR to `anthropics/claude-plugins-official` | `cursor.com/marketplace/publish` | `codex plugin marketplace add` |
+| **Public** | `anthropics/claude-plugins-official` is curated and takes no pull requests; check its submission route live (`publish-plugin`, step 0c) | `cursor.com/marketplace/publish` | `codex plugin marketplace add` |
 
 Default scope: **team**.
 
@@ -318,13 +306,11 @@ Default scope: **team**.
 
 - Using `../` in any manifest-declared path
 - Hardcoding absolute paths instead of `${PLUGIN_ROOT}` or `${PLUGIN_DATA}`
-- Committing `mcp.json` as a regular file — must always be a symlink to `.mcp.json`
 - Hand-authoring vendor hook files — use canonical `hooks/hooks.json` and let build generate vendor versions
 - Relying on extended component types (commands, rules, agents, hooks) for core functionality — silently ignored on non-supporting hosts
 - Duplicating SKILL.md content in `plugin.json` — the manifest is a path index, never a content mirror
 - Using `rules/` for cross-agent always-on guidance — use AGENTS.md instead
 - Putting role- or task-scoped guidance in always-on context (`rules/` or AGENTS.md) — make it a reference loaded on demand
-- Putting install-time metadata in `plugin.json` instead of `skill.json`
 
 ## Cross-Platform Portability
 
@@ -338,7 +324,7 @@ Default scope: **team**.
 | Windsurf | Needs conversion | 6,000 char/file hard limit; 12,000 chars total |
 | Zed, Aider, Continue.dev, Cline | No | Incompatible formats |
 
-Portability rules for skill bodies: keep each `SKILL.md` body under 6,000 chars; use forward slashes in path references; declare environment requirements in `compatibility` frontmatter; do not embed vendor-specific syntax in skill bodies.
+Portability rules for skill bodies: for a skill that must load in Windsurf, keep the `SKILL.md` body under its 6,000-char limit and move detail into `references/`; use forward slashes in path references; declare environment requirements in `compatibility` frontmatter; do not embed vendor-specific syntax in skill bodies.
 
 ## References
 

@@ -30,7 +30,7 @@ universal-plugin reads `invocation-policy` from each `SKILL.md` and projects it 
 | --- | --- | --- |
 | `both` (default) | user- and model-invocable | nothing |
 | `user` | explicit invocation only | writes `disable-model-invocation: true` into the skill's frontmatter |
-| `model` | model-invocable only, not user-facing | writes `user-invocable: false`, and emits no Codex prompt |
+| `model` | model-invocable only, not user-facing | writes `user-invocable: false` |
 
 Two consequences worth knowing before you run a build:
 

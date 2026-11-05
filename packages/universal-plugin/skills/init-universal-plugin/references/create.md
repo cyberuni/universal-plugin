@@ -34,7 +34,7 @@ entry in both `vendors` and `harnesses` under
 
 Infer from context; ask only if ambiguous. [`standard.md`](./standard.md) has the component table and
 the layout they go in; the `plugin-design` reference decides which component a given need calls
-for. The universal minimum is `skills/<name>/SKILL.md` plus `.mcp.json`.
+for. The universal minimum is `skills/<name>/SKILL.md` plus `mcp.json`.
 
 ## Step 4 — Scaffold
 
@@ -83,10 +83,10 @@ delivery path at all.
 Run the mechanical validator from the aced **improve-skill** skill:
 
 ```bash
-node "<path to aced improve-skill>/scripts/validate.mts" --path skills/<skill-name>
+node "<path to aced improve-skill>/scripts/validate.mjs" --path skills/<skill-name>
 ```
 
-Fix every CRITICAL finding, then invoke the **audit-skill** skill for the full review.
+Fix every CRITICAL finding, then invoke the `aced:improve-skill` skill for the full review.
 [`frontmatter.md`](./frontmatter.md) covers what has to hold across runtimes.
 
 ## Step 7 — Build
@@ -98,8 +98,8 @@ npx universal-plugin plugin build
 Useful flags: `--dry-run` to see the plan, `--verbose` for field-by-field decisions, `--vendor <id>`
 for one target, `--clean` to delete derived manifests first.
 
-Read the warnings. An unknown vendor id, an undeliverable Copilot override, and a failed Codex prompt
-write all surface there rather than as errors.
+Read the warnings. An unknown vendor id and an undeliverable Copilot override both surface there
+rather than as errors.
 
 ## Step 8 — Install locally to test
 
@@ -113,7 +113,7 @@ restart for Claude Code, **Developer: Reload Window** for Cursor. `--list` shows
 without writing; `--vendor <id>` narrows it; `plugin uninstall` removes it again.
 
 Codex and Copilot CLI scan no local plugin directory, so they report as `unsupported`. Reach those
-through a repository-local marketplace — `publish-plugin`.
+through a repository-local marketplace — `marketplace`.
 
 Do not hand-write a symlink for this. The recipe that circulated for it named
 `~/.claude/plugins/local/`, which does not exist, and a symlink into Cursor's local directory is

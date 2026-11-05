@@ -138,8 +138,8 @@ Every guard resolves before the first write, so a failed run leaves the tree unt
   `plugin build`; the bump already re-derived them.
 - **Run `npm version`.** It knows only `package.json` and leaves the canonical manifest and the
   skill pins stale.
-- **Use the deprecated commands.** `plugin bundle` and `publish sync-version` print a warning and are
-  removed in the next minor release. `sync-version` now runs `plugin version --from-package`.
+- **Use the deprecated commands.** `plugin bundle` and `publish sync-version` print a deprecation
+  warning; use `plugin version` instead. `sync-version` now runs `plugin version --from-package`.
 
 ## Related skills
 
@@ -148,7 +148,7 @@ Every guard resolves before the first write, so a failed run leaves the tree unt
 | Create, adopt, or change what the plugin declares | `init-universal-plugin` |
 | Re-derive the vendor manifests by hand | `build-plugin` |
 | Check whether every place agrees (`unstamped`, `version-drift`) | `doctor-universal-plugin` |
-| Add a changeset for the change being released | `add-changeset` |
+| Add a changeset for the change being released | `buddy-changesets:changesets` |
 | Refresh the repository's own marketplace catalogs after a bump | `marketplace` |
 | List the released plugin in the shared marketplace | `publish-plugin` |
 

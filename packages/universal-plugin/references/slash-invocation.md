@@ -10,7 +10,7 @@ description: Deploy the application after running release checks.
 invocation-policy: user
 ---
 
-Deploy $ARGUMENTS.
+Deploy the environment the user names in the invocation.
 ```
 
 | Policy | Meaning | Default |
@@ -22,7 +22,7 @@ Deploy $ARGUMENTS.
 `plugin build` derives vendor behavior from that policy:
 
 - Claude Code uses the same `SKILL.md` and adds its native invocation flag.
-- Cursor receives a thin `.cursor/commands/<skill>.md` prompt insert for `user` and `both` skills.
+- Cursor uses the same `SKILL.md` and its native invocation flag; no per-skill command is derived.
 - Codex uses the skill itself. A user invokes it with `$skill` or `/skills`, so no command is derived. Codex custom prompts are deprecated and home-only, and `plugin build` never writes outside the plugin tree.
 - Copilot CLI receives no derived command. Its `/skill-name` form is only a prompt hint, not deterministic invocation.
 
