@@ -27,8 +27,8 @@ semantic-release stamps files that exist only in the npm package unless `@semant
 commits them back. Git-sourced installs read `plugin.json` from the repository, so they need that
 commit-back.
 
-`plugin bundle` and `publish sync-version` are deprecated aliases and are removed in the next minor
-release.
+`plugin bundle` and `publish sync-version` are deprecated aliases. They have warned since 0.14.0 and will be
+removed in a later release.
 
 ## The part that is not automatable
 

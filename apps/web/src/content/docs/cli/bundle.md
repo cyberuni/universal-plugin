@@ -5,7 +5,7 @@ description: Deprecated. Use plugin version.
 
 :::caution[Deprecated]
 `plugin bundle` is a deprecated alias of [`plugin version`](../overview/#plugin-version-stamps-every-place).
-It prints a warning and is removed in the next minor release.
+It prints a warning and will be removed in a later release.
 :::
 
 `plugin version` now does what `bundle` did, and more. One call writes the version into `plugin.json`,

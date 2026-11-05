@@ -131,7 +131,7 @@ One call writes all of these, and a failing guard writes none.
 ### Deprecated aliases
 
 - `publish sync-version` runs `plugin version --from-package` and prints the same output, with the
-  stderr warning `warn: publish sync-version is deprecated and will be removed in the next minor
+  stderr warning `warn: publish sync-version is deprecated since 0.14.0 and will be removed in a later
   release — use plugin version --from-package`.
 - [`plugin bundle`](../bundle/README.md) keeps its own behavior and warns that `plugin version`
   stamps the skill pins now.

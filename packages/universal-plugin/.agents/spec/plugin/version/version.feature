@@ -495,7 +495,7 @@ Feature: plugin version — move the plugin's version, and keep every version-ca
     And a skill pins "my-cli@1.2.3"
     When I run "universal-plugin publish sync-version --root <root>"
     Then the exit code is 0
-    And stderr contains "publish sync-version is deprecated and will be removed in the next minor release — use plugin version --from-package"
+    And stderr contains "publish sync-version is deprecated since 0.14.0 and will be removed in a later release — use plugin version --from-package"
     And "plugin.json" contains version "1.3.0"
     And the skill pins "my-cli@1.3.0"
 

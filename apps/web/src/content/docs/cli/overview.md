@@ -113,7 +113,7 @@ they are unsupported. See [ADR-0010](https://github.com/cyberuni/universal-plugi
 
 ### Deprecated commands
 
-`plugin bundle` and `publish sync-version` print a warning and are removed in the next minor release.
+`plugin bundle` and `publish sync-version` print a warning and will be removed in a later release.
 `sync-version` now runs `plugin version --from-package`. Pinning was never bundling, and "bundle" is
 reserved for compiling skill scripts into one self-contained file.
 
