@@ -98,8 +98,8 @@ npx universal-plugin plugin build
 Useful flags: `--dry-run` to see the plan, `--verbose` for field-by-field decisions, `--vendor <id>`
 for one target, `--clean` to delete derived manifests first.
 
-Read the warnings. An unknown vendor id, an undeliverable Copilot override, and a failed Codex prompt
-write all surface there rather than as errors.
+Read the warnings. An unknown vendor id and an undeliverable Copilot override both surface there
+rather than as errors.
 
 ## Step 8 — Install locally to test
 

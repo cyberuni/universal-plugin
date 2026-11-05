@@ -6,7 +6,7 @@ A **plugin** is the distribution unit — it bundles skills, MCP servers, hooks,
 
 ## Source of Truth: root `plugin.json`
 
-Author `plugin.json` at the plugin root as the canonical manifest — the Agent Plugins Specification v1.0.0 shape (closed field set, `additionalProperties: false`). All vendor manifests are derived from it via `build`. This file is never read directly by vendors at runtime; it is the single source that the build layer transforms into each vendor's manifest.
+Author `plugin.json` at the plugin root as the canonical manifest — the Agent Plugins Specification v1.0.0 shape (closed field set, `additionalProperties: false`). All vendor manifests are derived from it via `build`. GitHub Copilot CLI reads this file directly at runtime; every other vendor reads the manifest the build layer derives from it.
 
 Schema declaration (first field, fixed by the spec):
 
@@ -306,9 +306,9 @@ A plugin whose MCP server is its own npm package writes an unpinned invocation �
 
 | Scope | Claude Code | Cursor | Codex |
 | --- | --- | --- | --- |
-| **Personal** | `~/.claude/plugins/local/<name>` symlink | `~/.cursor/plugins/local/<name>` symlink + reload | `~/.agents/plugins/marketplace.json` |
+| **Personal** | `universal-plugin plugin install`, then restart | `universal-plugin plugin install` (copies), then reload the window | `~/.agents/plugins/marketplace.json` |
 | **Team** | npm private package | Cursor Teams admin import | `.agents/plugins/marketplace.json` in repo |
-| **Public** | PR to `anthropics/claude-plugins-official` | `cursor.com/marketplace/publish` | `codex plugin marketplace add` |
+| **Public** | `anthropics/claude-plugins-official` is curated and takes no pull requests; check its submission route live (`publish-plugin`, step 0c) | `cursor.com/marketplace/publish` | `codex plugin marketplace add` |
 
 Default scope: **team**.
 
