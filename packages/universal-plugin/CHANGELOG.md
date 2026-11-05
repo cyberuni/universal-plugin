@@ -1,5 +1,17 @@
 # universal-plugin
 
+## 0.17.1
+
+### Patch Changes
+
+- 7c951cc: `plugin bundle` and `publish sync-version` no longer warn that they are removed "in the next minor release", a release that has already shipped. The warning now says they have been deprecated since 0.14.0 and will be removed in a later release.
+- 621d36d: The `publish-plugin` skill's clone, fork and pull request commands now use the marketplace repo the user chose instead of always naming `cyberuni/cyberplace`.
+- 621d36d: The skill references no longer contradict each other on how the plugin is built and shipped: Copilot CLI reads the canonical `plugin.json` directly, a local install goes through `plugin install` rather than a hand-written symlink, `anthropics/claude-plugins-official` takes no pull requests, the build writes no Cursor command or Codex prompt, `packagePath` lives in `.agents/universal-plugin.json`, and `plugin build` has a `--check` flag.
+- 621d36d: The plugin references and the `agentskills-specialist` agent now say Copilot CLI hooks keep the canonical PascalCase event names, which is what the build writes, instead of camelCase.
+- 621d36d: The skills now name skills that exist: `buddy-agent-harness:init-buddy-agent-harness`, `buddy-agent-harness:doctor-buddy-agent-harness`, `buddy-changesets:changesets`, `aced:improve-skill` and its `validate.mjs` script, and the `marketplace` skill for a repository-local catalog.
+- 621d36d: The plugin references now name `mcp.json` as a plugin's MCP config, the fixed location the build reads, and drop the rule that it must be a symlink to `.mcp.json`.
+- 621d36d: The plugin references and the `agentskills-specialist` agent drop claims nothing backs: a fixed `SKILL.md` section template, a 6,000-character limit for every runtime, a `skill.json`, support for Zed, Continue.dev and Cline, `$ARGUMENTS` expanding everywhere, and dated "next minor release" wording. They also call references references, not governances.
+
 ## 0.17.0
 
 ### Minor Changes
