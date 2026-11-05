@@ -58,7 +58,7 @@ what each build gets. A vendor listed in `vendors` with no `harnesses` entry sti
 ├── agents/<name>.md
 ├── rules/<name>.mdc         (Cursor-only guidance)
 ├── hooks/hooks.json
-├── .mcp.json
+├── mcp.json
 └── README.md
 ```
 
@@ -70,7 +70,7 @@ directories. Create the rest only when the plugin has content for them.
 | Component | Field | Directory | Reaches |
 |-----------|-------|-----------|---------|
 | Skills | `skills` | `skills/<name>/SKILL.md` | every vendor |
-| MCP servers | `mcpServers` | `.mcp.json` | every vendor |
+| MCP servers | `mcpServers` | `mcp.json` | every vendor |
 | Commands | `commands` | `commands/<name>.md` | Claude Code, Cursor, Copilot CLI |
 | Agents | `agents` | `agents/<name>.md` | Claude Code, Cursor, Copilot CLI |
 | Hooks | `hooks` | `hooks/hooks.json` | every vendor — authored PascalCase, translated per vendor by the build; handler types vary |
@@ -79,7 +79,7 @@ directories. Create the rest only when the plugin has content for them.
 | Output styles | `outputStyles` | `output-styles/` | Claude Code only |
 
 The universal minimum — reaching every runtime with no vendor manifest at all — is
-`skills/<name>/SKILL.md` plus `.mcp.json`. Reach for a narrower component only when the plugin needs
+`skills/<name>/SKILL.md` plus `mcp.json`. Reach for a narrower component only when the plugin needs
 what only that component does; the `plugin-design` reference is the authority on that choice.
 
 ## Constraints

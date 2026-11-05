@@ -98,8 +98,7 @@ Vendor-specific extension fields:
 │
 ├── hooks/hooks.json              ← canonical hooks (PascalCase, ${PLUGIN_ROOT})
 │
-├── .mcp.json                     ← source of truth (all vendors)
-├── mcp.json -> .mcp.json         ← symlink (Cursor + open-plugin-spec)
+├── mcp.json                      ← MCP config (fixed location, all vendors)
 │
 └── README.md
 ```
@@ -141,7 +140,7 @@ Build reads root `plugin.json`, applies the rules below, writes each vendor's ou
 | Canonical field | Claude Code | Cursor | Codex | Copilot CLI |
 | --- | --- | --- | --- | --- |
 | `skills` | ✓ | ✓ | ✓ | ✓ |
-| `mcpServers` | ✓ → `./.mcp.json` | adapt → `./mcp.json` (symlink) | ✓ → `./.mcp.json` | ✓ |
+| `mcpServers` | ✓ → `./mcp.json` | ✓ → `./mcp.json` | ✓ → `./mcp.json` | ✓ |
 | `commands` | ✓ | ✓ | **omit** | ✓ |
 | `agents` | ✓ | ✓ | **omit** | ✓ |
 | `rules` | **omit** | ✓ | **omit** | **omit** |
@@ -230,20 +229,9 @@ Events not in this table: pass through for `claude-code`; drop + warn for all ot
 
 Build generates vendor-specific versions. Do not hand-author the generated hook files.
 
-## MCP: Symlink Rule
+## MCP: `mcp.json`
 
-`.mcp.json` is the source of truth. `mcp.json` is always a symlink — never a regular file.
-
-```bash
-ln -sf .mcp.json mcp.json
-```
-
-| Runtime | Reads |
-| --- | --- |
-| Claude Code, Codex | `.mcp.json` |
-| Cursor, open-plugin-spec | `mcp.json` (via symlink) |
-
-If the repo needs explicit symlink tracking: `mcp.json symlink` in `.gitattributes`. MCP server startup failures are non-fatal.
+`mcp.json` at the plugin root is the Agent Plugins Specification's fixed MCP location, Author it as a regular file. `build` points each derived manifest at it, unless it has to change an entry for that vendor; then it writes the changed copy beside the vendor manifest. MCP server startup failures are non-fatal.
 
 ### Pinning a self-published server to the plugin version
 
@@ -318,7 +306,6 @@ Default scope: **team**.
 
 - Using `../` in any manifest-declared path
 - Hardcoding absolute paths instead of `${PLUGIN_ROOT}` or `${PLUGIN_DATA}`
-- Committing `mcp.json` as a regular file — must always be a symlink to `.mcp.json`
 - Hand-authoring vendor hook files — use canonical `hooks/hooks.json` and let build generate vendor versions
 - Relying on extended component types (commands, rules, agents, hooks) for core functionality — silently ignored on non-supporting hosts
 - Duplicating SKILL.md content in `plugin.json` — the manifest is a path index, never a content mirror
