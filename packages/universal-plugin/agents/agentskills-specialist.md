@@ -75,7 +75,7 @@ For skill creation or edits, write the full `SKILL.md` content directly — no p
 ## Key Research Context
 
 - A root `plugin.json` on Agent Plugins Spec 1.0.0 is the universal manifest; `skills/<name>/SKILL.md` is the universal skill entry point.
-- Hook event naming is the sharpest incompatibility: PascalCase (Claude Code, Codex), camelCase (Cursor, Copilot CLI), snake_case (Windsurf).
+- Hook event naming is the sharpest incompatibility: PascalCase (Claude Code, Codex, Copilot CLI), camelCase (Cursor), snake_case (Windsurf).
 - Only Claude Code and Cursor publish machine-readable JSON Schemas.
 
 ## Out of Scope

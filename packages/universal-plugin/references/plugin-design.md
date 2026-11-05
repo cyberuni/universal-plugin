@@ -144,7 +144,7 @@ Build reads root `plugin.json`, applies the rules below, writes each vendor's ou
 | `commands` | ✓ | ✓ | **omit** | ✓ |
 | `agents` | ✓ | ✓ | **omit** | ✓ |
 | `rules` | **omit** | ✓ | **omit** | **omit** |
-| `hooks` | adapt → PascalCase, `${CLAUDE_PLUGIN_ROOT}` | adapt → camelCase, pass-through env | ✓ → PascalCase, `${PLUGIN_ROOT}` native | adapt → camelCase, pass-through env |
+| `hooks` | adapt → PascalCase, `${CLAUDE_PLUGIN_ROOT}` | adapt → camelCase, pass-through env | ✓ → PascalCase, `${PLUGIN_ROOT}` native | ✓ → PascalCase (selects the Claude-compatible payload) |
 | `lspServers` | ✓ | **omit** | **omit** | **omit** |
 | `outputStyles` | ✓ | **omit** | **omit** | **omit** |
 | `dependencies` | ✓ | **drop + warn** | **drop + warn** | **drop + warn** |
@@ -192,15 +192,15 @@ Canonical hooks file uses **PascalCase** event names. Build translates per vendo
 
 | Canonical (PascalCase) | Claude Code | Cursor | Codex | Copilot CLI |
 | --- | --- | --- | --- | --- |
-| `PreToolUse` | `PreToolUse` | `preToolUse` | `PreToolUse` | `preToolUse` |
-| `PostToolUse` | `PostToolUse` | `postToolUse` | `PostToolUse` | `postToolUse` |
+| `PreToolUse` | `PreToolUse` | `preToolUse` | `PreToolUse` | `PreToolUse` |
+| `PostToolUse` | `PostToolUse` | `postToolUse` | `PostToolUse` | `PostToolUse` |
 | `PostToolUseFailure` | `PostToolUseFailure` | — (drop+warn) | — (drop+warn) | — (drop+warn) |
-| `SessionStart` | `SessionStart` | `sessionStart` | `SessionStart` | `sessionStart` |
-| `SessionEnd` | `SessionEnd` | `sessionEnd` | `SessionEnd` | `sessionEnd` |
-| `Stop` | `Stop` | — (drop+warn) | — (drop+warn) | `agentStop` |
+| `SessionStart` | `SessionStart` | `sessionStart` | `SessionStart` | `SessionStart` |
+| `SessionEnd` | `SessionEnd` | `sessionEnd` | `SessionEnd` | `SessionEnd` |
+| `Stop` | `Stop` | — (drop+warn) | — (drop+warn) | `Stop` |
 | `UserPromptSubmit` | `UserPromptSubmit` | `beforeSubmitPrompt` | — (drop+warn) | — (drop+warn) |
-| `Notification` | `Notification` | — (drop+warn) | — (drop+warn) | `notification` |
-| `PermissionRequest` | `PermissionRequest` | — (drop+warn) | — (drop+warn) | `permissionRequest` |
+| `Notification` | `Notification` | — (drop+warn) | — (drop+warn) | `Notification` |
+| `PermissionRequest` | `PermissionRequest` | — (drop+warn) | — (drop+warn) | `PermissionRequest` |
 | `SubagentStart` | — | `subagentStart` | — | — |
 | `SubagentStop` | — | `subagentStop` | — | — |
 | `PreCompact` | `PreCompact` | `preCompact` | — | — |
