@@ -203,7 +203,7 @@ is meant to ship — content that is still being worked on is not a finding to a
   directly. Its **components** are a separate question — a `copilot-root-components` finding is a real
   fault, and `canonical` is only healthy for a plugin that declares none of the moved kinds.
 - Do not treat repo-private agent configuration (`.claude/skills/`, `.agents/skills/`) as part of the
-  plugin. Diagnosing a repository's own skill wiring is `buddy-agent-harness:doctor`.
+  plugin. Diagnosing a repository's own skill wiring is `buddy-agent-harness:doctor-buddy-agent-harness`.
 
 ## Related skills
 

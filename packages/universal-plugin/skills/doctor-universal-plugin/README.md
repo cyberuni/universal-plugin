@@ -35,7 +35,7 @@ on purpose, so it folds into that command rather than competing with it.
 ## Boundaries
 
 Diagnoses the plugin a project ships. A repository's own agent wiring — `.agents/skills/`,
-`AGENTS.md`, per-harness bridges — is `buddy-agent-harness:doctor`.
+`AGENTS.md`, per-harness bridges — is `buddy-agent-harness:doctor-buddy-agent-harness`.
 
 ## References
 

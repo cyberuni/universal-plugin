@@ -83,10 +83,10 @@ delivery path at all.
 Run the mechanical validator from the aced **improve-skill** skill:
 
 ```bash
-node "<path to aced improve-skill>/scripts/validate.mts" --path skills/<skill-name>
+node "<path to aced improve-skill>/scripts/validate.mjs" --path skills/<skill-name>
 ```
 
-Fix every CRITICAL finding, then invoke the **audit-skill** skill for the full review.
+Fix every CRITICAL finding, then invoke the `aced:improve-skill` skill for the full review.
 [`frontmatter.md`](./frontmatter.md) covers what has to hold across runtimes.
 
 ## Step 7 — Build
@@ -113,7 +113,7 @@ restart for Claude Code, **Developer: Reload Window** for Cursor. `--list` shows
 without writing; `--vendor <id>` narrows it; `plugin uninstall` removes it again.
 
 Codex and Copilot CLI scan no local plugin directory, so they report as `unsupported`. Reach those
-through a repository-local marketplace — `publish-plugin`.
+through a repository-local marketplace — `marketplace`.
 
 Do not hand-write a symlink for this. The recipe that circulated for it named
 `~/.claude/plugins/local/`, which does not exist, and a symlink into Cursor's local directory is

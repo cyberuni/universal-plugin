@@ -40,7 +40,7 @@ Only a skill the project *distributes* belongs to a plugin.
 | `.claude/skills/`, `.agents/skills/`, `.cursor/rules/` | **No** — repo-private tooling |
 
 If the only skills are in private locations, say nothing about adoption. A repository that configures
-its own agents is not a plugin waiting to happen; `buddy-agent-harness:init` is the skill for that
+its own agents is not a plugin waiting to happen; `buddy-agent-harness:init-buddy-agent-harness` is the skill for that
 side of the line.
 
 ## Making the adoption offer

@@ -34,7 +34,7 @@ runtime you are enabling, and only those.
 
 This skill owns the **authoring** side: the plugin a project ships. Setting a repository up to
 *consume* skills — the `.agents/skills/` layout, `AGENTS.md`, per-harness bridges — is
-`buddy-agent-harness:init`, not this.
+`buddy-agent-harness:init-buddy-agent-harness`, not this.
 
 ## Prerequisites
 
@@ -240,7 +240,7 @@ This skill is not a formatter. If the project has one, run it over the written f
 | Publish a packaged plugin to the marketplace | `publish-plugin` |
 | Bump the pinned `universal-plugin@<version>` the project *calls* (not the plugin's own version) | `upgrade-plugin` |
 | Rewrite `npx` pins to the `upx` runner | `adopt-upx` |
-| Set a repository up to *consume* skills (`AGENTS.md`, `.agents/skills/`) | `buddy-agent-harness:init` |
+| Set a repository up to *consume* skills (`AGENTS.md`, `.agents/skills/`) | `buddy-agent-harness:init-buddy-agent-harness` |
 
 ## References
 
