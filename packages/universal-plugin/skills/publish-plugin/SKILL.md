@@ -34,7 +34,8 @@ is the common case.
 
 ### 0a. Identify the marketplace repo
 
-Default to `cyberuni/cyberplace` unless the user names another one.
+Default to `cyberuni/cyberplace` unless the user names another one. The commands below call it
+`<marketplace-repo>` (`<owner>/<repo>`), and its repository name `<marketplace-repo-name>`.
 
 ### 0b. Identify which repo the cwd is
 
@@ -317,15 +318,15 @@ Otherwise, the marketplace repo is elsewhere and needs a working copy. If the us
 (org member), work directly:
 
 ```bash
-gh repo clone cyberuni/cyberplace
-cd cyberplace
+gh repo clone <marketplace-repo>
+cd <marketplace-repo-name>
 ```
 
 If a fork is needed:
 
 ```bash
-gh repo fork cyberuni/cyberplace --clone --remote
-cd cyberplace
+gh repo fork <marketplace-repo> --clone --remote
+cd <marketplace-repo-name>
 git fetch upstream && git merge upstream/main
 ```
 
@@ -354,7 +355,7 @@ git push origin add-<plugin-name>
 
 ```bash
 gh pr create \
-  --repo cyberuni/cyberplace \
+  --repo <marketplace-repo> \
   --title "Add <plugin-name> v<version>" \
   --body "$(cat <<'EOF'
 ## Plugin
