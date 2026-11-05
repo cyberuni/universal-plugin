@@ -87,7 +87,7 @@ configuration is:
 }
 ```
 
-Retain existing package entries such as `bin`, `dist`, and `governances`.
+Retain existing package entries such as `bin`, `dist`, and `references`.
 Never replace the allowlist wholesale.
 
 ## 4. Bundle the CLI with tsdown

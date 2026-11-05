@@ -1,6 +1,6 @@
 # Plugin Design
 
-Authoritative rules for creating, validating, and transforming cross-vendor agent plugins. Apply when creating, auditing, or distributing a plugin; see **skill-design** governance for standalone skill authoring rules.
+Authoritative rules for creating, validating, and transforming cross-vendor agent plugins. Apply when creating, auditing, or distributing a plugin; see the **skill-design** reference for standalone skill authoring rules.
 
 A **plugin** is the distribution unit — it bundles skills, MCP servers, hooks, commands, agents, and other extensions into a single installable package. A **skill** is the capability unit inside a plugin. Install plugins; invoke skills.
 
@@ -259,9 +259,9 @@ A plugin whose MCP server is its own npm package writes an unpinned invocation �
 
 ## Component Authoring Rules
 
-**Skills:** Author `skills/<name>/SKILL.md` following the **skill-design** governance. Within a plugin, reference MCP tools by fully qualified name: `{plugin-name}:{server-name}__{tool-name}`. Use the **slash-invocation** governance when a skill needs a user-only, model-only, or explicit both-invocation policy.
+**Skills:** Author `skills/<name>/SKILL.md` following the **skill-design** reference. Within a plugin, reference MCP tools by fully qualified name: `{plugin-name}:{server-name}__{tool-name}`. Use the **slash-invocation** reference when a skill needs a user-only, model-only, or explicit both-invocation policy.
 
-**Commands:** One `.md` file per command in `commands/`. Filename (minus extension) is the command identifier. Optional frontmatter: `description`, `argument-hint`, `allowed-tools`, `disable-model-invocation`. `$ARGUMENTS` expands to user input.
+**Commands:** One `.md` file per command in `commands/`. Filename (minus extension) is the command identifier. Optional frontmatter: `description`, `argument-hint`, `allowed-tools`, `disable-model-invocation`. `$ARGUMENTS` expands to user input on Claude Code and stays literal on other runtimes.
 
 **Agents:** One `.md` file per agent in `agents/`. Required frontmatter: `name` (1–64 lowercase alphanumeric + hyphens), `description` (≤ 1024 chars). Body is the agent system prompt.
 
@@ -311,7 +311,6 @@ Default scope: **team**.
 - Duplicating SKILL.md content in `plugin.json` — the manifest is a path index, never a content mirror
 - Using `rules/` for cross-agent always-on guidance — use AGENTS.md instead
 - Putting role- or task-scoped guidance in always-on context (`rules/` or AGENTS.md) — make it a reference loaded on demand
-- Putting install-time metadata in `plugin.json` instead of `skill.json`
 
 ## Cross-Platform Portability
 
@@ -325,7 +324,7 @@ Default scope: **team**.
 | Windsurf | Needs conversion | 6,000 char/file hard limit; 12,000 chars total |
 | Zed, Aider, Continue.dev, Cline | No | Incompatible formats |
 
-Portability rules for skill bodies: keep each `SKILL.md` body under 6,000 chars; use forward slashes in path references; declare environment requirements in `compatibility` frontmatter; do not embed vendor-specific syntax in skill bodies.
+Portability rules for skill bodies: for a skill that must load in Windsurf, keep the `SKILL.md` body under its 6,000-char limit and move detail into `references/`; use forward slashes in path references; declare environment requirements in `compatibility` frontmatter; do not embed vendor-specific syntax in skill bodies.
 
 ## References
 

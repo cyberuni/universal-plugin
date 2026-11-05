@@ -10,7 +10,7 @@ description: Deploy the application after running release checks.
 invocation-policy: user
 ---
 
-Deploy $ARGUMENTS.
+Deploy the environment the user names in the invocation.
 ```
 
 | Policy | Meaning | Default |

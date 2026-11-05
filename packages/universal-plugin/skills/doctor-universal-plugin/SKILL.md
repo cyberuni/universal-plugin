@@ -143,7 +143,7 @@ user can run, or ask before running it yourself.
 
 ## Version drift
 
-A version lives in five places. Two are authored: the canonical `plugin.json`, and the `package.json`
+A version lives in six places. Two are authored: the canonical `plugin.json`, and the `package.json`
 at the `packagePath` the CLI reports (`config get --key packagePath`), resolved from the plugin root.
 The rest are stamped from them by `plugin version`: the vendor manifests, this plugin's entry in each
 repository catalog, the `npx`/`upx <package>@<version>` pins in the skills, and each `mcpServers`

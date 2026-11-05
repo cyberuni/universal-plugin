@@ -83,6 +83,9 @@ Do not build a delivery path for these into the plugin manifest. There is nothin
 
 ### Still open
 
+Open as of the 1.0.83 runtime examined above. Re-check against the current release before relying
+on any of these.
+
 - **Where the `unknown field (ignored)` warning surfaces.** It exists in the binary but reached no
   output on `plugin install`, `plugin list`, or `plugins list`. Likely the interactive dashboard or
   the session config-problems channel.
