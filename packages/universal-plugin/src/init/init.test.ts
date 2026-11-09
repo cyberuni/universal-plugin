@@ -270,6 +270,131 @@ describe('planInit changesets wiring', () => {
 	})
 })
 
+describe('planInit private package for a changesets release without npm', () => {
+	const opts: InitOptions = { vendors: [], scaffold: false, force: false, npm: false, cliVersion: '1.2.3' }
+	const tagged = { privatePackages: { version: true, tag: true } }
+
+	it('writes a private package.json wired with the version and release scripts at the workspace root', () => {
+		const state: InitState = {
+			manifestExists: false,
+			packageJson: null,
+			changesets: { pluginPath: '', packageJson: null, config: tagged },
+		}
+		const plan = planInit(state, opts, 'my-plugin', resolve)
+		expect(plan.packageJson).toEqual({
+			name: 'my-plugin',
+			private: true,
+			version: '0.0.0',
+			scripts: {
+				version: 'changeset version && universal-plugin plugin version --from-package --root .',
+				release: 'changeset publish',
+			},
+			devDependencies: { 'universal-plugin': '^1.2.3' },
+		})
+		expect(plan.manifest.version).toBe('0.0.0')
+		expect(plan.rows).toContainEqual({ path: 'package.json', action: 'created' })
+		expect(plan.notes).toEqual([])
+	})
+
+	it('seeds the version from the plugin.json being replaced', () => {
+		const state: InitState = {
+			manifestExists: true,
+			manifestVersion: '1.4.0',
+			packageJson: null,
+			changesets: { pluginPath: '', packageJson: null, config: tagged },
+		}
+		const plan = planInit(state, { ...opts, force: true }, 'my-plugin', resolve)
+		expect(plan.packageJson?.version).toBe('1.4.0')
+		expect(plan.manifest.version).toBe('1.4.0')
+	})
+
+	it('names the --name plugin, and leaves files, main, and exports out', () => {
+		const state: InitState = {
+			manifestExists: false,
+			packageJson: null,
+			changesets: { pluginPath: '', packageJson: null, config: tagged },
+		}
+		const pkg = planInit(state, { ...opts, name: 'cool' }, 'dir', resolve).packageJson ?? {}
+		expect(pkg.name).toBe('cool')
+		expect(pkg).not.toHaveProperty('files')
+		expect(pkg).not.toHaveProperty('main')
+		expect(pkg).not.toHaveProperty('exports')
+	})
+
+	it('for a plugin below the workspace root, writes the bare package and wires the root scripts', () => {
+		const state: InitState = {
+			manifestExists: false,
+			packageJson: null,
+			changesets: {
+				pluginPath: 'packages/p',
+				packageJson: { private: true, scripts: { version: 'changeset version' } },
+				config: tagged,
+			},
+		}
+		const plan = planInit(state, opts, 'p', resolve)
+		expect(plan.packageJson).toEqual({ name: 'p', private: true, version: '0.0.0' })
+		expect(plan.workspacePackageJson?.path).toBe('../../package.json')
+		expect(plan.workspacePackageJson?.content.scripts).toEqual({
+			version: 'changeset version && universal-plugin plugin version --from-package --root packages/p',
+			release: 'changeset publish',
+		})
+		expect(plan.notes.join('\n')).toContain('workspace package')
+	})
+
+	it('leaves a custom release script alone with a note', () => {
+		const state: InitState = {
+			manifestExists: false,
+			packageJson: null,
+			changesets: {
+				pluginPath: 'p',
+				packageJson: { scripts: { version: 'changeset version', release: 'pnpm build && changeset tag' } },
+				config: tagged,
+			},
+		}
+		const plan = planInit(state, opts, 'p', resolve)
+		expect((plan.workspacePackageJson?.content.scripts as Record<string, string>).release).toBe(
+			'pnpm build && changeset tag',
+		)
+		expect(plan.notes.join('\n')).toContain('"release" script is custom')
+	})
+
+	it('notes the privatePackages setting when changesets would not tag the release', () => {
+		for (const config of [null, {}, { privatePackages: { version: true } }, { privatePackages: false }]) {
+			const state: InitState = {
+				manifestExists: false,
+				packageJson: null,
+				changesets: { pluginPath: '', packageJson: null, config },
+			}
+			expect(planInit(state, opts, 'p', resolve).notes.join('\n')).toContain('"privatePackages"')
+		}
+	})
+
+	it('--no-changesets writes no private package.json and wires nothing', () => {
+		const state: InitState = {
+			manifestExists: false,
+			packageJson: null,
+			changesets: { pluginPath: 'p', packageJson: { scripts: { version: 'changeset version' } }, config: null },
+		}
+		const plan = planInit(state, { ...opts, changesets: false }, 'p', resolve)
+		expect(plan.packageJson).toBeNull()
+		expect(plan.workspacePackageJson).toBeNull()
+		expect(plan.notes).toEqual([])
+		expect(plan.manifest).not.toHaveProperty('version')
+	})
+
+	it('leaves an existing package.json untouched without --npm, and writes none without changesets', () => {
+		const existing: InitState = {
+			manifestExists: false,
+			packageJson: { name: 'p' },
+			changesets: { pluginPath: '', packageJson: { name: 'p' }, config: tagged },
+		}
+		expect(planInit(existing, opts, 'p', resolve).packageJson).toBeNull()
+		const plain = planInit({ manifestExists: false, packageJson: null }, opts, 'p', resolve)
+		expect(plain.packageJson).toBeNull()
+		expect(plain.manifest).not.toHaveProperty('version')
+	})
+})
+
 describe('planInit marketplace half', () => {
 	// A repository the plugin sits two levels down in, with a remote and no catalogs yet.
 	const repo = (over: Partial<NonNullable<InitState['repo']>> = {}): InitState => ({
@@ -498,6 +623,22 @@ describe('realInitFs integration', () => {
 			devDependencies: { 'universal-plugin': '^1.2.3' },
 		})
 		expect(JSON.parse(fs.readFileSync(path.join(pluginRoot, 'plugin.json'), 'utf8')).version).toBe('0.8.0')
+	})
+
+	it('writes a private package.json for a changesets repository without npm', () => {
+		fs.mkdirSync(path.join(dir, '.changeset'))
+		fs.writeFileSync(
+			path.join(dir, '.changeset', 'config.json'),
+			JSON.stringify({ privatePackages: { version: true, tag: true } }),
+		)
+		const state = realInitFs.gather(dir)
+		expect(state.changesets?.config).toEqual({ privatePackages: { version: true, tag: true } })
+		const plan = planInit(state, { vendors: [], scaffold: false, force: false, npm: false }, 'my-plugin', resolve)
+		realInitFs.apply(dir, plan)
+		const pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'))
+		expect(pkg).toMatchObject({ name: 'my-plugin', private: true, version: '0.0.0' })
+		expect(pkg.scripts.release).toBe('changeset publish')
+		expect(plan.notes).toEqual([])
 	})
 
 	it('--npm leaves the package.json lines it does not change as the formatter wrote them', () => {

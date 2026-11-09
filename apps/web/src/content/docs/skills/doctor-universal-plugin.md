@@ -34,6 +34,20 @@ content committed after the commit that set the current version never reaches an
 installed the plugin. The skill reports that as `unreleased-content`. It stays quiet for a plugin
 that declares `packagePath`, where the release moves the number, and on a tree with no history.
 
+## Changesets release config
+
+A plugin installed from git or a marketplace catalog, rather than npm, can still be released with
+changesets. It needs three things, and the skill reports each one that is missing:
+
+- `changesets-no-package`: a `package.json` at the plugin root. Changesets releases only a package.
+  [`init-universal-plugin`](../init-universal-plugin/) writes a minimal private one.
+- `changesets-private-untagged`: `"privatePackages": { "version": true, "tag": true }` in
+  `.changeset/config.json`. Without `tag`, `changeset publish` creates no tag for a private package.
+- `changesets-no-publish-script`: a `publish-script` on the `changesets/action` step. Without it, the
+  action does nothing after the Version Packages PR merges, so no tag or GitHub release is made.
+
+A plugin whose root `package.json` is published to npm is not checked here.
+
 ## Version drift in CI
 
 The skill reports each file whose version disagrees with the release's number as `version-drift`:

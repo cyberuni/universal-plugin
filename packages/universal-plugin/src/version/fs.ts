@@ -5,7 +5,7 @@ import { DEFAULT_MCP_PATH, type PluginManifest, universalPluginExtension, VENDOR
 import { getPackagePath } from '../config/config.js'
 import { readEditorconfigIndent } from '../editorconfig/fs.js'
 import { formatJson } from '../json.js'
-import { gatherCatalogRepo } from '../marketplace/fs.js'
+import { gatherCatalogRepo, gitToplevel } from '../marketplace/fs.js'
 import { discoverWorkspace, realPinFs, resolveSkillsDir } from '../pin/fs.js'
 import type { DriftFile, DriftState } from './drift.js'
 import { PINS_MAP_PATH, type StampJson, type VersionPlan, type VersionState } from './version.js'
@@ -99,6 +99,12 @@ function gatherMcpFiles(root: string, declaration: unknown): StampJson[] {
 	return files
 }
 
+/** Whether `.changeset/` sits at the plugin root or at the repository root above it. */
+function hasChangesets(root: string): boolean {
+	const repoRoot = gitToplevel(root)
+	return [root, repoRoot].some((dir) => dir !== undefined && fs.existsSync(path.join(dir, '.changeset')))
+}
+
 function toRelative(root: string, abs: string): string {
 	return path.relative(root, abs).split(path.sep).join('/')
 }
@@ -131,6 +137,7 @@ export const realVersionFs: VersionFs = {
 			workspace: Object.fromEntries(discoverWorkspace(root)),
 			mcpFiles: gatherMcpFiles(root, uext['mcpServers']),
 			pinsMapExists: fs.existsSync(path.join(root, PINS_MAP_PATH)),
+			changesets: hasChangesets(root),
 		}
 	},
 	apply(root, plan) {

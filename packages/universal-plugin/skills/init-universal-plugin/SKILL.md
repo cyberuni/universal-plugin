@@ -70,7 +70,9 @@ covers moving one that sits in the wrong place.
 
 Inventory both the canonical surface (root `plugin.json`, its `extensions` block, the component
 directories it names) and every pre-existing vendor artifact listed in `references/detection.md`.
-Read what you find. Write nothing yet.
+Note the release tool the repository uses, if any: `.changeset/` (changesets), `.releaserc*` or
+`release.config.*` (semantic-release), `.release-it.*` (release-it), or `release-please-config.json`
+(release-please). Read what you find. Write nothing yet.
 
 ## 2. Classify
 
@@ -125,6 +127,26 @@ repository root carries `.changeset/` and its `package.json` `version` script is
 plan, and ask before running init: it rewrites the user's root `package.json`. If the user declines,
 run init without `--npm` and wire `files` by hand. A custom `version` script is never rewritten;
 init prints the line to append, so relay it and let the user place it.
+
+A plugin that ships to **no** npm package in a changesets repository gets its own plan line.
+Changesets releases only a package, so when the repository root carries `.changeset/` and the plugin
+root has no `package.json`, `plugin init` writes a minimal private one: `name` from the plugin name,
+`"private": true`, and `version` from the `plugin.json` it replaces (else `0.0.0`), with no `files`,
+`main`, or `exports`. It also wires the root `version` script as above and adds
+`"release": "changeset publish"`, which tags the release for changesets/action. Offer this in the
+plan and show the file; if the user declines, add `--no-changesets` to the init call. Relay init's
+notes: a plugin below the repository root must be a workspace package, and `.changeset/config.json`
+needs `"privatePackages": { "version": true, "tag": true }` before `changeset publish` tags anything.
+
+When the survey found **no** release tool, ask the user how the plugin will be released before
+running init. A new repository may simply not have set one up yet, and only changesets changes what
+init writes:
+
+- **changesets.** Set up `.changeset/` first (`buddy-changesets:init-changesets` when it is
+  installed, else `npx @changesets/cli init`), then run init. It then finds `.changeset/` and writes
+  the private `package.json` above.
+- **Another tool, or none.** Run init as planned; no `package.json` is needed. Hand the release
+  wiring to `version`, which covers each release model.
 
 ## 4. Apply
 

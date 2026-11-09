@@ -190,6 +190,19 @@ describe('planVersion — only one place picks the number (ADR-0010 §2)', () =>
 		expect(() => fromPackage({})).toThrow(/packagePath is not set.*plugin root has no package\.json/s)
 	})
 
+	it('--from-package in a changesets repository names the private package.json and privatePackages', () => {
+		const state = { changesets: true, manifest: { name: 'my-plugin', version: '1.0.0' } }
+		expect(() => fromPackage(state)).toThrow(/private package\.json/)
+		expect(() => fromPackage(state)).toThrow('{"name":"my-plugin","private":true,"version":"1.0.0"}')
+		expect(() => fromPackage(state)).toThrow('"privatePackages": { "version": true, "tag": true }')
+	})
+
+	it('--from-package outside changesets does not mention a private package.json', () => {
+		expect(() => fromPackage({ changesets: false })).toThrow(
+			expect.objectContaining({ message: expect.not.stringContaining('private package') }),
+		)
+	})
+
 	it('--from-package refuses a package without a version', () => {
 		expect(() => fromPackage({ rootPackageJson: { name: 'p' } })).toThrow(/No version found in package\.json/)
 	})
@@ -401,6 +414,13 @@ describe('realVersionFs', () => {
 		const state = realVersionFs.gather(dir)
 		expect(state.packagePath).toBe('packages/missing')
 		expect(state.packageJson).toBeNull()
+	})
+
+	it('gathers a .changeset/ directory at the plugin root as a changesets release', () => {
+		writeJson('plugin.json', { name: 'x', version: '1.2.3' })
+		expect(realVersionFs.gather(dir).changesets).toBe(false)
+		fs.mkdirSync(path.join(dir, '.changeset'))
+		expect(realVersionFs.gather(dir).changesets).toBe(true)
 	})
 
 	it('writes both authored files', () => {

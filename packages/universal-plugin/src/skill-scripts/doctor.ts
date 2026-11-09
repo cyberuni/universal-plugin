@@ -375,6 +375,13 @@ if (manifest.version !== undefined && packagePath === null) {
 	}
 }
 
+// A plugin released with changesets but shipped to no npm package (#234). Changesets releases only
+// a package, so the plugin root needs a private package.json; changesets tags a private package only
+// with `privatePackages.tag`; and changesets/action makes the tag and GitHub release only when its
+// workflow step names a publish script. Each gap fails silently: the Version Packages PR merges and
+// no release is ever made.
+for (const finding of changesetsReleaseFindings()) add(...finding)
+
 // The marketplace catalogs a user installs from. They sit at the *repository* root, above a plugin in
 // a monorepo, and each is read by its runtime at install time — a catalog whose shape that runtime
 // refuses fails in the user's terminal, not here. The shipped CLI owns the rules; this only asks.
@@ -420,6 +427,63 @@ function invalidCatalogs(extraRoots: string[]) {
 			? rows.filter((row) => row.status === 'invalid').map((row) => ({ ...row, catalogRoot, own }))
 			: []
 	})
+}
+
+/** The release-config gaps of a non-npm plugin in a changesets repository: no `packagePath`, and a
+ *  plugin-root package.json that is absent or private. An npm-shipped plugin is not checked here —
+ *  `changeset publish` there publishes to npm whatever the private-package settings say. */
+function changesetsReleaseFindings(): [string, string, string, string][] {
+	if (packagePath !== null) return []
+	const repoRoot = git('rev-parse', '--show-toplevel') ?? root
+	const workspace = [root, repoRoot].find((dir) => fs.existsSync(path.join(dir, '.changeset')))
+	if (workspace === undefined) return []
+	const pkg = readJson(path.join(root, 'package.json'))
+	if (pkg !== null && pkg.private !== true) return []
+
+	const out: [string, string, string, string][] = []
+	if (pkg === null) {
+		out.push([
+			'changesets-no-package',
+			'high',
+			'the repository is released with changesets, but the plugin root has no package.json — changesets releases only a package, so changeset version and changeset publish fail',
+			'/universal-plugin:init-universal-plugin — it writes a private package.json (name, "private": true, version)',
+		])
+	}
+	const config = readJson(path.join(workspace, '.changeset', 'config.json'))
+	const setting = config?.privatePackages
+	const tags = typeof setting === 'object' && setting !== null && setting.version !== false && setting.tag === true
+	if (!tags) {
+		out.push([
+			'changesets-private-untagged',
+			'high',
+			'.changeset/config.json does not set "privatePackages": { "version": true, "tag": true } — changeset publish creates no tag for a private package, so no release is made',
+			'set "privatePackages": { "version": true, "tag": true } in .changeset/config.json',
+		])
+	}
+	for (const workflow of changesetsWorkflowsWithoutPublish(repoRoot)) {
+		out.push([
+			'changesets-no-publish-script',
+			'high',
+			`${workflow} runs changesets/action with no publish script — after the Version Packages PR merges it does nothing, so no tag or release is made`,
+			'add `publish-script: pnpm release` (changesets/action v1: `publish:`) to the changesets/action step, with a "release" script running changeset publish',
+		])
+	}
+	return out
+}
+
+/** Workflow files that run changesets/action and give it no publish command. Read as text: a step
+ *  names it as `publish-script:` (v2) or `publish:` (v1). */
+function changesetsWorkflowsWithoutPublish(repoRoot: string): string[] {
+	const dir = path.join(repoRoot, '.github', 'workflows')
+	if (!fs.existsSync(dir)) return []
+	return fs
+		.readdirSync(dir)
+		.filter((file) => /\.ya?ml$/.test(file))
+		.filter((file) => {
+			const text = fs.readFileSync(path.join(dir, file), 'utf8')
+			return /uses:\s*['"]?changesets\/action@/.test(text) && !/^\s*(publish-script|publish)\s*:/m.test(text)
+		})
+		.map((file) => `.github/workflows/${file}`)
 }
 
 /** Runs git inside `root`, returning its stdout or `null` — a non-zero status, a missing git, and a

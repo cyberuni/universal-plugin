@@ -574,3 +574,50 @@ test('a compiled script on an old version is version drift, not also stale-scrip
 	expect(codes).not.toContain('stale-script')
 	expect(codes.filter((c) => c === 'version-drift')).toEqual(['version-drift'])
 })
+
+// A plugin released with changesets but shipped to no npm package (#234): each gap below leaves the
+// Version Packages PR merging with no tag and no release.
+function seedChangesets(config: object) {
+	seedRelease()
+	write('.changeset/config.json', `${JSON.stringify(config)}\n`)
+	write('package.json', '{ "name": "demo", "private": true, "version": "1.0.0" }\n')
+}
+const tagged = { privatePackages: { version: true, tag: true } }
+const workflow = (step: string) =>
+	`on: push\njobs:\n  release:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: changesets/action@v2\n${step}`
+
+test('a changesets repository whose plugin has no package.json is reported', () => {
+	seedRelease()
+	write('.changeset/config.json', `${JSON.stringify(tagged)}\n`)
+	expect(findings()).toContain('changesets-no-package')
+})
+
+test('a private plugin package changesets would not tag is reported', () => {
+	seedChangesets({ privatePackages: { version: true } })
+	expect(detail('changesets-private-untagged')).toContain('"privatePackages": { "version": true, "tag": true }')
+})
+
+test('a changesets/action step with no publish script is reported, named by workflow', () => {
+	seedChangesets(tagged)
+	write('.github/workflows/release.yml', workflow('        with:\n          version-script: pnpm version\n'))
+	expect(detail('changesets-no-publish-script')).toContain('.github/workflows/release.yml')
+})
+
+test('a fully configured non-npm changesets release reports no changesets finding', () => {
+	seedChangesets(tagged)
+	write('.github/workflows/release.yml', workflow('        with:\n          publish-script: pnpm release\n'))
+	expect(findings().filter((code) => code.startsWith('changesets-'))).toEqual([])
+})
+
+test('an npm-shipped plugin is not checked for the private-package release config', () => {
+	seedRelease()
+	write('.changeset/config.json', '{}\n')
+	write('package.json', '{ "name": "demo", "version": "1.0.0" }\n')
+	write('.github/workflows/release.yml', workflow(''))
+	expect(findings().filter((code) => code.startsWith('changesets-'))).toEqual([])
+})
+
+test('a repository without changesets reports no changesets finding', () => {
+	seedRelease()
+	expect(findings().filter((code) => code.startsWith('changesets-'))).toEqual([])
+})

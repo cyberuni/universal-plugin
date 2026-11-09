@@ -47,6 +47,9 @@ the pinned `npx universal-plugin@0.17.1`. Add `--npm` when an npm package ships 
 which also wires that `package.json`'s `files` to carry the derived manifests, copies its `version`
 into the manifest, and, in a changesets repository, wires the root `version` script to run
 `plugin version --from-package` (SKILL.md Phase 3 asks before that rewrite).
+Without `--npm`, in a changesets repository with no `package.json` at the plugin root, init writes a
+private `package.json` so changesets can release the plugin (SKILL.md Phase 3 offers it; pass
+`--no-changesets` when the user declines).
 
 `init` writes a minimal manifest — `$schema`, `name`, the vendor list, and the package `version`
 under `--npm`. Fill in the Step 1

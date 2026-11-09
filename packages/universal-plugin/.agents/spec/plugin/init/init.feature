@@ -297,6 +297,56 @@ Feature: plugin init — scaffold a plugin project, and wire an npm package to s
 
   # ── Print the command reference ──
 
+  # A plugin installed from git or a catalog has no package.json, and changesets finds only packages (#234).
+  Scenario: init writes a private package.json when changesets is present
+    Given the project root carries ".changeset/" and no "package.json"
+    When I run "universal-plugin plugin init --name my-plugin"
+    Then "package.json" contains "name" "my-plugin", "private" true, and "version" "0.0.0"
+    And "package.json" has no "files", "main", or "exports"
+    And "plugin.json" contains version "0.0.0"
+
+  Scenario: the private package.json takes the version of the plugin.json it replaces
+    Given the project root carries ".changeset/" and no "package.json"
+    And "plugin.json" exists at version "1.4.0"
+    When I run "universal-plugin plugin init --force"
+    Then "package.json" contains version "1.4.0"
+    And "plugin.json" contains version "1.4.0"
+
+  Scenario: the private package.json carries the version and release scripts at the workspace root
+    Given the project root carries ".changeset/" and no "package.json"
+    When I run "universal-plugin plugin init"
+    Then the "version" script is "changeset version && universal-plugin plugin version --from-package --root ."
+    And the "release" script is "changeset publish"
+
+  Scenario: a plugin below the workspace root gets a bare private package.json and the root scripts
+    Given the project root is "packages/my-plugin" in a repository carrying ".changeset/"
+    And the repository root "package.json" has the "version" script "changeset version"
+    And the project root has no "package.json"
+    When I run "universal-plugin plugin init"
+    Then "package.json" at the project root has no "scripts"
+    And the repository root "version" script is "changeset version && universal-plugin plugin version --from-package --root packages/my-plugin"
+    And the repository root "release" script is "changeset publish"
+    And stderr names the workspace package the project root must be
+
+  Scenario: init leaves a custom release script alone with a note
+    Given the project root is "packages/my-plugin" in a repository carrying ".changeset/"
+    And the repository root "package.json" has the "release" script "pnpm build && changeset tag"
+    When I run "universal-plugin plugin init"
+    Then the repository root "release" script is "pnpm build && changeset tag"
+    And stderr contains "\"release\" script is custom"
+
+  Scenario: init notes the privatePackages setting changesets needs to tag the release
+    Given the project root carries ".changeset/" and no "package.json"
+    And ".changeset/config.json" does not set "privatePackages.tag"
+    When I run "universal-plugin plugin init"
+    Then stderr contains "\"privatePackages\": { \"version\": true, \"tag\": true }"
+
+  Scenario: --no-changesets writes no private package.json
+    Given the project root carries ".changeset/" and no "package.json"
+    When I run "universal-plugin plugin init --no-changesets"
+    Then no "package.json" exists at the project root
+    And "plugin.json" has no "version"
+
   Scenario: --help prints a concise reference
     When I run "universal-plugin plugin init --help"
     Then the exit code is 0

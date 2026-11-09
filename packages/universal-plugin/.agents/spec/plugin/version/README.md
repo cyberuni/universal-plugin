@@ -244,6 +244,11 @@ The entry points, each a mode of the `universal-plugin plugin version` verb, giv
     `packagePath` is declared.
   - *outcome:* every authored and stamped place carries the package's version; the package is not
     rewritten; re-stamping the same version succeeds.
+    With no package to read in a repository released with changesets (`.changeset/` at the plugin
+    root or the repository root), the error also names the fix: a minimal private `package.json` at
+    the plugin root (`name`, `"private": true`, `version`) and `.changeset/config.json`
+    `"privatePackages": { "version": true, "tag": true }`. Changesets releases only a package, so a
+    plugin that ships to no npm package needs one to carry its version (#234).
 - **Set an explicit version** — `plugin version <x.y.z> [--force] [--no-build] [--dry-run]`.
   - *trigger:* an author knows the exact number (a first release, a coordinated version, a correction).
   - *inputs:* the version literal; the same root and config as above.
@@ -272,7 +277,7 @@ graph TD
   M -->|no| E_M[exit 1 · name the missing manifest]
   M -->|yes| FP{--from-package?}
   FP -->|yes| PKG{package.json found with a real version?}
-  PKG -->|no| E_PKG[exit 1 · name where it looked · refuse 0.0.0-development]
+  PKG -->|no| E_PKG[exit 1 · name where it looked · refuse 0.0.0-development · in a changesets repo, name the private package.json and privatePackages]
   PKG -->|yes| fromp[target = the package version · no advance guard]
   FP -->|no| ARG{bump arg is a valid semver version?}
   ARG -->|yes| exact[target = the given version]
@@ -338,6 +343,7 @@ Grouped by concern; 1:1 with [`version.feature`](./version.feature).
 | no advance guard | manifest already at `1.3.0` | `--from-package re-stamps the version the manifest already carries` |
 | root package | no `packagePath`, root package at `2.0.0` | `--from-package reads the plugin root package.json when no packagePath is declared` |
 | guard: no package | neither found | `--from-package names where it looked when there is no package` |
+| guard: no package, changesets | neither found, `.changeset/` present | `--from-package in a changesets repository names the private package.json to add` |
 | guard: no version | package without `version` | `--from-package refuses a package without a version` |
 | guard: placeholder | package at `0.0.0-development` | `--from-package refuses the semantic-release placeholder` |
 | guard: both | `1.4.0 --from-package` | `a version and --from-package together are refused` |

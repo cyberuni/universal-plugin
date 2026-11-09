@@ -86,6 +86,26 @@ The entry points, each a mode of the `universal-plugin plugin init` verb, given 
     Each `package.json` init rewrites keeps its own format — indentation, trailing newline, and the
     text of every value init leaves unchanged — and a new `plugin.json` takes the indentation
     `.editorconfig` sets for it, then a tab (issue #164).
+- **Prepare a plugin that ships to no npm package for a changesets release** — `plugin init` (no
+  `--npm`) where the workspace root carries `.changeset/` and the plugin root has no `package.json`.
+  - *trigger:* an author releases a git- or catalog-installed plugin with changesets. Changesets
+    finds only packages and always writes `<dir>/package.json`, so without one `changeset version`
+    and `changeset publish` both fail (#234).
+  - *inputs:* the plugin name; the version the `plugin.json` being replaced carries, else `0.0.0`;
+    the workspace-root `package.json`; `.changeset/config.json`.
+  - *outcome:* a minimal private `package.json` at the plugin root — `name` (the plugin name),
+    `"private": true`, `version` — with no `files`, `main`, or `exports`; the new manifest carries the
+    same version. The workspace root's `version` script is wired exactly as under `--npm` (the same
+    stock-only rewrite, notes, and devDependency), and a `"release": "changeset publish"` script is
+    added when there is none: `changeset publish` tags a private package and changesets/action turns
+    the tag into a GitHub release. A custom `release` script is left alone with a note. When the
+    plugin root is the workspace root, the new `package.json` is that root and carries the scripts.
+    Below it, init notes that the directory must be a workspace package. When `.changeset/config.json`
+    does not set `"privatePackages": { "version": true, "tag": true }`, init notes the setting;
+    changesets tags private packages only with `tag: true`. An existing `package.json` is left
+    untouched, as without `--npm` it always is. `--no-changesets` skips this wiring and the `--npm`
+    changesets wiring alike; it is how the init skill honours a user who declines the offer, since
+    init itself never prompts.
 - **Register the plugin in the repository's local marketplace** — `plugin init --vendor <id>…
   [--no-marketplace]`.
   - *trigger:* an author wants to install and test the plugin before publishing it.
@@ -128,7 +148,14 @@ graph TD
   SC -->|no| sc2[manifest only]
   W --> NP{--npm?}
   NP -->|yes| wire[add plugin.json + skills/ base, then each vendor's derived manifest path · seed manifest version from package.json]
-  NP -->|no| skip[package.json untouched]
+  NP -->|no| PCS{.changeset/ at the workspace root and no package.json?}
+  PCS -->|no| skip[package.json untouched]
+  PCS -->|yes| priv[write private package.json · name, private, version · seed manifest version]
+  priv --> PRS[wire root version script as below · add release: changeset publish when absent]
+  PRS --> PPK{privatePackages version and tag set?}
+  PPK -->|no| ppk1[note the privatePackages setting]
+  PPK -->|yes| OUT
+  ppk1 --> OUT
   wire --> CS{.changeset/ at the workspace root?}
   CS -->|no| cs0[no version sync wired]
   CS -->|yes| VS{root version script?}
@@ -208,6 +235,19 @@ Grouped by use case; 1:1 with [`init.feature`](./init.feature). `| Edge | Path (
 | already wired | root script already runs the stamp | `--npm leaves an already wired version script unchanged` |
 | legacy script | root script still runs `publish sync-version` | `--npm notes that a script running the deprecated sync-version should be replaced` |
 | no changesets | `--npm`, no `.changeset/` | `without changesets the root version script is untouched` |
+
+### Prepare a plugin that ships to no npm package for a changesets release
+
+| Edge | Path (Given) | Scenario |
+|---|---|---|
+| write private package | `.changeset/`, no `package.json`, no `--npm` | `init writes a private package.json when changesets is present` |
+| seed version | `--force` over a `plugin.json` at `1.4.0` | `the private package.json takes the version of the plugin.json it replaces` |
+| scripts at root | the plugin root is the workspace root | `the private package.json carries the version and release scripts at the workspace root` |
+| scripts above | the plugin root is `packages/my-plugin` | `a plugin below the workspace root gets a bare private package.json and the root scripts` |
+| custom release | root `release` script is custom | `init leaves a custom release script alone with a note` |
+| tag note | `.changeset/config.json` without `privatePackages.tag` | `init notes the privatePackages setting changesets needs to tag the release` |
+| barred: existing package | `.changeset/`, `package.json` present, no `--npm` | `without --npm the package.json is untouched` |
+| opt out | `.changeset/`, no `package.json`, `--no-changesets` | `--no-changesets writes no private package.json` |
 
 ### Register the plugin in the repository's local marketplace
 
