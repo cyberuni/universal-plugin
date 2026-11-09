@@ -74,6 +74,9 @@ export interface VersionState {
 	mcpFiles?: StampJson[]
 	/** Whether `.plugin/pins.json` already exists. */
 	pinsMapExists?: boolean
+	/** Whether the plugin is released with changesets: `.changeset/` at the plugin root or the
+	 *  repository root. Only the missing-package error reads it, to name the fix (#234). */
+	changesets?: boolean
 }
 
 /** `updated` is an authored number moved; `stamped` is a place the number was written into. */
@@ -143,15 +146,28 @@ function ownPackage(state: VersionState): { path: string; json: Record<string, u
 	return { path: 'package.json', json: state.rootPackageJson ?? null }
 }
 
+/** Changesets releases only what has a `package.json`, so a plugin that ships to no npm package
+ *  needs a private one to carry its version (#234). Names the file and the config that makes
+ *  `changeset publish` tag it. */
+function changesetsPackageHint(state: VersionState): string {
+	const name = typeof state.manifest?.name === 'string' ? state.manifest.name : '<plugin-name>'
+	const version = typeof state.manifest?.version === 'string' ? state.manifest.version : '0.0.0'
+	return [
+		'changesets releases only a package, so a plugin that is not published to npm needs a private package.json at the plugin root:',
+		`  ${JSON.stringify({ name, private: true, version })}`,
+		'and .changeset/config.json needs "privatePackages": { "version": true, "tag": true } so changeset publish tags the release.',
+		'plugin init writes the package.json when it finds .changeset/.',
+	].join('\n')
+}
+
 /** Reads the version a release tool already wrote into the package. */
 function versionFromPackage(state: VersionState): string {
 	const pkg = ownPackage(state)
 	if (pkg.json === null) {
-		throw new Error(
-			state.packagePath === null
-				? 'No package.json to read the version from: packagePath is not set in .agents/universal-plugin.json and the plugin root has no package.json'
-				: `No package.json found at packagePath "${state.packagePath}"`,
-		)
+		if (state.packagePath !== null) throw new Error(`No package.json found at packagePath "${state.packagePath}"`)
+		const message =
+			'No package.json to read the version from: packagePath is not set in .agents/universal-plugin.json and the plugin root has no package.json'
+		throw new Error(state.changesets ? `${message}\n${changesetsPackageHint(state)}` : message)
 	}
 	const version = pkg.json['version']
 	if (typeof version !== 'string' || version.length === 0) {

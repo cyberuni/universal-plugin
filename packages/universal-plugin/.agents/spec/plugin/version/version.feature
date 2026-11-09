@@ -107,6 +107,15 @@ Feature: plugin version — move the plugin's version, and keep every version-ca
     And stderr contains "packagePath is not set"
     And stderr contains "no package.json"
 
+  Scenario: --from-package in a changesets repository names the private package.json to add
+    Given no ".agents/universal-plugin.json" exists
+    And the plugin root has no "package.json"
+    And the plugin root carries ".changeset/"
+    When I run "universal-plugin plugin version --from-package --root <root>"
+    Then the exit code is 1
+    And stderr contains "private package.json"
+    And stderr contains "\"privatePackages\": { \"version\": true, \"tag\": true }"
+
   Scenario: --from-package refuses a package without a version
     Given "package.json" at the plugin root has no "version"
     When I run "universal-plugin plugin version --from-package --root <root>"
