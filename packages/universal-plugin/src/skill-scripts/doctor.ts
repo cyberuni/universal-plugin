@@ -388,6 +388,18 @@ for (const finding of changesetsReleaseFindings()) add(...finding)
 // workflow restamps the release PR with `plugin version --from-manifest`.
 for (const finding of releasePleaseReleaseFindings()) add(...finding)
 
+// A plugin released with release-it (#237). release-it reads the current version from the latest git
+// tag and commits and tags whatever the tree holds after its hooks run, so a config with no hook
+// calling `plugin version` tags a release whose plugin.json and vendor manifests carry the old number.
+for (const file of releaseItConfigsWithoutStamp()) {
+	add(
+		'release-it-no-stamp',
+		'high',
+		`${file} configures release-it, but no hook runs plugin version — the release is tagged with plugin.json and the vendor manifests still on the previous version`,
+		'add "hooks": { "after:bump": "universal-plugin plugin version ${version}" } to the release-it config',
+	)
+}
+
 // The marketplace catalogs a user installs from. They sit at the *repository* root, above a plugin in
 // a monorepo, and each is read by its runtime at install time — a catalog whose shape that runtime
 // refuses fails in the user's terminal, not here. The shipped CLI owns the rules; this only asks.
@@ -538,6 +550,25 @@ function changesetsWorkflowsWithoutPublish(repoRoot: string): string[] {
 			return /uses:\s*['"]?changesets\/action@/.test(text) && !/^\s*(publish-script|publish)\s*:/m.test(text)
 		})
 		.map((file) => `.github/workflows/${file}`)
+}
+
+/** release-it configs, at the plugin root or the repository root, that never call `plugin version`.
+ *  release-it reads `.release-it.{json,yaml,yml,toml,js,cjs,mjs,ts}` or the `release-it` key of
+ *  package.json. Each is read as text, so the check is only that the stamp is named somewhere. */
+function releaseItConfigsWithoutStamp(): string[] {
+	const repoRoot = git('rev-parse', '--show-toplevel') ?? root
+	const names = ['json', 'yaml', 'yml', 'toml', 'js', 'cjs', 'mjs', 'ts'].map((ext) => `.release-it.${ext}`)
+	const stamps = (text: string) => /\bplugin\s+version\b/.test(text)
+	return [...new Set([root, repoRoot])].flatMap((dir) => {
+		const label = (file: string) => path.relative(root, path.join(dir, file)) || file
+		const found = names
+			.filter((file) => fs.existsSync(path.join(dir, file)))
+			.filter((file) => !stamps(fs.readFileSync(path.join(dir, file), 'utf8')))
+			.map(label)
+		const config = readJson(path.join(dir, 'package.json'))?.['release-it']
+		if (config !== undefined && !stamps(JSON.stringify(config))) found.push(label('package.json'))
+		return found
+	})
 }
 
 /** Runs git inside `root`, returning its stdout or `null` — a non-zero status, a missing git, and a

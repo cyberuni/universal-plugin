@@ -58,6 +58,14 @@ the version stay behind unless a workflow restamps the release PR. The skill rep
 [`version`](../version/) skill has the workflow step. A plugin that declares `packagePath` is not
 checked here.
 
+## release-it config
+
+release-it commits and tags whatever the tree holds once its hooks have run. A release-it config
+(`.release-it.json` and its siblings, or the `release-it` key of `package.json`) with no hook running
+`plugin version` tags a release whose `plugin.json` and vendor manifests still carry the previous
+version. The skill reports it as `release-it-no-stamp`. The fix is an `after:bump` hook:
+`"hooks": { "after:bump": "universal-plugin plugin version ${version}" }`.
+
 ## Version drift in CI
 
 The skill reports each file whose version disagrees with the release's number as `version-drift`:
