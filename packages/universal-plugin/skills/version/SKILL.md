@@ -64,7 +64,10 @@ there: it would decide a number changesets is about to decide again.
 The stamped files exist only in the npm package unless `@semantic-release/git` commits them back.
 Git-sourced installs (Copilot CLI, GitHub-hosted marketplaces) read `plugin.json` from the repository,
 so for those channels the commit-back is required. Without it they are unsupported. Set `assets` to
-`plugin.json`, the vendor manifests, `skills/**`, `.plugin/pins.json`, and the mcp file.
+`plugin.json`, the vendor manifests, the repository catalogs (`.claude-plugin/marketplace.json`,
+`.cursor-plugin/marketplace.json`, `.agents/plugins/marketplace.json`,
+`.github/plugin/marketplace.json`), `skills/**`, `.plugin/pins.json`, and the mcp file. The stamp
+re-derives the catalogs too, so leaving them out leaves them a release behind.
 
 ## Step 2 — Run it
 
