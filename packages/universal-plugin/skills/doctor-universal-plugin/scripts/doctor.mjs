@@ -198,6 +198,7 @@ if (manifest.version !== void 0 && packagePath === null) {
 	}
 }
 for (const finding of changesetsReleaseFindings()) add(...finding);
+for (const finding of releasePleaseReleaseFindings()) add(...finding);
 const missingMarketplaceRoots = marketplaceRoots.filter((r) => !fs.existsSync(path.resolve(r)));
 for (const r of missingMarketplaceRoots) add("marketplace-root-missing", "high", `--marketplace-root ${r} does not exist`, "clone the marketplace repository, or fix the path");
 const existingMarketplaceRoots = marketplaceRoots.filter((r) => fs.existsSync(path.resolve(r)));
@@ -254,6 +255,45 @@ function changesetsReleaseFindings() {
 		"add `publish-script: pnpm release` (changesets/action v1: `publish:`) to the changesets/action step, with a \"release\" script running changeset publish"
 	]);
 	return out;
+}
+/** The release-please gap of a non-npm plugin: `release-please-config.json` bumps this plugin's
+*  plugin.json through `extra-files`, and no workflow runs `plugin version` to restamp the rest. A
+*  plugin with `packagePath` is not checked: its number comes from the package, through
+*  `--from-package`. */
+function releasePleaseReleaseFindings() {
+	if (packagePath !== null) return [];
+	const repoRoot = git("rev-parse", "--show-toplevel") ?? root;
+	const config = readJson(path.join(repoRoot, "release-please-config.json"));
+	if (config === null || !releasePleaseBumpsManifest(config, repoRoot)) return [];
+	if (workflowsMention(repoRoot, /plugin version|version\.mjs/)) return [];
+	return [[
+		"release-please-no-restamp",
+		"high",
+		"release-please-config.json bumps plugin.json through extra-files, but no workflow runs plugin version — the release PR leaves the vendor manifests, catalogs, skill pins and compiled scripts on the old version",
+		"add a workflow step on the release PR branch that runs `universal-plugin plugin version --from-manifest` and pushes the stamped files (see the version skill)"
+	]];
+}
+/** Whether a release-please config lists this plugin's plugin.json in `extra-files`. A package's own
+*  `extra-files` replaces the top-level default. A path is relative to the package path, or to the
+*  repository root with a leading `/`. */
+function releasePleaseBumpsManifest(config, repoRoot) {
+	const target = path.join(root, "plugin.json");
+	const packages = config.packages ?? {};
+	return Object.entries(packages).some(([packageDir, options]) => {
+		const extra = options?.["extra-files"] ?? config["extra-files"];
+		if (!Array.isArray(extra)) return false;
+		return extra.some((entry) => {
+			const file = typeof entry === "string" ? entry : entry?.path;
+			if (typeof file !== "string") return false;
+			return (file.startsWith("/") ? path.join(repoRoot, file) : path.join(repoRoot, packageDir, file)) === target;
+		});
+	});
+}
+/** Whether any workflow file's text matches. */
+function workflowsMention(repoRoot, pattern) {
+	const dir = path.join(repoRoot, ".github", "workflows");
+	if (!fs.existsSync(dir)) return false;
+	return fs.readdirSync(dir).filter((file) => /\.ya?ml$/.test(file)).some((file) => pattern.test(fs.readFileSync(path.join(dir, file), "utf8")));
 }
 /** Workflow files that run changesets/action and give it no publish command. Read as text: a step
 *  names it as `publish-script:` (v2) or `publish:` (v1). */
