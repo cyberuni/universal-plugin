@@ -70,7 +70,9 @@ covers moving one that sits in the wrong place.
 
 Inventory both the canonical surface (root `plugin.json`, its `extensions` block, the component
 directories it names) and every pre-existing vendor artifact listed in `references/detection.md`.
-Read what you find. Write nothing yet.
+Note the release tool the repository uses, if any: `.changeset/` (changesets), `.releaserc*` or
+`release.config.*` (semantic-release), `.release-it.*` (release-it), or `release-please-config.json`
+(release-please). Read what you find. Write nothing yet.
 
 ## 2. Classify
 
@@ -135,6 +137,16 @@ root has no `package.json`, `plugin init` writes a minimal private one: `name` f
 plan and show the file; if the user declines, add `--no-changesets` to the init call. Relay init's
 notes: a plugin below the repository root must be a workspace package, and `.changeset/config.json`
 needs `"privatePackages": { "version": true, "tag": true }` before `changeset publish` tags anything.
+
+When the survey found **no** release tool, ask the user how the plugin will be released before
+running init. A new repository may simply not have set one up yet, and only changesets changes what
+init writes:
+
+- **changesets.** Set up `.changeset/` first (`buddy-changesets:init-changesets` when it is
+  installed, else `npx @changesets/cli init`), then run init. It then finds `.changeset/` and writes
+  the private `package.json` above.
+- **Another tool, or none.** Run init as planned; no `package.json` is needed. Hand the release
+  wiring to `version`, which covers each release model.
 
 ## 4. Apply
 

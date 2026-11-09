@@ -41,6 +41,10 @@ Set `"privatePackages": { "version": true, "tag": true }` in `.changeset/config.
 `changeset publish` makes no tag. The skill offers this setup in its confirm phase. If you decline,
 it passes `--no-changesets`.
 
+When the repository has no release tool yet, the skill asks how you will release the plugin. If you
+choose changesets, it sets up `.changeset/` first, so init then writes the `package.json`. Other
+release tools don't need one.
+
 ## See also
 
 - [`doctor-universal-plugin`](../doctor-universal-plugin/) — diagnoses a plugin without writing anything
