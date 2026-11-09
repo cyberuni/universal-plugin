@@ -45,6 +45,48 @@ When the repository has no release tool yet, the skill asks how you will release
 choose changesets, it sets up `.changeset/` first, so init then writes the `package.json`. Other
 release tools don't need one.
 
+## Releasing with semantic-release
+
+When the repository uses semantic-release, or you choose it, the skill edits its config. It shows
+the `plugins` list before and after, and it writes nothing until you approve. `plugin init` itself
+never touches release config.
+
+- `@semantic-release/exec` runs
+  `prepareCmd: "universal-plugin plugin version ${nextRelease.version}"`, which stamps the release
+  number into `plugin.json`, the vendor manifests, the catalogs, and the skill pins.
+- `@semantic-release/git` commits those files back. Copilot CLI and GitHub-hosted marketplaces read
+  `plugin.json` from the repository, so they only see a release that was committed.
+- For a plugin that ships to no npm package, `@semantic-release/npm` is dropped. Setting
+  `npmPublish: false` is not enough, because that plugin still edits `package.json`.
+
+A plugin with no `package.json` ends up with a config like this:
+
+```json
+{
+  "branches": ["main"],
+  "plugins": [
+    "@semantic-release/commit-analyzer",
+    "@semantic-release/release-notes-generator",
+    ["@semantic-release/exec", {
+      "prepareCmd": "npx universal-plugin@<version> plugin version ${nextRelease.version}"
+    }],
+    ["@semantic-release/git", {
+      "assets": [
+        "plugin.json", ".claude-plugin/**", ".cursor-plugin/**", ".codex-plugin/**",
+        ".agents/plugins/marketplace.json", ".github/plugin/**", "com.github.copilot/**",
+        "skills/**", ".plugin/pins.json"
+      ]
+    }],
+    "@semantic-release/github"
+  ]
+}
+```
+
+Install `@semantic-release/exec` and `@semantic-release/git` wherever the release job runs.
+
+For release-it and release-please, the skill names the stamp the tool must call and leaves the
+wiring to the [`version`](../version/) skill.
+
 ## See also
 
 - [`doctor-universal-plugin`](../doctor-universal-plugin/) — diagnoses a plugin without writing anything

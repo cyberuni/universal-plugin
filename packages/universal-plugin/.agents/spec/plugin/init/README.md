@@ -46,10 +46,25 @@ Every command follows the AXI output contract ([../../axi/](../../axi/README.md)
 > surprised — see `## References`.
 
 **Non-goals** — deriving the vendor manifests (`plugin build`); checking a manifest
-(`plugin validate`); stamping release versions (`plugin version`); **setting a repository up to
+(`plugin validate`); stamping release versions (`plugin version`); **wiring a release tool other
+than changesets** — semantic-release, release-it, and release-please are wired by the
+`init-universal-plugin` skill, which edits the tool's own config once the user approves (#236; see
+*Why init wires only changesets* below); **setting a repository up to
 *consume* skills** — the canonical skills layout, per-harness compatibility links, and the
 enabled-harness record are **`repobuddy/buddy-agent-harness`**'s, withdrawn from this package
 (ADR-0006); publishing to or installing from a marketplace (`cyberplace`).
+
+**Why init wires only changesets.** The changesets wiring is a fixed shape in files whose format
+init already writes: a private `package.json` and two root `package.json` scripts, with no choice
+left to the author. The other tools keep their release config in a file of their own, in any of
+several formats including JavaScript modules (`release.config.js`, `.release-it.ts`), and that config
+carries plugins and steps the author chose. A semantic-release `plugins` list replaces the default
+list, so adding `exec` and `git` means writing the whole list out in the right order, and dropping
+`npm` for a plugin that ships to no npm package. A CLI flag could not rewrite a JavaScript module
+safely, and it could not merge with an author's own plugins without guessing. So `plugin init` gets
+no release-tool flag. The skill proposes the edit, shows it in its confirm phase, and applies it on
+approval. This follows the split #235 made: the CLI writes what it can write without judgment, and
+the skill asks about the rest.
 
 > **Spec-first / impl-deferred.** No `init` command ships yet (`src/cli.ts` registers no `init`,
 > there is no `src/init/` domain). This node is a contract; the impl gate withholds certification

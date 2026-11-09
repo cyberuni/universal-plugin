@@ -70,9 +70,9 @@ covers moving one that sits in the wrong place.
 
 Inventory both the canonical surface (root `plugin.json`, its `extensions` block, the component
 directories it names) and every pre-existing vendor artifact listed in `references/detection.md`.
-Note the release tool the repository uses, if any: `.changeset/` (changesets), `.releaserc*` or
-`release.config.*` (semantic-release), `.release-it.*` (release-it), or `release-please-config.json`
-(release-please). Read what you find. Write nothing yet.
+Note the release tool the repository uses, if any: `.changeset/` (changesets), `.releaserc*`,
+`release.config.*`, or a `release` key in `package.json` (semantic-release), `.release-it.*`
+(release-it), or `release-please-config.json` (release-please). Read what you find. Write nothing yet.
 
 ## 2. Classify
 
@@ -138,19 +138,34 @@ plan and show the file; if the user declines, add `--no-changesets` to the init 
 notes: a plugin below the repository root must be a workspace package, and `.changeset/config.json`
 needs `"privatePackages": { "version": true, "tag": true }` before `changeset publish` tags anything.
 
+A plugin released with **semantic-release** gets the release wiring as a plan line too.
+`plugin init` writes nothing for it, so the skill edits the config itself, once the user approves.
+Add `@semantic-release/exec` with
+`prepareCmd: "universal-plugin plugin version ${nextRelease.version}"`, and add
+`@semantic-release/git` with the stamped files as `assets`. For a plugin that ships to no npm
+package, also drop `@semantic-release/npm`: `npmPublish: false` is not enough, because the plugin
+still edits `package.json`. Show the `plugins` list before and after, and edit the config file the
+survey found, in its own format. [`references/release-tools.md`](./references/release-tools.md) has
+the config, the plugin order, the full `assets` list, and the packages the release job must
+install. If the user declines, leave the config alone.
+
+**release-it** and **release-please** are not wired yet. Name the stamp the tool must call, from
+[`references/release-tools.md`](./references/release-tools.md), and hand the wiring to `version`.
+
 When the survey found **no** release tool, ask the user how the plugin will be released before
-running init. A new repository may simply not have set one up yet, and only changesets changes what
-init writes:
+running init. A new repository may simply not have set one up yet:
 
 - **changesets.** Set up `.changeset/` first (`buddy-changesets:init-changesets` when it is
   installed, else `npx @changesets/cli init`), then run init. It then finds `.changeset/` and writes
   the private `package.json` above.
-- **Another tool, or none.** Run init as planned; no `package.json` is needed. Hand the release
-  wiring to `version`, which covers each release model.
+- **semantic-release.** Propose a new `.releaserc.json` carrying the wiring above, and write it once
+  the user approves. No `package.json` is needed.
+- **release-it or release-please.** Run init as planned, and give the pointer above.
+- **None.** Run init as planned. The author picks each number with `version`.
 
 ## 4. Apply
 
-Route by what Phase 2 found. Read exactly the reference for the work at hand — do not load all six.
+Route by what Phase 2 found. Read exactly the reference for the work at hand — do not load them all.
 
 | What Phase 2 found | Do this | Reference |
 | --- | --- | --- |
@@ -249,6 +264,8 @@ This skill is not a formatter. If the project has one, run it over the written f
 - **Offer adoption once.** If the user declines, or asked for something unrelated, drop it and do
   what they asked.
 - Plugin authoring only. Do not change CI workflows, repository settings, or unrelated project files.
+  The release tool's config is the one file outside the plugin this skill edits, and only once the
+  user approves it in Phase 3.
 
 ## Related skills
 

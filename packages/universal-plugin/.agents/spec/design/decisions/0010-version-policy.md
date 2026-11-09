@@ -139,6 +139,15 @@ GitHub-hosted marketplaces) read `plugin.json` from the repository. The commit-b
 required for those channels; without it they are unsupported under this model. A place still holding
 `0.0.0-development` is reported as *unstamped*, not as drift.
 
+**Amended (issue #236).** The release tool's own config carries the wiring for semantic-release,
+release-it, and release-please. `plugin init` writes none of it. The `init-universal-plugin` skill
+proposes the edit and applies it once the author approves. For semantic-release that means
+`@semantic-release/exec` running `plugin version ${nextRelease.version}` in `prepare`, and
+`@semantic-release/git` committing the stamped files back. A plugin that ships to no npm package
+also drops `@semantic-release/npm`, because that plugin edits `package.json` even with
+`npmPublish: false`. The [`plugin/init/`](../../plugin/init/README.md) spec states why this belongs to
+the skill and not to a CLI flag.
+
 The direction differs; the ownership does not. In both models the canonical manifest is what every
 derived artifact reads, and `package.json` is a peer that must agree — never an input any derived
 artifact consults.
