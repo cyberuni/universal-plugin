@@ -4,6 +4,7 @@
 **Date:** 2026-08-18
 **Amended:** 2026-10-11 — the derive/stamp seam (#179)
 **Amended:** 2026-11-09 — release-please with no `package.json` (#238)
+**Amended:** 2026-11-09 — release-it (#237)
 **Builds on:** [0007](./0007-adopt-agent-plugins-spec-canonical.md) — its derived-not-authored manifest
 model, extended here to the `version` field specifically.
 
@@ -97,7 +98,7 @@ decides which one it calls:
 | Source | Call | Used by |
 | --- | --- | --- |
 | Author bump | `plugin version minor` | Plain repositories (no `packagePath`) |
-| Explicit number | `plugin version 1.4.0` | semantic-release: `@semantic-release/exec` `prepareCmd` |
+| Explicit number | `plugin version 1.4.0` | semantic-release: `@semantic-release/exec` `prepareCmd`; release-it: `hooks."after:bump"` |
 | The package's `package.json` | `plugin version --from-package` | changesets and release-please, after their bump |
 
 **Amended (issue #238).** A fourth source covers release-please with no `package.json`:
@@ -147,6 +148,24 @@ proposes the edit and applies it once the author approves. For semantic-release 
 also drops `@semantic-release/npm`, because that plugin edits `package.json` even with
 `npmPublish: false`. The [`plugin/init/`](../../plugin/init/README.md) spec states why this belongs to
 the skill and not to a CLI flag.
+
+**Amended (issue #237).** release-it uses the explicit form. With `"npm": false` it ignores
+`package.json` and reads the current version from the latest git tag, falling back to `0.0.0` when
+there is none,[^release-it-npm] so a plugin with no package can release with it. Its `after:bump`
+hook runs before the release commit and tag, and that commit stages every tracked file the hook
+changed,[^release-it-git] so the stamp ships in the tagged commit:
+
+```json
+{
+  "npm": false,
+  "hooks": { "after:bump": "universal-plugin plugin version ${version}" }
+}
+```
+
+The tag, not `plugin.json`, is where release-it reads the current number. A repository adopting it
+tags the commit that carries the current version first; otherwise the first run starts from `0.0.0`
+and the stamp refuses a number that does not advance. `doctor` reports a release-it config that
+never calls `plugin version` (`release-it-no-stamp`).
 
 The direction differs; the ownership does not. In both models the canonical manifest is what every
 derived artifact reads, and `package.json` is a peer that must agree — never an input any derived
@@ -274,6 +293,16 @@ Detection on the release PR is what catches a release tool that moved one number
 [^rp-customizing]: release-please, *Customizing releases* — `extra-files` and the `json` updater with
     `jsonpath`. <https://github.com/googleapis/release-please/blob/main/docs/customizing.md>
     (verified 2026-11-09).
+
+[^release-it-npm]: release-it, *npm* — `"npm": false` ignores `package.json`, bumps no package
+    version, and publishes nothing; the version then comes from the latest git tag.
+    <https://github.com/release-it/release-it/blob/main/docs/npm.md> (verified 2026-11-09 against
+    release-it 21.1.2: with no tag a release starts from `0.0.0`).
+
+[^release-it-git]: release-it, *Git* — the release commit runs `git add . --update`, so tracked files
+    changed by a hook are committed and untracked files are not (`git.addUntrackedFiles`).
+    <https://github.com/release-it/release-it/blob/main/docs/git.md> (verified 2026-11-09 by a run
+    of release-it 21.1.2 whose `after:bump` hook rewrote `plugin.json`).
 
 [^cursor-plugins-ref]: Cursor, *Plugins reference* — a marketplace entry's `source` is a path within
     the repository; there is no git source type. Refresh tracks the branch the marketplace is
