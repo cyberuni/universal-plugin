@@ -58,7 +58,25 @@ function gatherChangesets(root: string, repo: RepoState | undefined): Changesets
 	const pluginPath = repo?.pluginPath ?? ''
 	const workspace = pluginPath === '' ? root : path.join(root, ...pluginPath.split('/').map(() => '..'))
 	if (!fs.existsSync(path.join(workspace, '.changeset'))) return undefined
-	return { pluginPath, packageJson: readJson(packageJsonPath(workspace)) }
+	return {
+		pluginPath,
+		packageJson: readJson(packageJsonPath(workspace)),
+		config: readJsonSafe(path.join(workspace, '.changeset', 'config.json')),
+	}
+}
+
+function readJsonSafe(file: string): Record<string, unknown> | null {
+	try {
+		return readJson(file)
+	} catch {
+		return null
+	}
+}
+
+/** The version an existing `plugin.json` carries, which a new private package.json is seeded from. */
+function readManifestVersion(root: string): string | undefined {
+	const version = readJsonSafe(manifestPath(root))?.version
+	return typeof version === 'string' && version !== '' ? version : undefined
 }
 
 function writeJson(file: string, value: Record<string, unknown>): void {
@@ -71,6 +89,7 @@ export const realInitFs: InitFs = {
 		const repo = gatherRepo(root)
 		return {
 			manifestExists: fs.existsSync(manifestPath(root)),
+			manifestVersion: readManifestVersion(root),
 			packageJson: readJson(packageJsonPath(root)),
 			repo,
 			changesets: gatherChangesets(root, repo),

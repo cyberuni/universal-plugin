@@ -18,6 +18,7 @@ interface InitCliOptions {
 	yes?: boolean
 	npm?: boolean
 	marketplace?: boolean
+	changesets?: boolean
 	root?: string
 }
 
@@ -38,6 +39,7 @@ export function initCommand(deps: { fs: InitFs; version?: string } = { fs: realI
 		.option('--yes', 'Non-interactive (compatibility no-op; init never prompts)')
 		.option('--npm', 'Wire package.json to ship the plugin (files, version; changesets version sync)')
 		.option('--no-marketplace', "Skip the repository's local marketplace catalogs")
+		.option('--no-changesets', 'Skip the changesets release wiring (private package.json, version and release scripts)')
 		.option('--format <format>', 'Output format: json or toon (default: toon)')
 		.addOption(new Option('--json').hideHelp())
 		.addOption(ROOT_OPTION)
@@ -55,6 +57,7 @@ export function initCommand(deps: { fs: InitFs; version?: string } = { fs: realI
 						force: Boolean(opts.force),
 						npm: Boolean(opts.npm),
 						marketplace: opts.marketplace !== false,
+						changesets: opts.changesets !== false,
 						cliVersion: deps.version,
 					},
 					path.basename(root),

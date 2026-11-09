@@ -126,6 +126,16 @@ plan, and ask before running init: it rewrites the user's root `package.json`. I
 run init without `--npm` and wire `files` by hand. A custom `version` script is never rewritten;
 init prints the line to append, so relay it and let the user place it.
 
+A plugin that ships to **no** npm package in a changesets repository gets its own plan line.
+Changesets releases only a package, so when the repository root carries `.changeset/` and the plugin
+root has no `package.json`, `plugin init` writes a minimal private one: `name` from the plugin name,
+`"private": true`, and `version` from the `plugin.json` it replaces (else `0.0.0`), with no `files`,
+`main`, or `exports`. It also wires the root `version` script as above and adds
+`"release": "changeset publish"`, which tags the release for changesets/action. Offer this in the
+plan and show the file; if the user declines, add `--no-changesets` to the init call. Relay init's
+notes: a plugin below the repository root must be a workspace package, and `.changeset/config.json`
+needs `"privatePackages": { "version": true, "tag": true }` before `changeset publish` tags anything.
+
 ## 4. Apply
 
 Route by what Phase 2 found. Read exactly the reference for the work at hand — do not load all six.

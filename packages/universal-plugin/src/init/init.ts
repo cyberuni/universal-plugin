@@ -29,6 +29,9 @@ export interface InitOptions {
 	npm: boolean
 	/** `--no-marketplace` opts out of the local catalogs; the default is to write them. */
 	marketplace?: boolean
+	/** `--no-changesets` opts out of every changesets wiring; the default is to wire a repository
+	 *  that carries `.changeset/`. */
+	changesets?: boolean
 	/** The running CLI's own version, which the changesets wiring pins its devDependency to. */
 	cliVersion?: string
 }
@@ -54,10 +57,14 @@ export interface ChangesetsState {
 	pluginPath: string
 	/** The parsed workspace-root `package.json`, or `null` when absent. */
 	packageJson: Record<string, unknown> | null
+	/** The parsed `.changeset/config.json`, or `null` when absent or unreadable. */
+	config?: Record<string, unknown> | null
 }
 
 export interface InitState {
 	manifestExists: boolean
+	/** The version the existing `plugin.json` carries, when it carries one. */
+	manifestVersion?: string
 	/** The parsed root `package.json`, or `null` when absent. */
 	packageJson: Record<string, unknown> | null
 	repo?: RepoState
@@ -176,6 +183,104 @@ export function wireChangesets(
 	return { content: next }
 }
 
+const CHANGESET_PUBLISH = 'changeset publish'
+/** The version a private package starts at when the manifest carries none to seed it from. */
+const FIRST_VERSION = '0.0.0'
+
+/** The package.json a plugin that ships to no npm package needs before changesets can release it
+ *  (#234). Changesets finds only packages, and `@changesets/apply-release-plan` always writes
+ *  `<dir>/package.json`, so this file is what carries the version. `private` keeps
+ *  `changeset publish` to a git tag; no `files`, `main`, or `exports`, because nothing is packed. */
+export function privatePackage(name: string, version: string): Record<string, unknown> {
+	return { name, private: true, version }
+}
+
+/** Adds `"release": "changeset publish"`, the script changesets/action runs as its publish step.
+ *  For a private package it creates the git tag the GitHub release hangs on. A custom `release`
+ *  script is left alone with a note. Returns `null` content when nothing changes. */
+export function wireReleaseScript(pkg: Record<string, unknown>): {
+	content: Record<string, unknown> | null
+	note?: string
+} {
+	const scripts = (typeof pkg.scripts === 'object' && pkg.scripts !== null ? pkg.scripts : {}) as Record<
+		string,
+		unknown
+	>
+	const script = typeof scripts.release === 'string' ? scripts.release : undefined
+	if (script?.includes(CHANGESET_PUBLISH)) return { content: null }
+	if (script !== undefined) {
+		return {
+			content: null,
+			note: `changesets: the root "release" script is custom; make sure it runs "${CHANGESET_PUBLISH}" so a release is tagged`,
+		}
+	}
+	return { content: { ...pkg, scripts: { ...scripts, release: CHANGESET_PUBLISH } } }
+}
+
+/** Whether `.changeset/config.json` has changesets bump and tag private packages. Changesets bumps
+ *  them by default but tags them only when `privatePackages.tag` is `true`. */
+export function tagsPrivatePackages(config: Record<string, unknown> | null | undefined): boolean {
+	const setting = config?.privatePackages
+	if (typeof setting !== 'object' || setting === null) return false
+	const { version, tag } = setting as Record<string, unknown>
+	return version !== false && tag === true
+}
+
+/** Wires a plugin that ships to no npm package for a changesets release: a private package.json at
+ *  the plugin root, and the `version` and `release` scripts at the workspace root. Appends to `rows`
+ *  and `notes` in place. */
+function planPrivateRelease(
+	opts: InitOptions,
+	name: string,
+	version: string,
+	changesets: ChangesetsState,
+	rows: FileRow[],
+	notes: string[],
+): Pick<InitPlan, 'packageJson' | 'workspacePackageJson'> {
+	const sameFile = changesets.pluginPath === ''
+	let packageJson: Record<string, unknown> = privatePackage(name, version)
+	rows.push({ path: 'package.json', action: 'created' })
+	// A new root package starts from the stock script, so it is wired like any other.
+	if (sameFile) packageJson = { ...packageJson, scripts: { version: CHANGESET_VERSION } }
+	else {
+		notes.push(
+			`changesets: ${changesets.pluginPath}/package.json must be a workspace package (pnpm-workspace.yaml or "workspaces") for changesets to release it`,
+		)
+	}
+
+	let workspacePackageJson: InitPlan['workspacePackageJson'] = null
+	const rootPkg = sameFile ? packageJson : changesets.packageJson
+	if (rootPkg === null) {
+		notes.push(
+			`changesets: no package.json at the workspace root to wire; add a "version" script running "${CHANGESET_VERSION} && ${syncVersionCommand(changesets.pluginPath)}" and a "release" script running "${CHANGESET_PUBLISH}"`,
+		)
+	} else {
+		const versioned = wireChangesets(rootPkg, changesets.pluginPath, opts.cliVersion)
+		if (versioned.note) notes.push(versioned.note)
+		const afterVersion = versioned.content ?? rootPkg
+		const released = wireReleaseScript(afterVersion)
+		if (released.note) notes.push(released.note)
+		const wired = released.content ?? versioned.content
+		if (wired && sameFile) {
+			packageJson = wired
+		} else if (wired) {
+			const toWorkspace = changesets.pluginPath
+				.split('/')
+				.map(() => '..')
+				.join('/')
+			workspacePackageJson = { path: `${toWorkspace}/package.json`, content: wired }
+			rows.push({ path: workspacePackageJson.path, action: 'updated' })
+		}
+	}
+
+	if (!tagsPrivatePackages(changesets.config)) {
+		notes.push(
+			'changesets: set "privatePackages": { "version": true, "tag": true } in .changeset/config.json so changeset publish tags each release',
+		)
+	}
+	return { packageJson, workspacePackageJson }
+}
+
 /** The local marketplace a repository carries is named after the repository, not after the plugin:
  *  the catalog sits at the repository root and lists every plugin the repository develops. `-local`
  *  separates it from a published marketplace of the same plugins. */
@@ -286,6 +391,13 @@ export function planInit(
 	if (opts.npm && typeof packageVersion === 'string' && packageVersion !== '') {
 		manifest.version = packageVersion
 	}
+	// A plugin released by changesets without npm gets a private package.json (#234). It is seeded
+	// from the manifest being replaced, and the manifest carries the same number, as under --npm.
+	const privateVersion =
+		!opts.npm && opts.changesets !== false && state.changesets && state.packageJson === null
+			? (state.manifestVersion ?? FIRST_VERSION)
+			: undefined
+	if (privateVersion !== undefined) manifest.version = privateVersion
 	const dirs = opts.scaffold ? [...SCAFFOLD_DIRS] : []
 	const rows: FileRow[] = [{ path: 'plugin.json', action: 'created' }]
 	const notes: string[] = []
@@ -308,7 +420,7 @@ export function planInit(
 	}
 
 	let workspacePackageJson: InitPlan['workspacePackageJson'] = null
-	const changesets = state.changesets
+	const changesets = opts.changesets === false ? undefined : state.changesets
 	if (opts.npm && changesets) {
 		const sameFile = changesets.pluginPath === ''
 		const rootPkg = sameFile ? packageJson : changesets.packageJson
@@ -330,6 +442,14 @@ export function planInit(
 				rows.push({ path: workspacePackageJson.path, action: 'updated' })
 			}
 		}
+	}
+
+	// A plugin that ships to no npm package still needs a package.json before changesets can release it.
+	// An existing one is left alone without --npm, as it always was.
+	if (privateVersion !== undefined && changesets) {
+		const wired = planPrivateRelease(opts, name, privateVersion, changesets, rows, notes)
+		packageJson = wired.packageJson
+		workspacePackageJson = wired.workspacePackageJson
 	}
 
 	const created = rows.filter((r) => r.action === 'created').length
