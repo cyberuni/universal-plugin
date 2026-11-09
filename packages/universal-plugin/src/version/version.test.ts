@@ -224,6 +224,43 @@ describe('planVersion — only one place picks the number (ADR-0010 §2)', () =>
 	})
 })
 
+describe('planVersion — --from-manifest restamps what plugin.json already holds (#238)', () => {
+	const fromManifest = (state: Partial<VersionState>, opts: { bump?: string; fromPackage?: boolean } = {}) =>
+		planVersion({ ...base, ...state }, { ...opts, fromManifest: true, force: false })
+
+	it('restamps at the manifest version, without --force and without writing a package', () => {
+		const result = fromManifest({ manifest: { name: 'x', version: '1.3.0' } })
+		expect(result.from).toBe('1.3.0')
+		expect(result.to).toBe('1.3.0')
+		expect(result.packageJson).toBeNull()
+	})
+
+	it('refuses a declared packagePath and points at --from-package', () => {
+		const state = { packagePath: 'packages/mypkg', packageJson: { name: 'mypkg', version: '1.3.0' } }
+		expect(() => fromManifest(state)).toThrow(/packages\/mypkg\/package\.json owns the number.*--from-package/s)
+	})
+
+	it('refuses a manifest with no version and points at the explicit form', () => {
+		expect(() => fromManifest({ manifest: { name: 'x' } })).toThrow(/no version to restamp.*explicit version/s)
+	})
+
+	it('refuses the semantic-release placeholder', () => {
+		expect(() => fromManifest({ manifest: { name: 'x', version: UNSTAMPED_VERSION } })).toThrow(/0\.0\.0-development/)
+	})
+
+	it('refuses a manifest version that is not semver', () => {
+		expect(() => fromManifest({ manifest: { name: 'x', version: 'one' } })).toThrow(/not valid semver/)
+	})
+
+	it('a version and --from-manifest together are refused', () => {
+		expect(() => fromManifest({}, { bump: '1.4.0' })).toThrow(/--from-manifest, not both/)
+	})
+
+	it('--from-package and --from-manifest together are refused', () => {
+		expect(() => fromManifest({}, { fromPackage: true })).toThrow(/--from-package or --from-manifest, not both/)
+	})
+})
+
 describe('planVersion — stamp the skills', () => {
 	const skill = (content: string, rel = 'skills/a/SKILL.md') => ({ path: rel, content })
 	const own: Partial<VersionState> = { rootPackageJson: { name: 'my-cli', version: '1.2.3' } }

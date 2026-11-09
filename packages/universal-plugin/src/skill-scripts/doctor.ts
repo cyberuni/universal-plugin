@@ -382,6 +382,12 @@ if (manifest.version !== undefined && packagePath === null) {
 // no release is ever made.
 for (const finding of changesetsReleaseFindings()) add(...finding)
 
+// A plugin released with release-please and shipped to no npm package (#238). release-please bumps
+// plugin.json through `extra-files`, but runs no command before its release commit, so the derived
+// manifests, the catalogs, the skill pins and the compiled scripts stay on the old number unless a
+// workflow restamps the release PR with `plugin version --from-manifest`.
+for (const finding of releasePleaseReleaseFindings()) add(...finding)
+
 // The marketplace catalogs a user installs from. They sit at the *repository* root, above a plugin in
 // a monorepo, and each is read by its runtime at install time — a catalog whose shape that runtime
 // refuses fails in the user's terminal, not here. The shipped CLI owns the rules; this only asks.
@@ -469,6 +475,54 @@ function changesetsReleaseFindings(): [string, string, string, string][] {
 		])
 	}
 	return out
+}
+
+/** The release-please gap of a non-npm plugin: `release-please-config.json` bumps this plugin's
+ *  plugin.json through `extra-files`, and no workflow runs `plugin version` to restamp the rest. A
+ *  plugin with `packagePath` is not checked: its number comes from the package, through
+ *  `--from-package`. */
+function releasePleaseReleaseFindings(): [string, string, string, string][] {
+	if (packagePath !== null) return []
+	const repoRoot = git('rev-parse', '--show-toplevel') ?? root
+	const config = readJson(path.join(repoRoot, 'release-please-config.json'))
+	if (config === null || !releasePleaseBumpsManifest(config, repoRoot)) return []
+	if (workflowsMention(repoRoot, /plugin version|version\.mjs/)) return []
+	return [
+		[
+			'release-please-no-restamp',
+			'high',
+			'release-please-config.json bumps plugin.json through extra-files, but no workflow runs plugin version — the release PR leaves the vendor manifests, catalogs, skill pins and compiled scripts on the old version',
+			'add a workflow step on the release PR branch that runs `universal-plugin plugin version --from-manifest` and pushes the stamped files (see the version skill)',
+		],
+	]
+}
+
+/** Whether a release-please config lists this plugin's plugin.json in `extra-files`. A package's own
+ *  `extra-files` replaces the top-level default. A path is relative to the package path, or to the
+ *  repository root with a leading `/`. */
+function releasePleaseBumpsManifest(config: Record<string, unknown>, repoRoot: string): boolean {
+	const target = path.join(root, 'plugin.json')
+	const packages = (config.packages ?? {}) as Record<string, Record<string, unknown> | undefined>
+	return Object.entries(packages).some(([packageDir, options]) => {
+		const extra = options?.['extra-files'] ?? config['extra-files']
+		if (!Array.isArray(extra)) return false
+		return extra.some((entry) => {
+			const file = typeof entry === 'string' ? entry : (entry as { path?: unknown } | null)?.path
+			if (typeof file !== 'string') return false
+			const resolved = file.startsWith('/') ? path.join(repoRoot, file) : path.join(repoRoot, packageDir, file)
+			return resolved === target
+		})
+	})
+}
+
+/** Whether any workflow file's text matches. */
+function workflowsMention(repoRoot: string, pattern: RegExp): boolean {
+	const dir = path.join(repoRoot, '.github', 'workflows')
+	if (!fs.existsSync(dir)) return false
+	return fs
+		.readdirSync(dir)
+		.filter((file) => /\.ya?ml$/.test(file))
+		.some((file) => pattern.test(fs.readFileSync(path.join(dir, file), 'utf8')))
 }
 
 /** Workflow files that run changesets/action and give it no publish command. Read as text: a step

@@ -621,3 +621,40 @@ test('a repository without changesets reports no changesets finding', () => {
 	seedRelease()
 	expect(findings().filter((code) => code.startsWith('changesets-'))).toEqual([])
 })
+
+// A plugin released with release-please but shipped to no npm package (#238): extra-files bumps
+// plugin.json and nothing restamps the rest unless a workflow runs plugin version.
+const releasePlease = (extraFiles: unknown[]) => ({
+	'release-type': 'simple',
+	packages: { '.': { 'extra-files': extraFiles } },
+})
+const bumpsManifest = [{ type: 'json', path: 'plugin.json', jsonpath: '$.version' }]
+
+test('a release-please config that bumps plugin.json with no restamp workflow is reported', () => {
+	seedRelease()
+	write('release-please-config.json', `${JSON.stringify(releasePlease(bumpsManifest))}\n`)
+	write(
+		'.github/workflows/release.yml',
+		'on: push\njobs:\n  release:\n    steps:\n      - uses: googleapis/release-please-action@v4\n',
+	)
+	expect(detail('release-please-no-restamp')).toContain('no workflow runs plugin version')
+})
+
+test('a release-please setup with a restamp workflow reports no release-please finding', () => {
+	seedRelease()
+	write('release-please-config.json', `${JSON.stringify(releasePlease(['/plugin.json']))}\n`)
+	write('.github/workflows/release.yml', 'steps:\n  - run: pnpm exec universal-plugin plugin version --from-manifest\n')
+	expect(findings()).not.toContain('release-please-no-restamp')
+})
+
+test('a release-please config that does not bump plugin.json is not checked', () => {
+	seedRelease()
+	write('release-please-config.json', `${JSON.stringify(releasePlease([]))}\n`)
+	expect(findings()).not.toContain('release-please-no-restamp')
+})
+
+test('top-level extra-files apply to a package that sets none', () => {
+	seedRelease()
+	write('release-please-config.json', `${JSON.stringify({ 'extra-files': bumpsManifest, packages: { '.': {} } })}\n`)
+	expect(findings()).toContain('release-please-no-restamp')
+})

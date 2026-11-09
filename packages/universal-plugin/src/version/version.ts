@@ -36,6 +36,9 @@ export interface VersionOptions {
 	bump?: string
 	/** Take the version the package's `package.json` already holds — the release tool moved it. */
 	fromPackage?: boolean
+	/** Take the version the canonical `plugin.json` already holds — a release tool (release-please
+	 *  `extra-files`) moved it and nothing restamped the rest (#238). */
+	fromManifest?: boolean
 	/** Prerelease identifier for the `pre*` release types. */
 	preid?: string
 	/** Allow a target that does not advance on the current version. */
@@ -183,10 +186,41 @@ function versionFromPackage(state: VersionState): string {
 	return valid
 }
 
-/** Picks the number. Exactly one source: a bump argument or `--from-package`. Under ADR-0010 §2 a
+/** Reads the version a release tool already wrote into the canonical manifest (#238). Under a
+ *  declared `packagePath` the package owns the number, so the manifest is not a source there. */
+function versionFromManifest(state: VersionState, from: string | null): string {
+	if (state.packagePath !== null) {
+		const pkg = joinRelative(state.packagePath, 'package.json')
+		throw new Error(
+			`packagePath is declared, so ${pkg} owns the number, not plugin.json — run plugin version --from-package`,
+		)
+	}
+	if (from === null) {
+		throw new Error(
+			'plugin.json has no version to restamp — pass an explicit version (e.g. 0.1.0) to set the first one',
+		)
+	}
+	if (from === UNSTAMPED_VERSION) {
+		throw new Error(`plugin.json holds the placeholder ${UNSTAMPED_VERSION} — pass the release's version explicitly`)
+	}
+	const valid = semver.valid(from)
+	if (valid === null) throw new Error(`Version "${from}" in plugin.json is not valid semver`)
+	return valid
+}
+
+/** Picks the number. Exactly one source: a bump argument, `--from-package`, or `--from-manifest`. Under ADR-0010 §2 a
  *  plugin with `packagePath` gets its number from the package, so a release type there is refused —
  *  the explicit and `--from-package` forms stay, because release tools call them. */
 function resolveVersion(state: VersionState, from: string | null, opts: VersionOptions): string {
+	if (opts.fromPackage && opts.fromManifest) {
+		throw new Error('Pass --from-package or --from-manifest, not both')
+	}
+	if (opts.fromManifest) {
+		if (opts.bump !== undefined) {
+			throw new Error(`Pass a version or --from-manifest, not both (got "${opts.bump}")`)
+		}
+		return versionFromManifest(state, from)
+	}
 	if (opts.fromPackage) {
 		if (opts.bump !== undefined) {
 			throw new Error(`Pass a version or --from-package, not both (got "${opts.bump}")`)
@@ -194,7 +228,9 @@ function resolveVersion(state: VersionState, from: string | null, opts: VersionO
 		return versionFromPackage(state)
 	}
 	if (opts.bump === undefined) {
-		throw new Error(`Pass a release type (${RELEASE_TYPES.join(', ')}), an explicit version, or --from-package`)
+		throw new Error(
+			`Pass a release type (${RELEASE_TYPES.join(', ')}), an explicit version, --from-package, or --from-manifest`,
+		)
 	}
 	if (state.packagePath !== null && isReleaseType(opts.bump)) {
 		const pkg = joinRelative(state.packagePath, 'package.json')

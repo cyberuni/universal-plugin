@@ -3,6 +3,7 @@
 **Status:** accepted
 **Date:** 2026-08-18
 **Amended:** 2026-10-11 — the derive/stamp seam (#179)
+**Amended:** 2026-11-09 — release-please with no `package.json` (#238)
 **Builds on:** [0007](./0007-adopt-agent-plugins-spec-canonical.md) — its derived-not-authored manifest
 model, extended here to the `version` field specifically.
 
@@ -98,6 +99,32 @@ decides which one it calls:
 | Author bump | `plugin version minor` | Plain repositories (no `packagePath`) |
 | Explicit number | `plugin version 1.4.0` | semantic-release: `@semantic-release/exec` `prepareCmd` |
 | The package's `package.json` | `plugin version --from-package` | changesets and release-please, after their bump |
+
+**Amended (issue #238).** A fourth source covers release-please with no `package.json`:
+
+| Source | Call | Used by |
+| --- | --- | --- |
+| The canonical `plugin.json` | `plugin version --from-manifest` | release-please `release-type: simple`, `extra-files` bumping `plugin.json` |
+
+release-please runs with no `package.json`: the simple strategy reads the number from
+`.release-please-manifest.json` and writes only `CHANGELOG.md` and a `version.txt` it skips when
+absent.[^rp-simple] `extra-files` with a JSON updater moves `plugin.json`'s `$.version`. It offers no
+hook to run a command before its release commit,[^rp-customizing] so the release PR moves the
+canonical manifest and nothing else.
+
+Two ways to bring the rest along were weighed. Listing every stamped file in `extra-files` was
+rejected: the skill pins and the compiled script headers are not a JSON `version` field, so the
+generic updater would have to find them by its version-shaped pattern, and the vendor manifests and
+catalogs are `plugin build`'s output, which a second writer must not touch (§1). The chosen way is a
+CI step on the release PR branch that runs `plugin version --from-manifest` and pushes the stamped
+files. That keeps the one stamp. The step runs in the same workflow as the action, gated on its
+`prs_created` output, because release-please force-pushes the branch on every update and drops the
+earlier restamp commit; the action reports an updated PR there too, so the step restamps again.
+
+`--from-manifest` has no advance guard, for the reason `--from-package` has none. It is refused where
+`packagePath` is declared: the package owns the number there, and the call is `--from-package`.
+`doctor` reports `release-please-no-restamp` when a release-please config bumps `plugin.json` and no
+workflow runs `plugin version`.
 
 The changesets chain is now `changeset version → plugin version --from-package → plugin build` (the
 stamp re-derives through `build` unless given `--no-build`). Only one place picks the number: with
@@ -229,6 +256,15 @@ Detection on the release PR is what catches a release tool that moved one number
     accept `ref`, and an optional full-length `sha` to pin an exact commit.
     <https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-plugin-reference>
     (verified 2026-08-18).
+
+[^rp-simple]: release-please 17.11.2 source, `build/src/strategies/simple.js` (the updates are
+    `CHANGELOG.md` and `version-file`, default `version.txt`, not created when missing) and
+    `build/src/manifest.js` (released versions read from `.release-please-manifest.json`). Read
+    2026-11-09.
+
+[^rp-customizing]: release-please, *Customizing releases* — `extra-files` and the `json` updater with
+    `jsonpath`. <https://github.com/googleapis/release-please/blob/main/docs/customizing.md>
+    (verified 2026-11-09).
 
 [^cursor-plugins-ref]: Cursor, *Plugins reference* — a marketplace entry's `source` is a path within
     the repository; there is no git source type. Refresh tracks the branch the marketplace is

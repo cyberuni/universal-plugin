@@ -48,6 +48,16 @@ changesets. It needs three things, and the skill reports each one that is missin
 
 A plugin whose root `package.json` is published to npm is not checked here.
 
+## release-please release config
+
+release-please can release a plugin with no `package.json` by bumping `plugin.json` through
+`extra-files`. It runs no command before its release commit, so the rest of the places that carry
+the version stay behind unless a workflow restamps the release PR. The skill reports
+`release-please-no-restamp` when `release-please-config.json` lists the plugin's `plugin.json` in
+`extra-files` and no workflow under `.github/workflows` runs `plugin version`. The
+[`version`](../version/) skill has the workflow step. A plugin that declares `packagePath` is not
+checked here.
+
 ## Version drift in CI
 
 The skill reports each file whose version disagrees with the release's number as `version-drift`:

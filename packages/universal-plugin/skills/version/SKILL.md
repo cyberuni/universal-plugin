@@ -35,7 +35,8 @@ Ask who decides the number. There are three sources, and the release model picks
 |---|---|---|
 | Author bump | `plugin version minor` | Plain repositories, with no `packagePath` |
 | Explicit number | `plugin version 1.4.0` | semantic-release |
-| The package's `package.json` | `plugin version --from-package` | changesets, release-please |
+| The package's `package.json` | `plugin version --from-package` | changesets, release-please with an npm package |
+| The canonical `plugin.json` | `plugin version --from-manifest` | release-please with no `package.json` (`extra-files`) |
 
 ```bash
 test -d .changeset && echo "changesets"
@@ -51,8 +52,10 @@ Wire a release tool once; after that the release runs the stamp for you:
 
 - **changesets.** Root `version` script: `changeset version && universal-plugin plugin version --from-package --root <plugin>`.
   `init-universal-plugin --npm` writes it.
-- **release-please.** Run `universal-plugin plugin version --from-package` after the release PR
-  bumps the package.
+- **release-please, npm package.** Run `universal-plugin plugin version --from-package` after the
+  release PR bumps the package.
+- **release-please, no `package.json`.** `extra-files` bumps `plugin.json`, and a workflow step on the
+  release PR runs `universal-plugin plugin version --from-manifest`. See the section below.
 - **semantic-release.** Add `@semantic-release/exec` with
   `prepareCmd: "universal-plugin plugin version ${nextRelease.version}"`.
 
@@ -66,11 +69,72 @@ Git-sourced installs (Copilot CLI, GitHub-hosted marketplaces) read `plugin.json
 so for those channels the commit-back is required. Without it they are unsupported. Set `assets` to
 `plugin.json`, the vendor manifests, `skills/**`, `.plugin/pins.json`, and the mcp file.
 
+### release-please with no `package.json`
+
+release-please releases a plugin with no `package.json`. `release-type: simple` keeps the number in
+`.release-please-manifest.json` (`{ ".": "1.2.3" }`) and updates only `CHANGELOG.md` and a
+`version.txt` it skips when absent. `extra-files` bumps `plugin.json`:
+
+```json
+{
+  "packages": {
+    ".": {
+      "release-type": "simple",
+      "extra-files": [{ "type": "json", "path": "plugin.json", "jsonpath": "$.version" }]
+    }
+  }
+}
+```
+
+release-please runs no command before its release commit, so the vendor manifests, catalogs, skill
+pins and compiled scripts stay on the old number. Restamp the release PR in the same workflow, right
+after the action. `--from-manifest` takes the number `plugin.json` already holds:
+
+```yaml
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - id: release
+        uses: googleapis/release-please-action@v4
+      - if: ${{ steps.release.outputs.prs_created == 'true' }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ fromJSON(steps.release.outputs.pr).headBranchName }}
+      - if: ${{ steps.release.outputs.prs_created == 'true' }}
+        run: |
+          npx -y universal-plugin@0.17.1 plugin version --from-manifest
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet || { git commit -m "chore: restamp the plugin version"; git push; }
+```
+
+- release-please force-pushes its branch each time it updates the PR, which drops the restamp commit.
+  The action reports an updated PR in `prs_created` as well, so the step runs again and restamps it.
+- A push made with the default `GITHUB_TOKEN` starts no workflow run, so the PR's checks do not run on
+  the restamp commit. Pass a token from a GitHub App or a PAT to `actions/checkout` (`token:`) when the
+  PR's checks must see it.
+- Do not list the stamped files in `extra-files` instead. The skill pins and the compiled script
+  headers are not a `$.version` field, and the vendor manifests and catalogs belong to `plugin build`.
+- With `packagePath` declared, bump the package and run `--from-package` instead. `--from-manifest` is
+  refused there.
+
+`doctor` reports `release-please-no-restamp` when `extra-files` bumps `plugin.json` and no workflow runs
+`plugin version`.
+
 ## Step 2 — Run it
 
 ```bash
 node scripts/version.mjs <bump-or-number>
 node scripts/version.mjs --from-package
+node scripts/version.mjs --from-manifest
 ```
 
 Resolve that path against this skill's own directory; it runs the project's installed CLI
@@ -89,6 +153,7 @@ source is decided.
 | Flag | Effect |
 |---|---|
 | `--from-package` | Take the version the package's `package.json` already holds |
+| `--from-manifest` | Restamp at the version `plugin.json` already holds; refused under `packagePath` |
 | `--preid <id>` | Prerelease identifier for the `pre*` release types |
 | `--dry-run` | Print the plan, write nothing. Run this first when unsure |
 | `--force` | Allow a target that does not advance on the current version |
@@ -129,6 +194,7 @@ Every guard resolves before the first write, so a failed run leaves the tree unt
 | a target that does not advance | the requested version is not greater than the current one | pick a higher version, or pass `--force` if the user genuinely wants to move backward |
 | a release type under `packagePath` | the package owns the number | bump the package with the release tool, then `plugin version --from-package` |
 | `0.0.0-development` from `--from-package` | semantic-release's placeholder, not a release | pass the explicit number instead |
+| `--from-manifest` under `packagePath` | the package owns the number | run `--from-package` instead |
 | a missing `package.json` at `packagePath` | `.agents/universal-plugin.json` names a package directory that does not exist | fix `packagePath`, or create the package |
 
 ## Do not
