@@ -10,6 +10,7 @@ import { planVersion, RELEASE_TYPES } from './version.js'
 
 export interface VersionCliOptions {
 	fromPackage?: boolean
+	fromManifest?: boolean
 	preid?: string
 	force?: boolean
 	/** Commander's `--no-build`: `true` by default, `false` when the flag is passed. */
@@ -30,6 +31,10 @@ export function versionCommand(deps: { fs: VersionFs } = { fs: realVersionFs }):
 
 	cmd
 		.option('--from-package', "Take the version the package's package.json already holds (changesets, release-please)")
+		.option(
+			'--from-manifest',
+			'Restamp every place with the version plugin.json already holds (release-please extra-files)',
+		)
 		.option('--preid <id>', 'Prerelease identifier for the pre* release types')
 		.option('--force', 'Allow a version that does not advance on the current one')
 		.option('--no-build', 'Skip re-deriving the vendor manifests')
@@ -44,7 +49,8 @@ export function versionCommand(deps: { fs: VersionFs } = { fs: realVersionFs }):
 				'Examples:',
 				'  $ universal-plugin plugin version minor            # plain repository: the author picks',
 				'  $ universal-plugin plugin version 1.4.0            # semantic-release: prepareCmd',
-				'  $ universal-plugin plugin version --from-package   # changesets / release-please',
+				'  $ universal-plugin plugin version --from-package   # changesets / release-please, npm package',
+				'  $ universal-plugin plugin version --from-manifest  # release-please, plugin.json bumped by extra-files',
 				'',
 			].join('\n'),
 		)
@@ -61,6 +67,7 @@ export function runVersion(bump: string | undefined, opts: VersionCliOptions, ve
 		const plan = planVersion(versionFs.gather(root), {
 			...(bump === undefined ? {} : { bump }),
 			fromPackage: Boolean(opts.fromPackage),
+			fromManifest: Boolean(opts.fromManifest),
 			...(opts.preid === undefined ? {} : { preid: opts.preid }),
 			force: Boolean(opts.force),
 		})

@@ -138,6 +138,35 @@ Feature: plugin version — move the plugin's version, and keep every version-ca
     Then the exit code is 1
     And stderr contains "--from-package"
 
+  Scenario: --from-manifest restamps every place at the version plugin.json already holds
+    Given the manifest version is "1.3.0"
+    And no ".agents/universal-plugin.json" exists
+    And the plugin root has no "package.json"
+    And the manifest declares a harness for "claude-code"
+    And ".claude-plugin/plugin.json" exists at version "1.2.3"
+    When I run "universal-plugin plugin version --from-manifest --root <root>"
+    Then the exit code is 0
+    And "plugin.json" contains version "1.3.0"
+    And ".claude-plugin/plugin.json" contains version "1.3.0"
+
+  Scenario: --from-manifest is refused where packagePath is declared
+    Given ".agents/universal-plugin.json" declares packagePath "packages/mypkg"
+    And "packages/mypkg/package.json" exists at version "1.3.0"
+    When I run "universal-plugin plugin version --from-manifest --root <root>"
+    Then the exit code is 1
+    And stderr contains "--from-package"
+
+  Scenario: --from-manifest refuses a manifest without a version
+    Given the manifest has no "version" field
+    When I run "universal-plugin plugin version --from-manifest --root <root>"
+    Then the exit code is 1
+    And stderr contains "no version to restamp"
+
+  Scenario: --from-package and --from-manifest together are refused
+    When I run "universal-plugin plugin version --from-package --from-manifest --root <root>"
+    Then the exit code is 1
+    And stderr contains "not both"
+
   Scenario: a release type is refused where packagePath is declared
     Given the manifest version is "1.2.3"
     And ".agents/universal-plugin.json" declares packagePath "packages/mypkg"

@@ -344,6 +344,38 @@ test('after one stamp, check-version finds no drift', () => {
 	expect(JSON.parse(check.stdout)).toMatchObject({ ok: true, expected: '1.3.0', drifted: [] })
 })
 
+/** A release-please layout with no package.json: extra-files moved plugin.json, and every other place lags. */
+function seedReleasePlease() {
+	writeJson('plugin.json', {
+		name: 'my-plugin',
+		version: '1.3.0',
+		extensions: {
+			'org.cyberuni.universal-plugin': {
+				harnesses: { 'claude-code': {} },
+				mcpServers: './mcp.json',
+			},
+		},
+	})
+	writeJson('.claude-plugin/plugin.json', { name: 'my-plugin', version: '1.2.3' })
+	writeJson('mcp.json', {
+		mcpServers: { srv: { command: 'npx', args: ['-y', 'my-cli@1.2.3', 'mcp'], pinToPluginVersion: true } },
+	})
+}
+
+test('--from-manifest restamps every place from the plugin.json a release tool bumped', () => {
+	seedReleasePlease()
+	const r = run('--from-manifest')
+	expect(r.status).toBe(0)
+	expect(readJson('plugin.json').version).toBe('1.3.0')
+	expect(exists('package.json')).toBe(false)
+	expect((readJson('mcp.json').mcpServers as any).srv.args).toEqual(['-y', 'my-cli@1.3.0', 'mcp'])
+	expect(readJson('.claude-plugin/plugin.json').version).toBe('1.3.0')
+	const check = spawnSync('node', [bin, 'publish', 'check-version', '--root', root, '--format', 'json'], {
+		encoding: 'utf8',
+	})
+	expect(check.status).toBe(0)
+})
+
 test('a release type is refused where packagePath is declared', () => {
 	seedReleased()
 	const r = run('minor')

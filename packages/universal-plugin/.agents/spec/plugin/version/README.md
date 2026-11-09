@@ -45,8 +45,10 @@ verb decides the version and writes it into the places that restate it.
   `plugin version ${nextRelease.version}`. `--from-package` reads the version a package manager
   already decided from `<packagePath>/package.json`, or the plugin root's `package.json` when no
   `packagePath` is declared; changesets and release-please call it as
-  `changeset version && plugin version --from-package`. Passing a bump and `--from-package`, or
-  neither, is an error.
+  `changeset version && plugin version --from-package`. `--from-manifest` reads the version a release
+  tool already wrote into the canonical `plugin.json` and restamps every other place at it; a
+  release-please plugin with no `package.json` calls it on the release PR, after `extra-files` bumped
+  `plugin.json` (#238). Passing more than one source, or none, is an error.
 
 **Why the verb does not write the derived files.** A version bump touching
 `.claude-plugin/plugin.json` directly would be a second writer for a file `plugin build` already
@@ -69,6 +71,17 @@ release script may run twice. Re-stamping the version the manifest already carri
 refuses a package holding `0.0.0-development` (the semantic-release placeholder, which is not a
 release) and a package with no version, and names the explicit form as the alternative. An explicit
 version replaces a manifest still at `0.0.0-development` without `--force`.
+
+**Why `--from-manifest` exists, and why it is refused under `packagePath`.** release-please can
+release a plugin with no `package.json`: `release-type: simple` keeps the number in
+`.release-please-manifest.json`, and `extra-files` bumps `plugin.json`. It has no hook to run a
+command before its release commit, so the rest of the places stay on the old number until a CI step
+on the release PR restamps them. `--from-package` has no package to read there, and an explicit
+version equal to the manifest's would trip the advance guard. `--from-manifest` restamps at the
+manifest's own number with no advance guard, for the same reason `--from-package` has none. It
+refuses a manifest with no version, one at `0.0.0-development`, and one that is not semver. Where
+`packagePath` is declared the package owns the number (ADR-0010 §2), so `--from-manifest` is refused
+there and points at `--from-package`.
 
 **Why a write keeps the file's own format.** Each authored file is rewritten the way it was already
 formatted (issue #164): its indentation, its line ending and whether it ends in a newline, and the
@@ -95,6 +108,9 @@ unchanged and puts the drift check in `doctor`. Also out of scope: deriving the 
 - **changesets** and **release-please** own package versions, and repos that use them (including
   this one) want the number decided there. They run `plugin version --from-package` right after the
   tool moves `package.json`.
+- **release-please with no `package.json`** bumps `plugin.json` through `extra-files` and runs no
+  command, so a CI step on the release PR branch runs `plugin version --from-manifest` and pushes the
+  stamped files back (#238).
 - **semantic-release** has no version until release time, so the package holds `0.0.0-development`
   and `prepareCmd` runs `plugin version ${nextRelease.version}`.
 - A repo with no release tool runs `plugin version <bump>`: it is the whole release-number step.
@@ -249,6 +265,14 @@ The entry points, each a mode of the `universal-plugin plugin version` verb, giv
     the plugin root (`name`, `"private": true`, `version`) and `.changeset/config.json`
     `"privatePackages": { "version": true, "tag": true }`. Changesets releases only a package, so a
     plugin that ships to no npm package needs one to carry its version (#234).
+- **Restamp from the manifest** — `plugin version --from-manifest [--no-build] [--dry-run]`.
+  - *trigger:* release-please `extra-files` just moved `plugin.json` on the release PR, and no
+    `package.json` carries the plugin's version.
+  - *inputs:* the canonical `plugin.json` `version`.
+  - *outcome:* every stamped place carries the manifest's version and the vendor manifests are
+    re-derived; the manifest's number is not changed; re-stamping succeeds. Refused where
+    `packagePath` is declared, and for a manifest with no version, `0.0.0-development`, or a
+    non-semver version.
 - **Set an explicit version** — `plugin version <x.y.z> [--force] [--no-build] [--dry-run]`.
   - *trigger:* an author knows the exact number (a first release, a coordinated version, a correction).
   - *inputs:* the version literal; the same root and config as above.
@@ -271,11 +295,18 @@ graph TD
   UF -->|yes| E_UF[exit 1 · name the flag]
   UF -->|no| HELP{--help?}
   HELP -->|yes| E_HELP[print reference · exit 0]
-  HELP -->|no| SRC{exactly one of bump or --from-package?}
+  HELP -->|no| SRC{exactly one of bump, --from-package, --from-manifest?}
   SRC -->|no| E_SRC[exit 1 · name both forms]
   SRC -->|yes| M{canonical plugin.json present?}
   M -->|no| E_M[exit 1 · name the missing manifest]
-  M -->|yes| FP{--from-package?}
+  M -->|yes| FMF{--from-manifest?}
+  FMF -->|yes| FMP{packagePath declared?}
+  FMP -->|yes| E_FMP[exit 1 · the package owns the number · point at --from-package]
+  FMP -->|no| FMV{manifest has a real semver version?}
+  FMV -->|no| E_FMV[exit 1 · point at an explicit version · refuse 0.0.0-development]
+  FMV -->|yes| fromm[target = the manifest version · no advance guard]
+  fromm --> plan3
+  FMF -->|no| FP{--from-package?}
   FP -->|yes| PKG{package.json found with a real version?}
   PKG -->|no| E_PKG[exit 1 · name where it looked · refuse 0.0.0-development · in a changesets repo, name the private package.json and privatePackages]
   PKG -->|yes| fromp[target = the package version · no advance guard]
@@ -351,6 +382,10 @@ Grouped by concern; 1:1 with [`version.feature`](./version.feature).
 | guard: release type | `packagePath` declared, `minor` | `a release type is refused where packagePath is declared` |
 | explicit allowed | `packagePath` declared, `1.4.0` | `an explicit version is still taken where packagePath is declared` |
 | unstamped manifest | manifest at `0.0.0-development`, `1.0.0` | `an explicit version replaces an unstamped manifest without --force` |
+| from manifest | no `package.json`, manifest at `1.3.0`, derived manifest at `1.2.3` | `--from-manifest restamps every place at the version plugin.json already holds` |
+| guard: manifest under packagePath | `packagePath` declared | `--from-manifest is refused where packagePath is declared` |
+| guard: manifest without version | manifest with no `version` | `--from-manifest refuses a manifest without a version` |
+| guard: two sources | `--from-package --from-manifest` | `--from-package and --from-manifest together are refused` |
 
 ### Stamp the places that restate the version
 
