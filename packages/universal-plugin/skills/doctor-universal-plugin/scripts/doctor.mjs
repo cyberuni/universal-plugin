@@ -197,6 +197,7 @@ if (manifest.version !== void 0 && packagePath === null) {
 		}
 	}
 }
+for (const finding of changesetsReleaseFindings()) add(...finding);
 const missingMarketplaceRoots = marketplaceRoots.filter((r) => !fs.existsSync(path.resolve(r)));
 for (const r of missingMarketplaceRoots) add("marketplace-root-missing", "high", `--marketplace-root ${r} does not exist`, "clone the marketplace repository, or fix the path");
 const existingMarketplaceRoots = marketplaceRoots.filter((r) => fs.existsSync(path.resolve(r)));
@@ -221,6 +222,48 @@ function invalidCatalogs(extraRoots) {
 			own
 		})) : [];
 	});
+}
+/** The release-config gaps of a non-npm plugin in a changesets repository: no `packagePath`, and a
+*  plugin-root package.json that is absent or private. An npm-shipped plugin is not checked here —
+*  `changeset publish` there publishes to npm whatever the private-package settings say. */
+function changesetsReleaseFindings() {
+	if (packagePath !== null) return [];
+	const repoRoot = git("rev-parse", "--show-toplevel") ?? root;
+	const workspace = [root, repoRoot].find((dir) => fs.existsSync(path.join(dir, ".changeset")));
+	if (workspace === void 0) return [];
+	const pkg = readJson(path.join(root, "package.json"));
+	if (pkg !== null && pkg.private !== true) return [];
+	const out = [];
+	if (pkg === null) out.push([
+		"changesets-no-package",
+		"high",
+		"the repository is released with changesets, but the plugin root has no package.json — changesets releases only a package, so changeset version and changeset publish fail",
+		"/universal-plugin:init-universal-plugin — it writes a private package.json (name, \"private\": true, version)"
+	]);
+	const setting = readJson(path.join(workspace, ".changeset", "config.json"))?.privatePackages;
+	if (!(typeof setting === "object" && setting !== null && setting.version !== false && setting.tag === true)) out.push([
+		"changesets-private-untagged",
+		"high",
+		".changeset/config.json does not set \"privatePackages\": { \"version\": true, \"tag\": true } — changeset publish creates no tag for a private package, so no release is made",
+		"set \"privatePackages\": { \"version\": true, \"tag\": true } in .changeset/config.json"
+	]);
+	for (const workflow of changesetsWorkflowsWithoutPublish(repoRoot)) out.push([
+		"changesets-no-publish-script",
+		"high",
+		`${workflow} runs changesets/action with no publish script — after the Version Packages PR merges it does nothing, so no tag or release is made`,
+		"add `publish-script: pnpm release` (changesets/action v1: `publish:`) to the changesets/action step, with a \"release\" script running changeset publish"
+	]);
+	return out;
+}
+/** Workflow files that run changesets/action and give it no publish command. Read as text: a step
+*  names it as `publish-script:` (v2) or `publish:` (v1). */
+function changesetsWorkflowsWithoutPublish(repoRoot) {
+	const dir = path.join(repoRoot, ".github", "workflows");
+	if (!fs.existsSync(dir)) return [];
+	return fs.readdirSync(dir).filter((file) => /\.ya?ml$/.test(file)).filter((file) => {
+		const text = fs.readFileSync(path.join(dir, file), "utf8");
+		return /uses:\s*['"]?changesets\/action@/.test(text) && !/^\s*(publish-script|publish)\s*:/m.test(text);
+	}).map((file) => `.github/workflows/${file}`);
 }
 /** Runs git inside `root`, returning its stdout or `null` — a non-zero status, a missing git, and a
 *  directory outside any repository are all the same answer here: no history to read. */
