@@ -1,5 +1,21 @@
 # universal-plugin
 
+## 0.18.0
+
+### Minor Changes
+
+- 760b3d7: `doctor` checks semantic-release wiring. It reports `semantic-release-no-stamp` when the semantic-release config has no `@semantic-release/exec` `prepareCmd` running `plugin version`, and `semantic-release-npm-unshipped` when a plugin that ships to no npm package still runs `@semantic-release/npm`, listed or through the default plugins list.
+- c7739a2: The `init-universal-plugin` skill now wires release-it and release-please when the survey finds them or the user picks them, once the user approves. For release-it it adds an `after:bump` hook running `plugin version ${version}`, sets `"npm": false` for a plugin that ships to no npm package, and offers to tag the current commit with the plugin's version when the repository has no tag, since release-it then reads the current version from the tag. For release-please it writes `release-please-config.json` (`release-type: simple` with an `extra-files` entry for `plugin.json`, or `release-type: node` for an npm package) and seeds `.release-please-manifest.json` with the current version, and it hands the user the workflow step that restamps the release PR. `plugin init` gets no new flag.
+- 9f5f59a: The `init-universal-plugin` skill now wires semantic-release when the survey finds it or the user picks it. Once the user approves, it adds `@semantic-release/exec` running `plugin version ${nextRelease.version}` in `prepare`, and `@semantic-release/git` to commit the stamped files back. For a plugin that ships to no npm package it drops `@semantic-release/npm`. For release-it and release-please, the skill names the stamp each tool must call. The wiring stays in the skill, and `plugin init` gets no new flag.
+- 11c42a6: A plugin that ships to no npm package can now be released with changesets. In a changesets repository with no `package.json` at the plugin root, `plugin init` writes a minimal private one (`name`, `"private": true`, `version`), wires the root `version` script, and adds `"release": "changeset publish"`; `--no-changesets` opts out. `plugin version --from-package` with no package in a changesets repository names that `package.json` and the `privatePackages` setting. `doctor` reports `changesets-no-package`, `changesets-private-untagged`, and `changesets-no-publish-script`.
+- fa31d36: release-it is now a documented release model. With `"npm": false` release-it reads the version from the latest git tag and needs no `package.json`; an `after:bump` hook running `universal-plugin plugin version ${version}` stamps it before the release commit and tag. `doctor` reports `release-it-no-stamp` for a release-it config with no hook running `plugin version`.
+- bea7278: `doctor` reports `release-please-restamp-no-ci` when a workflow pushes the `--from-manifest` restamp with the default `GITHUB_TOKEN`. That push starts no workflow run, so the release PR's checks never run on its head commit and a required check blocks the merge. The `version` skill's release-please workflow now mints a GitHub App token with `actions/create-github-app-token` and passes it to release-please and to `actions/checkout`.
+- 8e20a28: A plugin that ships to no npm package can now be released with release-please. `plugin version --from-manifest` restamps every place at the version `plugin.json` already holds, for a CI step on the release PR after `extra-files` bumps `plugin.json`; it is refused where `packagePath` is declared. `doctor` reports `release-please-no-restamp` when a release-please config bumps `plugin.json` and no workflow runs `plugin version`. The `version` skill gives the config and the workflow.
+
+### Patch Changes
+
+- 7e8b2e1: `doctor` no longer reports `unreleased-content` for a non-npm plugin that a release tool versions. A plugin released with changesets (through a private `package.json`), release-please (its config bumps `plugin.json`), semantic-release, or release-it is skipped like a plugin that declares `packagePath`, because the tool picks the next number at release time.
+
 ## 0.17.1
 
 ### Patch Changes
