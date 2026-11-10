@@ -77,7 +77,9 @@ re-derives the catalogs too, so leaving them out leaves them a release behind.
 
 `doctor` reports `semantic-release-no-stamp` when no `prepareCmd` runs `plugin version`, and
 `semantic-release-npm-unshipped` when a plugin that ships to no npm package still runs
-`@semantic-release/npm`.
+`@semantic-release/npm`. It reports `semantic-release-no-commit` when no `@semantic-release/git`
+commits the stamped files, and `semantic-release-git-before-exec` when git is listed before exec:
+plugins prepare in list order, so git must come after the stamp.
 
 ### release-please with no `package.json`
 

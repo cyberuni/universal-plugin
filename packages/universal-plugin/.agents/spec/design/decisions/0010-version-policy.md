@@ -190,6 +190,17 @@ no `package.json` that plugin fails the release with `ENOPKG`.[^sr-npm] The conf
 so a JavaScript config is checked only for what it names. A config that `extends` a shareable config
 is not checked, because the wiring may live in the shared one.
 
+`doctor` also checks that the stamp reaches the tag. semantic-release runs each plugin's `prepare` in
+`plugins` list order and then tags the commit the last one leaves.[^sr-prepare] It reports
+`semantic-release-no-commit` when a `prepareCmd` stamps but no `@semantic-release/git` commits the
+result, unless a `prepareCmd` runs `git commit` itself. The severity is `medium` for a plugin that
+ships to npm, because `@semantic-release/npm` publishes from the stamped tree and only the git-sourced
+channels miss the number, and `high` otherwise. It reports `semantic-release-git-before-exec` when
+`@semantic-release/git` is listed before the exec stamp, because git would commit the files from
+before it. The order is read only from a JSON or YAML config with no top-level `prepare` key. In
+those the text order is the list order. A JavaScript config may build the list from variables, and a
+`prepare` key replaces the list's order for that step.
+
 **Amended (issue #237).** release-it uses the explicit form. With `"npm": false` it ignores
 `package.json` and reads the current version from the latest git tag, falling back to `0.0.0` when
 there is none,[^release-it-npm] so a plugin with no package can release with it. Its `after:bump`
@@ -355,6 +366,12 @@ Detection on the release PR is what catches a release tool that moved one number
     `release.config.{js,ts,cjs,mjs}`. The first one found is the only one read.
     <https://github.com/semantic-release/semantic-release/blob/master/lib/get-config.js> (read
     2026-11-09).
+
+[^sr-prepare]: semantic-release 25.0.9 source: `lib/plugins/pipeline.js` runs a step's plugins one
+    after another in list order; `lib/definitions/plugins.js` moves `nextRelease.gitHead` to any
+    commit a `prepare` plugin made before calling the next one; `index.js` creates the tag at
+    `nextRelease.gitHead` after `prepare`. The `@semantic-release/git` 11.0.1 README asks for the
+    plugins that change files to come before it. Read 2026-11-10.
 
 [^sr-npm]: `@semantic-release/npm` 13.2.0 source, `lib/get-pkg.js`: a missing `package.json` throws
     `ENOPKG` from `verifyConditions`. Read 2026-11-09.
