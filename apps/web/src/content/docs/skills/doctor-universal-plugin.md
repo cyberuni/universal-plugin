@@ -88,6 +88,15 @@ semantic-release decides the version inside its own run, so only an `@semantic-r
 - `semantic-release-npm-unshipped` when the plugin ships to no npm package and the config lists
   `@semantic-release/npm`, or names no `plugins` and so gets the default list, which includes it.
   With no `package.json` the release fails with `ENOPKG`.
+- `semantic-release-no-commit` when a `prepareCmd` stamps but the config runs no
+  `@semantic-release/git`. semantic-release tags the commit the `prepare` step leaves, so without a
+  commit the tag holds the files from before the stamp. A `prepareCmd` that runs `git commit` itself
+  counts. The finding is `medium` for a plugin that ships to npm, whose package still carries the
+  number, and `high` otherwise.
+- `semantic-release-git-before-exec` when `@semantic-release/git` comes before the
+  `@semantic-release/exec` that stamps. Plugins run `prepare` in `plugins` list order, so git commits
+  the files before exec stamps them. The order is checked only in a JSON or YAML config with no
+  top-level `prepare` key, where the text order is the list order.
 
 The [`init-universal-plugin`](../init-universal-plugin/) skill writes the wiring. A config that
 `extends` a shareable config is not checked, because the wiring may live in the shared one.

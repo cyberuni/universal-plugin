@@ -598,7 +598,9 @@ function semanticReleaseFindings(): [string, string, string, string][] {
 		const label = path.relative(root, path.join(dir, config.file)) || config.file
 		const out: [string, string, string, string][] = []
 		const stamps = /\bprepareCmd\b['"]?\s*:\s*(?:[>|][-+]?\s*\n\s*)?[^,\n}]*(?:\bplugin\s+version\b|version\.mjs)/
-		if (!stamps.test(config.text)) {
+		const stamp = stamps.exec(config.text)
+		if (stamp !== null) out.push(...semanticReleaseCommitFindings(config, label, stamp.index))
+		if (stamp === null) {
 			out.push([
 				'semantic-release-no-stamp',
 				'high',
@@ -619,6 +621,43 @@ function semanticReleaseFindings(): [string, string, string, string][] {
 		}
 		return out
 	})
+}
+
+/** The commit-back gaps of a semantic-release config whose `prepareCmd` stamps at `stampAt`.
+ *  semantic-release runs each plugin's `prepare` in `plugins` list order and tags the commit the
+ *  last one leaves, so the stamped files reach the tag only when `@semantic-release/git` exists and
+ *  comes after `@semantic-release/exec`. A `prepareCmd` that runs `git commit` itself also counts.
+ *  The order is read only from a JSON or YAML config with no top-level `prepare` key: there the text
+ *  order is the list order, while a JavaScript config may build the list from variables. */
+function semanticReleaseCommitFindings(
+	config: { file: string; text: string },
+	label: string,
+	stampAt: number,
+): [string, string, string, string][] {
+	const git = /['"]@semantic-release\/git['"]/.exec(config.text)
+	if (git === null) {
+		if (/\bgit\s+commit\b/.test(config.text)) return []
+		const shipsToNpm = packagePath !== null
+		return [
+			[
+				'semantic-release-no-commit',
+				shipsToNpm ? 'medium' : 'high',
+				`${label} stamps the version with @semantic-release/exec, but runs no @semantic-release/git to commit the stamped files — the release tag points at plugin.json, the vendor manifests and the catalogs still on the previous version${shipsToNpm ? ', so only the npm package carries the new number' : ''}`,
+				'add ["@semantic-release/git", { "assets": [...] }] after @semantic-release/exec, with assets of plugin.json, the vendor manifests, the catalogs, skills/**, .plugin/pins.json and the mcp file — /universal-plugin:init-universal-plugin wires it',
+			],
+		]
+	}
+	const literal = config.file === 'package.json' || /^(?:\.config\/)?\.?releaserc(?:\.json|\.ya?ml)?$/.test(config.file)
+	const overridesPrepare = /^\s*['"]?prepare['"]?\s*:/m.test(config.text)
+	if (!literal || overridesPrepare || git.index > stampAt) return []
+	return [
+		[
+			'semantic-release-git-before-exec',
+			'high',
+			`${label} lists @semantic-release/git before the @semantic-release/exec that stamps the version — plugins prepare in list order, so the release commit and tag carry plugin.json, the vendor manifests and the catalogs from before the stamp`,
+			'move @semantic-release/exec above @semantic-release/git in the plugins list',
+		],
+	]
 }
 
 /** The semantic-release config semantic-release would read in `dir`, as text, or `null` when there

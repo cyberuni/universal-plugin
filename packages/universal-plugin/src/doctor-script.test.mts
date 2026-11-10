@@ -891,3 +891,78 @@ test('a restamp that pushes with a GitHub App token is not reported', () => {
 	)
 	expect(findings()).not.toContain('release-please-restamp-no-ci')
 })
+
+// The stamped files reach the release tag only through a commit made during prepare, and prepare
+// steps run in plugins list order: @semantic-release/git must exist and come after the exec stamp.
+test('a semantic-release config that stamps but runs no @semantic-release/git is reported', () => {
+	seedRelease()
+	write('.releaserc.json', releaserc(['@semantic-release/commit-analyzer', exec, '@semantic-release/github']))
+	expect(detail('semantic-release-no-commit')).toContain('.releaserc.json')
+	expect(findings()).not.toContain('semantic-release-git-before-exec')
+})
+
+test('an npm-shipped plugin with no @semantic-release/git is reported at medium severity', () => {
+	seedRelease()
+	write('.agents/universal-plugin.json', '{ "packagePath": "." }\n')
+	write('package.json', `${JSON.stringify({ name: 'demo', version: '1.0.0' })}\n`)
+	write('.releaserc.json', releaserc(['@semantic-release/npm', exec]))
+	const result = spawnSync('node', [doctor, '--root', root], { encoding: 'utf8' })
+	const report = JSON.parse(result.stdout) as { findings: { code: string; severity: string; detail: string }[] }
+	const finding = report.findings.find((f) => f.code === 'semantic-release-no-commit')
+	expect(finding?.severity).toBe('medium')
+	expect(finding?.detail).toContain('npm package')
+})
+
+test('a prepareCmd that commits the stamped files itself counts as the commit', () => {
+	seedRelease()
+	write(
+		'.releaserc.json',
+		releaserc([
+			[
+				'@semantic-release/exec',
+				// biome-ignore lint/suspicious/noTemplateCurlyInString: semantic-release's own placeholder, written literally
+				{ prepareCmd: 'universal-plugin plugin version ${nextRelease.version} && git commit -am release' },
+			],
+		]),
+	)
+	expect(findings()).not.toContain('semantic-release-no-commit')
+})
+
+test('@semantic-release/git listed before the exec stamp is reported', () => {
+	seedRelease()
+	write('.releaserc.json', releaserc([['@semantic-release/git', { assets: ['plugin.json'] }], exec]))
+	expect(detail('semantic-release-git-before-exec')).toContain('.releaserc.json')
+	expect(findings()).not.toContain('semantic-release-no-commit')
+})
+
+test('@semantic-release/git listed before the exec stamp in YAML is reported', () => {
+	seedRelease()
+	write(
+		'.releaserc.yml',
+		// biome-ignore lint/suspicious/noTemplateCurlyInString: semantic-release's own placeholder, written literally
+		'plugins:\n  - "@semantic-release/git"\n  - - "@semantic-release/exec"\n    - prepareCmd: universal-plugin plugin version ${nextRelease.version}\n',
+	)
+	expect(findings()).toContain('semantic-release-git-before-exec')
+})
+
+test('@semantic-release/github is not mistaken for @semantic-release/git', () => {
+	seedRelease()
+	write('.releaserc.json', releaserc(['@semantic-release/github', exec]))
+	expect(findings()).toContain('semantic-release-no-commit')
+	expect(findings()).not.toContain('semantic-release-git-before-exec')
+})
+
+test('the plugin order of a JavaScript config is not checked', () => {
+	seedRelease()
+	write('release.config.mjs', `export default ${releaserc(['@semantic-release/git', exec])}`)
+	expect(findings()).not.toContain('semantic-release-git-before-exec')
+})
+
+test('a config with a top-level prepare key is not checked for plugin order', () => {
+	seedRelease()
+	write(
+		'.releaserc.json',
+		`${JSON.stringify({ plugins: ['@semantic-release/git', exec], prepare: [{ path: '@semantic-release/exec' }, { path: '@semantic-release/git' }] }, null, 2)}\n`,
+	)
+	expect(findings()).not.toContain('semantic-release-git-before-exec')
+})
