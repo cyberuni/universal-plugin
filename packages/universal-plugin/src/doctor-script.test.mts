@@ -755,3 +755,93 @@ test('a repository without release-it reports no release-it finding', () => {
 	write('package.json', '{ "name": "demo", "private": true }\n')
 	expect(findings()).not.toContain('release-it-no-stamp')
 })
+
+// A plugin released with semantic-release. Only an @semantic-release/exec prepareCmd running plugin
+// version stamps the release's number before @semantic-release/git commits; a plugin that ships to
+// no npm package must not run @semantic-release/npm.
+const exec = [
+	'@semantic-release/exec',
+	// biome-ignore lint/suspicious/noTemplateCurlyInString: semantic-release's own placeholder, written literally
+	{ prepareCmd: 'npx universal-plugin@0.17.1 plugin version ${nextRelease.version}' },
+]
+const releaserc = (plugins: unknown[]) => `${JSON.stringify({ branches: ['main'], plugins }, null, 2)}\n`
+
+test('a semantic-release config with no prepareCmd running plugin version is reported', () => {
+	seedRelease()
+	write('.releaserc.json', releaserc(['@semantic-release/commit-analyzer', '@semantic-release/git']))
+	expect(detail('semantic-release-no-stamp')).toContain('.releaserc.json')
+})
+
+test('plugin version run outside prepareCmd does not count as the stamp', () => {
+	seedRelease()
+	write(
+		'.releaserc.json',
+		// biome-ignore lint/suspicious/noTemplateCurlyInString: semantic-release's own placeholder, written literally
+		releaserc([['@semantic-release/exec', { publishCmd: 'universal-plugin plugin version ${nextRelease.version}' }]]),
+	)
+	expect(findings()).toContain('semantic-release-no-stamp')
+})
+
+test('the wiring the init skill writes for a non-npm plugin reports no semantic-release finding', () => {
+	seedRelease()
+	write(
+		'.releaserc.json',
+		releaserc([
+			'@semantic-release/commit-analyzer',
+			exec,
+			['@semantic-release/git', { assets: ['plugin.json'] }],
+			'@semantic-release/github',
+		]),
+	)
+	expect(findings().filter((code) => code.startsWith('semantic-release-'))).toEqual([])
+})
+
+test('a YAML prepareCmd written as a block scalar counts as the stamp', () => {
+	seedRelease()
+	write(
+		'.releaserc.yml',
+		// biome-ignore lint/suspicious/noTemplateCurlyInString: semantic-release's own placeholder, written literally
+		'plugins:\n  - - "@semantic-release/exec"\n    - prepareCmd: >-\n        universal-plugin plugin version ${nextRelease.version}\n',
+	)
+	expect(findings()).not.toContain('semantic-release-no-stamp')
+})
+
+test('a non-npm plugin whose semantic-release config lists @semantic-release/npm is reported', () => {
+	seedRelease()
+	write('release.config.mjs', `export default ${releaserc(['@semantic-release/npm', exec])}`)
+	expect(detail('semantic-release-npm-unshipped')).toContain('release.config.mjs')
+	expect(findings()).not.toContain('semantic-release-no-stamp')
+})
+
+test('a non-npm plugin relying on the default plugins list is reported, since the defaults run npm', () => {
+	seedRelease()
+	write('package.json', `${JSON.stringify({ name: 'demo', private: true, release: { branches: ['main'] } })}\n`)
+	expect(detail('semantic-release-npm-unshipped')).toContain('package.json')
+	expect(findings()).toContain('semantic-release-no-stamp')
+})
+
+test('an npm-shipped plugin may keep @semantic-release/npm', () => {
+	seedRelease()
+	write('.agents/universal-plugin.json', '{ "packagePath": "." }\n')
+	write('package.json', `${JSON.stringify({ name: 'demo', version: '1.0.0' })}\n`)
+	write('.releaserc.json', releaserc(['@semantic-release/npm', exec, '@semantic-release/git']))
+	expect(findings().filter((code) => code.startsWith('semantic-release-'))).toEqual([])
+})
+
+test('a semantic-release config that extends a shareable config is not checked', () => {
+	seedRelease()
+	write('.releaserc.json', `${JSON.stringify({ extends: '@acme/semantic-release-config' })}\n`)
+	expect(findings().filter((code) => code.startsWith('semantic-release-'))).toEqual([])
+})
+
+test('only the first config semantic-release finds is read', () => {
+	seedRelease()
+	write('.releaserc.json', releaserc([exec, '@semantic-release/git']))
+	write('release.config.js', 'module.exports = { plugins: ["@semantic-release/npm"] }\n')
+	expect(findings().filter((code) => code.startsWith('semantic-release-'))).toEqual([])
+})
+
+test('a repository without semantic-release reports no semantic-release finding', () => {
+	seedRelease()
+	expect(findings().filter((code) => code.startsWith('semantic-release-'))).toEqual([])
+})

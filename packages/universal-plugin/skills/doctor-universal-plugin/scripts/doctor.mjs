@@ -211,6 +211,7 @@ if (manifest.version !== void 0 && packagePath === null && releaseTool() === nul
 for (const finding of changesetsReleaseFindings()) add(...finding);
 for (const finding of releasePleaseReleaseFindings()) add(...finding);
 for (const file of releaseItConfigsWithoutStamp()) add("release-it-no-stamp", "high", `${file} configures release-it, but no hook runs plugin version — the release is tagged with plugin.json and the vendor manifests still on the previous version`, "add \"hooks\": { \"after:bump\": \"universal-plugin plugin version ${version}\" } to the release-it config");
+for (const finding of semanticReleaseFindings()) add(...finding);
 const missingMarketplaceRoots = marketplaceRoots.filter((r) => !fs.existsSync(path.resolve(r)));
 for (const r of missingMarketplaceRoots) add("marketplace-root-missing", "high", `--marketplace-root ${r} does not exist`, "clone the marketplace repository, or fix the path");
 const existingMarketplaceRoots = marketplaceRoots.filter((r) => fs.existsSync(path.resolve(r)));
@@ -333,6 +334,70 @@ function releasePleaseBumpsManifest(config, repoRoot) {
 			return (file.startsWith("/") ? path.join(repoRoot, file) : path.join(repoRoot, packageDir, file)) === target;
 		});
 	});
+}
+/** The semantic-release wiring gaps, for the config at the plugin root and at the repository root.
+*  Each config is read as text, so a JavaScript config is checked only for what it names. A config
+*  that `extends` a shareable config is skipped: the wiring may live in the shared one. */
+function semanticReleaseFindings() {
+	const repoRoot = git("rev-parse", "--show-toplevel") ?? root;
+	return [.../* @__PURE__ */ new Set([root, repoRoot])].flatMap((dir) => {
+		const config = semanticReleaseConfig(dir);
+		if (config === null || /\bextends\b/.test(config.text)) return [];
+		const label = path.relative(root, path.join(dir, config.file)) || config.file;
+		const out = [];
+		if (!/\bprepareCmd\b['"]?\s*:\s*(?:[>|][-+]?\s*\n\s*)?[^,\n}]*(?:\bplugin\s+version\b|version\.mjs)/.test(config.text)) out.push([
+			"semantic-release-no-stamp",
+			"high",
+			`${label} configures semantic-release, but no @semantic-release/exec prepareCmd runs plugin version — the release is tagged with plugin.json, the vendor manifests and the catalogs still on the previous version`,
+			"add [\"@semantic-release/exec\", { \"prepareCmd\": \"universal-plugin plugin version ${nextRelease.version}\" }] before @semantic-release/git — /universal-plugin:init-universal-plugin wires it"
+		]);
+		const runsNpm = /@semantic-release\/npm(?![\w-])/.test(config.text) || !/\bplugins\b/.test(config.text);
+		if (packagePath === null && runsNpm) out.push([
+			"semantic-release-npm-unshipped",
+			"high",
+			`${label} runs @semantic-release/npm, but the plugin ships to no npm package — with no package.json the release fails (ENOPKG), and with one it still rewrites that version`,
+			"remove @semantic-release/npm from the plugins list (write the list out if the config relies on the defaults) — /universal-plugin:init-universal-plugin wires it"
+		]);
+		return out;
+	});
+}
+/** The semantic-release config semantic-release would read in `dir`, as text, or `null` when there
+*  is none. The search order is cosmiconfig 9's default for the module name `release`: the `release`
+*  key of package.json, then the files below. The first one found is the only one read. */
+function semanticReleaseConfig(dir) {
+	const rc = [
+		"",
+		".json",
+		".yaml",
+		".yml",
+		".js",
+		".ts",
+		".cjs",
+		".mjs"
+	];
+	const files = [
+		...rc.map((ext) => `.releaserc${ext}`),
+		...rc.map((ext) => `.config/releaserc${ext}`),
+		...[
+			".js",
+			".ts",
+			".cjs",
+			".mjs"
+		].map((ext) => `release.config${ext}`)
+	];
+	const fromPackage = readJson(path.join(dir, "package.json"))?.release;
+	if (fromPackage !== void 0 && fromPackage !== null) return {
+		file: "package.json",
+		text: JSON.stringify(fromPackage, null, 2)
+	};
+	for (const file of files) {
+		const abs = path.join(dir, file);
+		if (fs.existsSync(abs) && fs.statSync(abs).isFile()) return {
+			file,
+			text: fs.readFileSync(abs, "utf8")
+		};
+	}
+	return null;
 }
 /** Whether any workflow file's text matches. */
 function workflowsMention(repoRoot, pattern) {
