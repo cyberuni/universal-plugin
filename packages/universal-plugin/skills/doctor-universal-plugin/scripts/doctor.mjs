@@ -51,6 +51,17 @@ const marketplaceRoots = argv.flatMap((arg, i) => arg === "--marketplace-root" ?
 const findings = [];
 /** semantic-release's version placeholder until its publish run stamps the real number. */
 const UNSTAMPED_VERSION = "0.0.0-development";
+/** The config files release-it reads, besides the `release-it` key of package.json. */
+const RELEASE_IT_FILES = [
+	"json",
+	"yaml",
+	"yml",
+	"toml",
+	"js",
+	"cjs",
+	"mjs",
+	"ts"
+].map((ext) => `.release-it.${ext}`);
 const add = (code, severity, detail, repair) => findings.push({
 	code,
 	severity,
@@ -277,15 +288,16 @@ function releaseTool() {
 	if (rpConfig !== null && releasePleaseBumpsManifest(rpConfig, repoRoot)) return "release-please";
 	const dirs = [.../* @__PURE__ */ new Set([root, repoRoot])];
 	if (dirs.some((dir) => hasConfig(dir, /^(\.releaserc(\..+)?|release\.config\..+)$/, ".config", "release"))) return "semantic-release";
-	if (dirs.some((dir) => hasConfig(dir, /^\.release-it\..+$/, null, "release-it"))) return "release-it";
+	if (dirs.some((dir) => hasConfig(dir, RELEASE_IT_FILES, null, "release-it"))) return "release-it";
 	return null;
 }
-/** Whether `dir` holds a config file matching `pattern` (also inside `subdir`, cosmiconfig's
+/** Whether `dir` holds a config file matching `files` (also inside `subdir`, cosmiconfig's
 *  `.config/` without the leading dot), or a package.json carrying `key`. */
-function hasConfig(dir, pattern, subdir, key) {
+function hasConfig(dir, files, subdir, key) {
+	const matches = (name) => Array.isArray(files) ? files.includes(name) : files.test(name);
 	const names = (d) => fs.existsSync(d) ? fs.readdirSync(d) : [];
-	if (names(dir).some((name) => pattern.test(name))) return true;
-	if (subdir !== null && names(path.join(dir, subdir)).some((name) => pattern.test(`.${name}`))) return true;
+	if (names(dir).some(matches)) return true;
+	if (subdir !== null && names(path.join(dir, subdir)).some((name) => matches(`.${name}`))) return true;
 	const pkg = readJson(path.join(dir, "package.json"));
 	return pkg !== null && typeof pkg === "object" && Object.hasOwn(pkg, key);
 }
@@ -343,20 +355,10 @@ function changesetsWorkflowsWithoutPublish(repoRoot) {
 *  package.json. Each is read as text, so the check is only that the stamp is named somewhere. */
 function releaseItConfigsWithoutStamp() {
 	const repoRoot = git("rev-parse", "--show-toplevel") ?? root;
-	const names = [
-		"json",
-		"yaml",
-		"yml",
-		"toml",
-		"js",
-		"cjs",
-		"mjs",
-		"ts"
-	].map((ext) => `.release-it.${ext}`);
 	const stamps = (text) => /\bplugin\s+version\b/.test(text);
 	return [.../* @__PURE__ */ new Set([root, repoRoot])].flatMap((dir) => {
 		const label = (file) => path.relative(root, path.join(dir, file)) || file;
-		const found = names.filter((file) => fs.existsSync(path.join(dir, file))).filter((file) => !stamps(fs.readFileSync(path.join(dir, file), "utf8"))).map(label);
+		const found = RELEASE_IT_FILES.filter((file) => fs.existsSync(path.join(dir, file))).filter((file) => !stamps(fs.readFileSync(path.join(dir, file), "utf8"))).map(label);
 		const config = readJson(path.join(dir, "package.json"))?.["release-it"];
 		if (config !== void 0 && !stamps(JSON.stringify(config))) found.push(label("package.json"));
 		return found;
