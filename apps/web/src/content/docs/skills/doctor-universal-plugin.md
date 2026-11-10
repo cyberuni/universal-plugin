@@ -31,8 +31,9 @@ to run.
 
 One check reads git rather than the filesystem. A runtime keys its plugin cache on the version, so
 content committed after the commit that set the current version never reaches anyone who already
-installed the plugin. The skill reports that as `unreleased-content`. It stays quiet for a plugin
-that declares `packagePath`, where the release moves the number, and on a tree with no history.
+installed the plugin. The skill reports that as `unreleased-content`. It stays quiet where the release
+moves the number: a plugin that declares `packagePath`, or one that changesets, release-please,
+semantic-release, or release-it versions. It also stays quiet on a tree with no history.
 
 ## Changesets release config
 

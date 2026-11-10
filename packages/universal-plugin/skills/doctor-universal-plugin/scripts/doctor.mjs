@@ -51,6 +51,17 @@ const marketplaceRoots = argv.flatMap((arg, i) => arg === "--marketplace-root" ?
 const findings = [];
 /** semantic-release's version placeholder until its publish run stamps the real number. */
 const UNSTAMPED_VERSION = "0.0.0-development";
+/** The config files release-it reads, besides the `release-it` key of package.json. */
+const RELEASE_IT_FILES = [
+	"json",
+	"yaml",
+	"yml",
+	"toml",
+	"js",
+	"cjs",
+	"mjs",
+	"ts"
+].map((ext) => `.release-it.${ext}`);
 const add = (code, severity, detail, repair) => findings.push({
 	code,
 	severity,
@@ -187,7 +198,7 @@ if (packagePath !== void 0 && !packageMissing) {
 		if (manifest.version !== void 0 && pkg.version !== UNSTAMPED_VERSION && pkg.version !== manifest.version) add("version-drift", "high", `plugin.json is ${manifest.version}, ${packagePath}/package.json is ${pkg.version}`, "/universal-plugin:version");
 	}
 }
-if (manifest.version !== void 0 && packagePath === null) {
+if (manifest.version !== void 0 && packagePath === null && releaseTool() === null) {
 	const introduced = commitThatSetVersion(manifest.version);
 	if (introduced !== null) {
 		const files = (git("diff", "--name-only", `${introduced}..HEAD`, "--", ...shippedPaths()) ?? "").split("\n").filter(Boolean);
@@ -231,10 +242,9 @@ function invalidCatalogs(extraRoots) {
 function changesetsReleaseFindings() {
 	if (packagePath !== null) return [];
 	const repoRoot = git("rev-parse", "--show-toplevel") ?? root;
-	const workspace = [root, repoRoot].find((dir) => fs.existsSync(path.join(dir, ".changeset")));
+	const workspace = changesetsWorkspace(repoRoot);
 	if (workspace === void 0) return [];
 	const pkg = readJson(path.join(root, "package.json"));
-	if (pkg !== null && pkg.private !== true) return [];
 	const out = [];
 	if (pkg === null) out.push([
 		"changesets-no-package",
@@ -256,6 +266,40 @@ function changesetsReleaseFindings() {
 		"add `publish-script: pnpm release` (changesets/action v1: `publish:`) to the changesets/action step, with a \"release\" script running changeset publish"
 	]);
 	return out;
+}
+/** The directory holding `.changeset/` for a non-npm plugin a changesets repository releases: the
+*  plugin root or the repository root, with a plugin-root package.json that is absent or private.
+*  `undefined` when changesets does not release this plugin as a non-npm one. */
+function changesetsWorkspace(repoRoot) {
+	const workspace = [root, repoRoot].find((dir) => fs.existsSync(path.join(dir, ".changeset")));
+	if (workspace === void 0) return void 0;
+	const pkg = readJson(path.join(root, "package.json"));
+	return pkg !== null && pkg.private !== true ? void 0 : workspace;
+}
+/** The release tool that picks a non-npm plugin's next version, or `null` when the author picks it
+*  (ADR-0010 §6). Each tool moves the number at release time, from what accumulated since the last
+*  release: changesets from changeset files, release-please and semantic-release from commits,
+*  release-it from its prompt or increment argument. Config is looked for where each tool loads it:
+*  the plugin root and the repository root. */
+function releaseTool() {
+	const repoRoot = git("rev-parse", "--show-toplevel") ?? root;
+	if (changesetsWorkspace(repoRoot) !== void 0) return "changesets";
+	const rpConfig = readJson(path.join(repoRoot, "release-please-config.json"));
+	if (rpConfig !== null && releasePleaseBumpsManifest(rpConfig, repoRoot)) return "release-please";
+	const dirs = [.../* @__PURE__ */ new Set([root, repoRoot])];
+	if (dirs.some((dir) => hasConfig(dir, /^(\.releaserc(\..+)?|release\.config\..+)$/, ".config", "release"))) return "semantic-release";
+	if (dirs.some((dir) => hasConfig(dir, RELEASE_IT_FILES, null, "release-it"))) return "release-it";
+	return null;
+}
+/** Whether `dir` holds a config file matching `files` (also inside `subdir`, cosmiconfig's
+*  `.config/` without the leading dot), or a package.json carrying `key`. */
+function hasConfig(dir, files, subdir, key) {
+	const matches = (name) => Array.isArray(files) ? files.includes(name) : files.test(name);
+	const names = (d) => fs.existsSync(d) ? fs.readdirSync(d) : [];
+	if (names(dir).some(matches)) return true;
+	if (subdir !== null && names(path.join(dir, subdir)).some((name) => matches(`.${name}`))) return true;
+	const pkg = readJson(path.join(dir, "package.json"));
+	return pkg !== null && typeof pkg === "object" && Object.hasOwn(pkg, key);
 }
 /** The release-please gap of a non-npm plugin: `release-please-config.json` bumps this plugin's
 *  plugin.json through `extra-files`, and no workflow runs `plugin version` to restamp the rest. A
@@ -311,20 +355,10 @@ function changesetsWorkflowsWithoutPublish(repoRoot) {
 *  package.json. Each is read as text, so the check is only that the stamp is named somewhere. */
 function releaseItConfigsWithoutStamp() {
 	const repoRoot = git("rev-parse", "--show-toplevel") ?? root;
-	const names = [
-		"json",
-		"yaml",
-		"yml",
-		"toml",
-		"js",
-		"cjs",
-		"mjs",
-		"ts"
-	].map((ext) => `.release-it.${ext}`);
 	const stamps = (text) => /\bplugin\s+version\b/.test(text);
 	return [.../* @__PURE__ */ new Set([root, repoRoot])].flatMap((dir) => {
 		const label = (file) => path.relative(root, path.join(dir, file)) || file;
-		const found = names.filter((file) => fs.existsSync(path.join(dir, file))).filter((file) => !stamps(fs.readFileSync(path.join(dir, file), "utf8"))).map(label);
+		const found = RELEASE_IT_FILES.filter((file) => fs.existsSync(path.join(dir, file))).filter((file) => !stamps(fs.readFileSync(path.join(dir, file), "utf8"))).map(label);
 		const config = readJson(path.join(dir, "package.json"))?.["release-it"];
 		if (config !== void 0 && !stamps(JSON.stringify(config))) found.push(label("package.json"));
 		return found;

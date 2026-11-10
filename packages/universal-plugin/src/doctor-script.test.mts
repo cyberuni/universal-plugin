@@ -146,6 +146,68 @@ test('a plugin that ships to npm is left alone — the release moves the number 
 	expect(findings()).not.toContain('unreleased-content')
 })
 
+// A non-npm plugin a release tool versions is in the same release model as packagePath: the tool
+// moves the number at release time, so content ahead of the last release is the normal state.
+/** Content committed after the release, in a tree that carries `setup`'s release-tool config. */
+function unreleasedUnder(setup: () => void) {
+	seedRelease()
+	setup()
+	commit('set up the release tool')
+	writeSkill('a body the released version does not carry')
+	commit('add to the skill')
+	return findings()
+}
+
+test('a non-npm plugin changesets releases through a private package.json is left alone', () => {
+	const codes = unreleasedUnder(() => {
+		write('.changeset/config.json', '{}\n')
+		write('package.json', '{ "name": "demo", "private": true, "version": "1.0.0" }\n')
+	})
+	expect(codes).not.toContain('unreleased-content')
+})
+
+test('a private package.json with no changesets is still the author-picks model', () => {
+	const codes = unreleasedUnder(() =>
+		write('package.json', '{ "name": "demo", "private": true, "version": "1.0.0" }\n'),
+	)
+	expect(codes).toContain('unreleased-content')
+})
+
+test('a plugin release-please bumps through extra-files is left alone', () => {
+	const codes = unreleasedUnder(() => {
+		write(
+			'release-please-config.json',
+			`${JSON.stringify({ packages: { '.': { 'release-type': 'simple', 'extra-files': [{ type: 'json', path: 'plugin.json', jsonpath: '$.version' }] } } })}\n`,
+		)
+		write('.release-please-manifest.json', '{ ".": "1.0.0" }\n')
+	})
+	expect(codes).not.toContain('unreleased-content')
+})
+
+test('a release-please config that does not bump this plugin.json does not silence the check', () => {
+	const codes = unreleasedUnder(() =>
+		write('release-please-config.json', `${JSON.stringify({ packages: { 'packages/other': {} } })}\n`),
+	)
+	expect(codes).toContain('unreleased-content')
+})
+
+test.each([
+	['.releaserc.json', '{ "branches": ["main"] }\n'],
+	['.releaserc', 'branches: [main]\n'],
+	['release.config.mjs', 'export default { branches: ["main"] }\n'],
+	['.config/releaserc.yaml', 'branches: [main]\n'],
+	['package.json', '{ "name": "demo", "private": true, "release": { "branches": ["main"] } }\n'],
+])('a plugin semantic-release versions (%s) is left alone', (file, content) => {
+	expect(unreleasedUnder(() => write(file, content))).not.toContain('unreleased-content')
+})
+
+test.each([
+	['.release-it.json', '{ "npm": { "publish": false } }\n'],
+	['package.json', '{ "name": "demo", "private": true, "release-it": { "npm": { "publish": false } } }\n'],
+])('a plugin release-it versions (%s) is left alone', (file, content) => {
+	expect(unreleasedUnder(() => write(file, content))).not.toContain('unreleased-content')
+})
+
 test('packagePath is asked of the CLI, which reads .agents/universal-plugin.json', () => {
 	seedRelease()
 	write('.agents/universal-plugin.json', '{ "packagePath": "." }\n')

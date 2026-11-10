@@ -5,6 +5,7 @@
 **Amended:** 2026-10-11 — the derive/stamp seam (#179)
 **Amended:** 2026-11-09 — release-please with no `package.json` (#238)
 **Amended:** 2026-11-09 — release-it (#237)
+**Amended:** 2026-11-09 — a release tool, not only `packagePath`, skips `unreleased-content`
 **Builds on:** [0007](./0007-adopt-agent-plugins-spec-canonical.md) — its derived-not-authored manifest
 model, extended here to the `version` field specifically.
 
@@ -232,6 +233,27 @@ picks the number, so content sitting ahead of the last released version is the n
 branch, not a defect — only the author-picks model can forget the bump, and only there does the
 check run. It reads git, so it is skipped rather than guessed at where history is unavailable.
 
+**Amended (2026-11-09).** `packagePath` is not the only sign that the release picks the number. A
+plugin that ships to no npm package can still be versioned by a release tool, and then the tool moves
+the number at release time from what accumulated since the last release, exactly as in the
+`packagePath` model. Content sitting ahead of the last release is the normal state there too, and
+the repair the finding names (`plugin version <bump>`) would pick a number the tool is about to pick
+again. So the check also skips a plugin that one of these tools versions:
+
+| Tool | Detected by | Picks the number from |
+| --- | --- | --- |
+| changesets | `.changeset/` at the plugin or repository root, and a plugin-root `package.json` that is private or absent | the changeset files |
+| release-please | `release-please-config.json` lists this plugin's `plugin.json` in `extra-files` | conventional commits |
+| semantic-release | its config where it loads one: `.releaserc*`, `release.config.*`, `.config/releaserc*`, or a `release` key in `package.json`[^sr-config] | conventional commits |
+| release-it | `.release-it.{json,yaml,yml,toml,js,cjs,mjs,ts}`, or a `release-it` key in `package.json`, the places `release-it-no-stamp` reads[^ri-config] | its prompt, or the increment it is given |
+
+Each detection is the one the tool's own release-config finding uses, where doctor has one. An
+absent plugin-root `package.json` in a changesets repository still counts: changesets is the chosen
+release tool, and `changesets-no-package` reports the missing package, so the repair is that file,
+not a bump. A `release-please-config.json` that does not bump this plugin's `plugin.json` does not
+count: release-please does not version this plugin. The rule is one rule, "a release tool picks the
+number", so a tool added later joins the table rather than getting its own exception.
+
 **Amended (issue #164).** `version-drift` now covers all five places, not only the authored pair:
 the derived vendor manifests, the repository catalogs and the skill pins are compared too, and each
 file left behind is its own finding. `doctor` asks `publish check-version` for the comparison, and
@@ -303,6 +325,17 @@ Detection on the release PR is what catches a release tool that moved one number
     changed by a hook are committed and untracked files are not (`git.addUntrackedFiles`).
     <https://github.com/release-it/release-it/blob/main/docs/git.md> (verified 2026-11-09 by a run
     of release-it 21.1.2 whose `after:bump` hook rewrote `plugin.json`).
+
+[^sr-config]: semantic-release source, `lib/get-config.js`: the config is loaded with
+    `cosmiconfig("release")`, whose search places are `package.json#release`, `.releaserc` with or
+    without an extension, `.config/releaserc*`, and `release.config.*`.
+    <https://github.com/semantic-release/semantic-release/blob/master/lib/get-config.js> (read
+    2026-11-09).
+
+[^ri-config]: release-it, *Configuration* — `.release-it.json`, `.ts`, `.js`/`.cjs`, `.yaml`/`.yml`,
+    `.toml`, or the `release-it` property in `package.json`; interactive runs prompt for the new
+    version. <https://github.com/release-it/release-it/blob/main/docs/configuration.md> and
+    <https://github.com/release-it/release-it#readme> (verified 2026-11-09).
 
 [^cursor-plugins-ref]: Cursor, *Plugins reference* — a marketplace entry's `source` is a path within
     the repository; there is no git source type. Refresh tracks the branch the marketplace is
