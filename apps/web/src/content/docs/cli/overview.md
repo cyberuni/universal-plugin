@@ -64,7 +64,7 @@ The version comes from one of four sources:
 | Source | Call | Used by |
 |---|---|---|
 | Author bump | `plugin version minor` | Plain repositories, with no `packagePath` |
-| Explicit number | `plugin version 1.4.0` | semantic-release |
+| Explicit number | `plugin version 1.4.0` | semantic-release, release-it |
 | The package's `package.json` | `plugin version --from-package` | changesets, release-please with an npm package |
 | The canonical `plugin.json` | `plugin version --from-manifest` | release-please with no `package.json` |
 
@@ -105,12 +105,28 @@ Wire it into the release tool once:
 | release-please, npm package | `universal-plugin plugin version --from-package` after the release PR bumps the package |
 | release-please, no `package.json` | a workflow step on the release PR runs `universal-plugin plugin version --from-manifest`, [below](#release-please-with-no-packagejson) |
 | semantic-release | `@semantic-release/exec` with `prepareCmd: "universal-plugin plugin version ${nextRelease.version}"` |
+| release-it | `"hooks": { "after:bump": "universal-plugin plugin version ${version}" }`, with `"npm": false` for a plugin that ships to no npm package |
 
 semantic-release stamps files that exist only in the npm package unless `@semantic-release/git`
 commits them back, with `assets` of `plugin.json`, the vendor manifests, `skills/**`,
 `.plugin/pins.json`, and the mcp file. Git-sourced installs (Copilot CLI, GitHub-hosted marketplaces)
 read `plugin.json` from the repository, so the commit-back is required for those channels. Without it
 they are unsupported. See [ADR-0010](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/design/decisions/0010-version-policy.md) for the reasoning.
+
+release-it with `"npm": false` ignores `package.json` and reads the current version from the latest
+git tag, so a plugin with no package can release with it. The `after:bump` hook runs before the
+release commit and tag, and the commit includes every tracked file the hook changed:
+
+```json
+{
+  "npm": false,
+  "hooks": { "after:bump": "universal-plugin plugin version ${version}" }
+}
+```
+
+Before the first release, tag the commit that carries the current version (`git tag v1.2.0`).
+release-it reads the tag, not `plugin.json`: without one it starts from `0.0.0`, and
+`plugin version` refuses a number that does not advance.
 
 `doctor` and `publish check-version` report a place that still holds `0.0.0-development` as
 `unstamped` (severity low), apart from `version-drift`. The repair for a package-sourced drift is

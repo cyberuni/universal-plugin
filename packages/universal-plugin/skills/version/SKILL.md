@@ -1,6 +1,6 @@
 ---
 name: version
-description: Use this skill to move a universal agent plugin's version — bump it, set an explicit one, cut a release number, or reconcile a version that drifted between the canonical plugin.json and its npm package.json. Handles every release model: a plain repository, where the author picks the number, and a release tool (changesets, release-please, semantic-release) that decides it and hands it to plugin version to stamp everywhere. Trigger on "bump the plugin version", "release a new version of this plugin", "set the plugin version to 1.0.0", "cut a patch release", or "the manifest and package.json versions disagree".
+description: Use this skill to move a universal agent plugin's version — bump it, set an explicit one, cut a release number, or reconcile a version that drifted between the canonical plugin.json and its npm package.json. Handles every release model: a plain repository, where the author picks the number, and a release tool (changesets, release-please, semantic-release, release-it) that decides it and hands it to plugin version to stamp everywhere. Trigger on "bump the plugin version", "release a new version of this plugin", "set the plugin version to 1.0.0", "cut a patch release", or "the manifest and package.json versions disagree".
 ---
 
 # Move a plugin's version
@@ -34,12 +34,13 @@ Ask who decides the number. There are three sources, and the release model picks
 | Source | Call | Used by |
 |---|---|---|
 | Author bump | `plugin version minor` | Plain repositories, with no `packagePath` |
-| Explicit number | `plugin version 1.4.0` | semantic-release |
+| Explicit number | `plugin version 1.4.0` | semantic-release, release-it |
 | The package's `package.json` | `plugin version --from-package` | changesets, release-please with an npm package |
 | The canonical `plugin.json` | `plugin version --from-manifest` | release-please with no `package.json` (`extra-files`) |
 
 ```bash
 test -d .changeset && echo "changesets"
+ls .release-it.* 2>/dev/null; grep -q '"release-it"' package.json 2>/dev/null && echo "release-it"
 cat .agents/universal-plugin.json   # is packagePath declared?
 ```
 
@@ -58,6 +59,8 @@ Wire a release tool once; after that the release runs the stamp for you:
   release PR runs `universal-plugin plugin version --from-manifest`. See the section below.
 - **semantic-release.** Add `@semantic-release/exec` with
   `prepareCmd: "universal-plugin plugin version ${nextRelease.version}"`.
+- **release-it.** Run the stamp in the `after:bump` hook. For a plugin that ships to no npm package,
+  set `"npm": false` so release-it ignores `package.json`; see below.
 
 In a changesets repository, add a changeset and let the release run. Do not run `plugin version minor`
 there: it would decide a number changesets is about to decide again.
@@ -131,6 +134,23 @@ jobs:
 
 `doctor` reports `release-please-no-restamp` when `extra-files` bumps `plugin.json` and no workflow runs
 `plugin version`.
+
+### release-it reads the version from the git tag
+
+With `"npm": false`, release-it needs no `package.json`. Its `after:bump` hook runs before the release
+commit and tag, and the commit includes every tracked file the hook changed, so the stamp ships in the
+tagged commit. In `.release-it.json`:
+
+```json
+{
+  "npm": false,
+  "hooks": { "after:bump": "universal-plugin plugin version ${version}" }
+}
+```
+
+Before the first release, tag the commit that carries the current version (`git tag v1.2.0`).
+release-it reads the tag, not `plugin.json`: without one it starts from `0.0.0`, and
+`plugin version` refuses a number that does not advance.
 
 ## Step 2 — Run it
 

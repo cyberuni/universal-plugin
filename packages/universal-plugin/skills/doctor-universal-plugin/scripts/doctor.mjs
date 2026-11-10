@@ -199,6 +199,7 @@ if (manifest.version !== void 0 && packagePath === null) {
 }
 for (const finding of changesetsReleaseFindings()) add(...finding);
 for (const finding of releasePleaseReleaseFindings()) add(...finding);
+for (const file of releaseItConfigsWithoutStamp()) add("release-it-no-stamp", "high", `${file} configures release-it, but no hook runs plugin version — the release is tagged with plugin.json and the vendor manifests still on the previous version`, "add \"hooks\": { \"after:bump\": \"universal-plugin plugin version ${version}\" } to the release-it config");
 const missingMarketplaceRoots = marketplaceRoots.filter((r) => !fs.existsSync(path.resolve(r)));
 for (const r of missingMarketplaceRoots) add("marketplace-root-missing", "high", `--marketplace-root ${r} does not exist`, "clone the marketplace repository, or fix the path");
 const existingMarketplaceRoots = marketplaceRoots.filter((r) => fs.existsSync(path.resolve(r)));
@@ -304,6 +305,30 @@ function changesetsWorkflowsWithoutPublish(repoRoot) {
 		const text = fs.readFileSync(path.join(dir, file), "utf8");
 		return /uses:\s*['"]?changesets\/action@/.test(text) && !/^\s*(publish-script|publish)\s*:/m.test(text);
 	}).map((file) => `.github/workflows/${file}`);
+}
+/** release-it configs, at the plugin root or the repository root, that never call `plugin version`.
+*  release-it reads `.release-it.{json,yaml,yml,toml,js,cjs,mjs,ts}` or the `release-it` key of
+*  package.json. Each is read as text, so the check is only that the stamp is named somewhere. */
+function releaseItConfigsWithoutStamp() {
+	const repoRoot = git("rev-parse", "--show-toplevel") ?? root;
+	const names = [
+		"json",
+		"yaml",
+		"yml",
+		"toml",
+		"js",
+		"cjs",
+		"mjs",
+		"ts"
+	].map((ext) => `.release-it.${ext}`);
+	const stamps = (text) => /\bplugin\s+version\b/.test(text);
+	return [.../* @__PURE__ */ new Set([root, repoRoot])].flatMap((dir) => {
+		const label = (file) => path.relative(root, path.join(dir, file)) || file;
+		const found = names.filter((file) => fs.existsSync(path.join(dir, file))).filter((file) => !stamps(fs.readFileSync(path.join(dir, file), "utf8"))).map(label);
+		const config = readJson(path.join(dir, "package.json"))?.["release-it"];
+		if (config !== void 0 && !stamps(JSON.stringify(config))) found.push(label("package.json"));
+		return found;
+	});
 }
 /** Runs git inside `root`, returning its stdout or `null` — a non-zero status, a missing git, and a
 *  directory outside any repository are all the same answer here: no history to read. */

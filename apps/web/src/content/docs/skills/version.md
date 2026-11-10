@@ -13,7 +13,7 @@ The skill's first question is who decides the number:
 | Source | Call | Used by |
 |---|---|---|
 | Author bump | `plugin version minor` | Plain repositories |
-| Explicit number | `plugin version 1.4.0` | semantic-release |
+| Explicit number | `plugin version 1.4.0` | semantic-release, release-it |
 | The package's `package.json` | `plugin version --from-package` | changesets, release-please with an npm package |
 | The canonical `plugin.json` | `plugin version --from-manifest` | release-please with no `package.json` |
 

@@ -17,7 +17,7 @@ change without a matching bump is invisible to them.
 | Source | Call | Used by |
 |---|---|---|
 | Author bump | `plugin version minor` | Plain repositories |
-| Explicit number | `plugin version 1.4.0` | semantic-release (`@semantic-release/exec` `prepareCmd`) |
+| Explicit number | `plugin version 1.4.0` | semantic-release (`@semantic-release/exec` `prepareCmd`), release-it (`after:bump` hook) |
 | The package's `package.json` | `plugin version --from-package` | changesets, release-please |
 
 With `packagePath` declared, a release type is refused: bump the package with the release tool, then
@@ -26,6 +26,10 @@ run `--from-package`. The skill checks for `.changeset/` and `packagePath` befor
 semantic-release stamps files that exist only in the npm package unless `@semantic-release/git`
 commits them back. Git-sourced installs read `plugin.json` from the repository, so they need that
 commit-back.
+
+release-it with `"npm": false` reads the version from the latest git tag and needs no `package.json`.
+Its `after:bump` hook runs `plugin version ${version}` before the release commit and tag. Tag the
+current version before the first release, or release-it starts from `0.0.0`.
 
 `plugin bundle` and `publish sync-version` are deprecated aliases. They have warned since 0.14.0 and will be
 removed in a later release.

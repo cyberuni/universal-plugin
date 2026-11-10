@@ -42,7 +42,8 @@ verb decides the version and writes it into the places that restate it.
 - **Version source** — exactly one of three. A semver **release type** (`major`, `minor`, `patch`,
   `premajor`, `preminor`, `prepatch`, `prerelease`) is applied to the current version. An **explicit
   version** (`1.4.0`) is used as given; semantic-release calls it as
-  `plugin version ${nextRelease.version}`. `--from-package` reads the version a package manager
+  `plugin version ${nextRelease.version}`, and release-it as `plugin version ${version}` in its
+  `after:bump` hook. `--from-package` reads the version a package manager
   already decided from `<packagePath>/package.json`, or the plugin root's `package.json` when no
   `packagePath` is declared; changesets and release-please call it as
   `changeset version && plugin version --from-package`. `--from-manifest` reads the version a release
@@ -113,6 +114,11 @@ unchanged and puts the drift check in `doctor`. Also out of scope: deriving the 
   stamped files back (#238).
 - **semantic-release** has no version until release time, so the package holds `0.0.0-development`
   and `prepareCmd` runs `plugin version ${nextRelease.version}`.
+- **release-it** with `"npm": false` reads the current version from the latest git tag and needs no
+  `package.json`. Its `after:bump` hook runs `plugin version ${version}` before the release commit
+  and tag, so the stamp ships in the tagged commit (#237). The first release needs a tag on the
+  commit carrying the current version, or release-it starts from `0.0.0` and the advance guard
+  refuses the number.
 - A repo with no release tool runs `plugin version <bump>`: it is the whole release-number step.
 
 The three sources differ **only in where the number comes from**. They share **one stamping pass**:
@@ -158,8 +164,8 @@ A release tool moves one number; the other places follow only when something car
 changesets Version Packages PR that bumps `package.json` and never runs `plugin version` leaves
 `plugin.json`, the vendor manifests, the catalogs and the skill pins on the previous version, and
 nothing fails until a consumer installs the wrong one (issue #164). `release-please` and
-`semantic-release` move the number the same way, and `init --npm` wires the stamp only into a
-changesets `version` script.
+`semantic-release` move the number the same way, release-it moves only its git tag, and
+`init --npm` wires the stamp only into a changesets `version` script.
 
 `universal-plugin publish check-version` is the read-only gate for that case. It writes nothing and
 exits 1 when any file disagrees, so a repository runs it in CI or in its `verify` script and the
@@ -278,7 +284,8 @@ The entry points, each a mode of the `universal-plugin plugin version` verb, giv
   - *inputs:* the version literal; the same root and config as above.
   - *outcome:* the same writes, with the version used as given. A manifest carrying no `version` yet
     is seeded this way, and so is one at `0.0.0-development`; a version that does not advance on the
-    current one is refused without `--force`. Used by semantic-release's `prepareCmd`.
+    current one is refused without `--force`. Used by semantic-release's `prepareCmd` and
+    release-it's `after:bump` hook.
 - **Print the command reference** — `plugin version --help`.
   - *trigger:* an author asks what the verb does.
   - *inputs:* none.

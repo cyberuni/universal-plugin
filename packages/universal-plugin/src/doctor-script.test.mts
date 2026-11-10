@@ -658,3 +658,38 @@ test('top-level extra-files apply to a package that sets none', () => {
 	write('release-please-config.json', `${JSON.stringify({ 'extra-files': bumpsManifest, packages: { '.': {} } })}\n`)
 	expect(findings()).toContain('release-please-no-restamp')
 })
+
+// A plugin released with release-it (#237): release-it reads the version from the latest git tag and
+// tags whatever the release commit holds, so a config with no hook running `plugin version` tags a
+// release whose manifests still carry the previous number.
+const stampHook = { 'after:bump': 'universal-plugin plugin version ${version}' }
+
+test('a release-it config with no hook running plugin version is reported, named by file', () => {
+	seedRelease()
+	write('.release-it.json', `${JSON.stringify({ npm: false })}\n`)
+	expect(detail('release-it-no-stamp')).toContain('.release-it.json')
+})
+
+test('a release-it config whose hook runs plugin version reports no release-it finding', () => {
+	seedRelease()
+	write('.release-it.json', `${JSON.stringify({ npm: false, hooks: stampHook })}\n`)
+	expect(findings()).not.toContain('release-it-no-stamp')
+})
+
+test('a release-it config in a YAML file is read as text', () => {
+	seedRelease()
+	write('.release-it.yaml', 'npm: false\nhooks:\n  after:bump: npx universal-plugin plugin version ${version}\n')
+	expect(findings()).not.toContain('release-it-no-stamp')
+})
+
+test('a release-it config in the package.json "release-it" key is checked', () => {
+	seedRelease()
+	write('package.json', `${JSON.stringify({ name: 'demo', private: true, 'release-it': { npm: false } })}\n`)
+	expect(detail('release-it-no-stamp')).toContain('package.json')
+})
+
+test('a repository without release-it reports no release-it finding', () => {
+	seedRelease()
+	write('package.json', '{ "name": "demo", "private": true }\n')
+	expect(findings()).not.toContain('release-it-no-stamp')
+})
