@@ -355,10 +355,11 @@ if (packagePath !== undefined && !packageMissing) {
 // who already installed the plugin. Read-only: the comparison is git's, and it is skipped wherever
 // git cannot answer.
 //
-// Not run where the release picks the number. ADR-0010 §2 makes `packagePath` the switch: a plugin
-// that ships to npm gets its version from the release, so content sitting ahead of the last released
-// one is the normal state there, not a defect. Only the author-picks model can forget the bump.
-if (manifest.version !== undefined && packagePath === null) {
+// Not run where the release picks the number. A plugin that ships to npm (`packagePath`) gets its
+// version from the release, and so does a non-npm plugin a release tool versions (changesets,
+// release-please, semantic-release, release-it). Content sitting ahead of the last released one is
+// the normal state there, not a defect. Only the author-picks model can forget the bump (ADR-0010 §6).
+if (manifest.version !== undefined && packagePath === null && releaseTool() === null) {
 	const introduced = commitThatSetVersion(manifest.version)
 	if (introduced !== null) {
 		const changed = git('diff', '--name-only', `${introduced}..HEAD`, '--', ...shippedPaths())
@@ -453,10 +454,9 @@ function invalidCatalogs(extraRoots: string[]) {
 function changesetsReleaseFindings(): [string, string, string, string][] {
 	if (packagePath !== null) return []
 	const repoRoot = git('rev-parse', '--show-toplevel') ?? root
-	const workspace = [root, repoRoot].find((dir) => fs.existsSync(path.join(dir, '.changeset')))
+	const workspace = changesetsWorkspace(repoRoot)
 	if (workspace === undefined) return []
 	const pkg = readJson(path.join(root, 'package.json'))
-	if (pkg !== null && pkg.private !== true) return []
 
 	const out: [string, string, string, string][] = []
 	if (pkg === null) {
@@ -487,6 +487,43 @@ function changesetsReleaseFindings(): [string, string, string, string][] {
 		])
 	}
 	return out
+}
+
+/** The directory holding `.changeset/` for a non-npm plugin a changesets repository releases: the
+ *  plugin root or the repository root, with a plugin-root package.json that is absent or private.
+ *  `undefined` when changesets does not release this plugin as a non-npm one. */
+function changesetsWorkspace(repoRoot: string): string | undefined {
+	const workspace = [root, repoRoot].find((dir) => fs.existsSync(path.join(dir, '.changeset')))
+	if (workspace === undefined) return undefined
+	const pkg = readJson(path.join(root, 'package.json'))
+	return pkg !== null && pkg.private !== true ? undefined : workspace
+}
+
+/** The release tool that picks a non-npm plugin's next version, or `null` when the author picks it
+ *  (ADR-0010 §6). Each tool moves the number at release time, from what accumulated since the last
+ *  release: changesets from changeset files, release-please and semantic-release from commits,
+ *  release-it from its prompt or increment argument. Config is looked for where each tool loads it:
+ *  the plugin root and the repository root. */
+function releaseTool(): string | null {
+	const repoRoot = git('rev-parse', '--show-toplevel') ?? root
+	if (changesetsWorkspace(repoRoot) !== undefined) return 'changesets'
+	const rpConfig = readJson(path.join(repoRoot, 'release-please-config.json'))
+	if (rpConfig !== null && releasePleaseBumpsManifest(rpConfig, repoRoot)) return 'release-please'
+	const dirs = [...new Set([root, repoRoot])]
+	if (dirs.some((dir) => hasConfig(dir, /^(\.releaserc(\..+)?|release\.config\..+)$/, '.config', 'release')))
+		return 'semantic-release'
+	if (dirs.some((dir) => hasConfig(dir, /^\.release-it\..+$/, null, 'release-it'))) return 'release-it'
+	return null
+}
+
+/** Whether `dir` holds a config file matching `pattern` (also inside `subdir`, cosmiconfig's
+ *  `.config/` without the leading dot), or a package.json carrying `key`. */
+function hasConfig(dir: string, pattern: RegExp, subdir: string | null, key: string): boolean {
+	const names = (d: string) => (fs.existsSync(d) ? fs.readdirSync(d) : [])
+	if (names(dir).some((name) => pattern.test(name))) return true
+	if (subdir !== null && names(path.join(dir, subdir)).some((name) => pattern.test(`.${name}`))) return true
+	const pkg = readJson(path.join(dir, 'package.json'))
+	return pkg !== null && typeof pkg === 'object' && Object.hasOwn(pkg, key)
 }
 
 /** The release-please gap of a non-npm plugin: `release-please-config.json` bumps this plugin's
