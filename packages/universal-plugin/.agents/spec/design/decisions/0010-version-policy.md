@@ -318,9 +318,14 @@ Detection on the release PR is what catches a release tool that moved one number
     <https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-plugin-reference>
     (verified 2026-08-18).
 
-[^sr-config]: semantic-release 25.0.9 source, `lib/get-config.js` (`cosmiconfig("release").search(cwd)`,
-    and the default `plugins` list of `commit-analyzer`, `release-notes-generator`, `npm`, `github`),
-    and cosmiconfig 9.0.2 `dist/defaults.js` (the default search places). Read 2026-11-09.
+[^sr-config]: semantic-release 25.0.9 source, `lib/get-config.js`: the config is loaded with
+    `cosmiconfig("release").search(cwd)`, and the default `plugins` list is `commit-analyzer`,
+    `release-notes-generator`, `npm`, `github`. cosmiconfig 9.0.2 `dist/defaults.js` gives the search
+    places, in order: `package.json#release`, `.releaserc` with no extension or
+    `.{json,yaml,yml,js,ts,cjs,mjs}`, the same under `.config/releaserc*`, and
+    `release.config.{js,ts,cjs,mjs}`. The first one found is the only one read.
+    <https://github.com/semantic-release/semantic-release/blob/master/lib/get-config.js> (read
+    2026-11-09).
 
 [^sr-npm]: `@semantic-release/npm` 13.2.0 source, `lib/get-pkg.js`: a missing `package.json` throws
     `ENOPKG` from `verifyConditions`. Read 2026-11-09.
@@ -343,12 +348,6 @@ Detection on the release PR is what catches a release tool that moved one number
     changed by a hook are committed and untracked files are not (`git.addUntrackedFiles`).
     <https://github.com/release-it/release-it/blob/main/docs/git.md> (verified 2026-11-09 by a run
     of release-it 21.1.2 whose `after:bump` hook rewrote `plugin.json`).
-
-[^sr-config]: semantic-release source, `lib/get-config.js`: the config is loaded with
-    `cosmiconfig("release")`, whose search places are `package.json#release`, `.releaserc` with or
-    without an extension, `.config/releaserc*`, and `release.config.*`.
-    <https://github.com/semantic-release/semantic-release/blob/master/lib/get-config.js> (read
-    2026-11-09).
 
 [^ri-config]: release-it, *Configuration* — `.release-it.json`, `.ts`, `.js`/`.cjs`, `.yaml`/`.yml`,
     `.toml`, or the `release-it` property in `package.json`; interactive runs prompt for the new
