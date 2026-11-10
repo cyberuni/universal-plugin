@@ -84,8 +84,46 @@ A plugin with no `package.json` ends up with a config like this:
 
 Install `@semantic-release/exec` and `@semantic-release/git` wherever the release job runs.
 
-For release-it and release-please, the skill names the stamp the tool must call and leaves the
-wiring to the [`version`](../version/) skill.
+## Releasing with release-it
+
+When the repository uses release-it, or you choose it, the skill adds an `after:bump` hook that runs
+the stamp. release-it runs that hook before its release commit and tag, so the stamped files ship in
+the tagged commit. The skill keeps any hook you already have and runs the stamp after it.
+
+A plugin with no `package.json` also gets `"npm": false`:
+
+```json
+{
+  "npm": false,
+  "hooks": {
+    "after:bump": "npx universal-plugin@<version> plugin version ${version}"
+  }
+}
+```
+
+With `"npm": false`, release-it reads the current version from the latest git tag, not from
+`plugin.json`. With no tag, the first release starts from `0.0.0` and the stamp refuses it. So when
+the repository has no tag, the skill offers to tag the current commit with the version `plugin.json`
+holds, such as `git tag v1.2.0`. It creates the tag only once you approve. Push the tag yourself
+before a release runs in CI.
+
+An npm-shipped plugin keeps release-it's npm plugin, which bumps `package.json`, and needs no tag.
+
+## Releasing with release-please
+
+When the repository uses release-please, or you choose it, the skill writes its two files once you
+approve. For a plugin with no `package.json`:
+
+- `release-please-config.json` sets `release-type: simple` and an `extra-files` entry that bumps
+  `plugin.json`.
+- `.release-please-manifest.json` holds the version `plugin.json` holds now, such as
+  `{ ".": "1.2.0" }`, so the first release PR starts from it.
+
+An npm-shipped plugin uses `release-type: node` instead, which bumps `package.json`.
+
+release-please runs no command before its release commit, so a workflow step on the release PR
+restamps the plugin. The skill shows that step, and you add it to your workflow. The
+[`version`](../version/) skill has the full workflow.
 
 ## See also
 
