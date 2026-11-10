@@ -162,7 +162,8 @@ A plugin released with **release-please** gets its wiring as a plan line too. Fo
 ships to no npm package, write `release-please-config.json` with `release-type: simple` and an
 `extra-files` entry bumping `plugin.json`. Put the version `plugin.json` holds in
 `.release-please-manifest.json`, so the first release PR starts from it. The restamp runs in a
-workflow step on the release PR, so show that step and hand it to the user.
+workflow step on the release PR and pushes with a GitHub App token, so the PR's checks run. Show that
+step and the App setup, and hand both to the user.
 
 [`references/release-tools.md`](./references/release-tools.md) has the configs for release-it and
 release-please, the npm-shipped variants, and the tag and manifest checks. Show each file before and

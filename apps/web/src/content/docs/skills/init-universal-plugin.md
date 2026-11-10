@@ -122,8 +122,10 @@ approve. For a plugin with no `package.json`:
 An npm-shipped plugin uses `release-type: node` instead, which bumps `package.json`.
 
 release-please runs no command before its release commit, so a workflow step on the release PR
-restamps the plugin. The skill shows that step, and you add it to your workflow. The
-[`version`](../version/) skill has the full workflow.
+restamps the plugin. The skill shows that step, and you add it to your workflow. The step pushes
+with a GitHub App token, because a push made with the default `GITHUB_TOKEN` starts no workflow run
+and the release PR's checks would never run. The [`version`](../version/) skill has the full
+workflow and the App setup.
 
 ## See also
 
