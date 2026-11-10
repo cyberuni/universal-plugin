@@ -245,10 +245,18 @@ and make `extra-files` paths relative to that package.
 
 ### The workflow step
 
-The `version` skill's section *release-please with no `package.json`* has the workflow: the
-release-please action, then a checkout of the release PR branch, the restamp, and a commit pushed
-back. Show it in the plan and hand it to the user. Do not write or edit the workflow (SKILL.md
-Rules). For an npm-shipped plugin, the step runs `--from-package` in place of `--from-manifest`.
+The `version` skill's section *release-please with no `package.json`* has the workflow: a GitHub
+App token minted for the run, the release-please action given that token, then a checkout of the
+release PR branch with the same token, the restamp, and a commit pushed back. Show it in the plan and
+hand it to the user. Do not write or edit the workflow (SKILL.md Rules). For an npm-shipped plugin,
+the step runs `--from-package` in place of `--from-manifest`.
+
+The token matters. A push made with the default `GITHUB_TOKEN` starts no workflow run, so the
+release PR's checks never run on its head commit and a required check blocks the merge. Tell the
+user the App setup the workflow needs: an App with Contents, Pull requests and Issues set to read and
+write, installed on the repository, its client ID in the variable `RELEASE_APP_CLIENT_ID` and a
+private key in the secret `RELEASE_APP_PRIVATE_KEY`. Do not offer a `workflow_dispatch` re-run of CI
+instead: its checks do not count toward a required check.
 
 ### Applying it
 
@@ -257,7 +265,8 @@ Rules). For an npm-shipped plugin, the step runs `--from-package` in place of `-
 2. Add the plugin's entry to `.release-please-manifest.json`, or write the file. Never lower or
    replace an entry that already exists: that is the last released version.
 3. Show both files before and after in the Phase 3 plan. Apply only once the user approves.
-4. Hand over the workflow step.
+4. Hand over the workflow step and the App setup.
 
 `doctor` reports `release-please-no-restamp` when `extra-files` bumps `plugin.json` and no workflow
-runs `plugin version`.
+runs `plugin version`, and `release-please-restamp-no-ci` when the restamp is pushed with the default
+`GITHUB_TOKEN`.
