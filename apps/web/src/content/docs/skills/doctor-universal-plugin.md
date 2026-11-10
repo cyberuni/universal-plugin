@@ -67,6 +67,23 @@ release-it commits and tags whatever the tree holds once its hooks have run. A r
 version. The skill reports it as `release-it-no-stamp`. The fix is an `after:bump` hook:
 `"hooks": { "after:bump": "universal-plugin plugin version ${version}" }`.
 
+## semantic-release config
+
+semantic-release decides the version inside its own run, so only an `@semantic-release/exec`
+`prepareCmd` running `plugin version` carries it into `plugin.json` and the derived files before
+`@semantic-release/git` commits them. The skill reads the config semantic-release would load (the
+`release` key of `package.json`, then the first `.releaserc*`, `.config/releaserc*` or
+`release.config.*` file) and reports:
+
+- `semantic-release-no-stamp` when no `prepareCmd` runs `plugin version`. A stamp in `publishCmd`
+  runs after the commit, so it does not count.
+- `semantic-release-npm-unshipped` when the plugin ships to no npm package and the config lists
+  `@semantic-release/npm`, or names no `plugins` and so gets the default list, which includes it.
+  With no `package.json` the release fails with `ENOPKG`.
+
+The [`init-universal-plugin`](../init-universal-plugin/) skill writes the wiring. A config that
+`extends` a shareable config is not checked, because the wiring may live in the shared one.
+
 ## Version drift in CI
 
 The skill reports each file whose version disagrees with the release's number as `version-drift`:

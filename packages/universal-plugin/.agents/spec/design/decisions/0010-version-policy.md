@@ -150,6 +150,17 @@ also drops `@semantic-release/npm`, because that plugin edits `package.json` eve
 `npmPublish: false`. The [`plugin/init/`](../../plugin/init/README.md) spec states why this belongs to
 the skill and not to a CLI flag.
 
+`doctor` checks the semantic-release side of this wiring. It reads the config semantic-release would
+load: the `release` key of `package.json`, then the first `.releaserc*`, `.config/releaserc*` or
+`release.config.*` file, the order cosmiconfig 9 searches.[^sr-config] It reports
+`semantic-release-no-stamp` when no `prepareCmd` runs `plugin version`. A stamp in a later step, such
+as `publishCmd`, runs after `@semantic-release/git` has committed, so it does not count. For a plugin
+that ships to no npm package it also reports `semantic-release-npm-unshipped` when the config lists
+`@semantic-release/npm`, or names no `plugins` and so gets the default list, which includes it. With
+no `package.json` that plugin fails the release with `ENOPKG`.[^sr-npm] The config is read as text,
+so a JavaScript config is checked only for what it names. A config that `extends` a shareable config
+is not checked, because the wiring may live in the shared one.
+
 **Amended (issue #237).** release-it uses the explicit form. With `"npm": false` it ignores
 `package.json` and reads the current version from the latest git tag, falling back to `0.0.0` when
 there is none,[^release-it-npm] so a plugin with no package can release with it. Its `after:bump`
@@ -306,6 +317,13 @@ Detection on the release PR is what catches a release tool that moved one number
     accept `ref`, and an optional full-length `sha` to pin an exact commit.
     <https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-plugin-reference>
     (verified 2026-08-18).
+
+[^sr-config]: semantic-release 25.0.9 source, `lib/get-config.js` (`cosmiconfig("release").search(cwd)`,
+    and the default `plugins` list of `commit-analyzer`, `release-notes-generator`, `npm`, `github`),
+    and cosmiconfig 9.0.2 `dist/defaults.js` (the default search places). Read 2026-11-09.
+
+[^sr-npm]: `@semantic-release/npm` 13.2.0 source, `lib/get-pkg.js`: a missing `package.json` throws
+    `ENOPKG` from `verifyConditions`. Read 2026-11-09.
 
 [^rp-simple]: release-please 17.11.2 source, `build/src/strategies/simple.js` (the updates are
     `CHANGELOG.md` and `version-file`, default `version.txt`, not created when missing) and
