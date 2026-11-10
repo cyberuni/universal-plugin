@@ -71,8 +71,9 @@ covers moving one that sits in the wrong place.
 Inventory both the canonical surface (root `plugin.json`, its `extensions` block, the component
 directories it names) and every pre-existing vendor artifact listed in `references/detection.md`.
 Note the release tool the repository uses, if any: `.changeset/` (changesets), `.releaserc*`,
-`release.config.*`, or a `release` key in `package.json` (semantic-release), `.release-it.*`
-(release-it), or `release-please-config.json` (release-please). Read what you find. Write nothing yet.
+`release.config.*`, or a `release` key in `package.json` (semantic-release), `.release-it.*` or a
+`release-it` key in `package.json` (release-it), or `release-please-config.json` (release-please).
+Read what you find. Write nothing yet.
 
 ## 2. Classify
 
@@ -149,8 +150,23 @@ survey found, in its own format. [`references/release-tools.md`](./references/re
 the config, the plugin order, the full `assets` list, and the packages the release job must
 install. If the user declines, leave the config alone.
 
-**release-it** and **release-please** are not wired yet. Name the stamp the tool must call, from
-[`references/release-tools.md`](./references/release-tools.md), and hand the wiring to `version`.
+A plugin released with **release-it** gets its wiring as a plan line as well. Add an `after:bump`
+hook running `universal-plugin plugin version ${version}`, after any hook the user already has. For a
+plugin that ships to no npm package, also set `"npm": false`, and run the hook through the pinned
+`npx universal-plugin@<version>`. release-it then reads the current number from the latest git tag,
+so when `git describe --tags` finds none, propose tagging the current commit with the version
+`plugin.json` holds (`git tag v1.2.0`). Without that tag the first release starts from `0.0.0` and
+fails. Create the tag only once the user approves, and leave pushing it to the user.
+
+A plugin released with **release-please** gets its wiring as a plan line too. For a plugin that
+ships to no npm package, write `release-please-config.json` with `release-type: simple` and an
+`extra-files` entry bumping `plugin.json`. Put the version `plugin.json` holds in
+`.release-please-manifest.json`, so the first release PR starts from it. The restamp runs in a
+workflow step on the release PR, so show that step and hand it to the user.
+
+[`references/release-tools.md`](./references/release-tools.md) has the configs for release-it and
+release-please, the npm-shipped variants, and the tag and manifest checks. Show each file before and
+after. If the user declines, leave the config alone.
 
 When the survey found **no** release tool, ask the user how the plugin will be released before
 running init. A new repository may simply not have set one up yet:
@@ -160,7 +176,10 @@ running init. A new repository may simply not have set one up yet:
   the private `package.json` above.
 - **semantic-release.** Propose a new `.releaserc.json` carrying the wiring above, and write it once
   the user approves. No `package.json` is needed.
-- **release-it or release-please.** Run init as planned, and give the pointer above.
+- **release-it.** Propose a new `.release-it.json` carrying the wiring above, with the initial tag
+  for a plugin that ships to no npm package. Write it once the user approves.
+- **release-please.** Propose `release-please-config.json` and `.release-please-manifest.json` as
+  above, and hand over the workflow step. Write them once the user approves.
 - **None.** Run init as planned. The author picks each number with `version`.
 
 ## 4. Apply
@@ -265,7 +284,7 @@ This skill is not a formatter. If the project has one, run it over the written f
   what they asked.
 - Plugin authoring only. Do not change CI workflows, repository settings, or unrelated project files.
   The release tool's config is the one file outside the plugin this skill edits, and only once the
-  user approves it in Phase 3.
+  user approves it in Phase 3. The one git write is release-it's initial tag, on the same approval.
 
 ## Related skills
 

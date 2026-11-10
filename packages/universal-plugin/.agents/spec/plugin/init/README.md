@@ -66,6 +66,14 @@ no release-tool flag. The skill proposes the edit, shows it in its confirm phase
 approval. This follows the split #235 made: the CLI writes what it can write without judgment, and
 the skill asks about the rest.
 
+The same holds for release-it and release-please. The skill adds release-it's `after:bump` stamp
+hook around the author's own hooks, and adds `extra-files` to release-please's package entry around
+the author's own keys. Each tool also needs a starting number it does not read from `plugin.json`:
+release-it with `"npm": false` reads the latest git tag, and release-please reads
+`.release-please-manifest.json`. The skill checks for that number and proposes it, as an initial tag
+or a manifest entry, on the same approval. The release-please restamp runs in a workflow step, and
+the skill hands that step to the author, because it does not edit CI workflows.
+
 > **Spec-first / impl-deferred.** No `init` command ships yet (`src/cli.ts` registers no `init`,
 > there is no `src/init/` domain). This node is a contract; the impl gate withholds certification
 > until it is built.

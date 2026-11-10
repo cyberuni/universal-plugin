@@ -14,8 +14,8 @@ user approves it.
 | --- | --- | --- |
 | changesets | `.changeset/` | `plugin init` writes it (SKILL.md Phase 3) |
 | semantic-release | `.releaserc`, `.releaserc.{json,yaml,yml,js,cjs,mjs}`, `release.config.{js,cjs,mjs}`, or a `release` key in `package.json` | [below](#semantic-release) |
-| release-it | `.release-it.{json,yaml,yml,toml,js,cjs,ts}` | [below](#release-it) |
-| release-please | `release-please-config.json` | [below](#release-please) |
+| release-it | `.release-it.{json,yaml,yml,toml,js,cjs,ts}`, or a `release-it` key in `package.json` | [below](#release-it) |
+| release-please | `release-please-config.json`, `.release-please-manifest.json` | [below](#release-please) |
 
 ## semantic-release
 
@@ -116,15 +116,148 @@ another release.
 
 ## release-it
 
-Not wired by this skill yet. Issue
-[#237](https://github.com/cyberuni/universal-plugin/issues/237) documents the release-it wiring.
-Until it lands, hand the user to the `version` skill and name the stamp release-it must call:
-`universal-plugin plugin version <number>` after release-it bumps the version, with the stamped
-files committed in release-it's release commit.
+release-it runs its `after:bump` hook after it settles the new number and before its release
+commit and tag. That commit stages every tracked file the hook changed (`git add . --update`), so
+the stamp ships in the tagged commit with no extra plugin. `${version}` in a hook is the new number.
+
+### A plugin that ships to no npm package
+
+Set `"npm": false`. release-it then ignores `package.json`, needs none, and reads the current version
+from the latest git tag. Add the stamp as the `after:bump` hook:
+
+```json
+{
+  "npm": false,
+  "hooks": {
+    "after:bump": "npx universal-plugin@0.17.1 plugin version ${version}"
+  }
+}
+```
+
+With no `package.json`, `universal-plugin` is not installed, so the hook runs it through `npx`. Pin
+it to the CLI version this skill ships with, as shown. The `upgrade-plugin` skill moves that pin
+later.
+
+### A plugin that ships on npm
+
+Keep release-it's npm plugin. It bumps `package.json`, and the hook then stamps the same number into
+the plugin:
+
+```json
+{
+  "hooks": { "after:bump": "universal-plugin plugin version ${version}" }
+}
+```
+
+Use the bare `universal-plugin` when the repository installs it as a devDependency, as an
+npm-shipped plugin usually does. Otherwise use the pinned `npx` form above. Here release-it reads
+the current version from `package.json`, so the first release needs no tag.
+
+Add `--root <plugin-root>` to the hook when release-it runs from a directory other than the plugin
+root.
+
+### The first release needs a tag
+
+With `"npm": false`, release-it reads the current number from the latest tag, never from
+`plugin.json`. With no tag it starts from `0.0.0`, proposes `0.0.1`, and the stamp refuses a number
+that does not advance on the version `plugin.json` holds. The release then fails.
+
+So, when the plugin ships to no npm package, check for a tag in the Phase 3 plan:
+
+```bash
+git describe --tags --abbrev=0
+```
+
+If that finds no tag, propose tagging the current commit with the version `plugin.json` holds, and
+create the tag once the user approves:
+
+```bash
+git tag v1.2.0
+```
+
+- Use `v<version>` unless the repository already tags in another form. release-it names its next
+  tag after the latest one, so the first tag sets the form every later release keeps.
+- A lightweight tag is enough. release-it finds it with `git describe --tags`.
+- Tag the commit whose `plugin.json` holds that version, and only after the plugin's files are
+  committed. Do not move or replace an existing tag.
+- The tag is local until pushed. A release that runs in CI needs it on the remote. Pushing it is the
+  user's step, so name `git push origin v1.2.0` and run it only if the user asks.
+- If the user declines, say the first release fails until a tag on the current version exists.
+
+### Applying it
+
+1. Edit the config the survey found, in its own format: a `.release-it.*` file, or the `release-it`
+   key in `package.json`. If none exists, write `.release-it.json`.
+2. Keep every key the user already set. If an `after:bump` hook already exists, keep its command and
+   run the stamp after it: a string becomes an array of both commands. Show the hooks before and
+   after in the Phase 3 plan. Apply only once the user approves.
+3. For a plugin that ships to no npm package, set `"npm": false`, and handle the tag as above.
+4. Commit the plugin's generated files (`plugin.json`, the vendor manifests, the catalogs,
+   `.plugin/pins.json`) before the first release. The release commit stages only tracked files, so
+   a stamped file git does not track yet stays out of the tagged commit.
+5. Installing release-it is the user's step. Do not edit the CI workflow (SKILL.md Rules).
+
+`doctor` reports `release-it-no-stamp` for a release-it config that never runs `plugin version`.
 
 ## release-please
 
-Not wired by this skill yet. Issue
-[#238](https://github.com/cyberuni/universal-plugin/issues/238) documents the release-please
-wiring. Until it lands, hand the user to the `version` skill. release-please bumps `package.json` in
-its release PR, so the stamp is `universal-plugin plugin version --from-package` run on that PR.
+release-please runs no command before its release commit. Its release PR moves the number in the
+files it knows, and a workflow step on that PR then restamps the plugin. The wiring is two files the
+skill writes, and one workflow step the user adds.
+
+### A plugin that ships to no npm package
+
+`release-type: simple` keeps the number in `.release-please-manifest.json`, and `extra-files` bumps
+`plugin.json`. Write `release-please-config.json`:
+
+```json
+{
+  "packages": {
+    ".": {
+      "release-type": "simple",
+      "extra-files": [{ "type": "json", "path": "plugin.json", "jsonpath": "$.version" }]
+    }
+  }
+}
+```
+
+The restamp step runs `npx -y universal-plugin@0.17.1 plugin version --from-manifest`, which takes
+the number `plugin.json` already holds. Pin it to the CLI version this skill ships with.
+
+### A plugin that ships on npm
+
+`release-type: node` bumps `package.json`. The restamp step runs
+`universal-plugin plugin version --from-package` instead. Do not add `plugin.json` to `extra-files`
+here: the package owns the number, and `--from-package` carries it into the plugin.
+
+### The manifest holds the current version
+
+release-please reads the last release from `.release-please-manifest.json`. A package with no entry
+starts from a default version, not from the plugin's. Write the entry with the version `plugin.json`
+holds, keyed by the package path:
+
+```json
+{ ".": "1.2.0" }
+```
+
+For a plugin below the repository root, use its path as the key in both files (`"packages/my-plugin"`),
+and make `extra-files` paths relative to that package.
+
+### The workflow step
+
+The `version` skill's section *release-please with no `package.json`* has the workflow: the
+release-please action, then a checkout of the release PR branch, the restamp, and a commit pushed
+back. Show it in the plan and hand it to the user. Do not write or edit the workflow (SKILL.md
+Rules). For an npm-shipped plugin, the step runs `--from-package` in place of `--from-manifest`.
+
+### Applying it
+
+1. If `release-please-config.json` exists, add `extra-files` to the plugin's package entry and keep
+   every other key. If it does not, write the config above.
+2. Add the plugin's entry to `.release-please-manifest.json`, or write the file. Never lower or
+   replace an entry that already exists: that is the last released version.
+3. Show both files before and after in the Phase 3 plan. Apply only once the user approves.
+4. Hand over the workflow step.
+
+`doctor` reports `release-please-no-restamp` when `extra-files` bumps `plugin.json` and no workflow
+runs `plugin version`.
