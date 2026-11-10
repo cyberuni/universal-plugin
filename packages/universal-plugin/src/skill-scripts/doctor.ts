@@ -519,19 +519,14 @@ function releaseTool(): string | null {
 	const rpConfig = readJson(path.join(repoRoot, 'release-please-config.json'))
 	if (rpConfig !== null && releasePleaseBumpsManifest(rpConfig, repoRoot)) return 'release-please'
 	const dirs = [...new Set([root, repoRoot])]
-	if (dirs.some((dir) => hasConfig(dir, /^(\.releaserc(\..+)?|release\.config\..+)$/, '.config', 'release')))
-		return 'semantic-release'
-	if (dirs.some((dir) => hasConfig(dir, RELEASE_IT_FILES, null, 'release-it'))) return 'release-it'
+	if (dirs.some((dir) => semanticReleaseConfig(dir) !== null)) return 'semantic-release'
+	if (dirs.some((dir) => hasConfig(dir, RELEASE_IT_FILES, 'release-it'))) return 'release-it'
 	return null
 }
 
-/** Whether `dir` holds a config file matching `files` (also inside `subdir`, cosmiconfig's
- *  `.config/` without the leading dot), or a package.json carrying `key`. */
-function hasConfig(dir: string, files: RegExp | string[], subdir: string | null, key: string): boolean {
-	const matches = (name: string) => (Array.isArray(files) ? files.includes(name) : files.test(name))
-	const names = (d: string) => (fs.existsSync(d) ? fs.readdirSync(d) : [])
-	if (names(dir).some(matches)) return true
-	if (subdir !== null && names(path.join(dir, subdir)).some((name) => matches(`.${name}`))) return true
+/** Whether `dir` holds one of the config files `files`, or a package.json carrying `key`. */
+function hasConfig(dir: string, files: string[], key: string): boolean {
+	if (files.some((file) => fs.existsSync(path.join(dir, file)))) return true
 	const pkg = readJson(path.join(dir, 'package.json'))
 	return pkg !== null && typeof pkg === 'object' && Object.hasOwn(pkg, key)
 }
