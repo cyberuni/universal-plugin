@@ -111,7 +111,9 @@ unchanged and puts the drift check in `doctor`. Also out of scope: deriving the 
   tool moves `package.json`.
 - **release-please with no `package.json`** bumps `plugin.json` through `extra-files` and runs no
   command, so a CI step on the release PR branch runs `plugin version --from-manifest` and pushes the
-  stamped files back (#238).
+  stamped files back (#238). The push uses a GitHub App token: one made with the default
+  `GITHUB_TOKEN` starts no workflow run, so the release PR's required checks would never run on it
+  ([ADR-0010](../../design/decisions/0010-version-policy.md)).
 - **semantic-release** has no version until release time, so the package holds `0.0.0-development`
   and `prepareCmd` runs `plugin version ${nextRelease.version}`.
 - **release-it** with `"npm": false` reads the current version from the latest git tag and needs no

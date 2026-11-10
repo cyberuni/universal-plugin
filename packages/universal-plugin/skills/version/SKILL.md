@@ -98,25 +98,37 @@ release-please releases a plugin with no `package.json`. `release-type: simple` 
 
 release-please runs no command before its release commit, so the vendor manifests, catalogs, skill
 pins and compiled scripts stay on the old number. Restamp the release PR in the same workflow, right
-after the action. `--from-manifest` takes the number `plugin.json` already holds:
+after the action. `--from-manifest` takes the number `plugin.json` already holds.
+
+Both pushes need a token that starts workflow runs. A push made with the default `GITHUB_TOKEN`
+starts none, so the release PR's checks would never run on its head commit, and a required check
+would block the merge. Mint a GitHub App token for the run and give it to release-please and to
+`actions/checkout`, which pushes the restamp with it:
 
 ```yaml
 on:
   push:
     branches: [main]
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
+      - id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
       - id: release
         uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ steps.app-token.outputs.token }}
       - if: ${{ steps.release.outputs.prs_created == 'true' }}
         uses: actions/checkout@v4
         with:
           ref: ${{ fromJSON(steps.release.outputs.pr).headBranchName }}
+          token: ${{ steps.app-token.outputs.token }}
       - if: ${{ steps.release.outputs.prs_created == 'true' }}
         run: |
           npx -y universal-plugin@0.17.1 plugin version --from-manifest
@@ -126,18 +138,32 @@ jobs:
           git diff --cached --quiet || { git commit -m "chore: restamp the plugin version"; git push; }
 ```
 
+Set the App up once:
+
+1. Create a GitHub App with the repository permissions Contents, Pull requests and Issues set to
+   read and write. release-please labels its PR through the Issues API.
+2. Install it on the repository.
+3. Store its client ID as the variable `RELEASE_APP_CLIENT_ID` and a private key as the secret
+   `RELEASE_APP_PRIVATE_KEY`.
+
+The workflow's own `GITHUB_TOKEN` then needs only `contents: read`, because every write goes through
+the App token.
+
 - release-please force-pushes its branch each time it updates the PR, which drops the restamp commit.
   The action reports an updated PR in `prs_created` as well, so the step runs again and restamps it.
-- A push made with the default `GITHUB_TOKEN` starts no workflow run, so the PR's checks do not run on
-  the restamp commit. Pass a token from a GitHub App or a PAT to `actions/checkout` (`token:`) when the
-  PR's checks must see it.
+- The App token is minted for this run, expires within an hour, and is revoked when the job ends.
+  The private key is the one standing secret, and it reaches only the repositories the App is
+  installed on. A personal access token works too, but it is long-lived and acts as a person.
+- Do not re-run CI with `workflow_dispatch` (`gh workflow run`) instead. Checks from a
+  `workflow_dispatch` run do not count toward a required check.
 - Do not list the stamped files in `extra-files` instead. The skill pins and the compiled script
   headers are not a `$.version` field, and the vendor manifests and catalogs belong to `plugin build`.
 - With `packagePath` declared, bump the package and run `--from-package` instead. `--from-manifest` is
   refused there.
 
 `doctor` reports `release-please-no-restamp` when `extra-files` bumps `plugin.json` and no workflow runs
-`plugin version`.
+`plugin version`, and `release-please-restamp-no-ci` when the restamp is pushed with the default
+`GITHUB_TOKEN`.
 
 ### release-it reads the version from the git tag
 

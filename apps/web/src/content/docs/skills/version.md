@@ -18,7 +18,8 @@ The skill's first question is who decides the number:
 | The canonical `plugin.json` | `plugin version --from-manifest` | release-please with no `package.json` |
 
 For release-please with no `package.json`, the skill gives the workflow step that restamps the
-release PR. The [CLI overview](../../cli/overview/#release-please-with-no-packagejson) has it too.
+release PR, and pushes it with a GitHub App token so the PR's required checks run. The
+[CLI overview](../../cli/overview/#release-please-with-no-packagejson) has it too.
 
 Which release type to use is not the skill's call. A version is a promise about what broke, so the
 skill offers the semver reading and asks. With `packagePath` declared it does not offer a release type

@@ -6,6 +6,7 @@
 **Amended:** 2026-11-09 — release-please with no `package.json` (#238)
 **Amended:** 2026-11-09 — release-it (#237)
 **Amended:** 2026-11-09 — a release tool, not only `packagePath`, skips `unreleased-content`
+**Amended:** 2026-11-09 — the release-please restamp gets CI
 **Builds on:** [0007](./0007-adopt-agent-plugins-spec-canonical.md) — its derived-not-authored manifest
 model, extended here to the `version` field specifically.
 
@@ -127,6 +128,34 @@ earlier restamp commit; the action reports an updated PR there too, so the step 
 `packagePath` is declared: the package owns the number there, and the call is `--from-package`.
 `doctor` reports `release-please-no-restamp` when a release-please config bumps `plugin.json` and no
 workflow runs `plugin version`.
+
+**Amended (the restamp gets CI).** The restamp push needs a token that starts workflow runs. A push
+made with the default `GITHUB_TOKEN` creates no workflow run; only `workflow_dispatch` and
+`repository_dispatch` are exempt.[^gh-token-trigger] The restamp commit is the release PR's head, and
+required checks must pass on the head commit, so with the default token the PR can never merge under
+a required check. release-please's own PR has the same gap, and its action names a `token` input for
+it.[^rp-action-token]
+
+Four ways to start the checks were weighed against two bars: the fewest standing secrets, and checks
+that count toward a required check.
+
+| Way | Standing secret | Counts toward a required check |
+| --- | --- | --- |
+| Re-dispatch CI with `workflow_dispatch` (`gh workflow run`) | none | no: checks from a `workflow_dispatch` run on a PR's head branch do not appear on the PR and do not satisfy a required check[^gh-required-checks] |
+| Run the checks inside the release job | none | no: that job runs on the `push` to the default branch, so its check is not on the PR's head commit |
+| A personal access token | a long-lived token that acts as a person | yes |
+| A GitHub App token from `actions/create-github-app-token` | the App's private key; each token lasts one run | yes |
+
+The chosen way is the GitHub App token. The workflow mints it for the run and passes it to
+release-please (`token:`) and to `actions/checkout` (`token:`), so both pushes start the PR's
+`pull_request` and `push` runs.[^gh-token-trigger] The workflow's own `GITHUB_TOKEN` then needs only
+`contents: read`. The App needs Contents, Pull requests and Issues set to read and write, the
+permissions release-please's action asks of its token.[^rp-action-token]
+
+`doctor` reports `release-please-restamp-no-ci` when a workflow runs `--from-manifest` and `git push`
+with no other credential: no `actions/create-github-app-token` step, no deploy key, and no `token:`
+input other than the default token. The check reads the workflow as text, so any sign of another
+credential clears the file. A `workflow_dispatch` re-run does not clear it.
 
 The changesets chain is now `changeset version → plugin version --from-package → plugin build` (the
 stamp re-derives through `build` unless given `--no-build`). Only one place picks the number: with
@@ -337,6 +366,25 @@ Detection on the release PR is what catches a release tool that moved one number
 
 [^rp-customizing]: release-please, *Customizing releases* — `extra-files` and the `json` updater with
     `jsonpath`. <https://github.com/googleapis/release-please/blob/main/docs/customizing.md>
+    (verified 2026-11-09).
+
+[^gh-token-trigger]: GitHub Docs, *Triggering a workflow* — "events triggered by the `GITHUB_TOKEN`
+    will not create a new workflow run", except `workflow_dispatch` and `repository_dispatch`; use a
+    GitHub App installation access token or a personal access token instead.
+    <https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow>
+    (verified 2026-11-09).
+
+[^gh-required-checks]: GitHub Docs, *Troubleshooting required status checks* — "if a workflow is
+    triggered by `workflow_dispatch` on a pull request's head branch, checks reported by its jobs do
+    not appear in the pull request's checks section. Even if the checks pass for the head commit, they
+    do not satisfy a required status check", and required checks must pass on the latest commit SHA.
+    <https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks>
+    (verified 2026-11-09).
+
+[^rp-action-token]: release-please-action README — the `token` input defaults to `GITHUB_TOKEN`,
+    resources it creates with that token trigger no workflows, and the workflow needs `contents`,
+    `issues` and `pull-requests` write.
+    <https://github.com/googleapis/release-please-action#other-actions-on-release-please-prs>
     (verified 2026-11-09).
 
 [^release-it-npm]: release-it, *npm* — `"npm": false` ignores `package.json`, bumps no package
