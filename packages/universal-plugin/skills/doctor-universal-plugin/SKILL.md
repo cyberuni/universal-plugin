@@ -192,9 +192,13 @@ The script compares the shipped paths — the canonical manifest, the skills dir
 emits `unreleased-content` for anything committed since. Uncommitted work is not reported; it has not
 shipped.
 
-Two cases are deliberately silent. A plugin that declares `packagePath` is skipped, because there the
-release picks the number ([ADR-0010](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/design/decisions/0010-version-policy.md) §2) and content waiting ahead of the last released version is the
-normal state of a branch. A tree with no git history is skipped rather than guessed at.
+Two cases are deliberately silent. A plugin whose release picks the number is skipped, because
+content waiting ahead of the last released version is the normal state of a branch there
+([ADR-0010](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/design/decisions/0010-version-policy.md) §6). That is a plugin that declares `packagePath`, or a plugin a release tool versions:
+changesets (`.changeset/` and a private or absent plugin-root `package.json`), release-please (its
+config bumps this `plugin.json` through `extra-files`), semantic-release (`.releaserc*`,
+`release.config.*`, or a `release` key in `package.json`), or release-it (a `.release-it.*` file, or a
+`release-it` key in `package.json`). A tree with no git history is skipped rather than guessed at.
 
 The repair is the bump, and it belongs to `/universal-plugin:version` (pnpm install: `pnpm-universal-plugin-version`). Judge first whether the change
 is meant to ship — content that is still being worked on is not a finding to act on.
