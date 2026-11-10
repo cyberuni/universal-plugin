@@ -59,6 +59,14 @@ the version stay behind unless a workflow restamps the release PR. The skill rep
 [`version`](../version/) skill has the workflow step. A plugin that declares `packagePath` is not
 checked here.
 
+A push made with the default `GITHUB_TOKEN` starts no workflow run, so a restamp pushed with it
+leaves the release PR's head commit with no checks, and a required check blocks the merge. The skill
+reports `release-please-restamp-no-ci` when a workflow runs `--from-manifest` and `git push` with no
+other credential in sight: no `actions/create-github-app-token` step, no deploy key, and no `token:`
+input other than the default token. It reads the workflow as text, so any of those clears the file.
+A `workflow_dispatch` re-run does not clear it, because checks from that event do not count toward a
+required check.
+
 ## release-it config
 
 release-it commits and tags whatever the tree holds once its hooks have run. A release-it config

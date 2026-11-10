@@ -845,3 +845,49 @@ test('a repository without semantic-release reports no semantic-release finding'
 	seedRelease()
 	expect(findings().filter((code) => code.startsWith('semantic-release-'))).toEqual([])
 })
+
+// A restamp pushed with the default GITHUB_TOKEN starts no workflow run, so the release PR's checks
+// never run on its head commit. A workflow dispatch does not fix it, since its checks do not count
+// toward a required check; a token that starts runs does.
+const restampWorkflow = (extra: string) =>
+	[
+		'on: push',
+		'permissions:',
+		'  contents: write',
+		'jobs:',
+		'  release-please:',
+		'    steps:',
+		'      - id: release',
+		'        uses: googleapis/release-please-action@v4',
+		'      - uses: actions/checkout@v4',
+		extra,
+		'      - run: |',
+		'          npx -y universal-plugin plugin version --from-manifest',
+		'          git push',
+		'',
+	].join('\n')
+
+test('a restamp pushed with the default token and no dispatch is reported', () => {
+	seedRelease()
+	write('release-please-config.json', `${JSON.stringify(releasePlease(bumpsManifest))}\n`)
+	write('.github/workflows/release.yml', restampWorkflow('        with:\n          token: ${{ secrets.GITHUB_TOKEN }}'))
+	expect(findings()).not.toContain('release-please-no-restamp')
+	expect(detail('release-please-restamp-no-ci')).toContain('.github/workflows/release.yml')
+})
+
+test('a restamp that dispatches CI after a default-token push is still reported', () => {
+	seedRelease()
+	write('release-please-config.json', `${JSON.stringify(releasePlease(bumpsManifest))}\n`)
+	write('.github/workflows/release.yml', `${restampWorkflow('')}      - run: gh workflow run ci.yml --ref "$BRANCH"\n`)
+	expect(findings()).toContain('release-please-restamp-no-ci')
+})
+
+test('a restamp that pushes with a GitHub App token is not reported', () => {
+	seedRelease()
+	write('release-please-config.json', `${JSON.stringify(releasePlease(bumpsManifest))}\n`)
+	write(
+		'.github/workflows/release.yml',
+		restampWorkflow('        with:\n          token: ${{ steps.app.outputs.token }}'),
+	)
+	expect(findings()).not.toContain('release-please-restamp-no-ci')
+})

@@ -299,21 +299,34 @@ function hasConfig(dir, files, key) {
 	return pkg !== null && typeof pkg === "object" && Object.hasOwn(pkg, key);
 }
 /** The release-please gap of a non-npm plugin: `release-please-config.json` bumps this plugin's
-*  plugin.json through `extra-files`, and no workflow runs `plugin version` to restamp the rest. A
-*  plugin with `packagePath` is not checked: its number comes from the package, through
+*  plugin.json through `extra-files`, and no workflow runs `plugin version` to restamp the rest, or
+*  the restamp is pushed with the default `GITHUB_TOKEN` and so gets no checks. A plugin with `packagePath` is not checked: its number comes from the package, through
 *  `--from-package`. */
 function releasePleaseReleaseFindings() {
 	if (packagePath !== null) return [];
 	const repoRoot = git("rev-parse", "--show-toplevel") ?? root;
 	const config = readJson(path.join(repoRoot, "release-please-config.json"));
 	if (config === null || !releasePleaseBumpsManifest(config, repoRoot)) return [];
-	if (workflowsMention(repoRoot, /plugin version|version\.mjs/)) return [];
-	return [[
+	if (!workflowsMention(repoRoot, /plugin version|version\.mjs/)) return [[
 		"release-please-no-restamp",
 		"high",
 		"release-please-config.json bumps plugin.json through extra-files, but no workflow runs plugin version — the release PR leaves the vendor manifests, catalogs, skill pins and compiled scripts on the old version",
 		"add a workflow step on the release PR branch that runs `universal-plugin plugin version --from-manifest` and pushes the stamped files (see the version skill)"
 	]];
+	return restampWorkflowsWithoutCi(repoRoot).map((workflow) => [
+		"release-please-restamp-no-ci",
+		"medium",
+		`${workflow} pushes the --from-manifest restamp with the default GITHUB_TOKEN — that push starts no workflow run, so the release PR's checks never run on its head commit and a required check blocks the merge`,
+		"mint a GitHub App token with actions/create-github-app-token and pass it to release-please-action and actions/checkout as `token:` (see the version skill)"
+	]);
+}
+/** Workflow files that restamp with `--from-manifest`, push, and leave the push on the default
+*  `GITHUB_TOKEN`, which starts no workflow run. Read as text, so it clears a file on any sign of
+*  another credential: a GitHub App token, a deploy key, or a `token:` input that is not the default
+*  token. A workflow dispatch does not clear it: its checks do not count toward a required check. */
+function restampWorkflowsWithoutCi(repoRoot) {
+	const startsCi = /create-github-app-token|ssh-key:|token:\s*\$\{\{(?!\s*(?:secrets\.GITHUB_TOKEN|github\.token)\b)/;
+	return workflowFiles(repoRoot).filter(({ text }) => /--from-manifest/.test(text) && /git push/.test(text) && !startsCi.test(text)).map(({ file }) => file);
 }
 /** Whether a release-please config lists this plugin's plugin.json in `extra-files`. A package's own
 *  `extra-files` replaces the top-level default. A path is relative to the package path, or to the
@@ -397,9 +410,16 @@ function semanticReleaseConfig(dir) {
 }
 /** Whether any workflow file's text matches. */
 function workflowsMention(repoRoot, pattern) {
+	return workflowFiles(repoRoot).some(({ text }) => pattern.test(text));
+}
+/** The workflow files under `.github/workflows`, each with its path from the repository root and its text. */
+function workflowFiles(repoRoot) {
 	const dir = path.join(repoRoot, ".github", "workflows");
-	if (!fs.existsSync(dir)) return false;
-	return fs.readdirSync(dir).filter((file) => /\.ya?ml$/.test(file)).some((file) => pattern.test(fs.readFileSync(path.join(dir, file), "utf8")));
+	if (!fs.existsSync(dir)) return [];
+	return fs.readdirSync(dir).filter((file) => /\.ya?ml$/.test(file)).map((file) => ({
+		file: `.github/workflows/${file}`,
+		text: fs.readFileSync(path.join(dir, file), "utf8")
+	}));
 }
 /** Workflow files that run changesets/action and give it no publish command. Read as text: a step
 *  names it as `publish-script:` (v2) or `publish:` (v1). */
