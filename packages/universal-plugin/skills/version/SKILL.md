@@ -75,6 +75,10 @@ so for those channels the commit-back is required. Without it they are unsupport
 `.github/plugin/marketplace.json`), `skills/**`, `.plugin/pins.json`, and the mcp file. The stamp
 re-derives the catalogs too, so leaving them out leaves them a release behind.
 
+`doctor` reports `semantic-release-no-stamp` when no `prepareCmd` runs `plugin version`, and
+`semantic-release-npm-unshipped` when a plugin that ships to no npm package still runs
+`@semantic-release/npm`.
+
 ### release-please with no `package.json`
 
 release-please releases a plugin with no `package.json`. `release-type: simple` keeps the number in

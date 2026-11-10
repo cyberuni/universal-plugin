@@ -111,7 +111,9 @@ semantic-release stamps files that exist only in the npm package unless `@semant
 commits them back, with `assets` of `plugin.json`, the vendor manifests, `skills/**`,
 `.plugin/pins.json`, and the mcp file. Git-sourced installs (Copilot CLI, GitHub-hosted marketplaces)
 read `plugin.json` from the repository, so the commit-back is required for those channels. Without it
-they are unsupported. See [ADR-0010](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/design/decisions/0010-version-policy.md) for the reasoning.
+they are unsupported. `doctor` reports `semantic-release-no-stamp` when no `prepareCmd` runs
+`plugin version`, and `semantic-release-npm-unshipped` when a plugin that ships to no npm package
+still runs `@semantic-release/npm`. See [ADR-0010](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/design/decisions/0010-version-policy.md) for the reasoning.
 
 release-it with `"npm": false` ignores `package.json` and reads the current version from the latest
 git tag, so a plugin with no package can release with it. The `after:bump` hook runs before the

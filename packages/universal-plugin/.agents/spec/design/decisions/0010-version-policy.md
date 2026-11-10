@@ -150,6 +150,17 @@ also drops `@semantic-release/npm`, because that plugin edits `package.json` eve
 `npmPublish: false`. The [`plugin/init/`](../../plugin/init/README.md) spec states why this belongs to
 the skill and not to a CLI flag.
 
+`doctor` checks the semantic-release side of this wiring. It reads the config semantic-release would
+load: the `release` key of `package.json`, then the first `.releaserc*`, `.config/releaserc*` or
+`release.config.*` file, the order cosmiconfig 9 searches.[^sr-config] It reports
+`semantic-release-no-stamp` when no `prepareCmd` runs `plugin version`. A stamp in a later step, such
+as `publishCmd`, runs after `@semantic-release/git` has committed, so it does not count. For a plugin
+that ships to no npm package it also reports `semantic-release-npm-unshipped` when the config lists
+`@semantic-release/npm`, or names no `plugins` and so gets the default list, which includes it. With
+no `package.json` that plugin fails the release with `ENOPKG`.[^sr-npm] The config is read as text,
+so a JavaScript config is checked only for what it names. A config that `extends` a shareable config
+is not checked, because the wiring may live in the shared one.
+
 **Amended (issue #237).** release-it uses the explicit form. With `"npm": false` it ignores
 `package.json` and reads the current version from the latest git tag, falling back to `0.0.0` when
 there is none,[^release-it-npm] so a plugin with no package can release with it. Its `after:bump`
@@ -307,6 +318,18 @@ Detection on the release PR is what catches a release tool that moved one number
     <https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-plugin-reference>
     (verified 2026-08-18).
 
+[^sr-config]: semantic-release 25.0.9 source, `lib/get-config.js`: the config is loaded with
+    `cosmiconfig("release").search(cwd)`, and the default `plugins` list is `commit-analyzer`,
+    `release-notes-generator`, `npm`, `github`. cosmiconfig 9.0.2 `dist/defaults.js` gives the search
+    places, in order: `package.json#release`, `.releaserc` with no extension or
+    `.{json,yaml,yml,js,ts,cjs,mjs}`, the same under `.config/releaserc*`, and
+    `release.config.{js,ts,cjs,mjs}`. The first one found is the only one read.
+    <https://github.com/semantic-release/semantic-release/blob/master/lib/get-config.js> (read
+    2026-11-09).
+
+[^sr-npm]: `@semantic-release/npm` 13.2.0 source, `lib/get-pkg.js`: a missing `package.json` throws
+    `ENOPKG` from `verifyConditions`. Read 2026-11-09.
+
 [^rp-simple]: release-please 17.11.2 source, `build/src/strategies/simple.js` (the updates are
     `CHANGELOG.md` and `version-file`, default `version.txt`, not created when missing) and
     `build/src/manifest.js` (released versions read from `.release-please-manifest.json`). Read
@@ -325,12 +348,6 @@ Detection on the release PR is what catches a release tool that moved one number
     changed by a hook are committed and untracked files are not (`git.addUntrackedFiles`).
     <https://github.com/release-it/release-it/blob/main/docs/git.md> (verified 2026-11-09 by a run
     of release-it 21.1.2 whose `after:bump` hook rewrote `plugin.json`).
-
-[^sr-config]: semantic-release source, `lib/get-config.js`: the config is loaded with
-    `cosmiconfig("release")`, whose search places are `package.json#release`, `.releaserc` with or
-    without an extension, `.config/releaserc*`, and `release.config.*`.
-    <https://github.com/semantic-release/semantic-release/blob/master/lib/get-config.js> (read
-    2026-11-09).
 
 [^ri-config]: release-it, *Configuration* — `.release-it.json`, `.ts`, `.js`/`.cjs`, `.yaml`/`.yml`,
     `.toml`, or the `release-it` property in `package.json`; interactive runs prompt for the new
