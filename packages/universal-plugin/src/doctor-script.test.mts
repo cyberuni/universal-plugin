@@ -697,7 +697,7 @@ test('a release-please config that bumps plugin.json with no restamp workflow is
 	write('release-please-config.json', `${JSON.stringify(releasePlease(bumpsManifest))}\n`)
 	write(
 		'.github/workflows/release.yml',
-		'on: push\njobs:\n  release:\n    steps:\n      - uses: googleapis/release-please-action@v4\n',
+		'on: push\njobs:\n  release:\n    steps:\n      - uses: googleapis/release-please-action@v5\n',
 	)
 	expect(detail('release-please-no-restamp')).toContain('no workflow runs plugin version')
 })
@@ -858,8 +858,8 @@ const restampWorkflow = (extra: string) =>
 		'  release-please:',
 		'    steps:',
 		'      - id: release',
-		'        uses: googleapis/release-please-action@v4',
-		'      - uses: actions/checkout@v4',
+		'        uses: googleapis/release-please-action@v5',
+		'      - uses: actions/checkout@v7',
 		extra,
 		'      - run: |',
 		'          npx -y universal-plugin plugin version --from-manifest',

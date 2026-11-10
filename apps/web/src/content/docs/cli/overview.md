@@ -178,11 +178,11 @@ jobs:
           client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
       - id: release
-        uses: googleapis/release-please-action@v4
+        uses: googleapis/release-please-action@v5
         with:
           token: ${{ steps.app-token.outputs.token }}
       - if: ${{ steps.release.outputs.prs_created == 'true' }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ fromJSON(steps.release.outputs.pr).headBranchName }}
           token: ${{ steps.app-token.outputs.token }}
@@ -211,6 +211,8 @@ the App token.
 - The App token is minted for this run, expires within an hour, and is revoked when the job ends.
   The private key is the one standing secret, and it reaches only the repositories the App is
   installed on. A personal access token works too, but it is long-lived and acts as a person.
+- `release-please-action@v5` and `actions/checkout@v7` run on Node 24. A self-hosted runner needs
+  Actions Runner v2.327.1 or later.
 - Do not re-run CI with `workflow_dispatch` (`gh workflow run`) instead. Checks from a
   `workflow_dispatch` run do not count toward a required check.
 - Do not list the stamped files in `extra-files` instead. The skill pins and the compiled script
