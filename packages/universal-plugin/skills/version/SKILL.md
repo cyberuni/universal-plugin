@@ -131,7 +131,7 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
       - if: ${{ steps.release.outputs.prs_created == 'true' }}
         run: |
-          npx -y universal-plugin@0.17.1 plugin version --from-manifest
+          npx -y universal-plugin@0.18.0 plugin version --from-manifest
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
@@ -191,7 +191,7 @@ node scripts/version.mjs --from-manifest
 ```
 
 Resolve that path against this skill's own directory; it runs the project's installed CLI
-(`pnpm exec universal-plugin`), else `npx universal-plugin@0.17.1` pinned to this skill's version.
+(`pnpm exec universal-plugin`), else `npx universal-plugin@0.18.0` pinned to this skill's version.
 `universal-plugin plugin version` on the `PATH` is the fallback. The command never prompts, so it is safe to run unattended once the
 source is decided.
 
