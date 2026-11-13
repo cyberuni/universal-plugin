@@ -15,8 +15,8 @@
 		},
 		{
 			"id": 3,
-			"prompt": "My plugin 'ai-commit' is already published in the universal marketplace at version 1.0.0. I've just released v1.1.0 with some new hooks. How do I update the marketplace listing?",
-			"expected_output": "Recognizes this as an update scenario, reads existing registry entry, runs pre-flight on new version, prepares updated entry preserving existing fields (especially curator_note and original publishedAt), adds updatedAt, submits an update PR.",
+			"prompt": "My plugin 'ai-commit' is listed in the universal marketplace at version 1.0.0. I've just released v1.1.0 (tag ai-commit@1.1.0) with some new hooks. Publish the new version.",
+			"expected_output": "Treats this as the normal publish flow, not a separate update request. Reads 1.1.0 from plugin.json, confirms tag ai-commit@1.1.0 exists on the remote and records its commit, finds the entry listed at 1.0.0 in each catalog, and moves it in place with `marketplace update` (--ref ai-commit@1.1.0, --sha <commit> when the entry pins a sha, --version 1.1.0 when it carries one, plus any changed description) rather than adding a second entry. Keeps curator fields and the original publishedAt, adds updatedAt, and opens one PR covering every catalog the marketplace carries.",
 			"files": []
 		},
 		{
@@ -59,6 +59,24 @@
 			"id": 10,
 			"prompt": "Publish my plugin 'git-summary' to team. Its .agents/universal-plugin.json has \"marketplaces\": [{\"name\":\"cyber-uni\",\"repo\":\"cyber-uni/marketplace\"},{\"name\":\"team\",\"repo\":\"acme/plugins\"}].",
 			"expected_output": "Resolves the named entry 'team' to acme/plugins, reports it as named in the request, and opens one PR against acme/plugins only, not against cyber-uni/marketplace.",
+			"files": []
+		},
+		{
+			"id": 11,
+			"prompt": "Publish my plugin 'ai-commit' (plugin.json says 1.1.0) to cyber-uni/marketplace.",
+			"expected_output": "Resolves tag ai-commit@1.1.0, then finds every cyber-uni/marketplace catalog already lists ai-commit at 1.1.0 pinned to that tag. Reports that 1.1.0 is already published there, naming the catalogs, and changes nothing: no branch, no commit, no PR.",
+			"files": []
+		},
+		{
+			"id": 12,
+			"prompt": "I bumped 'ai-commit' to 1.2.0 in plugin.json. Release it to the marketplace.",
+			"expected_output": "Checks the remote for the release tag (ai-commit@1.2.0 or v1.2.0) with git ls-remote, finds none, and stops before touching any catalog: says the tag is missing and the version must be released and the tag pushed first. Does not pin the default branch or a nonexistent ref, and opens no PR.",
+			"files": []
+		},
+		{
+			"id": 13,
+			"prompt": "Publish 'git-summary' v0.1.0 (tag git-summary@0.1.0 exists) to cyber-uni/marketplace. It has never been listed there.",
+			"expected_output": "Resolves the tag, finds no catalog lists git-summary, and adds the entry to every catalog the marketplace carries in one PR titled 'Add git-summary v0.1.0', pinning the release where the catalog's entries pin refs.",
 			"files": []
 		}
 	]
