@@ -8,11 +8,19 @@ its vendor catalogs.
 Four steps: locate the plugin and the marketplace, validate the plugin is ready, prepare the entry
 for each vendor catalog that exists, then open one PR that updates all of them together.
 
+## Where it publishes
+
+The target is the marketplace the user names, else the `marketplaces` array in the plugin's
+`.agents/universal-plugin.json` (one PR per entry), else `cyber-uni/marketplace`. The skill states
+which rule picked the target before it opens anything, so a wrong target shows up early. Nothing
+else in the plugin records where it publishes, so without the config every request has to restate
+the target.
+
 ## Two repos, either one could be the cwd
 
 The plugin being published and the marketplace it is going into are different repos, and the current
 working directory could be either. The skill checks the cwd's remote against the target marketplace
-repo (`cyberuni/cyberplace` by default) before doing anything else:
+repo before doing anything else:
 
 - cwd is the plugin → the marketplace repo gets cloned or forked, as it always did.
 - cwd is already the marketplace → work happens in place; the plugin's metadata is read from wherever

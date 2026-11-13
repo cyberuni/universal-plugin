@@ -42,6 +42,24 @@
 			"prompt": "Publish cyber-asana (in ~/code/cyber-asana, a monorepo with the plugin at packages/cyber-asana, released as tag cyber-asana@1.2.0) to anthropics/claude-plugins-official. Its plugin.json declares the plain dependency \"cyber-agentkit\".",
 			"expected_output": "Before preparing a PR, runs `gh repo view anthropics/claude-plugins-official --json viewerPermission`, sees READ, then reads the target's .github/workflows/ for a workflow that closes outside PRs and its README's Contributing section. Concludes the catalog is curated (outside PRs are closed automatically; new plugins go through a submission form), so it does not clone, fork, branch, push, or open a PR. Runs pre-flight, resolves cyber-agentkit against the target's live catalog and tells the user it will not resolve there, and drafts the entry in the shape the catalog's existing entries use (e.g. a git-subdir source pinned with the release tag as ref and that tag's commit as sha). Hands the user the draft and the submission form link the target names. Does not rely on remembered facts about that catalog.",
 			"files": []
+		},
+		{
+			"id": 8,
+			"prompt": "Publish my plugin 'git-summary' (cwd is its repo). Its .agents/universal-plugin.json has no marketplaces key.",
+			"expected_output": "Runs `config get --key marketplaces --format json --root <plugin-root>`, gets [], and with no target named in the request resolves the target to the fallback cyber-uni/marketplace. Tells the user the target is cyber-uni/marketplace and that it came from the fallback default before any PR step. Does not target cyberuni/cyberplace.",
+			"files": []
+		},
+		{
+			"id": 9,
+			"prompt": "Publish my plugin 'git-summary' (cwd is its repo). Its .agents/universal-plugin.json has \"marketplaces\": [{\"name\":\"cyber-uni\",\"repo\":\"cyber-uni/marketplace\"},{\"name\":\"team\",\"repo\":\"acme/plugins\"}].",
+			"expected_output": "Reads the marketplaces key through `config get --key marketplaces`, reports both targets as coming from .agents/universal-plugin.json, and publishes to each one with its own PR (Steps 0b to 3 once per target). Does not fall back to cyber-uni/marketplace as an extra target, and does not merge both into one PR.",
+			"files": []
+		},
+		{
+			"id": 10,
+			"prompt": "Publish my plugin 'git-summary' to team. Its .agents/universal-plugin.json has \"marketplaces\": [{\"name\":\"cyber-uni\",\"repo\":\"cyber-uni/marketplace\"},{\"name\":\"team\",\"repo\":\"acme/plugins\"}].",
+			"expected_output": "Resolves the named entry 'team' to acme/plugins, reports it as named in the request, and opens one PR against acme/plugins only, not against cyber-uni/marketplace.",
+			"files": []
 		}
 	]
 }

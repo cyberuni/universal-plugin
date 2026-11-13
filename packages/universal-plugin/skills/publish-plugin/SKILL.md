@@ -7,7 +7,8 @@ description: Use this skill whenever the user wants to publish, release, submit,
 
 Guides adding an already-packaged plugin to a marketplace repo by opening a pull request, or, for a curated marketplace that takes no pull requests, by drafting the submission. Each vendor runtime may have its own marketplace manifest file inside the marketplace repo — update every one that exists.
 
-**Default marketplace repo:** `cyberuni/cyberplace` (adjust if the user targets a different one)
+**Target marketplace repo:** resolved in Step 0a: the one the user names, else the plugin's
+`marketplaces` config, else the fallback `cyber-uni/marketplace`.
 
 Listing a plugin in a shared repository is not the only way to distribute it. A repository can carry
 its own catalog and let users add it directly as a marketplace. That is the `marketplace` skill; the
@@ -34,8 +35,39 @@ is the common case.
 
 ### 0a. Identify the marketplace repo
 
-Default to `cyberuni/cyberplace` unless the user names another one. The commands below call it
-`<marketplace-repo>` (`<owner>/<repo>`), and its repository name `<marketplace-repo-name>`.
+Resolve the target in this order. The first rule that yields a target wins:
+
+1. **Named in the request.** The user names a repository (`<owner>/<repo>`), or the `name` of an
+   entry in the plugin's `marketplaces` config. A configured name resolves to that entry's `repo`.
+   A name that is neither a repository nor a configured entry is ambiguous: ask, do not guess an
+   owner. For example, "to cyber-uni" with no configured entry of that name is not a repository.
+2. **The plugin's config.** Read the `marketplaces` key from the **plugin's** root (the directory
+   holding its `plugin.json` and `.agents/`), through the CLI rather than by reading the file:
+
+   ```bash
+   npx universal-plugin config get --key marketplaces --format json --root <plugin-root>
+   ```
+
+   Each entry is `{ "name": "<label>", "repo": "<owner>/<repo>" }`. With one entry, publish to it.
+   With several, publish to every one, one PR each, running Steps 0b to 3 once per target. Skip an
+   entry with no `repo`, or a `repo` not in `<owner>/<repo>` form, and tell the user which one.
+   `[]` means nothing is configured.
+3. **Fallback:** `cyber-uni/marketplace`.
+
+Before any other step, tell the user each target and the rule that picked it, for example
+"`cyber-uni/marketplace`, from `.agents/universal-plugin.json` (entry `cyber-uni`)" or
+"`cyber-uni/marketplace`, fallback default". A wrong target is cheap to fix here and costly after a PR
+opens.
+
+When the user wants the target remembered for this plugin, record it with
+`npx universal-plugin config add --key marketplaces --entry '{"name":"<label>","repo":"<owner>/<repo>"}' --root <plugin-root>`.
+Re-adding a `name` replaces that entry.
+
+The commands below call one target `<marketplace-repo>` (`<owner>/<repo>`), and its repository name
+`<marketplace-repo-name>`.
+
+When the cwd is the marketplace and the user names no plugin, rule 2 has no plugin root to read
+yet. Run 0b first, then read the plugin's config once its location is known.
 
 ### 0b. Identify which repo the cwd is
 
