@@ -153,7 +153,7 @@ install. If the user declines, leave the config alone.
 A plugin released with **release-it** gets its wiring as a plan line as well. Add an `after:bump`
 hook running `universal-plugin plugin version ${version}`, after any hook the user already has. For a
 plugin that ships to no npm package, also set `"npm": false`, and run the hook through the pinned
-`npx universal-plugin@0.19.0`. release-it then reads the current number from the latest git tag,
+`npx universal-plugin@0.20.0`. release-it then reads the current number from the latest git tag,
 so when `git describe --tags` finds none, propose tagging the current commit with the version
 `plugin.json` holds (`git tag v1.2.0`). Without that tag the first release starts from `0.0.0` and
 fails. Create the tag only once the user approves, and leave pushing it to the user.

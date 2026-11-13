@@ -1,5 +1,16 @@
 # universal-plugin
 
+## 0.20.0
+
+### Minor Changes
+
+- b674347: `publish-plugin` now publishes like `npm publish`: it reads the plugin's version, stops if its release tag or npm version does not exist, and per marketplace adds the plugin when it is not listed, moves an older listing to the new release with `marketplace update`, or reports that this version is already published and changes nothing.
+- 7d085d1: `publish-plugin` no longer hardcodes `cyberuni/cyberplace`. It now picks the target marketplace in this order: the one the user names, then the `marketplaces` array in the plugin's `.agents/universal-plugin.json` (read with `config get --key marketplaces`, one PR per entry), then the fallback `cyber-uni/marketplace`. It also tells the user which rule picked the target before it opens a PR.
+
+### Patch Changes
+
+- ad86617: Fix every command, `plugin build` included, crashing on Windows with `ERR_UNSUPPORTED_ESM_URL_SCHEME`: the `universal-plugin` launcher now imports the CLI by `file://` URL instead of by absolute path.
+
 ## 0.19.0
 
 ### Minor Changes
