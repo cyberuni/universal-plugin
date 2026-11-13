@@ -107,7 +107,7 @@ ADR-0006 corrects that.
 
 | Folder | Type | What |
 |---|---|---|
-| [`cli/`](./cli/README.md) | behavioral | the root program's own identity — `--version`/`-V` reports the installed `universal-plugin` package's version |
+| [`cli/`](./cli/README.md) | behavioral | the root program's own identity — `--version`/`-V` reports the installed `universal-plugin` package's version, and the launcher starts it on Linux, macOS, and Windows |
 | [`plugin/`](./plugin/README.md) | group | the `plugin` command group — build / bundle / validate / init / install / version |
 | [`plugin/build/`](./plugin/build/README.md) | behavioral | `universal-plugin plugin build [--vendor] [--dry-run] [--clean]` — derive per-vendor manifests from the canonical `plugin.json` (dev-consumable form; it derives and never decides a version, so skill pins and marked `mcpServers` entries are copied as authored) |
 | [`plugin/bundle/`](./plugin/bundle/README.md) | behavioral | `universal-plugin plugin bundle [--dry-run] [--full] [--format] [--runner]` — **deprecated alias** (warns; to be removed in a later release, use `plugin version`): pin the `npx`/`upx <cli>@<version>` references in the plugin's skills to their shipping workspace versions (`--runner` selects the emitted runner word) |
