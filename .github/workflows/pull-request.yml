@@ -10,3 +10,20 @@ jobs:
     with:
       os: '["ubuntu-latest"]'
       skip-playwright: true
+
+  # The verify matrix runs on Linux only. This job proves the CLI runs on Windows, where an absolute
+  # path passed to `import()` crashes Node's ESM loader (issue #250). The package's own plugin.json
+  # compiles skill scripts, so `plugin build --check` exercises the build, the script compiler and
+  # the drift check end to end.
+  windows-build:
+    runs-on: windows-latest
+    steps:
+      # Keep LF on checkout, or every committed script reads as stale against the compiled output.
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@v7
+      - uses: cyberuni/.github/.github/actions/setup-node-pnpm@v1
+      - run: pnpm install
+      - run: pnpm --filter universal-plugin build
+      - name: plugin build --check
+        working-directory: packages/universal-plugin
+        run: node bin/universal-plugin.mjs plugin build --check --root .
