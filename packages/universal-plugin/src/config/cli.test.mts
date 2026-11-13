@@ -308,3 +308,36 @@ test('config get --help exits zero with a synopsis and example', () => {
 	expect(r.stdout).toMatch(/--key/)
 	expect(r.stdout).toMatch(/Example/)
 })
+
+// ── config: the marketplaces key publish-plugin reads (issue #231) ──
+
+test('marketplaces round-trips through config add and config get', () => {
+	seed({ packagePath: 'packages/demo' })
+	const entries = [
+		{ name: 'cyber-uni', repo: 'cyber-uni/marketplace' },
+		{ name: 'team', repo: 'acme/plugins' },
+	]
+	for (const entry of entries) {
+		const r = run('config', 'add', '--key', 'marketplaces', '--entry', JSON.stringify(entry))
+		expect(r.status).toBe(0)
+	}
+	const r = run('config', 'get', '--key', 'marketplaces', '--format', 'json')
+	expect(r.status).toBe(0)
+	expect(JSON.parse(r.stdout)).toEqual(entries)
+	expect(readConfig().packagePath).toBe('packages/demo')
+})
+
+test('re-adding a marketplace by name replaces its repo in place', () => {
+	seed({
+		marketplaces: [
+			{ name: 'cyber-uni', repo: 'cyberuni/cyberplace' },
+			{ name: 'team', repo: 'acme/plugins' },
+		],
+	})
+	run('config', 'add', '--key', 'marketplaces', '--entry', '{"name":"cyber-uni","repo":"cyber-uni/marketplace"}')
+	const r = run('config', 'get', '--key', 'marketplaces', '--format', 'json')
+	expect(JSON.parse(r.stdout)).toEqual([
+		{ name: 'cyber-uni', repo: 'cyber-uni/marketplace' },
+		{ name: 'team', repo: 'acme/plugins' },
+	])
+})

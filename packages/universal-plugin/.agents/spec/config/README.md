@@ -13,6 +13,9 @@ at delegation time, so cross-plugin discovery needs no per-session load.
 Each key holds an **array of free-form entry objects**. The CLI does not enforce an entry schema
 beyond valid JSON and a required `name` field (the merge key `add` dedupes on) — each key's own
 schema is owned by its consumer (e.g. the SDD plugin defines what an `sdd-plugins` entry must carry).
+Known consumer keys include `marketplaces`, owned by the `publish-plugin` skill: the marketplace
+repositories a plugin publishes to, as `{ "name", "repo" }` entries with `repo` in `<owner>/<repo>`
+form (issue #231). The CLI stores it like any other key; the skill reads it and applies its schema.
 Both verbs resolve `.agents/universal-plugin.json` from the current working directory and **preserve
 every other top-level key** on write.
 
