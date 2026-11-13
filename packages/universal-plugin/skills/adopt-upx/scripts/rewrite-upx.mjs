@@ -3,7 +3,7 @@
 globalThis.__SKILL_SCRIPT__ = {"package":"universal-plugin","bin":"universal-plugin","version":"0.20.0","entry":"skills/adopt-upx/scripts/rewrite-upx.mjs","commands":{"marketplace add":"skills/marketplace/scripts/add.mjs","marketplace init":"skills/marketplace/scripts/marketplace.mjs","marketplace update":"skills/marketplace/scripts/update.mjs","marketplace validate":"skills/marketplace/scripts/validate.mjs","plugin build":"skills/build-plugin/scripts/build.mjs","plugin init":"skills/init-universal-plugin/scripts/init.mjs","plugin version":"skills/version/scripts/version.mjs"}};
 import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-//#region src/skill-scripts/rewrite-upx.ts
+// src/skill-scripts/rewrite-upx.ts
 const SKIP_DIRS = /* @__PURE__ */ new Set([
 	"node_modules",
 	".git",
@@ -127,5 +127,4 @@ function main() {
 	console.log(`\n${touched} file(s) rewritten, ${skippedExempt} skipped (pin-exempt), ${files.length} scanned.`);
 }
 main();
-//#endregion
 export {};
