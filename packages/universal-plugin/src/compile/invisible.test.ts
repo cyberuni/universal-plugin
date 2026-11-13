@@ -4,7 +4,8 @@ import { escapeInvisible, findInvisible, formatCodePoint, isInvisible } from './
 
 describe('isInvisible', () => {
 	it.each(['﻿', '\u0002', '\u001F', '​', '‮', '­', ' ', '️', '\u{E0041}'])('flags %j', (char) =>
-		expect(isInvisible(char)).toBe(true))
+		expect(isInvisible(char)).toBe(true),
+	)
 	it.each(['\t', '\n', '\r', 'a', 'é', '→', ' '])('passes %j', (char) => expect(isInvisible(char)).toBe(false))
 })
 
