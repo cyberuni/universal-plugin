@@ -4,12 +4,11 @@ globalThis.__SKILL_SCRIPT__ = {"package":"universal-plugin","bin":"universal-plu
 import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
-//#region src/compile/scripts.ts
+// src/compile/scripts.ts
 /** The global the header assigns the script data to. Framework-neutral: a script's own code, or the
 *  library it inlines, reads it; universal-plugin depends on neither. */
 const SCRIPT_GLOBAL = "__SKILL_SCRIPT__";
-//#endregion
-//#region src/skill-scripts/cli-runner.ts
+// src/skill-scripts/cli-runner.ts
 /** The data `plugin build` embedded in this compiled script. */
 function skillScript() {
 	const data = globalThis[SCRIPT_GLOBAL];
@@ -40,8 +39,7 @@ function runCli$1(args, options = {}) {
 		...options
 	});
 }
-//#endregion
-//#region src/skill-scripts/doctor.ts
+// src/skill-scripts/doctor.ts
 const UP_NAMESPACE = "org.cyberuni.universal-plugin";
 const argv = process.argv.slice(2);
 const verbose = argv.includes("--verbose");
@@ -558,5 +556,4 @@ function readPackagePath() {
 		return;
 	}
 }
-//#endregion
 export {};

@@ -2,12 +2,11 @@
 // Compiled by `universal-plugin plugin build` from src/skill-scripts/run-cli.ts. Edit the source, not this file.
 globalThis.__SKILL_SCRIPT__ = {"package":"universal-plugin","bin":"universal-plugin","version":"0.20.0","entry":"skills/marketplace/scripts/marketplace.mjs","commands":{"marketplace add":"skills/marketplace/scripts/add.mjs","marketplace init":"skills/marketplace/scripts/marketplace.mjs","marketplace update":"skills/marketplace/scripts/update.mjs","marketplace validate":"skills/marketplace/scripts/validate.mjs","plugin build":"skills/build-plugin/scripts/build.mjs","plugin init":"skills/init-universal-plugin/scripts/init.mjs","plugin version":"skills/version/scripts/version.mjs"}};
 import { spawnSync } from "node:child_process";
-//#region src/compile/scripts.ts
+// src/compile/scripts.ts
 /** The global the header assigns the script data to. Framework-neutral: a script's own code, or the
 *  library it inlines, reads it; universal-plugin depends on neither. */
 const SCRIPT_GLOBAL = "__SKILL_SCRIPT__";
-//#endregion
-//#region src/skill-scripts/cli-runner.ts
+// src/skill-scripts/cli-runner.ts
 /** The data `plugin build` embedded in this compiled script. */
 function skillScript() {
 	const data = globalThis[SCRIPT_GLOBAL];
@@ -38,8 +37,7 @@ function runCli(args, options = {}) {
 		...options
 	});
 }
-//#endregion
-//#region src/skill-scripts/run-cli.ts
+// src/skill-scripts/run-cli.ts
 const script = skillScript();
 const command = Object.entries(script.commands).find(([, entry]) => entry === script.entry)?.[0];
 if (command === void 0) {
@@ -48,5 +46,4 @@ if (command === void 0) {
 }
 const result = runCli([...command.split(" "), ...process.argv.slice(2)], { stdio: "inherit" });
 process.exit(result.status ?? 1);
-//#endregion
 export {};

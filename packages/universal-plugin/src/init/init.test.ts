@@ -116,7 +116,9 @@ describe('planInit publish half', () => {
 			packageJson: { files: ['.claude-plugin/plugin.json', 'skills/'] },
 		}
 		const plan = planInit(state, { vendors: [], scaffold: false, force: true, npm: true }, 'root', resolve)
-		const claudePaths = (plan.packageJson?.files as string[]).filter((f) => f === '.claude-plugin/plugin.json')
+		const claudePaths = (plan.packageJson?.files as string[] | undefined)?.filter(
+			(f) => f === '.claude-plugin/plugin.json',
+		)
 		expect(claudePaths).toHaveLength(1)
 	})
 
@@ -168,7 +170,7 @@ describe('wireChangesets', () => {
 
 	it('passes --root . when the plugin sits at the workspace root', () => {
 		const wired = wireChangesets({ scripts: { version: 'changeset version' } }, '', '1.2.3')
-		expect((wired.content?.scripts as Record<string, string>).version).toBe(
+		expect((wired.content?.scripts as Record<string, string> | undefined)?.version).toBe(
 			'changeset version && universal-plugin plugin version --from-package --root .',
 		)
 	})
@@ -230,7 +232,7 @@ describe('planInit changesets wiring', () => {
 		}
 		const plan = planInit(state, npm, 'p', resolve)
 		expect(plan.workspacePackageJson?.path).toBe('../../package.json')
-		expect((plan.workspacePackageJson?.content.scripts as Record<string, string>).version).toBe(
+		expect((plan.workspacePackageJson?.content.scripts as Record<string, string> | undefined)?.version).toBe(
 			'changeset version && universal-plugin plugin version --from-package --root packages/p',
 		)
 		expect(plan.rows).toContainEqual({ path: '../../package.json', action: 'updated' })
@@ -245,7 +247,7 @@ describe('planInit changesets wiring', () => {
 		const plan = planInit(state, npm, 'p', resolve)
 		expect(plan.workspacePackageJson).toBeNull()
 		expect(plan.packageJson?.files).toContain('plugin.json')
-		expect((plan.packageJson?.scripts as Record<string, string>).version).toContain('--root .')
+		expect((plan.packageJson?.scripts as Record<string, string> | undefined)?.version).toContain('--root .')
 	})
 
 	it('notes the line to add for a custom script and rewrites nothing', () => {
@@ -352,7 +354,7 @@ describe('planInit private package for a changesets release without npm', () => 
 			},
 		}
 		const plan = planInit(state, opts, 'p', resolve)
-		expect((plan.workspacePackageJson?.content.scripts as Record<string, string>).release).toBe(
+		expect((plan.workspacePackageJson?.content.scripts as Record<string, string> | undefined)?.release).toBe(
 			'pnpm build && changeset tag',
 		)
 		expect(plan.notes.join('\n')).toContain('"release" script is custom')

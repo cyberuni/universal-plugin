@@ -4,7 +4,7 @@ globalThis.__SKILL_SCRIPT__ = {"package":"universal-plugin","bin":"universal-plu
 import { execFileSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
-//#region src/marketplace/marketplace.ts
+// src/marketplace/marketplace.ts
 /** Whether a catalog entry's `source` names a place inside this repository — a `./`-prefixed path in
 *  the Claude-shaped catalogs, or Codex's `{ source: "local", path }`. Every other form names a
 *  plugin distributed from somewhere else: an npm package, a GitHub repository, a URL. Discovery
@@ -115,8 +115,7 @@ function adaptSource(target, source) {
 	}
 	return { source };
 }
-//#endregion
-//#region src/skill-scripts/install-docs.ts
+// src/skill-scripts/install-docs.ts
 const argv = process.argv.slice(2);
 const rootFlag = argv.indexOf("--root");
 const root = path.resolve(rootFlag === -1 ? process.cwd() : argv[rootFlag + 1] ?? process.cwd());
@@ -232,5 +231,4 @@ process.stdout.write(`${JSON.stringify({
 	targets,
 	markdown
 })}\n`);
-//#endregion
 export {};
