@@ -21,7 +21,7 @@ jobs:
       # Keep LF on checkout, or every committed script reads as stale against the compiled output.
       - run: git config --global core.autocrlf false
       - uses: actions/checkout@v7
-      - uses: cyberuni/.github/.github/actions/setup-node-pnpm@v1
+      - uses: cyberuni/.github/.github/actions/setup-node-pnpm@v2
       - run: pnpm install
       - run: pnpm --filter universal-plugin build
       - name: plugin build --check
