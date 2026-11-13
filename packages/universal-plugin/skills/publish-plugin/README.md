@@ -1,12 +1,26 @@
 # publish-plugin skill
 
-List an already-packaged plugin in a shared marketplace repository by opening a pull request against
-its vendor catalogs.
+Publish a plugin's current version to a shared marketplace repository by opening a pull request
+against its vendor catalogs, the way `npm publish` puts the version in `package.json` into the
+registry.
 
 ## What it does
 
-Four steps: locate the plugin and the marketplace, validate the plugin is ready, prepare the entry
-for each vendor catalog that exists, then open one PR that updates all of them together.
+Four steps: locate the plugin and the marketplace, validate the plugin is ready and that its
+release exists, decide per catalog whether to add, update, or leave the listing, then open one PR
+per marketplace that updates all of its catalogs together.
+
+## Publishing is add-or-update
+
+A first listing and a new version are one request. The skill reads the version in `plugin.json`,
+resolves its release (a tag such as `<name>@<version>`, or the npm version), and stops if that
+release does not exist, so no entry is pinned to a ref nobody can fetch. Then, per catalog:
+
+- not listed → the entry is added;
+- listed at an older version → `marketplace update` moves its `ref`/`sha` pin or version and the
+  changed fields in place, keeping curator fields;
+- listed at this version → nothing changes, and the skill says so, the way `npm publish` refuses to
+  republish a version.
 
 ## Where it publishes
 
