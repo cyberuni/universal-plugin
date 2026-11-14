@@ -208,6 +208,42 @@ test.each([
 	expect(unreleasedUnder(() => write(file, content))).not.toContain('unreleased-content')
 })
 
+test('a public package.json that publishes plugin.json with no packagePath is reported (#261)', () => {
+	seedRelease()
+	write('package.json', '{ "name": "demo", "version": "1.0.0", "files": ["plugin.json", "skills/"] }\n')
+	commit('ship through npm')
+
+	expect(findings()).toContain('undeclared-package-path')
+})
+
+test('the undeclared package is still compared for version drift (#261)', () => {
+	seedRelease()
+	write('package.json', '{ "name": "demo", "version": "2.0.0" }\n')
+	commit('bump the package only')
+
+	expect(detail('version-drift')).toBe('plugin.json is 1.0.0, package.json is 2.0.0')
+})
+
+test.each([
+	['a private package', '{ "name": "demo", "version": "1.0.0", "private": true }\n'],
+	['a package whose files leave plugin.json out', '{ "name": "demo", "version": "1.0.0", "files": ["dist/"] }\n'],
+])('%s at the plugin root is not reported as undeclared', (_, content) => {
+	seedRelease()
+	write('package.json', content)
+	commit('add a package')
+
+	expect(findings()).not.toContain('undeclared-package-path')
+})
+
+test('a declared packagePath is not reported as undeclared', () => {
+	seedRelease()
+	write('.agents/universal-plugin.json', '{ "packagePath": "." }\n')
+	write('package.json', '{ "name": "demo", "version": "1.0.0" }\n')
+	commit('declare the package')
+
+	expect(findings()).not.toContain('undeclared-package-path')
+})
+
 test('packagePath is asked of the CLI, which reads .agents/universal-plugin.json', () => {
 	seedRelease()
 	write('.agents/universal-plugin.json', '{ "packagePath": "." }\n')
