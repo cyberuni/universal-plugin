@@ -20,6 +20,21 @@ An empty `"claude-code": {}` is the normal case: it opts into the build with no 
 
 None beyond `name`. Claude Code loads a manifest that carries only the shared metadata.
 
+## Shared metadata forms
+
+Checked with `claude plugin validate` on Claude Code 2.1.325 (November 2026):
+
+| Field | Accepts | Rejects |
+| --- | --- | --- |
+| `repository` | a URL string | the `{ type, url }` object: `repository: Invalid input: expected string, received object` |
+| `author` | an object with `name`; `email` and `url` optional | an object without `name` (`author.name: ... expected string, received undefined`), and a bare string |
+| `keywords` | a string array | — |
+
+A manifest that fails validation is not loaded, so none of its skills trigger. The build writes an
+object `repository` as its `url` string (`--verbose` prints `~ repository: ...`), and leaves an
+`author` with no `name` out of `.claude-plugin/plugin.json` with a warning that names the field. Set
+`author.name` in `plugin.json` to deliver it.
+
 ## Skills
 
 Claude Code reads the skills the manifest's `skills` path names. The build additionally rewrites each

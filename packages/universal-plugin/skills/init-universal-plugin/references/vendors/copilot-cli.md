@@ -35,6 +35,13 @@ directly — these fields are not delivered
 Treat that warning as a decision to make, not noise: either the field belongs to a vendor that has a
 derived manifest, or it does not ship. Do not invent a path for it.
 
+## Shared metadata forms
+
+Copilot CLI 1.0.100 (November 2026) loads a canonical `plugin.json` with an object `repository`, an
+`author` with no `name`, and a `keywords` array: `copilot --plugin-dir <dir> plugin list` lists the
+plugin for each. It does not type-check these fields, so every form the spec allows works and the
+build does not warn about them.
+
 ## `category` and `tags` belong to the catalog, not the manifest
 
 A project on the pre-0.6 layout carries these on its **root** `plugin.json`, because root *was*
