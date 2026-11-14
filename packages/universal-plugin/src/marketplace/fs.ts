@@ -3,6 +3,8 @@ import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 
+import { readEditorconfigIndent } from '../editorconfig/fs.js'
+import { formatJson } from '../json.js'
 import { type MarketplaceOrigin, originFromRepo, originFromUrl, TARGET_CATALOG_PATHS } from './marketplace.js'
 
 export interface MarketplaceFs {
@@ -12,6 +14,21 @@ export interface MarketplaceFs {
 	read(file: string): string
 	listEntries(dir: string): string[]
 	writeAtomically(file: string, content: string): void
+}
+
+/** A JSON catalog written in the format of the file it replaces: its indentation, line ending, and
+ *  the text of every value left unchanged, so adding one entry does not reformat the whole catalog
+ *  (issue #261 saw tabs rewritten to spaces). A new file takes `.editorconfig`'s indentation, else two
+ *  spaces. Content that is not JSON is written as given. */
+function inFileFormat(file: string, content: string): string {
+	let value: unknown
+	try {
+		value = JSON.parse(content)
+	} catch {
+		return content
+	}
+	const existing = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : undefined
+	return formatJson(value, { existing, indent: readEditorconfigIndent(file) ?? 2 })
 }
 
 export const realMarketplaceFs: MarketplaceFs = {
@@ -31,7 +48,7 @@ export const realMarketplaceFs: MarketplaceFs = {
 	writeAtomically(file, content) {
 		fs.mkdirSync(path.dirname(file), { recursive: true })
 		const temporary = `${file}.${process.pid}.${Math.random().toString(16).slice(2)}.tmp`
-		fs.writeFileSync(temporary, content)
+		fs.writeFileSync(temporary, inFileFormat(file, content))
 		fs.renameSync(temporary, file)
 	},
 }

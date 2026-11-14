@@ -88,6 +88,27 @@ Feature: config get — read a keyed config array
     Then stdout is "null"
     And the exit code is 0
 
+  Scenario: --infer reads a public package that publishes plugin.json as packagePath "."
+    Given no ".agents/universal-plugin.json" exists at the root
+    And "package.json" at the root is public and its "files" lists "plugin.json"
+    When I run "universal-plugin config get --key packagePath --infer --format json"
+    Then stdout is the JSON string "."
+    And stderr ends with "→ declare \"packagePath\": \".\" in .agents/universal-plugin.json"
+    And the exit code is 0
+
+  Scenario: without --infer the same package reads as undeclared
+    Given no ".agents/universal-plugin.json" exists at the root
+    And "package.json" at the root is public and its "files" lists "plugin.json"
+    When I run "universal-plugin config get --key packagePath --format json"
+    Then stdout is "null"
+    And the exit code is 0
+
+  Scenario: --infer infers nothing from a private package
+    Given "package.json" at the root is "private": true
+    When I run "universal-plugin config get --key packagePath --infer --format json"
+    Then stdout is "null"
+    And the exit code is 0
+
   # ── Fail-loud & help ──
 
   Scenario: a missing --key fails naming the flag

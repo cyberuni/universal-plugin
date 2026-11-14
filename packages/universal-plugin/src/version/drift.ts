@@ -3,7 +3,8 @@
  *  No I/O: the caller gathers the files (`gatherDriftState`) and this reads the version out of each.
  *  A version lives in several places (see `version.ts`). The reference is the authored number the
  *  release decides: the `packagePath` `package.json` when the project declares one (changesets,
- *  release-please or semantic-release moved it), else the canonical `plugin.json`. Every other place
+ *  release-please or semantic-release moved it) or the plugin root's public package publishes the
+ *  manifest (issue #261), else the canonical `plugin.json`. Every other place
  *  is compared against it, so a release that moved one number and left the rest behind is caught on
  *  the release PR rather than after publish (issue #164).
  *
@@ -42,7 +43,8 @@ export interface DriftFile {
 
 export interface DriftState {
 	manifest: Record<string, unknown>
-	/** `packagePath` from `.agents/universal-plugin.json`, or `null` when the project declares none. */
+	/** `packagePath` from `.agents/universal-plugin.json`, else the one `inferPackagePath` reads from the
+	 *  plugin root's package.json, else `null`. */
 	packagePath: string | null
 	/** The parsed `package.json` at `packagePath`, or `null` when that file is absent. */
 	packageJson: Record<string, unknown> | null

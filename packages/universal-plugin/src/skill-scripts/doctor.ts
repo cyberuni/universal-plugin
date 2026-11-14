@@ -107,6 +107,21 @@ if (packagePath === undefined) {
 		'upgrade universal-plugin',
 	)
 }
+// A public package.json at the plugin root that publishes plugin.json ships the plugin through npm
+// whether or not packagePath says so. Undeclared, `publish-plugin` reads the plugin as git-distributed
+// and lists a git source (issue #261). The CLI infers it (`config get --infer`); a CLI too old to
+// infer answers nothing, and the check is skipped.
+const inferredPackagePath = packagePath === null ? readInferredPackagePath() : null
+if (typeof inferredPackagePath === 'string') {
+	add(
+		'undeclared-package-path',
+		'medium',
+		'the plugin root holds a public package.json that publishes plugin.json, but .agents/universal-plugin.json declares no packagePath — publish-plugin and marketplace add treat the plugin as git-distributed',
+		`declare "packagePath": "${inferredPackagePath}" in .agents/universal-plugin.json, or set "private": true if it is not published`,
+	)
+}
+/** Where the npm package that ships this plugin lives, declared or inferred; `null` for none. */
+const npmPackagePath = packagePath ?? inferredPackagePath ?? null
 if (ext !== null && Object.hasOwn(ext, 'packagePath')) {
 	add(
 		'misplaced-package-path',
@@ -369,7 +384,7 @@ if (packagePath !== undefined && !packageMissing) {
 // version from the release, and so does a non-npm plugin a release tool versions (changesets,
 // release-please, semantic-release, release-it). Content sitting ahead of the last released one is
 // the normal state there, not a defect. Only the author-picks model can forget the bump (ADR-0010 §6).
-if (manifest.version !== undefined && packagePath === null && releaseTool() === null) {
+if (manifest.version !== undefined && npmPackagePath === null && releaseTool() === null) {
 	const introduced = commitThatSetVersion(manifest.version)
 	if (introduced !== null) {
 		const changed = git('diff', '--name-only', `${introduced}..HEAD`, '--', ...shippedPaths())
@@ -803,6 +818,19 @@ function report({ vendors }: { vendors: unknown[] }) {
 /** Where the npm package that ships this plugin lives, relative to the plugin root, as the CLI reads
  *  it; `null` when the plugin ships to no package (the author-picks release model of ADR-0010 §2);
  *  `undefined` when the CLI could not answer. */
+/** The packagePath the CLI infers from the plugin root's package.json; `undefined` when the CLI
+ *  cannot answer `--infer`. */
+function readInferredPackagePath() {
+	const result = runCli('config', 'get', '--key', 'packagePath', '--infer', '--format', 'json', '--root', root)
+	if (result.status !== 0) return undefined
+	try {
+		const inferred = JSON.parse(result.stdout)
+		return typeof inferred === 'string' ? inferred : undefined
+	} catch {
+		return undefined
+	}
+}
+
 function readPackagePath() {
 	const result = runCli('config', 'get', '--key', 'packagePath', '--format', 'json', '--root', root)
 	if (result.status !== 0) return undefined

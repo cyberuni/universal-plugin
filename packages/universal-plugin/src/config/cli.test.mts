@@ -243,6 +243,39 @@ test('a missing config file is treated as an absent key', () => {
 
 // ── config get: packagePath, the CLI's own string config ──
 
+function writePackageJson(obj: unknown) {
+	fs.writeFileSync(path.join(root, 'package.json'), `${JSON.stringify(obj, null, '\t')}\n`)
+}
+
+test('get --key packagePath --infer reports "." for a public package that publishes plugin.json (#261)', () => {
+	writePackageJson({ name: 'demo', version: '1.0.0', files: ['plugin.json', 'skills/'] })
+	const r = run('config', 'get', '--key', 'packagePath', '--infer', '--format', 'json')
+	expect(r.status).toBe(0)
+	expect(JSON.parse(r.stdout)).toBe('.')
+	expect(r.stderr).toMatch(/declare "packagePath": "\."/)
+})
+
+test('get --key packagePath without --infer still reports only the declaration', () => {
+	writePackageJson({ name: 'demo', version: '1.0.0', files: ['plugin.json'] })
+	const r = run('config', 'get', '--key', 'packagePath', '--format', 'json')
+	expect(r.status).toBe(0)
+	expect(JSON.parse(r.stdout)).toBeNull()
+})
+
+test('get --key packagePath --infer infers nothing from a private package', () => {
+	writePackageJson({ name: 'demo', version: '1.0.0', private: true })
+	const r = run('config', 'get', '--key', 'packagePath', '--infer', '--format', 'json')
+	expect(r.status).toBe(0)
+	expect(JSON.parse(r.stdout)).toBeNull()
+})
+
+test('get --key packagePath --infer prefers the declared path', () => {
+	seed({ packagePath: '../../packages/demo' })
+	writePackageJson({ name: 'demo', version: '1.0.0' })
+	const r = run('config', 'get', '--key', 'packagePath', '--infer', '--format', 'json')
+	expect(JSON.parse(r.stdout)).toBe('../../packages/demo')
+})
+
 test('get --key packagePath returns the declared string', () => {
 	seed({ packagePath: '../../packages/demo' })
 	const r = run('config', 'get', '--key', 'packagePath')

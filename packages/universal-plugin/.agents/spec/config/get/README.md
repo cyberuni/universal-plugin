@@ -43,6 +43,12 @@ contract:
   both cases; stderr's next step is `→ universal-plugin plugin version --from-package` when declared. This is
   how a skill (e.g. `doctor`) learns `packagePath` from the CLI rather than re-reading the file
   (issue #79).
+- **Infer packagePath from the package** — `--key packagePath --infer` answers "does this plugin ship
+  through npm?": the declared value when there is one, else `"."` when the plugin root's own
+  `package.json` is not `"private": true` and its `files` publish `plugin.json` (no `files` publishes
+  everything), else `null`. An inferred value's stderr next step is `→ declare "packagePath": "."
+  in .agents/universal-plugin.json`. Without `--infer` the answer stays the declaration alone, so
+  `doctor` can tell an undeclared npm package from a declared one (issue #261).
 - **Missing --key fails loud** — a missing `--key` exits non-zero naming the flag; the command never
   prompts interactively.
 - **Next-step suggestion** — `get`'s stderr ends with `→ universal-plugin config add --key <key> --entry <json>`.
@@ -63,6 +69,7 @@ Every scenario in [`get.feature`](./get.feature) maps to one of these behaviors:
 | **`--format json` raw array** | exact stored array to stdout, untruncated; `--format toon` names default |
 | **definitive empty state** | absent key / empty array / missing file → 0 rows, exit 0 (`[]` under json) |
 | **read packagePath as a string** | `--key packagePath` → declared string (json) / `null` when undeclared, exit 0 |
+| **infer packagePath** | `--infer` → declared, else `"."` for a public root package publishing `plugin.json`, else `null` |
 | **missing --key fails loud** | missing `--key` exits non-zero naming the flag |
 | **next-step** | stderr ends `→ universal-plugin config add --key <key> --entry <json>` |
 | **fail-loud + help** | unknown flag exits 1 naming it; `--help` exits 0 with synopsis + example |

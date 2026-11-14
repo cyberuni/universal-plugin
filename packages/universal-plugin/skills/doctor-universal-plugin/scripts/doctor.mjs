@@ -107,6 +107,10 @@ const ext = manifest.extensions?.[UP_NAMESPACE] ?? null;
 const runCli = (...args) => runCli$1(args);
 const packagePath = readPackagePath();
 if (packagePath === void 0) add("package-path-unknown", "low", "the CLI could not report packagePath, so version-drift and unreleased-content were not checked", "upgrade universal-plugin");
+const inferredPackagePath = packagePath === null ? readInferredPackagePath() : null;
+if (typeof inferredPackagePath === "string") add("undeclared-package-path", "medium", "the plugin root holds a public package.json that publishes plugin.json, but .agents/universal-plugin.json declares no packagePath — publish-plugin and marketplace add treat the plugin as git-distributed", `declare "packagePath": "${inferredPackagePath}" in .agents/universal-plugin.json, or set "private": true if it is not published`);
+/** Where the npm package that ships this plugin lives, declared or inferred; `null` for none. */
+const npmPackagePath = packagePath ?? inferredPackagePath ?? null;
 if (ext !== null && Object.hasOwn(ext, "packagePath")) add("misplaced-package-path", "high", `plugin.json declares extensions["${UP_NAMESPACE}"].packagePath, which the CLI never reads${packagePath === null ? " — this plugin is treated as not shipping to npm" : ""}`, "move packagePath to .agents/universal-plugin.json, relative to the plugin root");
 if (!isAgentPluginsSchema(manifest.$schema) || ext === null) add("legacy-manifest", "high", "root plugin.json carries no $schema on agent-plugins.org or no extensions block", "/universal-plugin:init-universal-plugin, adopt route");
 if (fs.existsSync(path.join(root, ".plugin/plugin.json"))) add("shadowing-manifest", "high", ".plugin/plugin.json outranks root and is read instead of the canonical manifest", "/universal-plugin:remove-plugin");
@@ -197,7 +201,7 @@ if (packagePath !== void 0 && !packageMissing) {
 		if (manifest.version !== void 0 && pkg.version !== UNSTAMPED_VERSION && pkg.version !== manifest.version) add("version-drift", "high", `plugin.json is ${manifest.version}, ${packagePath}/package.json is ${pkg.version}`, "/universal-plugin:version");
 	}
 }
-if (manifest.version !== void 0 && packagePath === null && releaseTool() === null) {
+if (manifest.version !== void 0 && npmPackagePath === null && releaseTool() === null) {
 	const introduced = commitThatSetVersion(manifest.version);
 	if (introduced !== null) {
 		const files = (git("diff", "--name-only", `${introduced}..HEAD`, "--", ...shippedPaths()) ?? "").split("\n").filter(Boolean);
@@ -547,6 +551,18 @@ function report({ vendors }) {
 /** Where the npm package that ships this plugin lives, relative to the plugin root, as the CLI reads
 *  it; `null` when the plugin ships to no package (the author-picks release model of ADR-0010 §2);
 *  `undefined` when the CLI could not answer. */
+/** The packagePath the CLI infers from the plugin root's package.json; `undefined` when the CLI
+*  cannot answer `--infer`. */
+function readInferredPackagePath() {
+	const result = runCli("config", "get", "--key", "packagePath", "--infer", "--format", "json", "--root", root);
+	if (result.status !== 0) return void 0;
+	try {
+		const inferred = JSON.parse(result.stdout);
+		return typeof inferred === "string" ? inferred : void 0;
+	} catch {
+		return;
+	}
+}
 function readPackagePath() {
 	const result = runCli("config", "get", "--key", "packagePath", "--format", "json", "--root", root);
 	if (result.status !== 0) return void 0;

@@ -175,7 +175,10 @@ missed sync fails the release PR rather than the published package.
 
 - **The reference** is the number the release decides: the `package.json` when it holds a real
   version, else the canonical `plugin.json`. If neither holds a real version, nothing drifts. A declared `packagePath` with no `package.json` fails,
-  as it does for `plugin version`.
+  as it does for `plugin version`. With no `packagePath` declared, the plugin root's own
+  `package.json` is that package when it is public and its `files` publish `plugin.json` (the
+  reading `config get --key packagePath --infer` reports): a plugin that ships through npm is
+  compared whether or not it declares the key (issue #261).
 - **Compared against it:** the canonical `plugin.json` (a manifest with no `version` under a
   versioned package drifts); each declared vendor's derived manifest that exists and carries a
   `version`; this plugin's entry in each catalog the repository carries; and every skill file under

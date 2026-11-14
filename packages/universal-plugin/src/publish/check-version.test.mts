@@ -104,6 +104,32 @@ test('without packagePath the canonical manifest is the reference', () => {
 	expect(r.stderr).toMatch(/→ universal-plugin plugin build\n$/)
 })
 
+test('an undeclared public package that ships plugin.json is compared too (#261)', () => {
+	writeJson('package.json', { name: 'demo', version: '1.1.0', files: ['plugin.json', 'skills/'] })
+	writeJson('plugin.json', {
+		name: 'demo',
+		version: '1.0.0',
+		extensions: { 'org.cyberuni.universal-plugin': { vendors: ['claude-code'] } },
+	})
+	const r = run(repo, '--format', 'json')
+	expect(r.status).toBe(1)
+	const out = JSON.parse(r.stdout)
+	expect(out.source).toBe('package.json')
+	expect(out.drifted.map((d: { path: string }) => d.path)).toEqual(['plugin.json'])
+})
+
+test('a private package at the plugin root is not the reference', () => {
+	writeJson('package.json', { name: 'demo', version: '1.1.0', private: true })
+	writeJson('plugin.json', {
+		name: 'demo',
+		version: '1.0.0',
+		extensions: { 'org.cyberuni.universal-plugin': { vendors: ['claude-code'] } },
+	})
+	const r = run(repo, '--format', 'json')
+	expect(r.status).toBe(0)
+	expect(JSON.parse(r.stdout).source).toBe('plugin.json')
+})
+
 test('a missing plugin.json fails loud', () => {
 	const r = run(repo)
 	expect(r.status).toBe(1)

@@ -195,6 +195,35 @@ function catalogEntry(content: string, name: string): unknown {
 	}
 }
 
+/** The identity of the catalogs this command writes. A catalog the repository already carries
+ *  names its own owner, so `--owner` is needed only when there is none to read (issue #261). Flags
+ *  win, then the first existing catalog with an owner, Claude's first, then the root manifest. */
+function catalogMetadata(root: string, fs: MarketplaceFs, opts: MarketplaceAddOptions): MarketplaceMetadata {
+	if (opts.owner === undefined) {
+		for (const target of ['claude', 'codex', 'copilot', 'cursor'] as const) {
+			const file = path.join(root, TARGET_CATALOG_PATHS[target])
+			if (!fs.exists(file)) continue
+			let catalog: unknown
+			try {
+				catalog = JSON.parse(fs.read(file))
+			} catch {
+				continue
+			}
+			const { name, owner } = (catalog ?? {}) as { name?: unknown; owner?: unknown }
+			const ownerName = (owner as { name?: unknown } | null | undefined)?.name
+			if (typeof ownerName !== 'string' || ownerName.trim() === '') continue
+			return {
+				...deriveMetadata(root, fs, {
+					name: opts.marketplaceName ?? (typeof name === 'string' ? name : undefined),
+					owner: ownerName,
+				}),
+				owner: owner as MarketplaceMetadata['owner'],
+			}
+		}
+	}
+	return deriveMetadata(root, fs, { name: opts.marketplaceName, owner: opts.owner })
+}
+
 /** Lists a plugin that lives somewhere else in this repository's catalogs.
  *
  *  Where `marketplace init` derives a catalog from the plugins a repository holds, this adds one it
@@ -219,7 +248,7 @@ export function addToMarketplace(
 			? resolveFromMarketplace(parsed, opts, fs)
 			: { source: parsed.source as string | CatalogSource, metadata: localMetadata(root, parsed, fs) }
 
-	const metadata: MarketplaceMetadata = deriveMetadata(root, fs, { name: opts.marketplaceName, owner: opts.owner })
+	const metadata: MarketplaceMetadata = catalogMetadata(root, fs, opts)
 	const plugin: MarketplacePlugin = {
 		name,
 		source: resolved.source,

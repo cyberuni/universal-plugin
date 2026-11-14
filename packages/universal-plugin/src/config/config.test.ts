@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addEntry, getEntries, getPackagePath, isReservedKey } from './config.js'
+import { addEntry, getEntries, getPackagePath, inferPackagePath, isReservedKey } from './config.js'
 
 describe('isReservedKey', () => {
 	it('treats packagePath as reserved and plugin keys as not', () => {
@@ -17,6 +17,26 @@ describe('getPackagePath', () => {
 		expect(getPackagePath({})).toBeNull()
 		expect(getPackagePath({ packagePath: '' })).toBeNull()
 		expect(getPackagePath({ packagePath: ['packages/demo'] })).toBeNull()
+	})
+})
+
+describe('inferPackagePath', () => {
+	const pkg = (extra: Record<string, unknown>) => ({ name: 'demo', version: '1.0.0', ...extra })
+	it('reads a public package that publishes plugin.json as npm distribution from the plugin root', () => {
+		expect(inferPackagePath(pkg({ files: ['plugin.json', 'skills/', '.claude-plugin/'] }))).toBe('.')
+		expect(inferPackagePath(pkg({ files: ['./plugin.json'] }))).toBe('.')
+		expect(inferPackagePath(pkg({ files: ['*.json'] }))).toBe('.')
+		expect(inferPackagePath(pkg({ files: ['**/*'] }))).toBe('.')
+	})
+	it('reads a package with no files list as publishing everything, the manifest included', () => {
+		expect(inferPackagePath(pkg({}))).toBe('.')
+	})
+	it('infers nothing when there is no package, it is private, or its files leave plugin.json out', () => {
+		expect(inferPackagePath(null)).toBeNull()
+		expect(inferPackagePath(pkg({ private: true }))).toBeNull()
+		expect(inferPackagePath(pkg({ files: ['dist/', 'skills/'] }))).toBeNull()
+		expect(inferPackagePath(pkg({ files: ['*.json', '!plugin.json'] }))).toBeNull()
+		expect(inferPackagePath(pkg({ files: 'plugin.json' }))).toBeNull()
 	})
 })
 

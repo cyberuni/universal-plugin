@@ -95,6 +95,7 @@ Each `code` below is what the script emits.
 | `no-vendors` | no vendor is declared, so the build writes nothing and no runtime reads the plugin. When the repository carries `vendorExtensions` or a `.plugin/plugin.json`, the build stops rather than reporting an empty result, and the detail says so — read it beside `legacy-manifest` and `shadowing-manifest`, which name the signals | `/universal-plugin:init-universal-plugin` (pnpm install: `pnpm-universal-plugin-init-universal-plugin`), adopt route when `vendorExtensions` or `.plugin/plugin.json` is present, else update route |
 | `package-path-missing` | `packagePath` names a directory with no readable `package.json` | fix `packagePath`, or create the package |
 | `package-path-unknown` | the CLI could not report `packagePath` (a version too old to read it), so `version-drift` and `unreleased-content` were skipped rather than guessed | upgrade universal-plugin |
+| `undeclared-package-path` | the plugin root holds a public `package.json` that publishes `plugin.json`, but no `packagePath` is declared, so `publish-plugin` and `marketplace add` treat an npm-shipped plugin as git-distributed | declare `"packagePath": "."` in `.agents/universal-plugin.json`, or set `"private": true` if the package is not published |
 | `misplaced-package-path` | `plugin.json` declares `packagePath` under `extensions["org.cyberuni.universal-plugin"]`, where the CLI never reads it — the plugin is silently treated as not shipping to npm | move it to `.agents/universal-plugin.json`, relative to the plugin root |
 | `changesets-no-package` | the repository is released with changesets, the plugin ships to no npm package, and its root has no `package.json` — changesets releases only a package, so `changeset version` and `changeset publish` fail | `/universal-plugin:init-universal-plugin` (pnpm install: `pnpm-universal-plugin-init-universal-plugin`) — `plugin init` writes a private `package.json` |
 | `changesets-private-untagged` | a non-npm plugin in a changesets repository, and `.changeset/config.json` does not set `"privatePackages": { "version": true, "tag": true }` — `changeset publish` tags no private package, so no release is made | set `privatePackages` in `.changeset/config.json` |
@@ -155,14 +156,16 @@ user can run, or ask before running it yourself.
 ## Version drift
 
 A version lives in six places. Two are authored: the canonical `plugin.json`, and the `package.json`
-at the `packagePath` the CLI reports (`config get --key packagePath`), resolved from the plugin root.
+at the `packagePath` the CLI reports (`config get --key packagePath --infer`), resolved from the plugin
+root. With no `packagePath` declared, a public plugin-root `package.json` that publishes `plugin.json`
+counts as that package.
 The rest are stamped from them by `plugin version`: the vendor manifests, this plugin's entry in each
 repository catalog, the `npx`/`upx <package>@<version>` pins in the skills, and each `mcpServers`
 entry marked `pinToPluginVersion`.
 
 The script asks `universal-plugin publish check-version` for the comparison and emits one
 `version-drift` per file that disagrees. The reference is the release's number: the `package.json`
-when `packagePath` is declared, else `plugin.json`. Pins are compared only when there is a package to
+when there is one, declared or inferred, else `plugin.json`. Pins are compared only when there is a package to
 pin, and a pin-exempt skill or a pin that is not a version (`<version>`, `latest`) is skipped. A place
 holding `0.0.0-development` is reported as `unstamped`, not as `version-drift`.
 
@@ -200,7 +203,7 @@ shipped.
 
 Two cases are deliberately silent. A plugin whose release picks the number is skipped, because
 content waiting ahead of the last released version is the normal state of a branch there
-([ADR-0010](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/design/decisions/0010-version-policy.md) §6). That is a plugin that declares `packagePath`, or a plugin a release tool versions:
+([ADR-0010](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/design/decisions/0010-version-policy.md) §6). That is a plugin that ships to npm (a declared `packagePath`, or a public plugin-root `package.json` that publishes `plugin.json`), or a plugin a release tool versions:
 changesets (`.changeset/` and a private or absent plugin-root `package.json`), release-please (its
 config bumps this `plugin.json` through `extra-files`), semantic-release (`.releaserc*`,
 `release.config.*`, or a `release` key in `package.json`), or release-it (a `.release-it.*` file, or a

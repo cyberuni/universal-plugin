@@ -262,16 +262,36 @@ root-clone `url`. Read the signals from the plugin's own repository, in this ord
 
 1. **`npm`** — the CLI reports a `packagePath`, and `<packagePath>/package.json` is not
    `"private": true`. The plugin ships as an npm package. Ask the CLI rather than reading
-   `.agents/universal-plugin.json` yourself; the path it prints is relative to the plugin root:
+   `.agents/universal-plugin.json` or `package.json` yourself; the path it prints is relative to the
+   plugin root:
 
    ```bash
-   npx universal-plugin config get --key packagePath --format json --root <plugin-root>
+   npx universal-plugin config get --key packagePath --infer --format json --root <plugin-root>
    ```
 
-   `null` means no npm package is declared.
+   `--infer` also answers when no `packagePath` is declared: it prints `"."` when the plugin root's
+   own `package.json` is public and its `files` publish `plugin.json`. `null` means the plugin does
+   not ship through npm. When the path was inferred (the command's stderr says to declare it), tell
+   the user that `.agents/universal-plugin.json` lacks `"packagePath": "."`, so `doctor` and the
+   version check miss the package, and offer to add it in the plugin's repository. Then confirm the
+   package really carries the manifest at this version:
+
+   ```bash
+   npm view <npm-package-name>@<version> version
+   npm pack <plugin-root>/<packagePath> --dry-run --json
+   ```
+
+   The `files` list `npm pack` prints must hold a `plugin.json` path. If it does not, the plugin is not npm-distributed after all;
+   fall through to the next signal.
+
+   **Copilot CLI and Cursor cannot install an npm source**, so `marketplace add` leaves the plugin
+   out of those two catalogs and says so. List it there from git instead, with the source the next
+   two signals pick (`git-subdir` for a plugin below the repository root). The Claude Code and Codex
+   entries keep the `npm` source.
 2. **`git-subdir`** — the plugin's `plugin.json` (or its vendor manifests) live below the
    repository root, e.g. `packages/<name>/plugin.json`, and there is no `packagePath`/npm
-   distribution. This is the common monorepo case: the repository root holds no plugin manifest at
+   distribution, or the target is the Copilot CLI or Cursor catalog of an npm plugin. This is the
+   common monorepo case: the repository root holds no plugin manifest at
    all, only a `marketplace.json` catalog or unrelated packages, so a root-clone `url` source
    resolves nothing.
 3. **`url` / `github`** — `plugin.json` sits at the repository root. `url` for a plain clone,
@@ -332,8 +352,8 @@ The simpler format — only three required fields:
 }
 ```
 
-The `source` field supports the same shapes as Claude Code (`url`, `github`, `git-subdir`, `npm`,
-`file`, `directory`) — pick per 2c, same as the Claude Code entry.
+The `source` field supports the git and local shapes of Claude Code (`url`, `github`, `git-subdir`,
+`file`, `directory`), but not `npm`. Pick per 2c; for an npm plugin, use its git source here.
 
 ### 2f. Update an entry listed at an older version
 
@@ -462,7 +482,14 @@ Make every change 2b decided, in every catalog from 2a, on this one branch:
 
 - **Add** — append the plugin entry, and the entry of each dependency 2g listed, to the catalog's
   `plugins` array. `marketplace add` writes every catalog it can, the Codex and Copilot ones
-  included, in the shape each runtime loads; prefer it over hand-editing those two.
+  included, in the shape each runtime loads; prefer it over hand-editing those two. For an npm
+  plugin, run it twice: once with the npm spec for Claude Code and Codex, then with the git spec
+  for the two catalogs that cannot install npm:
+
+  ```bash
+  npx universal-plugin marketplace add npm:<npm-package-name> --claude --codex --root .
+  npx universal-plugin marketplace add <owner>/<repo> --subdir <repo-relative-plugin-dir> --ref <tag> --copilot --cursor --root .
+  ```
 - **Update** — run the `marketplace update` from 2f without `--dry-run`.
 
 Add any `allowCrossMarketplaceDependenciesOn` change the user accepted in 2g. Preserve formatting and

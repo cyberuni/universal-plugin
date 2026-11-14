@@ -2,7 +2,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 
 import { DEFAULT_MCP_PATH, type PluginManifest, universalPluginExtension, VENDOR_OUTPUT } from '../build/build.js'
-import { getPackagePath } from '../config/config.js'
+import { getPackagePath, inferPackagePath } from '../config/config.js'
 import { readEditorconfigIndent } from '../editorconfig/fs.js'
 import { formatJson } from '../json.js'
 import { gatherCatalogRepo, gitToplevel } from '../marketplace/fs.js'
@@ -154,7 +154,10 @@ export function gatherDriftState(root: string): DriftState {
 	if (!fs.existsSync(manifestPath)) throw new Error(`No plugin.json found at ${root}`)
 	const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as Record<string, unknown>
 
-	const packagePath = readPackagePath(root, realJsonIo)
+	// An undeclared package that ships the manifest from the plugin root is npm distribution all the
+	// same, so its package.json is compared too rather than hidden from the check (issue #261).
+	const packagePath =
+		readPackagePath(root, realJsonIo) ?? inferPackagePath(readJsonFile(realJsonIo, path.join(root, 'package.json')))
 	const pkgJsonPath = packagePath === null ? null : path.join(root, packagePath, 'package.json')
 	const packageJson =
 		pkgJsonPath !== null && fs.existsSync(pkgJsonPath)

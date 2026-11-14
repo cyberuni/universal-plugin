@@ -27,6 +27,49 @@ export function getPackagePath(config: ConfigFile): string | null {
 	return typeof value === 'string' && value.length > 0 ? value : null
 }
 
+/** The `packagePath` a plugin root's own `package.json` implies when none is declared: `.` when that
+ *  package is public and its published files include `plugin.json`, so the plugin ships through npm
+ *  from the plugin root (issue #261). `null` when there is no such package, it is `"private": true`,
+ *  or its `files` leaves `plugin.json` out. A package with no `files` publishes everything, the
+ *  manifest included. This reads only the declaration; `npm pack --dry-run` has the last word, since
+ *  an `.npmignore` can still drop the file. */
+export function inferPackagePath(packageJson: Record<string, unknown> | null): string | null {
+	if (packageJson === null || packageJson.private === true) return null
+	return publishesFile(packageJson.files, 'plugin.json') ? '.' : null
+}
+
+/** Whether npm's `files` list publishes `file`, a path relative to the package root. Absent `files`
+ *  publishes everything. Entries are globs; a directory entry includes what is under it, and a `!`
+ *  entry excludes what it matches, the last matching entry deciding. */
+function publishesFile(files: unknown, file: string): boolean {
+	if (files === undefined) return true
+	if (!Array.isArray(files)) return false
+	let included = false
+	for (const raw of files) {
+		if (typeof raw !== 'string') continue
+		const negated = raw.startsWith('!')
+		const pattern = (negated ? raw.slice(1) : raw).replace(/^\.?\//, '').replace(/\/+$/, '')
+		if (globMatches(pattern, file)) included = !negated
+	}
+	return included
+}
+
+function globMatches(pattern: string, file: string): boolean {
+	if (pattern === '' || pattern === '.') return true
+	const source = pattern
+		.split(/(\*\*\/?|\*|\?)/)
+		.map((part) => {
+			if (part === '**/') return '(?:.*/)?'
+			if (part === '**') return '.*'
+			if (part === '*') return '[^/]*'
+			if (part === '?') return '[^/]'
+			return part.replace(/[.+^${}()|[\]\\]/g, '\\$&')
+		})
+		.join('')
+	// A pattern naming a directory includes everything under it.
+	return new RegExp(`^${source}(?:/.*)?$`).test(file)
+}
+
 /** The array registered at `key`, or an empty array when the key is absent or non-array. */
 export function getEntries(config: ConfigFile, key: string): unknown[] {
 	const value = config[key]
