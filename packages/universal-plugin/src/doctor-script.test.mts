@@ -262,7 +262,8 @@ test('a packagePath declared in the manifest extension is reported, and not hono
 	const manifest = JSON.parse(fs.readFileSync(path.join(root, 'plugin.json'), 'utf8'))
 	manifest.extensions['org.cyberuni.universal-plugin'].packagePath = '.'
 	write('plugin.json', `${JSON.stringify(manifest, null, 2)}\n`)
-	write('package.json', '{ "name": "demo", "version": "2.0.0" }\n')
+	// Private, so the package is not inferred either (#261): only the misplaced declaration could name it.
+	write('package.json', '{ "name": "demo", "version": "2.0.0", "private": true }\n')
 	commit('declare the package in the manifest')
 
 	const codes = findings()
