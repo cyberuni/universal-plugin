@@ -303,6 +303,27 @@ test('an added entry survives the regeneration that discovery drives', () => {
 	}
 })
 
+test("adding an entry keeps the catalog's own indentation (#261)", () => {
+	const root = fixture('universal-plugin-add-indent-')
+	try {
+		const catalog = path.join(root, '.claude-plugin', 'marketplace.json')
+		fs.mkdirSync(path.dirname(catalog), { recursive: true })
+		fs.writeFileSync(
+			catalog,
+			`${JSON.stringify({ name: 'mkt', owner: { name: 'unional' }, plugins: [{ name: 'a', source: './a' }] }, null, '\t')}\n`,
+		)
+
+		addToMarketplace(root, 'npm:repobuddy', { targets: ['claude'] })
+
+		const text = fs.readFileSync(catalog, 'utf8')
+		expect(text).toContain('\n\t"plugins": [')
+		expect(text).not.toMatch(/\n {2}"/)
+		expect(entries(root, '.claude-plugin/marketplace.json').map((e) => e.name)).toEqual(['a', 'repobuddy'])
+	} finally {
+		fs.rmSync(root, { recursive: true, force: true })
+	}
+})
+
 test('an entry an owner cannot be derived for fails before anything is written', () => {
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-add-no-owner-'))
 	try {
