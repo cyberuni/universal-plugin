@@ -1,5 +1,20 @@
 # universal-plugin
 
+## 0.21.0
+
+### Minor Changes
+
+- bdaae62: `config get --key packagePath --infer` reports `"."` when no `packagePath` is declared but the plugin root's own `package.json` is public and its `files` publish `plugin.json`, so a skill can tell that a plugin ships through npm without the declaration (#261).
+
+### Patch Changes
+
+- bdaae62: `doctor-universal-plugin` reports `undeclared-package-path` when the plugin root holds a public `package.json` that publishes `plugin.json` but `.agents/universal-plugin.json` declares no `packagePath`, the gap that made `publish-plugin` list an npm-shipped plugin from git (#261).
+- bdaae62: `publish check-version` (and `doctor`'s version-drift check) now compares the plugin root's `package.json` when it is public and publishes `plugin.json`, even with no `packagePath` declared. Before, an npm-shipped plugin that left out the key had its package hidden from the check (#261).
+- bdaae62: `marketplace add` reads the owner from a catalog the repository already carries, so it no longer asks for `--owner` when every catalog already names one (#261).
+- bdaae62: `marketplace add` and `marketplace update` keep a catalog's own indentation, line ending, and untouched values when they write it, instead of rewriting a tab-indented catalog with two spaces. A new catalog takes `.editorconfig`'s indentation (#261).
+- bdaae62: `publish-plugin` detects a plugin that ships in its own npm package from the package itself (`config get --key packagePath --infer`, confirmed with `npm view` and `npm pack --dry-run`), lists Claude Code and Codex from npm, and lists Copilot CLI and Cursor, which cannot install npm, from git instead of leaving them out (#261).
+- fee405d: `plugin build` now writes an object-form `repository` as its `url` string into the Claude Code, Cursor, and Codex manifests, which accept only a string, and says so under `--verbose`. It leaves an `author` without a `name` out of the Claude Code and Cursor manifests, which reject it, and warns. When Codex reads the canonical `plugin.json` (an Agent Plugins `$schema`), an object `repository` there stops it loading the plugin, so the build warns and `doctor-universal-plugin` reports `unaccepted-metadata`.
+
 ## 0.20.1
 
 ### Patch Changes
