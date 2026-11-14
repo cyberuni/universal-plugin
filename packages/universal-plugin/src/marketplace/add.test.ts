@@ -337,6 +337,25 @@ test('an entry an owner cannot be derived for fails before anything is written',
 	}
 })
 
+test('an existing catalog supplies the owner, so --owner is not needed (#261)', () => {
+	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-add-existing-owner-'))
+	try {
+		const catalog = path.join(root, '.claude-plugin', 'marketplace.json')
+		fs.mkdirSync(path.dirname(catalog), { recursive: true })
+		fs.writeFileSync(catalog, JSON.stringify({ name: 'mkt', owner: { name: 'cyber-uni' }, plugins: [] }))
+
+		addToMarketplace(root, 'npm:repobuddy', { targets: ['claude'] })
+
+		expect(readJson(root, '.claude-plugin/marketplace.json')).toMatchObject({
+			name: 'mkt',
+			owner: { name: 'cyber-uni' },
+			plugins: [{ name: 'repobuddy' }],
+		})
+	} finally {
+		fs.rmSync(root, { recursive: true, force: true })
+	}
+})
+
 test('reads a marketplace origin from what the runtime recorded, not only from its clone', () => {
 	const home = fixture('universal-plugin-add-registry-')
 	try {

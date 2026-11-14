@@ -116,7 +116,9 @@ resolves to a real plugin.
 - Unlike a re-derivation, this command replaces a non-local source, because a new source is what it
   was asked for.
 - A catalog the repository does not carry is created, named and owned the way `init` names it, with
-  `--marketplace-name` and `--owner` overriding. A missing owner stops the command before any write.
+  `--marketplace-name` and `--owner` overriding. When the repository already carries a catalog
+  with an owner, that owner (and its name) is read from it, Claude's first, so `--owner` is needed
+  only with nothing to read it from (issue #261). A missing owner stops the command before any write.
 - An entry of this name already listed with different content stops the whole command with a
   `--force` remedy. An entry that would say exactly what is already there is `unchanged`.
 - Every planned catalog is checked against the schema its runtime loads before anything is written.
@@ -217,6 +219,7 @@ flowchart TD
 |---|---|---|
 | catalog creation | the repository carries no catalog | `a repository with no catalog gets one` |
 | owner guard | no root author and no `--owner` | `a missing marketplace owner fails before writes` |
+| owner from an existing catalog | a catalog already names an owner, no `--owner` | `an existing catalog supplies the owner` |
 | entry preserved | a catalog already carrying other entries | `other entries and the catalog top level survive` |
 | convergence | the entry already says exactly this | `an equivalent rerun is unchanged` |
 | conflict guard | the entry is listed differently; no `--force` | `a differing entry fails without changing any catalog` |

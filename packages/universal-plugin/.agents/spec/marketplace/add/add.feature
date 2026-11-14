@@ -180,6 +180,13 @@ Feature: marketplace add — list a plugin that lives elsewhere
     Then the command fails saying an owner is required
     And no catalog is written
 
+  Scenario: an existing catalog supplies the owner
+    Given a repository with no root author
+    And a Claude catalog named "mkt" owned by "cyber-uni"
+    When I run "universal-plugin marketplace add npm:repobuddy --claude --root <root>"
+    Then the catalog lists "repobuddy"
+    And the catalog keeps the name "mkt" and the owner "cyber-uni"
+
   Scenario: other entries and the catalog top level survive
     Given a Claude catalog listing "alpha" with a description of its own
     When I run "universal-plugin marketplace add npm:repobuddy --claude --root <root>"
