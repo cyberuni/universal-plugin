@@ -78,6 +78,12 @@
 			"prompt": "Publish 'git-summary' v0.1.0 (tag git-summary@0.1.0 exists) to cyber-uni/marketplace. It has never been listed there.",
 			"expected_output": "Resolves the tag, finds no catalog lists git-summary, and adds the entry to every catalog the marketplace carries in one PR titled 'Add git-summary v0.1.0', pinning the release where the catalog's entries pin refs.",
 			"files": []
+		},
+		{
+			"id": 14,
+			"prompt": "Publish clibuilder 12.4.0 to cyber-uni/marketplace. The plugin lives at packages/clibuilder in clibuilder/clibuilder; that folder's package.json is public and its files list plugin.json, skills/ and the vendor manifests. .agents/universal-plugin.json declares no packagePath.",
+			"expected_output": "Runs config get --key packagePath --infer, reads \".\", and confirms the tarball carries plugin.json (npm view / npm pack --dry-run). Lists Claude Code and Codex with { \"source\": \"npm\", \"package\": \"clibuilder\" }, lists Copilot CLI and Cursor from git (git-subdir at packages/clibuilder pinned to the release tag) rather than leaving them out, and tells the user to declare \"packagePath\": \".\" in the plugin's .agents/universal-plugin.json.",
+			"files": []
 		}
 	]
 }
