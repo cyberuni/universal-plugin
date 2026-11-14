@@ -112,7 +112,8 @@ resolves to a real plugin.
 ### Write and safety decisions
 
 - The catalog's other entries, its top-level fields, and its key order survive. Only this entry is
-  written.
+  written, and the file keeps its own indentation, line ending, and the text of every value left
+  unchanged; a new catalog takes `.editorconfig`'s indentation, else two spaces (issue #261).
 - Unlike a re-derivation, this command replaces a non-local source, because a new source is what it
   was asked for.
 - A catalog the repository does not carry is created, named and owned the way `init` names it, with

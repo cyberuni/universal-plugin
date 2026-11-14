@@ -193,6 +193,11 @@ Feature: marketplace add — list a plugin that lives elsewhere
     Then the catalog still lists "alpha" unchanged
     And the catalog keeps its name, owner, and key order
 
+  Scenario: the catalog keeps its own indentation
+    Given a tab-indented Claude catalog
+    When I run "universal-plugin marketplace add npm:repobuddy --claude --root <root>"
+    Then the catalog is still indented with tabs
+
   Scenario: an equivalent rerun is unchanged
     Given "repobuddy" is already listed with exactly this entry
     When I run "universal-plugin marketplace add npm:repobuddy --claude --root <root>"
