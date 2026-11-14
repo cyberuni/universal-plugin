@@ -50,7 +50,7 @@ usually lacks. Without `npm`, semantic-release needs no `package.json` at all.
     "@semantic-release/commit-analyzer",
     "@semantic-release/release-notes-generator",
     ["@semantic-release/exec", {
-      "prepareCmd": "npx universal-plugin@0.20.1 plugin version ${nextRelease.version}"
+      "prepareCmd": "npx universal-plugin@0.21.0 plugin version ${nextRelease.version}"
     }],
     ["@semantic-release/git", {
       "assets": [
@@ -129,7 +129,7 @@ from the latest git tag. Add the stamp as the `after:bump` hook:
 {
   "npm": false,
   "hooks": {
-    "after:bump": "npx universal-plugin@0.20.1 plugin version ${version}"
+    "after:bump": "npx universal-plugin@0.21.0 plugin version ${version}"
   }
 }
 ```
@@ -221,7 +221,7 @@ skill writes, and one workflow step the user adds.
 }
 ```
 
-The restamp step runs `npx -y universal-plugin@0.20.1 plugin version --from-manifest`, which takes
+The restamp step runs `npx -y universal-plugin@0.21.0 plugin version --from-manifest`, which takes
 the number `plugin.json` already holds. Pin it to the CLI version this skill ships with.
 
 ### A plugin that ships on npm
