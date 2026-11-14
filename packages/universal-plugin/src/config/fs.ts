@@ -11,6 +11,8 @@ export interface ConfigFs {
 	read(root: string): ConfigFile
 	/** Serialize `config` back to the file, creating it (and `.agents/`) if absent. */
 	write(root: string, config: ConfigFile): void
+	/** Parse the plugin root's own `package.json`; `null` when it is absent or not valid JSON. */
+	readPackageJson(root: string): Record<string, unknown> | null
 }
 
 function configPath(root: string): string {
@@ -28,5 +30,13 @@ export const realConfigFs: ConfigFs = {
 		const indent = fs.existsSync(file) ? detectIndent(fs.readFileSync(file, 'utf8')) : '\t'
 		fs.mkdirSync(path.dirname(file), { recursive: true })
 		fs.writeFileSync(file, `${JSON.stringify(config, null, indent)}\n`)
+	},
+	readPackageJson(root) {
+		try {
+			const value = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')) as unknown
+			return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : null
+		} catch {
+			return null
+		}
 	},
 }
