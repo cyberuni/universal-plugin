@@ -24,6 +24,7 @@ import {
 import { formatCatalogIssues, validateCatalogContent } from '../marketplace/validation.js'
 import { stripPinMarkers } from '../pin/pin.js'
 import { vendorRuleViolations } from '../validate/validation.js'
+import { canonicalMetadataWarnings, deliverMetadata } from './metadata.js'
 import { escapingLinks } from './skill-links.js'
 import { addPnpmNames } from './skill-references.js'
 
@@ -359,6 +360,7 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 	// A declaration the runtime accepts and then discards is an invisible loss, and it is one loss to
 	// fix however many vendors are targeted.
 	warnings.push(...validateDependencies(declaredDependencies).warnings)
+	warnings.push(...canonicalMetadataWarnings(manifest, vendors))
 	const skills = readSkills(root, manifest, warnings)
 	warnings.push(...skillLinkWarnings(root, skills))
 	writePnpmNames(root, manifest, skills, opts, written)
@@ -374,7 +376,12 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 		const outputDir = path.dirname(outputPath)
 		const vendorFields = harnesses[vendor] ?? {}
 		const components = vendorComponentConfig(componentConfig, vendor)
-		const vendorManifest: Record<string, unknown> = { ...metadata, ...components.config, ...vendorFields }
+		// The canonical manifest is the copilot-cli manifest as authored; only derived ones are reshaped.
+		const delivery = CANONICAL_SERVED.has(vendor)
+			? { metadata, conversions: [], warnings: [] }
+			: deliverMetadata(metadata, vendor, new Set(Object.keys(vendorFields)))
+		warnings.push(...delivery.warnings)
+		const vendorManifest: Record<string, unknown> = { ...delivery.metadata, ...components.config, ...vendorFields }
 		const hooks = canonicalHooks ? translateHooks(canonicalHooks, vendor) : null
 		const dependencies = translateDependencies(declaredDependencies ?? [], vendor)
 		warnings.push(...dependencies.warnings)
@@ -447,6 +454,9 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 			console.log(`[${vendor}] → ${outputPath}`)
 			for (const key of Object.keys(vendorFields)) {
 				console.log(`  + ${key} (from harnesses.${vendor})`)
+			}
+			for (const conversion of delivery.conversions) {
+				console.log(`  ~ ${conversion}`)
 			}
 		}
 

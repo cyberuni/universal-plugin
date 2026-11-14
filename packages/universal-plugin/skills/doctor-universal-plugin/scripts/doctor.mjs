@@ -172,6 +172,7 @@ if (build === null) {
 	}
 	for (const warning of build.warnings ?? []) if (/^Failed to compile /.test(warning)) add("script-compile-failed", "high", warning, "fix the entry so every import resolves, then plugin build");
 	else if (/budget for a compiled skill script/.test(warning)) add("script-over-budget", "low", warning, "have the skill call the installed CLI instead of compiling it in");
+	else if (/(rejects|accepts) (an author|repository)/.test(warning)) add("unaccepted-metadata", "high", warning, "rewrite the field in plugin.json as the warning says, then plugin build");
 	else if (/not delivered/.test(warning)) add("undeliverable-override", "medium", warning, "/universal-plugin:init-universal-plugin, update route");
 	else if (/No vendors declared/.test(warning)) add("no-vendors", "medium", "no vendor is declared — the build writes nothing, so no runtime reads this plugin", "/universal-plugin:init-universal-plugin, update route");
 	else if (/has no "[^"]+" component/.test(warning)) add("unsupported-component", "low", warning, "declare the path under harnesses.<vendor> for the vendors that read it, or leave it — the build already drops it");
