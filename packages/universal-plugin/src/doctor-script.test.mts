@@ -966,3 +966,25 @@ test('a config with a top-level prepare key is not checked for plugin order', ()
 	)
 	expect(findings()).not.toContain('semantic-release-git-before-exec')
 })
+
+test('reports an object repository codex reads from the canonical manifest as unaccepted-metadata', () => {
+	write(
+		'plugin.json',
+		`${JSON.stringify(
+			{
+				$schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json',
+				name: 'demo',
+				version: '1.0.0',
+				description: 'a demo plugin',
+				repository: { type: 'git', url: 'https://github.com/a/b' },
+				extensions: { 'org.cyberuni.universal-plugin': { vendors: ['codex'] } },
+			},
+			null,
+			2,
+		)}\n`,
+	)
+	commit('a plugin codex will not load')
+
+	expect(findings()).toContain('unaccepted-metadata')
+	expect(detail('unaccepted-metadata')).toContain('write repository as the URL string in plugin.json')
+})

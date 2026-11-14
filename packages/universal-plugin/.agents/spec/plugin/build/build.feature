@@ -108,6 +108,33 @@ Feature: plugin build — derive per-vendor manifests
     Then ".codex-plugin/plugin.json" contains agents "./agents/"
     And no warning names "agents"
 
+  # ── Shared metadata forms per vendor (issue #260) ──
+  #
+  # The spec allows forms some runtimes refuse. A derived manifest gets the form its runtime accepts;
+  # a canonical manifest a runtime reads itself can only be warned about.
+
+  Scenario: an object repository is written as its url into every derived manifest
+    Given the manifest has repository { "type": "git", "url": "https://github.com/a/b" }
+    And harnesses.claude-code, harnesses.cursor, and harnesses.codex are declared
+    When I run "universal-plugin plugin build --verbose"
+    Then ".claude-plugin/plugin.json", ".cursor-plugin/plugin.json", and ".codex-plugin/plugin.json" contain repository "https://github.com/a/b"
+    And the canonical "plugin.json" keeps the repository object
+    And the verbose output says the repository object is written as its url string
+
+  Scenario: codex reading a canonical object repository is warned about
+    Given the manifest has the Agent Plugins $schema and repository { "type": "git", "url": "https://github.com/a/b" }
+    And harnesses.codex is declared
+    When I run "universal-plugin plugin build"
+    Then a warning names "codex" and "repository" and says to write repository as the URL string in plugin.json
+    And the exit code is 0
+
+  Scenario: an author without a name is left out of the claude-code and cursor manifests, with a warning
+    Given the manifest has author { "email": "a@b.c" }
+    And harnesses.claude-code is declared
+    When I run "universal-plugin plugin build"
+    Then ".claude-plugin/plugin.json" does not contain "author"
+    And a warning names "claude-code" and "author.name"
+
   # ── Component path resolution (the extension's pathValue contract) ──
   #
   # `skills`, like every pathValue-typed field in extensions["org.cyberuni.universal-plugin"], is a

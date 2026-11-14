@@ -20,6 +20,30 @@ plugin.json validation failed:
 The check is scoped to the vendors actually being built, so a Codex block that is not a selected
 target never blocks a build of the others.
 
+## Shared metadata forms
+
+Codex 0.159.3 (November 2026) has two loaders, and which one runs decides what it accepts.
+Verified by installing a probe plugin from a local marketplace, and read from
+`codex-rs/core-plugins/src/agent_plugin_manifest.rs` and `manifest.rs` at `rust-v0.159.3`.
+
+- **The canonical manifest carries an Agent Plugins `$schema`** (any `https://agent-plugins.org/schemas/...`
+  URL). Codex reads root `plugin.json` itself and uses `.codex-plugin/plugin.json` only as an overlay.
+  It types `repository` as a string, so an object there fails the load: `codex plugin add` reports
+  `missing or invalid plugin.json` and the plugin is not installed. `author` with every sub-field
+  optional and `keywords` as a string array are accepted.
+- **No Agent Plugins `$schema`.** Codex reads `.codex-plugin/plugin.json`, which does not read
+  `repository` or `author` at all, so any form loads.
+
+No derived file can repair the first case, so the build warns, naming the field and `codex`:
+
+```
+codex reads the canonical plugin.json and rejects repository as an object, so it will not load this
+plugin — write repository as the URL string in plugin.json
+```
+
+`doctor-universal-plugin` reports it as `unaccepted-metadata`. The derived `.codex-plugin/plugin.json`
+gets the `url` string either way.
+
 ## Vendor-specific fields
 
 Codex's presentation metadata goes under its `harnesses` entry:

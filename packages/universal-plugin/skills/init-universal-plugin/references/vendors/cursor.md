@@ -22,6 +22,21 @@ Cursor's catalog metadata goes under its `harnesses` entry, not at the canonical
 }
 ```
 
+## Shared metadata forms
+
+Read from the manifest schema bundled in `cursor-agent` 2026.09.28 (November 2026). A manifest that
+fails the schema is refused whole (`Invalid plugin manifest: ...`):
+
+| Field | Accepts | Rejects |
+| --- | --- | --- |
+| `repository` | a URL string | the `{ type, url }` object |
+| `author` | an object with a non-empty `name`; `email` optional | an object without `name` (`Author name is required`). `url` is not in the schema and is dropped without error |
+| `keywords` | a string array | — |
+
+The build writes an object `repository` as its `url` string (`--verbose` prints `~ repository: ...`),
+and leaves an `author` with no `name` out of `.cursor-plugin/plugin.json` with a warning that names
+the field.
+
 ## Components
 
 Cursor reads `skills`, `commands`, `agents`, `rules`, `hooks`, and `mcpServers`. Its manifest schema

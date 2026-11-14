@@ -28,9 +28,9 @@ Only ten top-level fields exist: `$schema`, `name`, `version`, `description`, `a
 | --- | --- | --- |
 | `version` | string | semver. **Required by Codex** — build fails if absent. |
 | `description` | string | ≤ 1024 chars. **Required by Codex** — build fails if absent. |
-| `author` | object | `{ name, email, url }` — all sub-fields optional. |
+| `author` | object | `{ name, email, url }` — all sub-fields optional in the spec. **Set `name`**: Claude Code and Cursor reject an `author` without one, so build leaves it out of their manifests and warns. |
 | `homepage` | string | URL. |
-| `repository` | string \| object | URL string or `{ type, url }` object. |
+| `repository` | string \| object | URL string or `{ type, url }` object. **Write the string**: Claude Code, Cursor, and Codex (when it reads root `plugin.json`) accept only the string. Build writes an object's `url` into each derived manifest, but Codex reads the canonical object and refuses the plugin, and build warns. |
 | `license` | string | SPDX identifier (e.g. `"MIT"`). |
 | `keywords` | string[] | Searchable tags for marketplace discovery. |
 
@@ -133,7 +133,12 @@ Build reads root `plugin.json`, applies the rules below, writes each vendor's ou
 | `name` | ✓ required | ✓ required | ✓ required | ✓ required |
 | `version` | ✓ optional | ✓ optional | ✓ **required** | ✓ optional |
 | `description` | ✓ optional | ✓ optional | ✓ **required** | ✓ optional |
-| `author`, `homepage`, `repository`, `license`, `keywords` | ✓ | ✓ | ✓ | ✓ |
+| `author` | ✓ `name` required | ✓ `name` required | ✓ | ✓ |
+| `repository` string | ✓ | ✓ | ✓ | ✓ |
+| `repository` object | build writes the `url` | build writes the `url` | ✗ with an Agent Plugins `$schema` (Codex reads the canonical file); otherwise ignored | ✓ |
+| `homepage`, `license`, `keywords` | ✓ | ✓ | ✓ | ✓ |
+
+Each vendor's reference file in `init-universal-plugin` (`references/vendors/<vendor>.md`) records how each form was checked.
 
 ### Component path field mapping
 

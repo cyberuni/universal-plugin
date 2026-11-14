@@ -1634,3 +1634,69 @@ describe('buildPlugin — pnpm names beside skill references', () => {
 		expect(read('a/SKILL.md')).not.toContain('pnpm install')
 	})
 })
+
+describe('buildPlugin — shared metadata forms (issue #260)', () => {
+	const repository = { type: 'git', url: 'https://github.com/a/b' }
+
+	function readJson(relPath: string): Record<string, unknown> {
+		return JSON.parse(fs.readFileSync(path.join(dir, relPath), 'utf8'))
+	}
+
+	it('writes an object repository as its url into every derived manifest, and keeps it in plugin.json', () => {
+		writeManifest({
+			name: 'my-plugin',
+			version: '1.0.0',
+			description: 'd',
+			repository,
+			extensions: up({ harnesses: { 'claude-code': {}, cursor: {}, codex: {}, 'copilot-cli': {} } }),
+		})
+		const result = buildPlugin(dir)
+		for (const rel of ['.claude-plugin/plugin.json', '.cursor-plugin/plugin.json', '.codex-plugin/plugin.json']) {
+			expect(readJson(rel)['repository']).toBe('https://github.com/a/b')
+		}
+		expect(readJson('plugin.json')['repository']).toEqual(repository)
+		// No $schema, so codex reads .codex-plugin/plugin.json, and copilot-cli accepts the object form.
+		expect(result.warnings).toEqual([])
+	})
+
+	it('says in --verbose output that it converted the repository', () => {
+		writeManifest({ name: 'my-plugin', repository, extensions: up({ harnesses: { 'claude-code': {} } }) })
+		const logged: string[] = []
+		const original = console.log
+		console.log = (line: string) => logged.push(line)
+		try {
+			buildPlugin(dir, { verbose: true })
+		} finally {
+			console.log = original
+		}
+		expect(logged).toContain('  ~ repository: the { type, url } object is written as its url string')
+	})
+
+	it('warns, naming the field and codex, when codex reads a canonical manifest with an object repository', () => {
+		writeManifest({
+			$schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json',
+			name: 'my-plugin',
+			version: '1.0.0',
+			description: 'd',
+			repository,
+			extensions: up({ harnesses: { codex: {} } }),
+		})
+		const result = buildPlugin(dir)
+		expect(result.warnings).toEqual([
+			'codex reads the canonical plugin.json and rejects repository as an object, so it will not load this plugin — write repository as the URL string in plugin.json',
+		])
+	})
+
+	it('leaves an author without a name out of the claude-code manifest and warns', () => {
+		writeManifest({
+			name: 'my-plugin',
+			author: { email: 'a@b.c' },
+			extensions: up({ harnesses: { 'claude-code': {} } }),
+		})
+		const result = buildPlugin(dir)
+		expect(readJson('.claude-plugin/plugin.json')).not.toHaveProperty('author')
+		expect(result.warnings).toEqual([
+			'claude-code rejects an author without a name — left out of the derived manifest; set author.name in plugin.json',
+		])
+	})
+})

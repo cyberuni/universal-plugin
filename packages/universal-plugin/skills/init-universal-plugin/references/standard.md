@@ -29,6 +29,19 @@ is derived from it.
 }
 ```
 
+Write `repository` as a URL string and give `author` a `name`. The spec also allows a
+`{ type, url }` object for `repository` and an `author` without a `name`, but some runtimes refuse
+both:
+
+| Form | Refused by | What the build does |
+| --- | --- | --- |
+| `repository` as `{ type, url }` | Claude Code, Cursor; Codex when `$schema` is the Agent Plugins schema | writes the `url` string into each derived manifest; warns for Codex, which reads the canonical file |
+| `author` without `name` | Claude Code, Cursor | leaves `author` out of their manifests and warns |
+
+Copilot CLI accepts every form. `keywords` is a string array everywhere. The vendor files record how
+each was checked. Copying `package.json`'s `repository` object when adopting an npm package is the
+usual way to hit this.
+
 The spec's top level holds the shared metadata. Everything universal-plugin needs to run a build
 lives under one namespaced key, `extensions["org.cyberuni.universal-plugin"]`:
 
