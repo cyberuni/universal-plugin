@@ -56,7 +56,9 @@ under `--npm`. Fill in the Step 1
 metadata and the `harnesses` overrides by hand afterwards; [`standard.md`](./standard.md) shows the
 finished shape.
 
-Then create the component files from `../assets/templates/`:
+Then create the component files from `../assets/templates/`. Write each skill with the `skill`
+skill in the `cyber-agentkit` plugin (`create <skill-name>`), starting from the template below, rather
+than by hand:
 
 | File to create | Template |
 |----------------|----------|
@@ -83,14 +85,9 @@ delivery path at all.
 
 ## Step 6 — Audit the skills
 
-Run the mechanical validator from the aced **improve-skill** skill:
-
-```bash
-node "<path to aced improve-skill>/scripts/validate.mjs" --path skills/<skill-name>
-```
-
-Fix every CRITICAL finding, then invoke the `aced:improve-skill` skill for the full review.
-[`frontmatter.md`](./frontmatter.md) covers what has to hold across runtimes.
+Check each skill with the `skill` skill in the `cyber-agentkit` plugin (`check <skill-name>`), and
+repair every critical failure it reports with its `fix`. [`frontmatter.md`](./frontmatter.md)
+covers what has to hold across runtimes.
 
 ## Step 7 — Build
 
