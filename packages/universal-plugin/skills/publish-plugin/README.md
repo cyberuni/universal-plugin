@@ -71,3 +71,10 @@ pull request can do. They compose rather than overlap: a plugin can have both a 
 
 - [Spec](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/spec.md)
 - `references/vendor-requirements.md` — required fields and hook casing rules per runtime
+- `references/entry-shapes.md` — the Claude Code and Cursor entry shapes, for an add
+- `references/npm-distribution.md` — confirming a plugin that ships in its own npm package
+- `references/dependencies.md` — sorting and resolving the plugin's dependencies
+- `references/curated-submission.md` — drafting a submission for a marketplace that takes no PRs
+- `references/failure-modes.md` — symptoms and fixes
+- `assets/pr-body.md` — the pull request body
+- `evals/evals.yaml` — trigger and outcome cases for `/skill test`

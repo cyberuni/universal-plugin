@@ -1,0 +1,12 @@
+{
+	"$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+	"name": "ai-commit",
+	"version": "1.2.0",
+	"description": "Example plugin ai-commit used in a skill test.",
+	"author": {
+		"name": "Example Author"
+	},
+	"homepage": "https://github.com/example-org/ai-commit",
+	"repository": "https://github.com/example-org/ai-commit",
+	"license": "MIT"
+}
