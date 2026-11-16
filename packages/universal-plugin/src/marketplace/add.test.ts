@@ -50,6 +50,7 @@ test('creates a catalog for a repository that develops no plugins of its own', (
 				entry: 'repobuddy',
 				source: 'npm:repobuddy',
 				path: '.claude-plugin/marketplace.json',
+				missing: ['description', 'homepage', 'repository', 'license', 'keywords'],
 			},
 		])
 		expect(readJson(root, '.claude-plugin/marketplace.json')).toMatchObject({
@@ -128,6 +129,36 @@ test('an installed npm package supplies its own metadata, and flags win over it'
 			version: '1.4.0',
 			description: 'from the flag',
 		})
+	} finally {
+		fs.rmSync(root, { recursive: true, force: true })
+	}
+})
+
+test('a result row names the descriptive metadata the entry lacks, and only those (#264)', () => {
+	const root = fixture('universal-plugin-add-missing-')
+	try {
+		const result = addToMarketplace(root, 'cyberuni/universal-plugin', {
+			targets: ['claude', 'codex'],
+			metadata: { description: 'Cross-runtime plugins', license: 'MIT', version: '1.0.0' },
+		})
+
+		expect(result.map((row) => row.missing)).toEqual([
+			['homepage', 'repository', 'keywords'],
+			['homepage', 'repository', 'keywords'],
+		])
+
+		const full = addToMarketplace(root, 'npm:repobuddy', {
+			targets: ['claude'],
+			metadata: {
+				description: 'Repo automation',
+				homepage: 'https://example.org',
+				repository: 'https://github.com/repobuddy/repobuddy',
+				license: 'MIT',
+				keywords: ['repo'],
+			},
+		})
+		// `version` is not descriptive: an entry pinned by its source carries none by design.
+		expect(full[0]).not.toHaveProperty('missing')
 	} finally {
 		fs.rmSync(root, { recursive: true, force: true })
 	}

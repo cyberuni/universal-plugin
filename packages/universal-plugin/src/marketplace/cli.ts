@@ -150,6 +150,13 @@ function addCommand(): Command {
 				for (const row of results.filter((row) => row.status === 'skipped')) {
 					process.stderr.write(`skipped ${row.target}: ${row.reason}\n`)
 				}
+				const lacking = results.find((row) => row.missing !== undefined)
+				if (lacking?.missing !== undefined) {
+					const flags = lacking.missing.map((field) => `--${field}`).join(', ')
+					process.stderr.write(
+						`"${lacking.entry}" has no ${lacking.missing.join(', ')}; nothing is fetched, so pass ${flags} to fill them.\n`,
+					)
+				}
 				process.stderr.write(
 					`${opts.dryRun ? 'Planned' : 'Wrote'} repository metadata only; no marketplace publication, registration, installation, authentication, or provisioning occurred.\n`,
 				)

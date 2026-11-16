@@ -84,7 +84,9 @@ Nothing is fetched. The command reads what is already on this machine and takes 
 
 Flags fill or override the gaps: `--description`, `--version`, `--homepage`, `--repository`,
 `--license`, `--keywords` (comma-separated). Ask the user for a description at minimum; an entry
-with only a name tells a browsing user nothing.
+with only a name tells a browsing user nothing. For a git or npm spec, read the fields from the
+plugin's `plugin.json` when you can see it. The command's stderr, and each row's `missing` in
+`--format json`, name the fields the entry still lacks.
 
 `--name` overrides the entry name, which otherwise comes from the spec: the package name without its
 scope, the repository name, or the directory name.

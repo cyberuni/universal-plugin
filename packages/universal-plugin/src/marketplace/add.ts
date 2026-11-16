@@ -42,6 +42,17 @@ export const ENTRY_METADATA_FIELDS = [
 
 export type EntryMetadataField = (typeof ENTRY_METADATA_FIELDS)[number]
 
+/** The fields a result row names when the entry lacks them, because nothing here filled them and
+ *  nothing is fetched (issue #264). `version` is not one: an entry pinned by its source, or
+ *  following its default branch, carries none by design. */
+export const DESCRIPTIVE_METADATA_FIELDS = [
+	'description',
+	'homepage',
+	'repository',
+	'license',
+	'keywords',
+] as const satisfies readonly EntryMetadataField[]
+
 export interface MarketplaceAddOptions {
 	targets?: MarketplaceTarget[]
 	/** Overrides the guess `parsePluginSpec` would make about what the spec names. */
@@ -72,6 +83,8 @@ export interface MarketplaceAddResult {
 	source: string
 	path: string
 	reason?: string
+	/** The descriptive fields the written entry lacks, which only the metadata flags can supply. */
+	missing?: EntryMetadataField[]
 }
 
 /** A source rendered for the result table — one short cell, not a JSON blob. */
@@ -255,6 +268,8 @@ export function addToMarketplace(
 		metadata: entryMetadata(resolved.metadata, opts.metadata),
 	}
 	const rendered = describeSource(resolved.source)
+	const missing = DESCRIPTIVE_METADATA_FIELDS.filter((field) => plugin.metadata[field] === undefined)
+	const lacking = missing.length > 0 ? { missing } : {}
 
 	const targets = selectedTargets(opts.targets)
 	const readCatalogFile = (target: MarketplaceTarget) => {
@@ -348,13 +363,13 @@ export function addToMarketplace(
 		const row = { target: entry.target, entry: name, source: rendered, path: entry.catalogPath }
 		if (entry.skipped) return { ...row, status: 'skipped' as const, reason: entry.skipped }
 		if (!entry.artifact) return { ...row, status: 'skipped' as const }
-		const mapped = 'mapped' in entry ? { reason: entry.mapped } : {}
+		const detail = { ...('mapped' in entry ? { reason: entry.mapped } : {}), ...lacking }
 		if (entry.existing !== undefined && sameCatalogContent(entry.existing, entry.artifact.content)) {
-			return { ...row, ...mapped, status: 'unchanged' as const }
+			return { ...row, ...detail, status: 'unchanged' as const }
 		}
-		if (opts.dryRun) return { ...row, ...mapped, status: 'planned' as const }
+		if (opts.dryRun) return { ...row, ...detail, status: 'planned' as const }
 		const existed = entry.existing !== undefined && catalogEntry(entry.existing, name) !== undefined
-		return { ...row, ...mapped, status: existed ? ('updated' as const) : ('added' as const) }
+		return { ...row, ...detail, status: existed ? ('updated' as const) : ('added' as const) }
 	})
 
 	if (!opts.dryRun) {

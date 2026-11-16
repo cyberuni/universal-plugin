@@ -142,6 +142,8 @@ here.
 Nothing is fetched. Metadata comes from the plugin's own `plugin.json` for a path, from an installed
 `node_modules` copy for a package, from the entry being copied for a marketplace spec, and otherwise
 from `--description`, `--version`, `--homepage`, `--repository`, `--license`, and `--keywords`.
+When the entry still lacks a `description`, `homepage`, `repository`, `license`, or `keywords`,
+stderr names the flags that would fill them, and each row in `--format json` lists them as `missing`.
 
 `<plugin>@<marketplace>` has no source type in the schema, so the entry is resolved and copied. The
 marketplace has to be readable: one the runtime has already added is found under
