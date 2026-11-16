@@ -1,0 +1,19 @@
+{
+	"$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+	"name": "code-formatter",
+	"version": "0.3.0",
+	"description": "Example plugin code-formatter used in a skill test.",
+	"author": {
+		"name": "Example Author"
+	},
+	"homepage": "https://github.com/example-org/code-formatter",
+	"repository": "https://github.com/example-org/code-formatter",
+	"extensions": {
+		"org.cyberuni.universal-plugin": {
+			"harnesses": {
+				"claude-code": {},
+				"codex": {}
+			}
+		}
+	}
+}

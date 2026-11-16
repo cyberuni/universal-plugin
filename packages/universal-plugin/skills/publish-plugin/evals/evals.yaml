@@ -1,0 +1,136 @@
+runs: 3
+threshold: 2
+trigger:
+  - prompt: publish my plugin to the marketplace
+    expect: fire
+  - prompt: I just released v1.1.0 of my plugin, get the new version into cyber-uni/marketplace
+    expect: fire
+  - prompt: submit this plugin to acme/plugins so people can install it in Cursor and Claude Code
+    expect: fire
+  - prompt: update the marketplace listing for ai-commit to the version I just tagged
+    expect: fire
+  - prompt: set up a marketplace catalog in this repo so users can add it directly
+    expect: skip
+  - prompt: bump the plugin version to 1.2.0
+    expect: skip
+  - prompt: take my plugin out of the cyber-uni marketplace
+    expect: skip
+  - prompt: build the vendor manifests for this plugin
+    expect: skip
+outcome:
+  - id: fallback-target
+    prompt: >-
+      Publish my plugin git-summary (the cwd is its repository). I approve each step; don't ask
+      again. Stop before cloning or opening anything if a step cannot run here.
+    files: files/fallback-target
+    criteria: [C1]
+    network: [registry.npmjs.org]
+  - id: missing-release
+    prompt: >-
+      I bumped ai-commit to 1.2.0 in plugin.json (the cwd is its repository). Release it to
+      acme/plugins. I approve each step; don't ask again.
+    files: files/missing-release
+    criteria: [C3]
+    network: [registry.npmjs.org]
+  - id: preflight-fail
+    prompt: >-
+      Check whether my code-formatter plugin (the cwd) is ready, then submit it to acme/plugins. I
+      approve each step; don't ask again.
+    files: files/preflight-fail
+    criteria: [C2]
+    network: [registry.npmjs.org]
+  - id: add-new
+    prompt: Publish git-summary v0.1.0 (tag git-summary@0.1.0 exists) to cyber-uni/marketplace. It has never been listed there.
+    criteria: [C4, C9]
+    effects: outside
+  - id: update-in-place
+    prompt: >-
+      My plugin ai-commit is listed in the universal marketplace at version 1.0.0. I've just
+      released v1.1.0 (tag ai-commit@1.1.0) with some new hooks. Publish the new version.
+    criteria: [C4, C9]
+    effects: outside
+  - id: already-published
+    prompt: Publish my plugin ai-commit (plugin.json says 1.1.0) to cyber-uni/marketplace.
+    criteria: [C5]
+    effects: outside
+  - id: monorepo-subdir
+    prompt: >-
+      My plugin foo lives at packages/foo/plugin.json inside a monorepo (the repo root only has a
+      marketplace.json catalog, no plugin.json). Publish it to example-org/plugins.
+    criteria: [C6, C9]
+    effects: outside
+    checks:
+      C6:
+        - regex: '"source": "git-subdir"'
+        - regex: '"path": "packages/foo"'
+  - id: cwd-is-marketplace
+    prompt: >-
+      I'm a maintainer of example-org/plugins and I already have it checked out here. I want to add
+      a plugin called db-migrate that lives at github.com/example-user/db-migrate. Add it.
+    criteria: [C6]
+    effects: outside
+  - id: npm-package
+    prompt: >-
+      Publish clibuilder 12.4.0 to cyber-uni/marketplace. The plugin lives at packages/clibuilder in
+      clibuilder/clibuilder; that folder's package.json is public and its files list plugin.json,
+      skills/ and the vendor manifests. .agents/universal-plugin.json declares no packagePath.
+    criteria: [C6]
+    effects: outside
+    checks:
+      C6:
+        - regex: '"source": "npm"'
+        - regex: 'git-subdir'
+        - regex: 'packagePath'
+  - id: dependencies
+    prompt: >-
+      Publish buddy-agent-harness (the cwd) to example-org/plugins. Its plugin.json declares
+      dependencies ["agent-harness", { "name": "cyber-asana", "marketplace": "cyberuni" }].
+      example-org/plugins's .claude-plugin/marketplace.json does not list agent-harness and has no
+      allowCrossMarketplaceDependenciesOn.
+    criteria: [C7]
+    effects: outside
+  - id: curated-target
+    prompt: >-
+      Publish cyber-asana (a monorepo with the plugin at packages/cyber-asana, released as tag
+      cyber-asana@1.2.0) to anthropics/claude-plugins-official. Its plugin.json declares the plain
+      dependency "cyber-agentkit".
+    criteria: [C7, C8]
+    effects: outside
+  - id: configured-targets
+    prompt: >-
+      Publish my plugin git-summary (the cwd). Its .agents/universal-plugin.json has
+      "marketplaces": [{"name":"cyber-uni","repo":"cyber-uni/marketplace"},{"name":"team","repo":"example-org/plugins"}].
+    criteria: [C1, C9]
+    effects: outside
+  - id: named-target
+    prompt: >-
+      Publish my plugin git-summary to team. Its .agents/universal-plugin.json has
+      "marketplaces": [{"name":"cyber-uni","repo":"cyber-uni/marketplace"},{"name":"team","repo":"example-org/plugins"}].
+    criteria: [C1]
+    effects: outside
+rubrics:
+  C1:
+    - regex: "([Nn]amed in the request|universal-plugin\\.json|`marketplaces`|[Ff]allback)"
+  C2:
+    - regex: '[Ll]icense'
+    - regex: '([Ff]ail|[Mm]issing)'
+    - script: '! git status --porcelain | grep -q marketplace.json'
+  C3:
+    - regex: "(ai-commit@1\\.2\\.0|v1\\.2\\.0)"
+    - regex: '([Nn]ot (been )?(pushed|released|found)|does not exist|[Mm]issing|[Nn]o (such )?(release|tag))'
+    - script: '! git status --porcelain | grep -q marketplace.json && test -z "$(git branch --list ''add-*'' ''publish-*'')"'
+  C4:
+    - judge: Pass when each catalog the marketplace carries holds exactly one entry for the plugin, pinned to this release, and every curator field an existing entry had is unchanged.
+  C5:
+    - regex: '[Aa]lready (published|listed)'
+    - not-regex: '(gh pr create|[Pp]ull request opened|[Oo]pened (a|the) PR)'
+  C6:
+    - not-regex: "\"url\": \"https://github\\.com/(example-org/plugins|cyber-uni/marketplace)"
+  C7:
+    - regex: 'allowCrossMarketplaceDependenciesOn'
+  C8:
+    - not-regex: '(gh repo fork|gh repo clone|gh pr create)'
+    - regex: '([Ff]orm|[Ss]ubmission)'
+  C9:
+    - regex: 'marketplace validate'
+    - regex: "https://github\\.com/[^/\\s]+/[^/\\s]+/pull/\\d+"
