@@ -63,6 +63,21 @@ outcome:
       C6:
         - regex: '"source": "git-subdir"'
         - regex: '"path": "packages/foo"'
+  - id: add-metadata
+    prompt: >-
+      Publish git-summary v0.1.0 (tag git-summary@0.1.0 exists) from github.com/example-org/git-summary
+      to example-org/plugins, which has never listed it. Its plugin.json declares description "Summarize
+      git history", homepage https://example.org/git-summary, repository { "type": "git", "url":
+      "https://github.com/example-org/git-summary" }, license MIT, and keywords ["git", "summary"].
+    criteria: [C10]
+    effects: outside
+    checks:
+      C10:
+        - regex: '--description'
+        - regex: '--homepage'
+        - regex: '--repository[ =]"?https://github\.com/example-org/git-summary'
+        - regex: '--license'
+        - regex: '--keywords[ =]"?git,summary'
   - id: cwd-is-marketplace
     prompt: >-
       I'm a maintainer of example-org/plugins and I already have it checked out here. I want to add
