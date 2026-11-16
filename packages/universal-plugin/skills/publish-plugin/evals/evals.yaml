@@ -79,8 +79,8 @@ outcome:
     checks:
       C6:
         - regex: '"source": "npm"'
-        - regex: "git-subdir"
-        - regex: "packagePath"
+        - regex: 'git-subdir'
+        - regex: 'packagePath'
   - id: dependencies
     prompt: >-
       Publish buddy-agent-harness (the cwd) to example-org/plugins. Its plugin.json declares
@@ -112,25 +112,25 @@ rubrics:
   C1:
     - regex: "([Nn]amed in the request|universal-plugin\\.json|`marketplaces`|[Ff]allback)"
   C2:
-    - regex: "[Ll]icense"
-    - regex: "([Ff]ail|[Mm]issing)"
-    - script: "! git status --porcelain | grep -q marketplace.json"
+    - regex: '[Ll]icense'
+    - regex: '([Ff]ail|[Mm]issing)'
+    - script: '! git status --porcelain | grep -q marketplace.json'
   C3:
     - regex: "(ai-commit@1\\.2\\.0|v1\\.2\\.0)"
-    - regex: "([Nn]ot (been )?(pushed|released|found)|does not exist|[Mm]issing|[Nn]o (such )?(release|tag))"
+    - regex: '([Nn]ot (been )?(pushed|released|found)|does not exist|[Mm]issing|[Nn]o (such )?(release|tag))'
     - script: '! git status --porcelain | grep -q marketplace.json && test -z "$(git branch --list ''add-*'' ''publish-*'')"'
   C4:
     - judge: Pass when each catalog the marketplace carries holds exactly one entry for the plugin, pinned to this release, and every curator field an existing entry had is unchanged.
   C5:
-    - regex: "[Aa]lready (published|listed)"
-    - not-regex: "(gh pr create|[Pp]ull request opened|[Oo]pened (a|the) PR)"
+    - regex: '[Aa]lready (published|listed)'
+    - not-regex: '(gh pr create|[Pp]ull request opened|[Oo]pened (a|the) PR)'
   C6:
     - not-regex: "\"url\": \"https://github\\.com/(example-org/plugins|cyber-uni/marketplace)"
   C7:
-    - regex: "allowCrossMarketplaceDependenciesOn"
+    - regex: 'allowCrossMarketplaceDependenciesOn'
   C8:
-    - not-regex: "(gh repo fork|gh repo clone|gh pr create)"
-    - regex: "([Ff]orm|[Ss]ubmission)"
+    - not-regex: '(gh repo fork|gh repo clone|gh pr create)'
+    - regex: '([Ff]orm|[Ss]ubmission)'
   C9:
-    - regex: "marketplace validate"
+    - regex: 'marketplace validate'
     - regex: "https://github\\.com/[^/\\s]+/[^/\\s]+/pull/\\d+"
