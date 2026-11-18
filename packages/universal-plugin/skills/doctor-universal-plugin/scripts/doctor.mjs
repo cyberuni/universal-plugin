@@ -211,6 +211,7 @@ if (manifest.version !== void 0 && npmPackagePath === null && releaseTool() === 
 		}
 	}
 }
+for (const finding of ownPackageRunnerFindings()) add(...finding);
 for (const finding of changesetsReleaseFindings()) add(...finding);
 for (const finding of releasePleaseReleaseFindings()) add(...finding);
 for (const file of releaseItConfigsWithoutStamp()) add("release-it-no-stamp", "high", `${file} configures release-it, but no hook runs plugin version — the release is tagged with plugin.json and the vendor manifests still on the previous version`, "add \"hooks\": { \"after:bump\": \"universal-plugin plugin version ${version}\" } to the release-it config");
@@ -238,6 +239,43 @@ function invalidCatalogs(extraRoots) {
 			catalogRoot,
 			own
 		})) : [];
+	});
+}
+/** Lines of shipped skill and agent Markdown that run `npx` or `upx` on this plugin's own package.
+*  One finding per file, naming each line. Advisory: only Claude Code's Bash tool from an npm-sourced
+*  install is verified to put `bin/` on PATH, so the repair never claims more than that. */
+function ownPackageRunnerFindings() {
+	const pkgRoot = path.join(root, npmPackagePath ?? ".");
+	const name = readJson(path.join(pkgRoot, "package.json"))?.name;
+	if (typeof name !== "string" || name === "") return [];
+	const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+	const runner = new RegExp(`\\b(?:npx|upx)\\s+(?:-{1,2}[\\w-]+\\s+)*${escaped}(?![\\w./-])`);
+	const launchers = typeof ext?.launchers === "object" && ext.launchers !== null && !Array.isArray(ext.launchers) ? ext.launchers : {};
+	const names = Object.keys(launchers);
+	const command = names.includes(name) ? name : names[0] ?? name;
+	const caveat = "Verified only for Claude Code's Bash tool from an npm-sourced install; hooks, MCP servers, Cursor, Codex, Copilot CLI and Windows are untested, so keep the runner where a skill must work there";
+	const repair = names.length > 0 ? `call the launcher \`${command}\` bare instead (plugin build writes bin/${command}). ${caveat}` : `declare a launcher in plugin.json under extensions["${UP_NAMESPACE}"].launchers (for example { "${name}": "dist/cli.js" }), run plugin build, then call \`${name}\` bare. ${caveat}`;
+	const out = [];
+	for (const file of ["skills", "agents"].flatMap((dir) => markdownFiles(path.join(root, dir)))) {
+		const lines = fs.readFileSync(file, "utf8").split("\n").flatMap((line, i) => runner.test(line) ? [i + 1] : []);
+		if (lines.length === 0) continue;
+		const rel = path.relative(root, file).split(path.sep).join("/");
+		out.push([
+			"own-package-runner",
+			"low",
+			`${lines.map((n) => `${rel}:${n}`).join(", ")} runs \`npx\` or \`upx\` on this plugin's own package ${name}, which fetches and runs code at call time and matches no permission rule for the bare command`,
+			repair
+		]);
+	}
+	return out;
+}
+/** Every `.md` file under `dir`, skipping `node_modules`; empty when `dir` does not exist. */
+function markdownFiles(dir) {
+	if (!fs.existsSync(dir)) return [];
+	return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+		const full = path.join(dir, entry.name);
+		if (entry.isDirectory()) return entry.name === "node_modules" ? [] : markdownFiles(full);
+		return entry.name.endsWith(".md") ? [full] : [];
 	});
 }
 /** The release-config gaps of a non-npm plugin in a changesets repository: no `packagePath`, and a

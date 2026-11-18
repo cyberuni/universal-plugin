@@ -306,6 +306,11 @@ not a build step.
   - **What is verified.** Claude Code puts a plugin's `bin/` on the Bash tool's `PATH`, after the user's
     own, so a launcher cannot shadow a system command. Verified for an npm-sourced install only. Hooks, MCP
     server processes, Cursor, Codex, Copilot CLI and Windows are untested; nothing here claims them.
+  - **Doctor reports the old way.** `doctor-universal-plugin` emits an `own-package-runner` finding
+    (severity `low`, never an error) for each skill or agent Markdown file that runs `npx` or `upx` on the
+    plugin's own package, naming `file:line`. The repair says to call the launcher bare, or to declare one
+    when none is, and repeats the verified scope above. The finding is advisory because a pinned `npx`
+    fallback is still the way to reach runtimes where `bin/` is untested.
 - **A skill's links stay inside its folder** — pnpm links or copies each skill folder on its own
   into an agent's skill directory, and a plugin cache keeps only what the plugin ships, so a skill
   does not always travel with its package (issue #177). A relative Markdown link (inline, image, or
@@ -596,6 +601,14 @@ Grouped by use case; 1:1 with [`build.feature`](./build.feature).
 | guard: missing entry | the entry is not built | `a launcher whose entry is missing exits 127 naming the pinned npx` |
 | guard: malformed | a name with a slash | `a malformed launchers declaration exits 1` |
 | files | `package.json` `files` without `bin` | `a files list that omits bin warns` |
+
+### Doctor reports `npx <own package>`
+
+| Edge | Path (Given) | Scenario |
+| --- | --- | --- |
+| warn | a skill runs `npx <own package>` | `doctor warns with file and line when a skill runs npx on the own package` |
+| not own | `npx` on another package, or a longer name | `doctor ignores npx on another package` |
+| scope | any finding | `the doctor warning claims only the verified Claude Code case` |
 
 ### A skill's links stay inside its folder
 
