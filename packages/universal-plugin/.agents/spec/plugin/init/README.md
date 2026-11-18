@@ -32,6 +32,17 @@ Every command follows the AXI output contract ([../../axi/](../../axi/README.md)
   follow the package version on every Version Packages PR. Changesets runs no npm lifecycle scripts,
   and changesets/action calls the workspace root's `version` script, so that script is the only hook:
   `changeset version && universal-plugin plugin version --from-package --root <plugin-root>`.
+- **Build and check scripts** — `plugin init` offers three `package.json` scripts so a CI job or author
+  can run the checks by name, whether or not the repository uses changesets:
+  `build` (`universal-plugin plugin build`), `check` (`universal-plugin plugin build --check`), and
+  `check-version` (`universal-plugin publish check-version`). Each carries `--root <plugin-root>`,
+  omitted when the plugin root is the repository root. They go into the repository root's
+  `package.json`, with `universal-plugin` added to its devDependencies when absent. A script that
+  already exists under a name is never overwritten, whatever its value: init prints
+  `"<name>": "<command>"` to append, and stays silent when the value already equals the command.
+  Without a `package.json` init creates none for these scripts; it prints the three lines and says no
+  `package.json` exists. Re-running changes nothing. The skill asks first; `--no-scripts` is the
+  decline.
 - **Ship on publish** — an npm package declares which files travel in its tarball via `package.json`
   `files`; `--npm` adds the **open-standard base** — the canonical root `plugin.json` and the skills
   directory — plus each selected vendor's derived manifest. The base is unconditional: the standard
