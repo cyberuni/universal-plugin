@@ -1070,3 +1070,21 @@ Feature: plugin build — derive per-vendor manifests
     Given a launcher is declared and the package's "files" is ["dist"]
     When I run "universal-plugin plugin build"
     Then stderr contains "does not list \"bin\""
+
+  Scenario: doctor warns with file and line when a skill runs npx on the own package
+    Given the plugin's package is "demo-pkg" and "skills/demo/SKILL.md" line 9 runs "npx -y demo-pkg@1.0.0 build"
+    When I run the doctor script
+    Then it reports an "own-package-runner" finding with severity "low"
+    And the detail contains "skills/demo/SKILL.md:9"
+    And the repair names the bare launcher command
+
+  Scenario: doctor ignores npx on another package
+    Given a skill runs "npx other-tool build" and "npx demo-pkg-extra build"
+    When I run the doctor script
+    Then it reports no "own-package-runner" finding
+
+  Scenario: the doctor warning claims only the verified Claude Code case
+    Given a skill runs "npx demo-pkg build"
+    When I run the doctor script
+    Then the repair mentions Claude Code's Bash tool
+    And the repair says hooks, MCP servers, Cursor, Codex, Copilot CLI and Windows are untested
