@@ -179,67 +179,29 @@ script that is behind only on its version is reported there, as `version-drift`,
 
 ## Running the plugin's own CLI from a skill
 
-A skill that runs a CLI calls a forwarding script named after it, not `npx` and not a bare command on
-`PATH`
+A skill runs a CLI through a forwarding script named after it
 ([ADR-0022](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/design/decisions/0022-skills-run-the-own-cli-through-a-forwarding-script.md)).
-Declare one `forward` entry in each skill that runs the CLI:
+[Running your CLI from skills](../../concepts/running-your-cli-from-skills/) explains the approach, how
+the forwarder picks a CLI, and the release wiring. This section lists what the build does with it.
 
 ```json
 "scripts": {
-  "skills/tasks/scripts/tasks.mjs": { "forward": "tasks" }
+  "skills/tasks/scripts/tasks.mjs": { "forward": "tasks" },
+  "skills/tasks/scripts/other-cli.mjs": { "forward": "other-cli", "package": "other-pkg", "version": "2.1.0" }
 }
 ```
 
-`tasks` is a bin of the `package.json` at `packagePath`, and the file must be named `tasks.mjs`. The
-build writes the forwarder from a template; it compiles nothing. The skill calls it with `node` and
-the same arguments it would give the CLI:
-
-```sh
-node <this skill's folder>/scripts/tasks.mjs task get 42
-```
-
-The forwarder holds none of the CLI's code, so no command can be missed. At run time it picks the CLI:
-
-- **In a checkout of the package**, it walks up from its own real path to the `package.json` whose
-  `name` is the package and whose `bin` has the CLI, and runs that bin with `node`. Testing a skill
-  exercises your local change. When `dist/` (or the bin file, with no `dist/`) is older than the
-  newest file under `src/`, it warns on stderr that you need to rebuild. It never runs from source.
-- **Anywhere else** (an installed skill, a copied skill folder, a plugin cache), it runs
-  `npx -y <package>@<version>`. The version is the one the build wrote into it.
-
-Every argument, stdio and the exit code pass through. Keep these in mind:
-
-- **Write `node` in front.** The forwarder has no hashbang and needs no executable bit. Windows and a
-  copy that drops the file mode run neither.
-- **Write no fallback beside it, and no `@<version>`.** The forwarder already falls back to `npx`.
-- **One per skill.** A skill folder is linked or copied on its own, so a skill never calls a
-  forwarder in another skill's folder.
-
-The version comes from `plugin.json`, never `package.json`, and `plugin version` restamps it, so the
-release step that stamps `plugin.json` keeps the forwarders current:
-
-- **changesets:** `changeset version && universal-plugin plugin version`.
-- **semantic-release:** `@semantic-release/exec` runs `universal-plugin plugin version
-  ${nextRelease.version}` in `prepare`, and `@semantic-release/git` commits the stamped files. Its
-  `assets` must include `skills/**`, which holds the forwarders. The
-  [full config](../../skills/init-universal-plugin/#releasing-with-semantic-release) is on the
-  `init-universal-plugin` page.
-
-`plugin build --check` reports a forwarder `missing`, `stale`, or `version` like any other script, and
-`publish check-version` compares its version with the rest.
-
-For a CLI that another package ships, name the package and pin its version:
-
-```json
-"skills/tasks/scripts/other-cli.mjs": { "forward": "other-cli", "package": "other-pkg", "version": "2.1.0" }
-```
-
-`plugin version` leaves that pin alone and `publish check-version` does not compare it; move it by
-editing the entry.
-
-[`doctor-universal-plugin`](../../skills/doctor-universal-plugin/) reports a skill line that runs the
-plugin's own package through a runner, and the *add a CLI forwarder* route of
-[`init-universal-plugin`](../../skills/init-universal-plugin/) sets a forwarder up.
+- **The own form** names a bin of the `package.json` at `packagePath`. The forwarder embeds that
+  package, the bin and `plugin.json`'s version, which `plugin version` restamps and
+  `publish check-version` compares.
+- **The pinned form** names another package and an exact version. No stamp moves it and no drift
+  check compares it; a changed pin makes the file `stale` until the next build.
+- **The file is written, not compiled.** It must be named `<bin>.mjs`, and it takes no `source`,
+  `command`, `alias` or `keepNames`. It has no hashbang; the skill runs it with `node`.
+- **Rows and `--check` treat it like any script:** `unchanged`, `missing`, `stale`, or `version`.
+- **A malformed entry fails and writes nothing:** a bin the own package does not declare, another
+  package without an exact `version`, a `version` on the own form, or a plugin that ships to no
+  package.
 
 ### Launchers are gone
 

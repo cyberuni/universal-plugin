@@ -141,34 +141,9 @@ of the CLI should run it through a forwarder instead of compiling it in.
 
 ### Run the plugin's CLI through a forwarder
 
-A skill that runs a CLI calls one forwarding script per CLI, which `plugin build` writes from a
-`forward` entry
-([ADR-0022](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/design/decisions/0022-skills-run-the-own-cli-through-a-forwarding-script.md)).
-universal-plugin's own skills do this:
-
-```json
-"scripts": {
-  "skills/build-plugin/scripts/universal-plugin.mjs": { "forward": "universal-plugin" },
-  "skills/version/scripts/universal-plugin.mjs": { "forward": "universal-plugin" }
-}
-```
-
-```sh
-node <this skill's folder>/scripts/universal-plugin.mjs plugin build --root .
-```
-
-The forwarder holds none of the CLI's code and passes every argument on. In a checkout of the package
-it runs the checkout's bin with `node`, so testing a skill runs your change, not the last release. A
-pinned `npx <pkg>@<version>` in skill text cannot do that: it always runs the release, and whether the
-agent swaps in the local build is up to the model. Anywhere else the forwarder runs
-`npx -y <pkg>@<version>`, with the version the build wrote into it and `plugin version` restamps. The
-scripts that stand alone, such as `doctor.mjs`, ask the CLI through the forwarder beside them. See
-[Running the plugin's own CLI from a skill](../../cli/build/#running-the-plugins-own-cli-from-a-skill).
-
-A skill with a forwarder writes no runner line for the same CLI.
-[`doctor-universal-plugin`](../../skills/doctor-universal-plugin/) reports such a line as
-`runner-beside-forwarder`. A `bin/<name>` launcher is no answer either: only Claude Code puts a
-plugin's `bin/` on `PATH`, and the build no longer writes one.
+A skill that runs its plugin's CLI calls a forwarding script per CLI with `node`, not a runner word. In
+a checkout it runs your local build, and anywhere else the pinned release. See
+[Running your CLI from skills](../running-your-cli-from-skills/).
 
 ### Pin `npx` where you call it directly
 
@@ -196,7 +171,7 @@ version, and `plugin version` stamps that version too.
 
 | Situation | Use |
 | --- | --- |
-| The CLI ships in the same plugin as the skill | A [forwarder](../../cli/build/#running-the-plugins-own-cli-from-a-skill) in the skill's `scripts/`, `{ "forward": "<bin>" }`, run as `node <this skill's folder>/scripts/<bin>.mjs`, with no runner line beside it |
+| The CLI ships in the same plugin as the skill | A [forwarder](../running-your-cli-from-skills/) in the skill's `scripts/`, `{ "forward": "<bin>" }`, run as `node <this skill's folder>/scripts/<bin>.mjs`, with no runner line beside it |
 | A skill runs another package's CLI | A forwarder that pins it: `{ "forward": "<bin>", "package": "<pkg>", "version": "<exact>" }` |
 | The CLI exposes a library API and you control the call site | Import in-process — no runner at all |
 | A skill shipped to unknown machines, or via a non-npm plugin source | `npx <pkg>@<exact>` |

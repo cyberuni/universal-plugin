@@ -51,7 +51,7 @@ node scripts/doctor.mjs
 A skill that runs the CLI calls `scripts/universal-plugin.mjs`, a forwarder that runs the CLI of the
 checkout it sits in, else the release pinned to the skill's version through `npx`. For your own
 plugin, declare a forwarder and call it with `node`: see
-[Running the plugin's own CLI from a skill](../../cli/build/#running-the-plugins-own-cli-from-a-skill).
+[Running your CLI from skills](../../concepts/running-your-cli-from-skills/).
 
 ## Why four skills and not one
 

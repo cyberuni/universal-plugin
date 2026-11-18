@@ -40,7 +40,7 @@ semantic-release, or release-it versions. It also stays quiet on a tree with no 
 A skill runs its plugin's own CLI through a forwarder: `plugin build` writes
 `skills/<skill>/scripts/<bin>.mjs` from a `{ "forward": "<bin>" }` entry, and the skill calls it with
 `node <this skill's folder>/scripts/<bin>.mjs <args>`. See
-[Running the plugin's own CLI from a skill](../../cli/build/#running-the-plugins-own-cli-from-a-skill).
+[Running your CLI from skills](../../concepts/running-your-cli-from-skills/).
 The skill reads each skill and agent Markdown file for a line that runs the plugin's own package
 through `npx`, `upx` or `pnpm exec <bin>`, and reports two findings, both severity `low`:
 
@@ -50,8 +50,7 @@ through `npx`, `upx` or `pnpm exec <bin>`, and reports two findings, both severi
 - `runner-beside-forwarder`: the same skill already has a forwarder for the CLI. Call the forwarder
   instead of the runner line.
 
-In development, a runner line runs the last release instead of your local change, and it fetches code
-at call time. A package named with no command after it, and a line inside a `yaml`, `json` or `toml`
+A package named with no command after it, and a line inside a `yaml`, `json` or `toml`
 fence (config the user copies), are not read.
 
 ## Changesets release config

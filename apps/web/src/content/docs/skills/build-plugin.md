@@ -15,8 +15,8 @@ names something a vendor cannot represent and will not deliver, and a `built 0` 
 [`doctor-universal-plugin`](../doctor-universal-plugin/) instead of being reported as success.
 
 A leftover `launchers` key warns and writes nothing: launchers were removed, because only Claude
-Code puts a plugin's `bin/` on `PATH`. See
-[Running the plugin's own CLI from a skill](../../cli/build/#running-the-plugins-own-cli-from-a-skill).
+Code puts a plugin's `bin/` on `PATH`. A skill runs its plugin's CLI through a forwarder instead; see
+[Running your CLI from skills](../../concepts/running-your-cli-from-skills/).
 
 ## See also
 
