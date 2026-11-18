@@ -304,13 +304,31 @@ not a build step.
   - When the `packagePath` `package.json` has a `files` list that omits `bin`, the build warns that
     the launchers would not be published.
   - **What is verified.** Claude Code puts a plugin's `bin/` on the Bash tool's `PATH`, after the user's
-    own, so a launcher cannot shadow a system command. Verified for an npm-sourced install only. Hooks, MCP
-    server processes, Cursor, Codex, Copilot CLI and Windows are untested; nothing here claims them.
-  - **Doctor reports the old way.** `doctor-universal-plugin` emits an `own-package-runner` finding
-    (severity `low`, never an error) for each skill or agent Markdown file that runs `npx` or `upx` on the
-    plugin's own package, naming `file:line`. The repair says to call the launcher bare, or to declare one
-    when none is, and repeats the verified scope above. The finding is advisory because a pinned `npx`
-    fallback is still the way to reach runtimes where `bin/` is untested.
+    own, so a launcher cannot shadow a system command. Verified for an npm-sourced install only.
+    GitHub Copilot CLI 1.0.100 and Cursor (cursor-agent 2026.09.28) were probed on 2026-11-18 and do
+    not: a bare call fails with `command not found` or exit 127, and no plugin path is on `PATH`
+    ([ADR-0020](../../design/decisions/0020-build-writes-plugin-launchers.md) note). A launcher is an
+    optional Claude Code convenience, never the route a skill is told to take.
+- **A skill runs the plugin's own CLI through a compiled per-command script**
+  ([ADR-0021](../../design/decisions/0021-skills-run-the-own-cli-through-compiled-scripts.md)) — for a
+  CLI `cli` with a command `x y`, the plugin declares
+  `"skills/<skill>/scripts/cli-x-y.mjs": { "source": "...", "command": "x y" }`, the build compiles it,
+  and the skill calls `node <this skill's folder>/scripts/cli-x-y.mjs`. No runner fallback sits beside
+  it; only a command whose script is over the 150 KB budget keeps a pinned `pnpm exec <bin>`, then
+  `npx`. `doctor-universal-plugin` reads each skill and agent Markdown file for a line that runs the
+  plugin's own package through `npx`, `upx` or `pnpm exec <bin>` (a `bin` of the `packagePath`
+  `package.json`), and takes the command as the plain words that follow it:
+  - **`own-package-runner`** (severity `low`, one finding per file) names each `file:line` whose command
+    has no script in the same skill folder. The repair names the entry to declare, with the skill's
+    path and the command filled in (`skills/<skill>/scripts/<bin>-x-y.mjs`), the `node` call that
+    replaces the line, and the `init-universal-plugin` *add a command script* route that sets it up. It
+    never recommends a launcher.
+  - **`runner-beside-script`** (severity `low`, one finding per file) names each `file:line` whose
+    command the same skill folder already has a declared script for, and the script, and says to call
+    it with `node` and drop the line. A script on disk over the 150 KB budget clears its lines: the
+    runner is the right call there.
+  - A declared command matches when its words are the first words the line runs; the longest match
+    wins. `npx` on another package, or on a longer name, is not read.
 - **A skill's links stay inside its folder** — pnpm links or copies each skill folder on its own
   into an agent's skill directory, and a plugin cache keeps only what the plugin ships, so a skill
   does not always travel with its package (issue #177). A relative Markdown link (inline, image, or
