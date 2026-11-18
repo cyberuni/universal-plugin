@@ -1,5 +1,25 @@
 # universal-plugin
 
+## 0.21.0
+
+### Minor Changes
+
+- 9e739fc: `plugin build` writes a plugin-local launcher, `bin/<name>`, for each entry in the extension's `launchers` map. It is an extensionless, mode 755 `sh` shim that runs an entry inside the package, so a skill can call a bare command instead of `npx` fetching the package at call time. `--check` fails when a launcher is missing, stale or not executable.
+- 259691d: `doctor-universal-plugin` reports `own-package-runner`, a low-severity warning, for each skill or agent file that runs `npx` or `upx` on the plugin's own package. It names `file:line` and says to call the launcher `bin/<name>` bare, or to declare one. It claims only the verified case: Claude Code's Bash tool from an npm-sourced install.
+- bdaae62: `config get --key packagePath --infer` reports `"."` when no `packagePath` is declared but the plugin root's own `package.json` is public and its `files` publish `plugin.json`, so a skill can tell that a plugin ships through npm without the declaration (#261).
+- ad2e429: `marketplace add` now names the metadata an entry still lacks. Each written row lists `missing`: the `description`, `homepage`, `repository`, `license`, and `keywords` that neither this machine nor a flag supplied. stderr names the flags that fill them. A git or npm spec reads nothing locally, so the note shows what to pass, and the command still fetches nothing (#264).
+
+### Patch Changes
+
+- bdaae62: `doctor-universal-plugin` reports `undeclared-package-path` when the plugin root holds a public `package.json` that publishes `plugin.json` but `.agents/universal-plugin.json` declares no `packagePath`, the gap that made `publish-plugin` list an npm-shipped plugin from git (#261).
+- bdaae62: `publish check-version` (and `doctor`'s version-drift check) now compares the plugin root's `package.json` when it is public and publishes `plugin.json`, even with no `packagePath` declared. Before, an npm-shipped plugin that left out the key had its package hidden from the check (#261).
+- bdaae62: `marketplace add` reads the owner from a catalog the repository already carries, so it no longer asks for `--owner` when every catalog already names one (#261).
+- bdaae62: `marketplace add` and `marketplace update` keep a catalog's own indentation, line ending, and untouched values when they write it, instead of rewriting a tab-indented catalog with two spaces. A new catalog takes `.editorconfig`'s indentation (#261).
+- ad2e429: `publish-plugin` now passes the plugin's `description`, `homepage`, `repository`, `license`, and `keywords` from its `plugin.json` to `marketplace add`, so a plugin it lists from a GitHub repository or an npm package no longer lands without them (#264). `marketplace add` itself still fetches nothing.
+- bdaae62: `publish-plugin` detects a plugin that ships in its own npm package from the package itself (`config get --key packagePath --infer`, confirmed with `npm view` and `npm pack --dry-run`), lists Claude Code and Codex from npm, and lists Copilot CLI and Cursor, which cannot install npm, from git instead of leaving them out (#261).
+- 9f5990a: `publish-plugin` passes the skill check: its description names the job without a lead-in, it ends with a `## Done when` list, it treats what it reads from a repository as data, it suggests a `category` the target catalog already uses, its path-specific steps load from `references/`, and its evals move to `evals/evals.yaml`.
+- fee405d: `plugin build` now writes an object-form `repository` as its `url` string into the Claude Code, Cursor, and Codex manifests, which accept only a string, and says so under `--verbose`. It leaves an `author` without a `name` out of the Claude Code and Cursor manifests, which reject it, and warns. When Codex reads the canonical `plugin.json` (an Agent Plugins `$schema`), an object `repository` there stops it loading the plugin, so the build warns and `doctor-universal-plugin` reports `unaccepted-metadata`.
+
 ## 0.20.1
 
 ### Patch Changes
