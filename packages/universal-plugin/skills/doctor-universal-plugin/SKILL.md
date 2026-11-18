@@ -76,7 +76,7 @@ Each `code` below is what the script emits.
 | `legacy-manifest` | root `plugin.json` with neither `$schema` nor `extensions` — a single-vendor manifest on the canonical path | `/universal-plugin:init-universal-plugin` (pnpm install: `pnpm-universal-plugin-init-universal-plugin`), adopt route |
 | `vendor-only` | a vendor manifest with no canonical manifest above it | `/universal-plugin:init-universal-plugin` (pnpm install: `pnpm-universal-plugin-init-universal-plugin`), adopt route |
 | `unbuilt` | a declared vendor whose output path holds no file — that runtime sees no plugin | `/universal-plugin:build-plugin` (pnpm install: `pnpm-universal-plugin-build-plugin`) |
-| `stale` | a derived manifest older than `plugin.json`; for a derived directory (`com.github.copilot/`), its newest file is what is compared | `/universal-plugin:build-plugin` (pnpm install: `pnpm-universal-plugin-build-plugin`) |
+| `stale` | a derived manifest, or a file under `com.github.copilot/`, whose content differs from what `plugin build` derives now, as `plugin build --dry-run` reports it. Modification times are not compared: a checkout resets them | `/universal-plugin:build-plugin` (pnpm install: `pnpm-universal-plugin-build-plugin`) |
 | `hand-edited` | a derived manifest that `build` would rewrite — the edit is already lost, it just has not been overwritten yet | move the field to the canonical manifest or to `harnesses.<vendor>`, then rebuild |
 | `unknown-vendor` | a `vendors` entry no build target matches; reported as `skipped` plus a warning | fix the id in `plugin.json` |
 | `unsupported-component` | a component path on the shared extension names a component one targeted vendor has none of (`agents` for Codex, `rules` for Claude Code, …); the build leaves it out of that vendor's manifest | declare the path under `harnesses.<vendor>` for the vendors that read it, or leave it — nothing is lost |
@@ -140,17 +140,20 @@ skip.
 
 ## Checking staleness properly
 
-The `stale` finding is an mtime comparison, which catches the common case and nothing more. It cannot
-see a hand-edit made after the last build. The definitive check is to rebuild on a clean tree and read
-the diff:
+The `stale` finding compares content: it reads `plugin build --dry-run`, which derives each vendor's
+files and compares them byte for byte with what is on disk, so it also catches a hand-edit to a
+derived file. It covers the vendor manifests, their derived hooks and mcp files, and
+`com.github.copilot/`. It does not cover the in-place rewrites the build makes elsewhere, such as
+the invocation flags in a `SKILL.md`. To check everything the build writes, rebuild on a clean tree
+and read the diff:
 
 ```bash
 git status --short          # must be clean first, or the diff proves nothing
 node <this skill's folder>/scripts/universal-plugin.mjs plugin build
-git diff -- .claude-plugin .cursor-plugin .codex-plugin com.github.copilot
+git diff
 ```
 
-An empty diff means the derived manifests match what the canonical manifest says. Any hunk is drift —
+An empty diff means every derived file matches what the canonical manifest says. Any hunk is drift —
 either a stale build or a hand-edit that the rebuild has now discarded.
 
 That rebuild is a **write**, so it is not part of the diagnosis. Report the check as a repair the

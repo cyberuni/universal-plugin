@@ -501,61 +501,78 @@ test('a component path a targeted vendor has none of is reported as unsupported-
 	expect(detail('unsupported-component')).toContain('codex has no "agents" component')
 })
 
-// A directory's own mtime moves only when an entry is added, removed or renamed — never when a file
-// inside it is rewritten in place — so a rebuild that rewrites com.github.copilot/'s files leaves the
-// directory looking as old as its first build (issue #144).
-test('a rebuilt com.github.copilot/ is not stale even when the directory itself is older than plugin.json', () => {
-	write(
-		'plugin.json',
-		`${JSON.stringify({
-			$schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json',
-			name: 'demo',
-			version: '1.0.0',
-			description: 'a demo plugin',
-			extensions: { 'org.cyberuni.universal-plugin': { vendors: ['copilot-cli'] } },
-		})}\n`,
-	)
-	write('agents/reviewer.md', '---\nname: reviewer\ndescription: reviews\n---\nreview\n')
-	const build = spawnSync('node', [path.resolve('bin/universal-plugin.mjs'), 'plugin', 'build', '--root', root], {
+// Staleness is decided by content, the way `plugin build --dry-run` compares it. A checkout writes
+// every file at the moment it lands, so a commit that changed plugin.json and none of the derived
+// files leaves plugin.json the newest file in a tree that is current; mtimes are not evidence.
+const COPILOT_MANIFEST = `${JSON.stringify({
+	$schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json',
+	name: 'demo',
+	version: '1.0.0',
+	description: 'a demo plugin',
+	extensions: { 'org.cyberuni.universal-plugin': { vendors: ['claude-code', 'copilot-cli'] } },
+})}\n`
+
+function build() {
+	const result = spawnSync('node', [path.resolve('bin/universal-plugin.mjs'), 'plugin', 'build', '--root', root], {
 		encoding: 'utf8',
 	})
-	expect(build.status).toBe(0)
-	const past = new Date(Date.now() - 60_000)
-	fs.utimesSync(path.join(root, 'com.github.copilot'), past, past)
+	expect(result.status).toBe(0)
+}
 
+function setMtime(abs: string, when: Date) {
+	if (fs.statSync(abs).isDirectory()) for (const entry of fs.readdirSync(abs)) setMtime(path.join(abs, entry), when)
+	fs.utimesSync(abs, when, when)
+}
+
+function vendorReport() {
 	const result = spawnSync('node', [doctor, '--root', root], { encoding: 'utf8' })
-	const report = JSON.parse(result.stdout) as {
+	return JSON.parse(result.stdout) as {
 		vendors: { vendor: string; stale: boolean }[]
-		findings: { code: string }[]
+		findings: { code: string; detail: string }[]
 	}
-	expect(report.vendors.find((v) => v.vendor === 'copilot-cli')?.stale).toBe(false)
+}
+
+test('derived files older than plugin.json by mtime but current by content are not stale', () => {
+	write('plugin.json', COPILOT_MANIFEST)
+	write('agents/reviewer.md', '---\nname: reviewer\ndescription: reviews\n---\nreview\n')
+	build()
+	// What a checkout does: plugin.json lands after the derived files it did not change.
+	const past = new Date(Date.now() - 60_000)
+	setMtime(path.join(root, '.claude-plugin'), past)
+	setMtime(path.join(root, 'com.github.copilot'), past)
+
+	const report = vendorReport()
+	expect(report.vendors.map((v) => [v.vendor, v.stale])).toEqual([
+		['claude-code', false],
+		['copilot-cli', false],
+	])
 	expect(report.findings.map((f) => f.code)).not.toContain('stale')
 })
 
-test('a com.github.copilot/ whose files predate plugin.json is still stale', () => {
-	write(
-		'plugin.json',
-		`${JSON.stringify({
-			$schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json',
-			name: 'demo',
-			version: '1.0.0',
-			description: 'a demo plugin',
-			extensions: { 'org.cyberuni.universal-plugin': { vendors: ['copilot-cli'] } },
-		})}\n`,
-	)
+test('a derived manifest whose content is behind plugin.json is stale even when it is newer by mtime', () => {
+	write('plugin.json', COPILOT_MANIFEST)
 	write('agents/reviewer.md', '---\nname: reviewer\ndescription: reviews\n---\nreview\n')
-	const build = spawnSync('node', [path.resolve('bin/universal-plugin.mjs'), 'plugin', 'build', '--root', root], {
-		encoding: 'utf8',
-	})
-	expect(build.status).toBe(0)
-	const past = new Date(Date.now() - 60_000)
-	const touch = (abs: string) => {
-		if (fs.statSync(abs).isDirectory()) for (const entry of fs.readdirSync(abs)) touch(path.join(abs, entry))
-		fs.utimesSync(abs, past, past)
-	}
-	touch(path.join(root, 'com.github.copilot'))
+	build()
+	write('plugin.json', COPILOT_MANIFEST.replace('a demo plugin', 'a renamed plugin'))
+	setMtime(path.join(root, 'plugin.json'), new Date(Date.now() - 60_000))
 
-	expect(findings()).toContain('stale')
+	const report = vendorReport()
+	expect(report.vendors.find((v) => v.vendor === 'claude-code')?.stale).toBe(true)
+	// The description reaches no file under com.github.copilot/, so that tree is still current.
+	expect(report.vendors.find((v) => v.vendor === 'copilot-cli')?.stale).toBe(false)
+	const stale = report.findings.filter((f) => f.code === 'stale')
+	expect(stale.map((f) => f.detail)).toEqual([
+		'.claude-plugin/plugin.json does not match what plugin build derives from plugin.json',
+	])
+})
+
+test('a com.github.copilot/ file behind its source is stale', () => {
+	write('plugin.json', COPILOT_MANIFEST)
+	write('agents/reviewer.md', '---\nname: reviewer\ndescription: reviews\n---\nreview\n')
+	build()
+	write('agents/reviewer.md', '---\nname: reviewer\ndescription: reviews\n---\nreview harder\n')
+
+	expect(vendorReport().vendors.find((v) => v.vendor === 'copilot-cli')?.stale).toBe(true)
 })
 
 test('a semantic-release placeholder is reported as unstamped, not as version-drift', () => {

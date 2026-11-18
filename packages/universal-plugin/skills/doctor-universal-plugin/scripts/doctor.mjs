@@ -60,13 +60,6 @@ const readJson = (file) => {
 		return null;
 	}
 };
-const mtime = (file) => fs.existsSync(file) ? fs.statSync(file).mtimeMs : null;
-const contentMtime = (abs) => {
-	const stat = fs.statSync(abs);
-	if (!stat.isDirectory()) return stat.mtimeMs;
-	const files = fs.readdirSync(abs).map((entry) => contentMtime(path.join(abs, entry)));
-	return files.length === 0 ? stat.mtimeMs : Math.max(...files);
-};
 const VENDOR_MANIFESTS = [
 	".claude-plugin/plugin.json",
 	".cursor-plugin/plugin.json",
@@ -137,7 +130,6 @@ if (build === null) {
 	else if (findings.some((f) => f.code === "legacy-manifest" || f.code === "shadowing-manifest")) add("no-vendors", "medium", "no vendor is declared — the project is on the pre-0.6 layout, so the build derives nothing and no runtime reads this plugin", "/universal-plugin:init-universal-plugin, adopt route");
 	else add("build-failed", "high", stderr.split("\n")[0] || "plugin build could not resolve the manifest", "run plugin build to see the full error");
 } else {
-	const manifestMtime = mtime(manifestPath);
 	for (const row of [
 		...build.built,
 		...build.canonical,
@@ -146,7 +138,7 @@ if (build === null) {
 	]) {
 		const abs = path.join(root, row.path);
 		const exists = fs.existsSync(abs);
-		const stale = row.status === "built" && exists && manifestMtime !== null && contentMtime(abs) < manifestMtime;
+		const stale = row.status === "built" && exists && row.content === "stale";
 		vendors.push({
 			vendor: row.vendor,
 			path: row.path,
@@ -155,7 +147,7 @@ if (build === null) {
 			stale
 		});
 		if (row.status === "built" && !exists) add("unbuilt", "high", `${row.vendor} is declared but ${row.path} does not exist — that runtime sees no plugin`, "universal-plugin plugin build");
-		if (stale) add("stale", "medium", `${row.path} is older than plugin.json`, "universal-plugin plugin build");
+		if (stale) add("stale", "medium", `${row.path} does not match what plugin build derives from plugin.json`, "universal-plugin plugin build");
 	}
 	for (const row of build.scripts ?? []) {
 		if (row.status !== "stale" && row.status !== "missing") continue;

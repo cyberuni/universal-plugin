@@ -274,9 +274,9 @@ which no manifest field reflects. A build that failed on it would also have to f
 development, when unreleased content is exactly what a working tree is supposed to contain.
 
 Detection belongs to `doctor`, which is where every other drift check already lives (`version-drift`
-between the two authored numbers, `stale` for a derived manifest older than the manifest it derives
-from) and which is advisory by construction — it exits 0 whether or not it finds anything, so it is
-safe on a session-start hook. `doctor` gains a finding that reports shipped content changed since the
+between the two authored numbers, `stale` for a derived manifest whose content is behind the manifest
+it derives from) and which is advisory by construction — it exits 0 whether or not it finds anything,
+so it is safe on a session-start hook. `doctor` gains a finding that reports shipped content changed since the
 commit that set the current version, naming the bump as the repair.
 
 The finding applies to one of §2's two release models. Where `packagePath` is declared the release
