@@ -401,9 +401,9 @@ if (manifest.version !== undefined && npmPackagePath === null && releaseTool() =
 	}
 }
 
-// A shipped skill or agent that runs `npx`/`upx` on the plugin's own package (#276). The runner fetches
-// and runs code at call time and never matches a permission rule written for the bare command; a
-// launcher (`bin/<name>`, written by `plugin build` from `launchers`) is the plugin's own copy.
+// A shipped skill or agent that runs the plugin's own package through `npx`, `upx` or `pnpm exec`
+// (#276, #284). The runner fetches or looks up code at call time and never matches a permission rule
+// written for the command; a compiled per-command script in the skill is the plugin's own copy.
 for (const finding of ownPackageRunnerFindings()) add(...finding)
 
 // A plugin released with changesets but shipped to no npm package (#234). Changesets releases only

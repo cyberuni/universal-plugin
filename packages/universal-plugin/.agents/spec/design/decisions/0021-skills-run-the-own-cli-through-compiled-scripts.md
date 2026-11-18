@@ -4,8 +4,7 @@
 **Date:** 2026-11-18
 **Builds on:** [0019](./0019-build-compiles-skill-scripts.md) — `plugin build` compiles a declared
 entry into one committed, self-contained `.mjs`.
-**Narrows:** [0020](./0020-build-writes-plugin-launchers.md) — a launcher stays, as a Claude Code
-convenience only.
+**Supersedes:** [0020](./0020-build-writes-plugin-launchers.md) — launchers are removed.
 **Upstream:** [issue #284](https://github.com/cyberuni/universal-plugin/issues/284).
 
 ## Context
@@ -49,8 +48,11 @@ it, and it imports nothing outside Node, so it needs no `dist/`, no `PATH` and n
    `init-universal-plugin` change mode has an *add a command script* route that does the setup:
    declare the entry, write the source, build, call it with `node`, drop the fallback. The doctor's
    repair points to that route.
-6. **Launchers are Claude Code only.** A launcher stays an optional convenience there. No doc or
-   repair recommends it as the way a skill reaches the CLI.
+6. **Launchers are removed.** They resolve bare only in Claude Code, so they were never the portable
+   route, and keeping a second, narrower route invites skills that break on the other runtimes.
+   `plugin build` no longer writes `bin/<name>`. A leftover `launchers` key warns, never reaches a
+   derived manifest, and writes nothing; the build leaves an existing `bin/<name>` for the author to
+   delete.
 
 ## Alternatives considered
 
@@ -59,5 +61,6 @@ it, and it imports nothing outside Node, so it needs no `dist/`, no `PATH` and n
 | Set the script up in `plugin init` | `plugin init` runs when the plugin project is created, before the author usually decides to ship a CLI |
 | `plugin build` warns on a skill that runs its own package with no script | The build would read skill prose, which is the doctor's job and already done there. It would warn on every build and in CI, including for a command over the budget where the runner is the right call. A build warning also does no setup; the author still needs the route |
 | Keep the launcher as the recommended route | It resolves bare only in Claude Code (probes above), and a `dist/` entry fails in a git-sourced install |
+| Keep launchers as an optional Claude Code convenience, or deprecate them first | The Council chose removal in #284: a route that works on one runtime only is one a skill author follows by mistake, and the launcher shipped one release earlier (#276), so little depends on it |
 | Keep `npx` as a fallback after the script | It fetches code at call time and matches no permission rule, to recover from a missing file that `--check` already keeps from shipping |
 | One script per CLI instead of per command | A full CLI is 280 KB to 1.3 MB minified (#177), over the budget; one command is 12 to 100 KB |

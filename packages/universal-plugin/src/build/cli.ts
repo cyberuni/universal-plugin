@@ -5,7 +5,6 @@ import { Command, Option } from 'commander'
 import { ROOT_OPTION, resolveRoot } from '../cli-options.js'
 import { compileScripts } from '../compile/compile.js'
 import { rolldownCompiler } from '../compile/rolldown.js'
-import { writeLaunchers } from '../launcher/fs.js'
 import { output } from '../output.js'
 import { type BuildResult, buildPlugin, type VendorRow } from './build.js'
 
@@ -41,10 +40,7 @@ export function buildCommand(): Command {
 	cmd
 		.option('--vendor <id>', 'Build only the named vendor')
 		.option('--dry-run', 'Print what would be written without writing')
-		.option(
-			'--check',
-			'Write nothing; exit 1 when a compiled script or launcher is missing, stale, or on another version',
-		)
+		.option('--check', 'Write nothing; exit 1 when a compiled script is missing, stale, or on another version')
 		.option('--verbose', 'Print field-by-field transformation decisions')
 		.option('--clean', 'Delete generated manifests before building')
 		.option('--strict-dependencies', 'Fail when a refreshed catalog cannot resolve a declared dependency')
@@ -66,10 +62,7 @@ export function buildCommand(): Command {
 				})
 				// Script entries are vendor-neutral, so `--vendor` does not narrow them.
 				const scripts = await compileScripts(root, { dryRun }, rolldownCompiler)
-
-				// Launchers are vendor-neutral too: `bin/<name>` is read by the runtime, not derived per vendor.
-				const launchers = writeLaunchers(root, { dryRun })
-				const warnings = [...result.warnings, ...scripts.warnings, ...launchers.warnings]
+				const warnings = [...result.warnings, ...scripts.warnings]
 
 				for (const warning of warnings) {
 					process.stderr.write(`warn: ${warning}\n`)
@@ -83,7 +76,6 @@ export function buildCommand(): Command {
 					canonical: result.rows.filter((r) => r.status === 'canonical'),
 					catalogs: result.catalogs,
 					scripts: scripts.rows,
-					launchers: launchers.rows,
 					dependencyIssues: result.dependencyIssues,
 					summary: result.summary,
 					warnings,
@@ -91,33 +83,16 @@ export function buildCommand(): Command {
 				const counts = `built ${built}, skipped ${skipped}, failed ${failed}`
 				const catalogSummary = result.catalogs.length > 0 ? `, catalogs ${result.catalogs.length}` : ''
 				const scriptSummary = scripts.rows.length > 0 ? `, scripts ${scripts.rows.length}` : ''
-				const launcherSummary = launchers.rows.length > 0 ? `, launchers ${launchers.rows.length}` : ''
 				output(jsonResult, {
 					vendors: result.rows.map((r: VendorRow) => ({ vendor: r.vendor, path: r.path, status: r.status })),
 					catalogs: result.catalogs.map((r) => ({ path: r.path, status: r.status })),
 					...(scripts.rows.length > 0 && { scripts: scripts.rows.map((r) => ({ path: r.path, status: r.status })) }),
-					...(launchers.rows.length > 0 && {
-						launchers: launchers.rows.map((r) => ({ path: r.path, status: r.status })),
-					}),
 					summary:
-						(canonical > 0 ? `${counts}, served by plugin.json ${canonical}` : counts) +
-						catalogSummary +
-						scriptSummary +
-						launcherSummary,
+						(canonical > 0 ? `${counts}, served by plugin.json ${canonical}` : counts) + catalogSummary + scriptSummary,
 				})
 
 				process.stderr.write(nextStep(result, process.cwd()))
 				if (failed > 0 || scripts.summary.failed > 0) process.exitCode = 1
-				if (launchers.warnings.some((w) => w.startsWith('launchers '))) process.exitCode = 1
-				if (opts.check && launchers.summary.behind > 0) {
-					const behind = launchers.rows
-						.filter((r) => r.status === 'missing' || r.status === 'stale')
-						.map((r) => `${r.path} (${r.status})`)
-					process.stderr.write(
-						`error: ${behind.length} ${behind.length === 1 ? 'launcher is' : 'launchers are'} behind: ${behind.join(', ')} — run "universal-plugin plugin build" and commit the result (--check)\n`,
-					)
-					process.exitCode = 1
-				}
 				if (opts.check && scripts.summary.behind > 0) {
 					const behind = scripts.rows
 						.filter((r) => r.status === 'missing' || r.status === 'stale' || r.status === 'version')

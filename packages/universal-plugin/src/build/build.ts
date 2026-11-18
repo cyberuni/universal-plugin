@@ -161,7 +161,7 @@ export interface UniversalPluginExtension {
 	dependencies?: DependencyDeclaration[]
 	/** Skill script entries `plugin build` compiles, output path → source (issue #177). */
 	scripts?: unknown
-	/** Command name → entry inside the package; `plugin build` writes `bin/<name>` for each (issue #276). */
+	/** Removed (ADR-0021): read only to warn that it is ignored. */
 	launchers?: unknown
 	skills?: unknown
 	[key: string]: unknown
@@ -357,14 +357,19 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 		dependencies: declaredDependencies,
 		// Compiled by `compileScripts`, after the manifests: an entry map is not a component a vendor reads.
 		scripts: _scripts,
-		// Written by `writeLaunchers`: a launcher map is build config, not a component a vendor reads.
-		launchers: _launchers,
+		// Removed with ADR-0021; kept out of every manifest and reported below.
+		launchers: leftoverLaunchers,
 		...componentConfig
 	} = uext
 	// A declaration the runtime accepts and then discards is an invisible loss, and it is one loss to
 	// fix however many vendors are targeted.
 	warnings.push(...validateDependencies(declaredDependencies).warnings)
 	warnings.push(...canonicalMetadataWarnings(manifest, vendors))
+	if (leftoverLaunchers !== undefined) {
+		warnings.push(
+			`extensions["org.cyberuni.universal-plugin"].launchers is no longer supported and is ignored: no runtime but Claude Code puts a plugin's bin/ on PATH. Remove the key and any bin/<name> it wrote, and have each skill call a compiled per-command script with node (ADR-0021)`,
+		)
+	}
 	const skills = readSkills(root, manifest, warnings)
 	warnings.push(...skillLinkWarnings(root, skills))
 	writePnpmNames(root, manifest, skills, opts, written)
