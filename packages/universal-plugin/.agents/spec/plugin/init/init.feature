@@ -347,6 +347,51 @@ Feature: plugin init — scaffold a plugin project, and wire an npm package to s
     Then no "package.json" exists at the project root
     And "plugin.json" has no "version"
 
+  Scenario: init adds the build, check and check-version scripts
+    Given the repository root has a "package.json" with no "build", "check" or "check-version" script
+    When I run "universal-plugin plugin init"
+    Then the "build" script is "universal-plugin plugin build"
+    And the "check" script is "universal-plugin plugin build --check"
+    And the "check-version" script is "universal-plugin publish check-version"
+    And "universal-plugin" is in the devDependencies
+
+  Scenario: the scripts carry --root for a plugin below the repository root
+    Given the plugin root is "packages/p" and the repository root has a "package.json"
+    When I run "universal-plugin plugin init"
+    Then the repository root "check" script is "universal-plugin plugin build --check --root packages/p"
+
+  Scenario: init offers the scripts without changesets
+    Given the repository root has a "package.json" and no ".changeset/"
+    When I run "universal-plugin plugin init"
+    Then the repository root has the "build", "check" and "check-version" scripts
+
+  Scenario: init keeps an existing script and prints the line to append
+    Given the repository root "check" script is "vitest"
+    When I run "universal-plugin plugin init"
+    Then the repository root "check" script is still "vitest"
+    And stderr contains "\"check\": \"universal-plugin plugin build --check\""
+
+  Scenario: a script that already equals the command is left alone silently
+    Given the repository root "build" script is "universal-plugin plugin build"
+    When I run "universal-plugin plugin init"
+    Then stderr does not mention the "build" script
+
+  Scenario: init creates no package.json for the scripts
+    Given the repository root has no "package.json" and no ".changeset/"
+    When I run "universal-plugin plugin init"
+    Then no "package.json" exists at the repository root
+    And stderr says no package.json exists and lists the three script lines
+
+  Scenario: re-running init changes nothing
+    Given init already added the three scripts
+    When I run "universal-plugin plugin init --force"
+    Then "package.json" is unchanged
+    And stderr repeats no script note
+
+  Scenario: --no-scripts adds none
+    When I run "universal-plugin plugin init --no-scripts"
+    Then the repository root "package.json" gains no "build", "check" or "check-version" script
+
   Scenario: --help prints a concise reference
     When I run "universal-plugin plugin init --help"
     Then the exit code is 0

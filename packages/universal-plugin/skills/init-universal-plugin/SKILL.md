@@ -52,7 +52,7 @@ caller typed as `ARGUMENTS: <value>`, and Codex substitutes nothing at all, so o
 flags arrive as text you can read. Writing `$ARGUMENTS` into this body would resolve on Claude Code
 and stay literal everywhere else.
 
-- `--name`, `--vendor`, `--scaffold`, `--force`, `--npm`, and `--root` pass through to
+- `--name`, `--vendor`, `--scaffold`, `--force`, `--npm`, `--no-scripts`, and `--root` pass through to
   `universal-plugin plugin init` in Phase 4.
 - Prose carries the same weight: "ship it on npm" means `--npm`, "overwrite what's there" means
   `--force`.
@@ -128,6 +128,21 @@ repository root carries `.changeset/` and its `package.json` `version` script is
 plan, and ask before running init: it rewrites the user's root `package.json`. If the user declines,
 run init without `--npm` and wire `files` by hand. A custom `version` script is never rewritten;
 init prints the line to append, so relay it and let the user place it.
+
+Every init also offers three root `package.json` scripts, changesets or not. Show each name and
+command in the plan, and ask before running init:
+
+| Script | Command |
+| --- | --- |
+| `build` | `universal-plugin plugin build [--root <plugin-root>]` |
+| `check` | `universal-plugin plugin build --check [--root <plugin-root>]` |
+| `check-version` | `universal-plugin publish check-version [--root <plugin-root>]` |
+
+`--root` is left out when the plugin root is the repository root. Init also adds `universal-plugin`
+to the root `devDependencies` when absent. If the user declines, add `--no-scripts` to the init call,
+which writes none. An existing script under one of these names is never overwritten or edited: init
+prints the line to append (`"<name>": "<command>"`), so relay it. With no root `package.json`, init
+creates none and prints the three lines, so relay that too.
 
 A plugin that ships to **no** npm package in a changesets repository gets its own plan line.
 Changesets releases only a package, so when the repository root carries `.changeset/` and the plugin

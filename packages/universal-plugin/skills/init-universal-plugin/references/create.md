@@ -51,6 +51,11 @@ Without `--npm`, in a changesets repository with no `package.json` at the plugin
 private `package.json` so changesets can release the plugin (SKILL.md Phase 3 offers it; pass
 `--no-changesets` when the user declines).
 
+Init also adds `build`, `check` (`plugin build --check`) and `check-version` (`publish check-version`)
+scripts to the repository root `package.json`, with or without changesets (SKILL.md Phase 3 lists
+them and asks first; pass `--no-scripts` when the user declines). Existing scripts are never
+overwritten: relay the `"<name>": "<command>"` line init prints for each.
+
 `init` writes a minimal manifest — `$schema`, `name`, the vendor list, and the package `version`
 under `--npm`. Fill in the Step 1
 metadata and the `harnesses` overrides by hand afterwards; [`standard.md`](./standard.md) shows the

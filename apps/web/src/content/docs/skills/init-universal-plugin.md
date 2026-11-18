@@ -41,6 +41,11 @@ Set `"privatePackages": { "version": true, "tag": true }` in `.changeset/config.
 `changeset publish` makes no tag. The skill offers this setup in its confirm phase. If you decline,
 it passes `--no-changesets`.
 
+Init also offers three scripts in the repository root `package.json`, with or without changesets:
+`build` runs `plugin build`, `check` runs `plugin build --check`, and `check-version` runs
+`publish check-version`, so `pnpm run check` fails on a stale build. A script you already have under
+one of those names is never changed; init prints the line to add. Declining passes `--no-scripts`.
+
 When the repository has no release tool yet, the skill asks how you will release the plugin. If you
 choose changesets, it sets up `.changeset/` first, so init then writes the `package.json`. Other
 release tools don't need one.
