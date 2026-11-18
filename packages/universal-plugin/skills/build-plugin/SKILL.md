@@ -16,6 +16,7 @@ beside it is **derived**, and this build is the one step that writes all of it:
 | `com.github.copilot/` (agents, commands, rules, hooks, LSP) | Copilot CLI in spec mode; the manifest itself is root `plugin.json` |
 | this plugin's entry in each marketplace catalog the repository already carries | anyone installing from the repository |
 | each declared `scripts` entry, compiled into one self-contained `.mjs` in its skill | the skill, wherever it was linked or copied to |
+| each declared `launchers` entry, written as an executable `bin/<name>` shim | the Bash tool's `PATH`, so a skill calls a bare command |
 
 So a change to the plugin is not done until it has been built. A runtime reads the derived files,
 not the canonical manifest, and a derived file that predates the change still ships the old plugin.
@@ -58,7 +59,7 @@ The command never prompts, so it is safe to run unattended.
 | `--vendor <id>` | Build one vendor (`claude-code`, `cursor`, `codex`, `copilot-cli`), and refresh only its catalog |
 | `--verbose` | Print each field-level decision the derivation made |
 | `--strict-dependencies` | Fail when a refreshed catalog cannot resolve a declared dependency. Use in CI |
-| `--check` | Write nothing; exit 1 when a compiled script is `missing`, `stale`, or `version`. Use in CI |
+| `--check` | Write nothing; exit 1 when a compiled script is `missing`, `stale`, or `version`, or a launcher is `missing` or `stale`. Use in CI |
 | `--format json` | The same result as JSON, for scripts |
 
 `--clean` also exists. It deletes derived manifests before rewriting them, so reach for it only
@@ -80,6 +81,16 @@ A script row (`path, status`) reads `compiled` or `unchanged`. On `--dry-run` it
 `publish check-version` reports). A `failed` row is an entry that could not be made self-contained,
 usually an import that does not resolve; the build exits 1 and the warning names it. A script over
 150 KB warns: the skill should call the installed CLI instead of compiling it in.
+
+A launcher row (`path, status`) reads `written` or `unchanged`. On `--dry-run` it reads `unchanged`,
+`missing`, or `stale` (the content differs, or the file is not executable). It exists so a skill or
+agent can call a bare `<name>` instead of `npx -y <pkg>@<version>`, which fetches and runs code at call
+time and never matches a permission rule written for `<name> ...`. Declare it with
+`init-universal-plugin` under `extensions["org.cyberuni.universal-plugin"].launchers`, as
+`{ "<name>": "<entry inside the package>" }`. Tell the user three things: the package's `files` must list
+`bin`, the entry (such as `dist/cli.js`) must be built before it runs, and `node` must be on `PATH`. Only
+Claude Code's Bash tool from an npm-sourced install has been checked. Say that hooks, MCP processes,
+Cursor, Codex, Copilot CLI and Windows are untested; do not claim them.
 
 A catalog row reads `updated`, `unchanged`, or `planned` on `--dry-run`. A build **never creates** a
 catalog, and it keeps an entry's non-local source, such as an npm package, while it re-derives the
@@ -109,7 +120,7 @@ derived files together:
 git status --short
 ```
 
-Expect the vendor manifests, `com.github.copilot/`, any refreshed catalog, and any compiled script. A diff outside those paths did not come from the build.
+Expect the vendor manifests, `com.github.copilot/`, any refreshed catalog, any compiled script, and any launcher under `bin/`. A diff outside those paths did not come from the build.
 
 ## Guards
 
