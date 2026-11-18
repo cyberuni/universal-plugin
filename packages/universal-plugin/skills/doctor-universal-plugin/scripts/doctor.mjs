@@ -41,9 +41,6 @@ function runCli$1(args, options = {}) {
 }
 // src/skill-scripts/doctor.ts
 const UP_NAMESPACE = "org.cyberuni.universal-plugin";
-/** The size above which a compiled skill script is over budget (ADR-0019 §4): there the skill keeps
-*  a pinned `pnpm exec <bin>`, then `npx`. */
-const SCRIPT_BUDGET_BYTES = 153600;
 /** Fenced-block languages whose content is config a user copies, not a command an agent runs. */
 const CONFIG_FENCES = /* @__PURE__ */ new Set([
 	"yaml",
@@ -254,27 +251,27 @@ function invalidCatalogs(extraRoots) {
 	});
 }
 /** Lines of shipped skill and agent Markdown that run this plugin's own package through `npx`, `upx`
-*  or `pnpm exec <bin>` (ADR-0021). A line whose command the same skill folder has a compiled script
-*  for is `runner-beside-script`: the script replaces it. Any other is `own-package-runner`, whose
-*  repair is the script to declare. One finding of each code per file, naming each line. */
+*  or `pnpm exec <bin>` (ADR-0022). A line in a skill folder that already has a forwarder for the
+*  package is `runner-beside-forwarder`: the forwarder replaces it. Any other is `own-package-runner`,
+*  whose repair is the forwarder to declare. One finding of each code per file, naming each line. */
 function ownPackageRunnerFindings() {
 	const pkgRoot = path.join(root, npmPackagePath ?? ".");
 	const pkg = readJson(path.join(pkgRoot, "package.json"));
 	const name = pkg?.name;
 	if (typeof name !== "string" || name === "") return [];
 	const bins = packageBins(name, pkg?.bin);
-	const bin = bins[0] ?? name.replace(/^@[^/]+\//, "");
+	const unscoped = name.replace(/^@[^/]+\//, "");
+	const bin = bins.find((b) => b === unscoped) ?? bins[0] ?? unscoped;
 	const literal = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 	const words = "((?:[ \\t]+[a-z][\\w-]*)*)";
 	const runners = [new RegExp(`\\b(?:npx|upx)\\s+(?:-{1,2}[\\w-]+\\s+)*${literal(name)}(?:@[^\\s\`'")]+)?(?![\\w./@-])${words}`, "g"), ...bins.map((b) => new RegExp(`\\bpnpm\\s+exec\\s+${literal(b)}(?![\\w./@-])${words}`, "g"))];
-	const scripts = declaredCommandScripts();
+	const forwarders = declaredForwarders(name, bins);
 	const out = [];
 	for (const file of ["skills", "agents"].flatMap((dir) => markdownFiles(path.join(root, dir)))) {
 		const rel = path.relative(root, file).split(path.sep).join("/");
 		const skill = /^skills\/[^/]+\//.exec(rel)?.[0] ?? null;
-		const local = skill === null ? [] : scripts.filter((s) => s.path.startsWith(skill));
-		const missing = [];
-		const beside = [];
+		const local = skill === null ? void 0 : forwarders.find((f) => f.startsWith(skill));
+		const lines = [];
 		let fence = null;
 		fs.readFileSync(file, "utf8").split("\n").forEach((text, i) => {
 			const marker = /^\s*(```+|~~~+)\s*([\w-]*)/.exec(text);
@@ -284,40 +281,26 @@ function ownPackageRunnerFindings() {
 			}
 			if (fence !== null && CONFIG_FENCES.has(fence)) return;
 			for (const runner of runners) for (const match of text.matchAll(runner)) {
-				const args = (match[1] ?? "").trim().split(/\s+/).filter(Boolean);
-				if (args.length === 0) continue;
-				const script = local.filter((s) => s.command.length <= args.length && s.command.every((w, j) => args[j] === w)).sort((x, y) => y.command.length - x.command.length)[0];
-				if (script === void 0) missing.push({
-					line: i + 1,
-					command: args.join(" ")
-				});
-				else if (!overBudget(script.path)) beside.push({
-					line: i + 1,
-					script: script.path
-				});
+				if ((match[1] ?? "").trim() === "") continue;
+				lines.push(i + 1);
 			}
 		});
-		const lines = (rows) => [...new Set(rows.map((r) => `${rel}:${r.line}`))].join(", ");
-		if (missing.length > 0) {
-			const entries = [...new Set(missing.map((m) => m.command))].map((command) => {
-				return `"${`${skill ?? "skills/<skill>/"}scripts/${[bin, ...command.split(" ").filter(Boolean)].join("-")}.mjs`}": { "source": "<entry that runs ${command || "<command>"}>", "command": "${command || "<command>"}" }`;
-			});
+		if (lines.length === 0) continue;
+		const at = [...new Set(lines.map((line) => `${rel}:${line}`))].join(", ");
+		if (local === void 0) {
+			const output = `${skill ?? "skills/<skill>/"}scripts/${bin}.mjs`;
 			out.push([
 				"own-package-runner",
 				"low",
-				`${lines(missing)} runs this plugin's own package ${name} through a package runner, which fetches or looks up code at call time, matches no permission rule for the command, and fails where the package is not installed`,
-				`compile a script per command: declare ${entries.join(", ")} under extensions["${UP_NAMESPACE}"].scripts, run plugin build, and call \`node <this skill's folder>/scripts/<file>.mjs\` instead — /universal-plugin:init-universal-plugin, add a command script. Keep a pinned \`pnpm exec ${bin}\`, then \`npx\`, only when the build warns the script is over the 150 KB budget`
+				`${at} runs this plugin's own package ${name} through a package runner, which in development runs the last release instead of your change, and fetches code at call time`,
+				`declare the forwarder "${output}": { "forward": "${bin}" } under extensions["${UP_NAMESPACE}"].scripts, run plugin build, and call \`node <this skill's folder>/scripts/${bin}.mjs <args>\` instead — /universal-plugin:init-universal-plugin, add a CLI forwarder`
 			]);
-		}
-		if (beside.length > 0) {
-			const named = [...new Set(beside.map((b) => b.script))].join(", ");
-			out.push([
-				"runner-beside-script",
-				"low",
-				`${lines(beside)} runs this plugin's own package ${name} through a package runner for a command ${named} already runs`,
-				`call ${[...new Set(beside.map((b) => `\`node <this skill's folder>/${b.script.slice(skill?.length ?? 0)}\``))].join(" or ")} and drop the runner line: the committed script, kept current by \`plugin build --check\`, leaves it nothing to recover`
-			]);
-		}
+		} else out.push([
+			"runner-beside-forwarder",
+			"low",
+			`${at} runs this plugin's own package ${name} through a package runner, beside the forwarder ${local} for the same CLI`,
+			`call \`node <this skill's folder>/${local.slice(skill?.length ?? 0)} <args>\` instead: the forwarder runs the checkout's CLI in development and the pinned release anywhere else`
+		]);
 	}
 	return out;
 }
@@ -328,23 +311,17 @@ function packageBins(name, bin) {
 	if (typeof bin === "object" && bin !== null && !Array.isArray(bin)) return Object.keys(bin);
 	return [];
 }
-/** The declared script entries that run a CLI command, each with its output path and command words. */
-function declaredCommandScripts() {
+/** The output paths of the declared forwarders to the plugin's own package: a `forward` entry naming
+*  one of its bins, with no other package or with the package itself. */
+function declaredForwarders(name, bins) {
 	const scripts = ext?.scripts;
 	if (typeof scripts !== "object" || scripts === null || Array.isArray(scripts)) return [];
 	return Object.entries(scripts).flatMap(([output, entry]) => {
-		const command = entry?.command;
-		if (typeof command !== "string" || command.trim() === "") return [];
-		return [{
-			path: output.replace(/^\.\//, ""),
-			command: command.trim().split(/\s+/)
-		}];
+		const { forward, package: pkg } = entry ?? {};
+		if (typeof forward !== "string" || !bins.includes(forward)) return [];
+		if (pkg !== void 0 && pkg !== name) return [];
+		return [output.replace(/^\.\//, "")];
 	});
-}
-/** Whether a compiled script on disk is over the budget, where a runner is the right call. */
-function overBudget(output) {
-	const file = path.join(root, output);
-	return fs.existsSync(file) && fs.statSync(file).size > SCRIPT_BUDGET_BYTES;
 }
 /** Every `.md` file under `dir`, skipping `node_modules`; empty when `dir` does not exist. */
 function markdownFiles(dir) {
