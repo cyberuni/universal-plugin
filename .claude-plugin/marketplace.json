@@ -6,6 +6,7 @@
 		"email": "homawong@gmail.com"
 	},
 	"description": "Local marketplace for developing and testing the universal-plugin toolkit from this repository.",
+	"allowCrossMarketplaceDependenciesOn": ["cyber-uni"],
 	"plugins": [
 		{
 			"name": "universal-plugin",
@@ -20,13 +21,6 @@
 			"category": "plugin-authoring",
 			"version": "0.22.0",
 			"keywords": ["universal", "plugin", "agent", "cross-vendor"]
-		},
-		{
-			"name": "cyber-agent-harness",
-			"source": {
-				"source": "npm",
-				"package": "@cyberuni/agent-harness"
-			}
 		}
 	]
 }
