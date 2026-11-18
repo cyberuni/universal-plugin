@@ -109,6 +109,17 @@ test('add lists a plugin the repository does not hold, and says what it skipped 
 	})
 })
 
+test('add names the metadata flags that would fill what the entry lacks (#264)', () => {
+	const result = runAdd('npm:repobuddy', '--claude', '--description', 'Repo automation')
+	expect(result.status).toBe(0)
+	expect(result.stderr).toMatch(
+		/"repobuddy" has no homepage, repository, license, keywords; nothing is fetched, so pass --homepage, --repository, --license, --keywords/,
+	)
+
+	const json = runAdd('npm:repobuddy', '--claude', '--description', 'Repo automation', '--format', 'json')
+	expect(JSON.parse(json.stdout)).toMatchObject([{ missing: ['homepage', 'repository', 'license', 'keywords'] }])
+})
+
 test('add reports rows as JSON, previews with --dry-run, and guards a replacement', () => {
 	const preview = runAdd('cyberuni/universal-plugin', '--claude', '--dry-run', '--format', 'json')
 	expect(preview.status).toBe(0)

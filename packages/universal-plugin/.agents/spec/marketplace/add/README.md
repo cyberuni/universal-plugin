@@ -91,6 +91,11 @@ resolves to a real plugin.
   `node_modules/<pkg>/package.json`, or the copied marketplace entry — and the corresponding flags
   override them. A field with no value is omitted; an entry missing an optional field still installs.
 - Nothing is fetched from a registry or a forge.
+- Each written row lists, as `missing`, the descriptive fields the entry still lacks: `description`,
+  `homepage`, `repository`, `license`, and `keywords`. stderr names the flags that fill them. A git
+  or npm spec reads nothing from this machine, so this note is how its caller learns what to pass
+  without the command fetching (issue #264). `version` is not listed, because an entry pinned by its
+  source, or following its default branch, carries none by design.
 
 ### Marketplace resolution decisions
 
@@ -124,10 +129,12 @@ resolves to a real plugin.
   `--force` remedy. An entry that would say exactly what is already there is `unchanged`.
 - Every planned catalog is checked against the schema its runtime loads before anything is written.
 - `--dry-run` writes nothing. Each changed catalog is written atomically.
-- Every row carries `target`, `status`, `entry`, `source`, and `path`, with an optional `reason`.
+- Every row carries `target`, `status`, `entry`, `source`, and `path`, with an optional `reason`,
+  and a written row an optional `missing`.
   Status is one of `added`, `updated`, `unchanged`, `planned`, or `skipped`.
 - Default output is a compact TOON table on stdout; `--format json` returns the same rows. stderr
-  carries each skip and a reminder that no remote marketplace action occurred.
+  carries each skip, the flags that fill any missing metadata, and a reminder that no remote
+  marketplace action occurred.
 
 ## Control Flow
 
@@ -200,6 +207,7 @@ flowchart TD
 | installed package | an npm source present in node_modules | `an installed package supplies its own metadata` |
 | flags win | supplied metadata and discovered metadata disagree | `a metadata flag overrides what was discovered` |
 | no fetch | an npm source absent from node_modules | `an unknown package is listed with what the flags supply` |
+| missing metadata | an entry left without descriptive fields | `the result names the metadata the entry lacks` |
 
 ### `marketplace add` — resolving another marketplace
 

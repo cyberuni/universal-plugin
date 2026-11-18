@@ -123,6 +123,12 @@ Feature: marketplace add — list a plugin that lives elsewhere
     When I run "universal-plugin marketplace add npm:repobuddy --claude --root <root>"
     Then the entry carries a name and a source and no fetched metadata
 
+  Scenario: the result names the metadata the entry lacks
+    Given no local copy of the package
+    When I run "universal-plugin marketplace add npm:repobuddy --description "Repo automation" --claude --root <root>"
+    Then the written row lists homepage, repository, license, and keywords as missing
+    And stderr names the --homepage, --repository, --license, and --keywords flags that fill them
+
   Scenario: an installed marketplace resolves without a network call
     Given marketplace "cyberplace" is installed in the runtime and lists "repobuddy" with an npm source
     When I run "universal-plugin marketplace add repobuddy@cyberplace --claude --root <root>"
