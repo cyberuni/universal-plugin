@@ -37,23 +37,22 @@ semantic-release, or release-it versions. It also stays quiet on a tree with no 
 
 ## Skills that run the plugin's own CLI through a package runner
 
-A skill runs its plugin's own CLI through a compiled per-command script: `plugin build` compiles
-`skills/<skill>/scripts/<cli>-x-y.mjs` for the command `x y`, and the skill calls it with
-`node <this skill's folder>/scripts/<cli>-x-y.mjs`. See
+A skill runs its plugin's own CLI through a forwarder: `plugin build` writes
+`skills/<skill>/scripts/<bin>.mjs` from a `{ "forward": "<bin>" }` entry, and the skill calls it with
+`node <this skill's folder>/scripts/<bin>.mjs <args>`. See
 [Running the plugin's own CLI from a skill](../../cli/build/#running-the-plugins-own-cli-from-a-skill).
 The skill reads each skill and agent Markdown file for a line that runs the plugin's own package
 through `npx`, `upx` or `pnpm exec <bin>`, and reports two findings, both severity `low`:
 
-- `own-package-runner`: the command has no script in that skill. The repair names the script entry to
-  declare, with the path and the command filled in, and the `node` call that replaces the line. The
-  *add a command script* route of [`init-universal-plugin`](../init-universal-plugin/) does the setup.
-- `runner-beside-script`: the same skill already has a script for the command, so the runner line is
-  a fallback with nothing to recover. Call the script and drop the line.
+- `own-package-runner`: the skill has no forwarder for that CLI. The repair names the `forward` entry
+  to declare, with the path filled in, and the `node` call that replaces the line. The *add a CLI
+  forwarder* route of [`init-universal-plugin`](../init-universal-plugin/) does the setup.
+- `runner-beside-forwarder`: the same skill already has a forwarder for the CLI. Call the forwarder
+  instead of the runner line.
 
-A runner fetches or looks up code at call time, a permission rule written for the command never
-matches it, and it fails where the package is not installed. A command whose script is over the
-150 KB budget keeps a pinned `pnpm exec <bin>`, then `npx`; the build warns for it, and the doctor
-leaves its lines alone.
+In development, a runner line runs the last release instead of your local change, and it fetches code
+at call time. A package named with no command after it, and a line inside a `yaml`, `json` or `toml`
+fence (config the user copies), are not read.
 
 ## Changesets release config
 

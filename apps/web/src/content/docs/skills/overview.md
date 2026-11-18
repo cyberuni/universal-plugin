@@ -38,18 +38,19 @@ Exactly one of them writes the canonical `plugin.json`. That is `init-universal-
 
 ## Bundled scripts
 
-`init-universal-plugin`, `doctor-universal-plugin`, `version`, `build-plugin`, and `marketplace` each
-ship compiled scripts in their own `scripts/` directory. `plugin build` compiles each one into a
-single self-contained `.mjs`, so it works when pnpm links the skill, when it copies the skill folder
-on its own, and from a git-sourced install.
+`init-universal-plugin`, `doctor-universal-plugin`, `version`, `build-plugin`, `marketplace`,
+`publish-plugin`, and `remove-plugin` each ship scripts in their own `scripts/` directory.
+`plugin build` compiles each standalone script into a single self-contained `.mjs` and writes each CLI
+forwarder, so each works when pnpm links the skill, when it copies the skill folder on its own, and
+from a git-sourced install.
 
 ```sh
 node scripts/doctor.mjs
 ```
 
-A script for a CLI command runs the project's installed CLI (`pnpm exec universal-plugin`), else the
-CLI pinned to the version the skill shipped with, because the full CLI is over the 150 KB budget for
-compiling it in. For your own plugin, compile a script per command, and call it with `node`: see
+A skill that runs the CLI calls `scripts/universal-plugin.mjs`, a forwarder that runs the CLI of the
+checkout it sits in, else the release pinned to the skill's version through `npx`. For your own
+plugin, declare a forwarder and call it with `node`: see
 [Running the plugin's own CLI from a skill](../../cli/build/#running-the-plugins-own-cli-from-a-skill).
 
 ## Why four skills and not one

@@ -8,8 +8,9 @@ Codex manifests, and Copilot CLI's `com.github.copilot/` tree. It also refreshes
 in the repository's marketplace catalogs. A change to a plugin is not done until it is built,
 because a runtime reads the derived files, not the canonical one.
 
-The skill runs your project's own build script when one exists, and otherwise the CLI shipped beside
-it, so nothing is downloaded. It reads the result back rather than calling it done. Each warning
+The skill runs your project's own build script when one exists, and otherwise the CLI through its
+forwarder: the checkout's CLI in a checkout of universal-plugin, else the release pinned to the
+skill's version. It reads the result back rather than calling it done. Each warning
 names something a vendor cannot represent and will not deliver, and a `built 0` result goes to
 [`doctor-universal-plugin`](../doctor-universal-plugin/) instead of being reported as success.
 
