@@ -485,42 +485,101 @@ function invalidCatalogs(extraRoots: string[]) {
 	})
 }
 
-/** Lines of shipped skill and agent Markdown that run `npx` or `upx` on this plugin's own package.
- *  One finding per file, naming each line. Advisory: only Claude Code's Bash tool from an npm-sourced
- *  install is verified to put `bin/` on PATH, so the repair never claims more than that. */
+/** The size above which a compiled skill script is over budget (ADR-0019 §4): there the skill keeps
+ *  a pinned `pnpm exec <bin>`, then `npx`. */
+const SCRIPT_BUDGET_BYTES = 150 * 1024
+
+/** Lines of shipped skill and agent Markdown that run this plugin's own package through `npx`, `upx`
+ *  or `pnpm exec <bin>` (ADR-0021). A line whose command the same skill folder has a compiled script
+ *  for is `runner-beside-script`: the script replaces it. Any other is `own-package-runner`, whose
+ *  repair is the script to declare. One finding of each code per file, naming each line. */
 function ownPackageRunnerFindings(): [string, string, string, string][] {
 	const pkgRoot = path.join(root, npmPackagePath ?? '.')
-	const name = readJson(path.join(pkgRoot, 'package.json'))?.name
+	const pkg = readJson(path.join(pkgRoot, 'package.json'))
+	const name = pkg?.name
 	if (typeof name !== 'string' || name === '') return []
-	const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-	const runner = new RegExp(`\\b(?:npx|upx)\\s+(?:-{1,2}[\\w-]+\\s+)*${escaped}(?![\\w./-])`)
-	const launchers: Record<string, unknown> =
-		typeof ext?.launchers === 'object' && ext.launchers !== null && !Array.isArray(ext.launchers) ? ext.launchers : {}
-	const names = Object.keys(launchers)
-	const command = names.includes(name) ? name : (names[0] ?? name)
-	const caveat =
-		"Verified only for Claude Code's Bash tool from an npm-sourced install; hooks, MCP servers, Cursor, Codex, Copilot CLI and Windows are untested, so keep the runner where a skill must work there"
-	const repair =
-		names.length > 0
-			? `call the launcher \`${command}\` bare instead (plugin build writes bin/${command}). ${caveat}`
-			: `declare a launcher in plugin.json under extensions["${UP_NAMESPACE}"].launchers (for example { "${name}": "dist/cli.js" }), run plugin build, then call \`${name}\` bare. ${caveat}`
+	const bins = packageBins(name, pkg?.bin)
+	const bin = bins[0] ?? name.replace(/^@[^/]+\//, '')
+	const literal = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+	const words = '((?:[ \\t]+[a-z][\\w-]*)*)'
+	const runners = [
+		new RegExp(`\\b(?:npx|upx)\\s+(?:-{1,2}[\\w-]+\\s+)*${literal(name)}(?:@[^\\s\`'")]+)?(?![\\w./@-])${words}`, 'g'),
+		...bins.map((b) => new RegExp(`\\bpnpm\\s+exec\\s+${literal(b)}(?![\\w./@-])${words}`, 'g')),
+	]
+	const scripts = declaredCommandScripts()
 
 	const out: [string, string, string, string][] = []
 	for (const file of ['skills', 'agents'].flatMap((dir) => markdownFiles(path.join(root, dir)))) {
-		const lines = fs
-			.readFileSync(file, 'utf8')
-			.split('\n')
-			.flatMap((line, i) => (runner.test(line) ? [i + 1] : []))
-		if (lines.length === 0) continue
 		const rel = path.relative(root, file).split(path.sep).join('/')
-		out.push([
-			'own-package-runner',
-			'low',
-			`${lines.map((n) => `${rel}:${n}`).join(', ')} runs \`npx\` or \`upx\` on this plugin's own package ${name}, which fetches and runs code at call time and matches no permission rule for the bare command`,
-			repair,
-		])
+		const skill = /^skills\/[^/]+\//.exec(rel)?.[0] ?? null
+		const local = skill === null ? [] : scripts.filter((s) => s.path.startsWith(skill))
+		const missing: { line: number; command: string }[] = []
+		const beside: { line: number; script: string }[] = []
+		fs.readFileSync(file, 'utf8')
+			.split('\n')
+			.forEach((text, i) => {
+				for (const runner of runners) {
+					for (const match of text.matchAll(runner)) {
+						const args = (match[1] ?? '').trim().split(/\s+/).filter(Boolean)
+						const script = local
+							.filter((s) => s.command.length <= args.length && s.command.every((w, j) => args[j] === w))
+							.sort((x, y) => y.command.length - x.command.length)[0]
+						if (script === undefined) missing.push({ line: i + 1, command: args.join(' ') })
+						else if (!overBudget(script.path)) beside.push({ line: i + 1, script: script.path })
+					}
+				}
+			})
+		const lines = (rows: { line: number }[]) => [...new Set(rows.map((r) => `${rel}:${r.line}`))].join(', ')
+		if (missing.length > 0) {
+			const commands = [...new Set(missing.map((m) => m.command))]
+			const entries = commands.map((command) => {
+				const output = `${skill ?? 'skills/<skill>/'}scripts/${[bin, ...command.split(' ').filter(Boolean)].join('-')}.mjs`
+				return `"${output}": { "source": "<entry that runs ${command || '<command>'}>", "command": "${command || '<command>'}" }`
+			})
+			out.push([
+				'own-package-runner',
+				'low',
+				`${lines(missing)} runs this plugin's own package ${name} through a package runner, which fetches or looks up code at call time, matches no permission rule for the command, and fails where the package is not installed`,
+				`compile a script per command: declare ${entries.join(', ')} under extensions["${UP_NAMESPACE}"].scripts, run plugin build, and call \`node <this skill's folder>/scripts/<file>.mjs\` instead — /universal-plugin:init-universal-plugin, add a command script. Keep a pinned \`pnpm exec ${bin}\`, then \`npx\`, only when the build warns the script is over the 150 KB budget`,
+			])
+		}
+		if (beside.length > 0) {
+			// A fallback beside a built script (ADR-0021 §3).
+			const named = [...new Set(beside.map((b) => b.script))].join(', ')
+			out.push([
+				'runner-beside-script',
+				'low',
+				`${lines(beside)} runs this plugin's own package ${name} through a package runner for a command ${named} already runs`,
+				`call ${[...new Set(beside.map((b) => `\`node <this skill's folder>/${b.script.slice(skill?.length ?? 0)}\``))].join(' or ')} and drop the runner line: the committed script, kept current by \`plugin build --check\`, leaves it nothing to recover`,
+			])
+		}
 	}
 	return out
+}
+
+/** The bin names a package.json declares: an object's keys, or the package's unscoped name for a
+ *  string `bin`. */
+function packageBins(name: string, bin: unknown): string[] {
+	if (typeof bin === 'string') return [name.replace(/^@[^/]+\//, '')]
+	if (typeof bin === 'object' && bin !== null && !Array.isArray(bin)) return Object.keys(bin)
+	return []
+}
+
+/** The declared script entries that run a CLI command, each with its output path and command words. */
+function declaredCommandScripts(): { path: string; command: string[] }[] {
+	const scripts = ext?.scripts
+	if (typeof scripts !== 'object' || scripts === null || Array.isArray(scripts)) return []
+	return Object.entries(scripts).flatMap(([output, entry]) => {
+		const command = (entry as { command?: unknown } | null)?.command
+		if (typeof command !== 'string' || command.trim() === '') return []
+		return [{ path: output.replace(/^\.\//, ''), command: command.trim().split(/\s+/) }]
+	})
+}
+
+/** Whether a compiled script on disk is over the budget, where a runner is the right call. */
+function overBudget(output: string): boolean {
+	const file = path.join(root, output)
+	return fs.existsSync(file) && fs.statSync(file).size > SCRIPT_BUDGET_BYTES
 }
 
 /** Every `.md` file under `dir`, skipping `node_modules`; empty when `dir` does not exist. */

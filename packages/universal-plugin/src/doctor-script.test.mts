@@ -615,7 +615,7 @@ test('a skill link that leaves the skill folder is a skill-link-escapes finding'
 	expect(findings()).toContain('skill-link-escapes')
 })
 
-function writeLauncherManifest(launchers?: Record<string, string>) {
+function writeRunnerManifest(scripts?: Record<string, unknown>, bin?: unknown) {
 	write(
 		'plugin.json',
 		`${JSON.stringify({
@@ -624,56 +624,91 @@ function writeLauncherManifest(launchers?: Record<string, string>) {
 			version: '1.0.0',
 			description: 'a demo plugin',
 			extensions: {
-				'org.cyberuni.universal-plugin': { vendors: ['claude-code'], ...(launchers ? { launchers } : {}) },
+				'org.cyberuni.universal-plugin': { vendors: ['claude-code'], ...(scripts ? { scripts } : {}) },
 			},
 		})}\n`,
 	)
-	write('package.json', `${JSON.stringify({ name: 'demo-pkg', version: '1.0.0' })}\n`)
+	write('package.json', `${JSON.stringify({ name: 'demo-pkg', version: '1.0.0', ...(bin ? { bin } : {}) })}\n`)
 }
 
-function runnerFinding() {
+function runnerReport() {
 	const result = spawnSync('node', [doctor, '--root', root], { encoding: 'utf8' })
-	const report = JSON.parse(result.stdout) as {
+	return JSON.parse(result.stdout) as {
 		findings: { code: string; severity: string; detail: string; repair: string }[]
 	}
-	return report.findings.find((f) => f.code === 'own-package-runner')
 }
 
+function runnerFinding(code = 'own-package-runner') {
+	return runnerReport().findings.find((f) => f.code === code)
+}
+
+const buildScript = { 'skills/demo/scripts/demo-pkg-build.mjs': { source: 'src/build.ts', command: 'build' } }
+
 test('a skill that runs npx on the plugin own package is an own-package-runner warning naming file and line', () => {
-	writeLauncherManifest({ 'demo-pkg': 'dist/cli.js' })
+	writeRunnerManifest()
 	writeSkill('Run it:\n\n```bash\nnpx -y demo-pkg@1.0.0 build\n```')
 	const finding = runnerFinding()
-	expect(finding?.severity).not.toBe('high')
-	expect(finding?.severity).not.toBe('critical')
+	expect(finding?.severity).toBe('low')
 	expect(finding?.detail).toContain('skills/demo/SKILL.md:9')
-	expect(finding?.repair).toContain('`demo-pkg`')
-	expect(finding?.repair).toContain('bin/demo-pkg')
+	expect(finding?.repair).toContain('"skills/demo/scripts/demo-pkg-build.mjs"')
+	expect(finding?.repair).toContain('"command": "build"')
+	expect(finding?.repair).toContain("node <this skill's folder>/scripts/")
+	expect(finding?.repair).not.toMatch(/launcher|bin\//)
 })
 
 test('an upx call on the own package is reported too, and an agent body is read', () => {
-	writeLauncherManifest({ 'demo-pkg': 'dist/cli.js' })
+	writeRunnerManifest()
 	write('agents/helper.md', 'use `upx demo-pkg@^1 run`\n')
 	expect(runnerFinding()?.detail).toContain('agents/helper.md:1')
 })
 
-test('with no launcher declared the repair says to declare one', () => {
-	writeLauncherManifest()
-	writeSkill('npx demo-pkg@1.0.0 build')
-	expect(runnerFinding()?.repair).toContain('launchers')
-})
-
-test('the repair claims no more than the verified Claude Code Bash case', () => {
-	writeLauncherManifest({ 'demo-pkg': 'dist/cli.js' })
-	writeSkill('npx demo-pkg build')
-	const repair = runnerFinding()?.repair ?? ''
-	expect(repair).toContain("Claude Code's Bash tool")
-	expect(repair).toContain('untested')
+test('pnpm exec on the own bin is reported, and the script is named after the bin and command words', () => {
+	writeRunnerManifest(undefined, { demo: 'dist/cli.js' })
+	writeSkill('pnpm exec demo plugin build --root .')
+	expect(runnerFinding()?.repair).toContain('"skills/demo/scripts/demo-plugin-build.mjs"')
 })
 
 test('npx on another package, or a longer name, is not reported', () => {
-	writeLauncherManifest({ 'demo-pkg': 'dist/cli.js' })
+	writeRunnerManifest()
 	writeSkill('npx other-tool build\nnpx demo-pkg-extra build')
-	expect(findings()).not.toContain('own-package-runner')
+	const codes = runnerReport().findings.map((f) => f.code)
+	expect(codes).not.toContain('own-package-runner')
+	expect(codes).not.toContain('runner-beside-script')
+})
+
+test('a runner beside a built script for the same command is runner-beside-script, not own-package-runner', () => {
+	writeRunnerManifest(buildScript)
+	writeSkill('node scripts/demo-pkg-build.mjs\nnpx -y demo-pkg@1.0.0 build --root .')
+	const report = runnerReport()
+	const finding = report.findings.find((f) => f.code === 'runner-beside-script')
+	expect(finding?.severity).toBe('low')
+	expect(finding?.detail).toContain('skills/demo/SKILL.md:')
+	expect(finding?.detail).toContain('skills/demo/scripts/demo-pkg-build.mjs')
+	expect(finding?.repair).toContain("node <this skill's folder>/scripts/demo-pkg-build.mjs")
+	expect(report.findings.map((f) => f.code)).not.toContain('own-package-runner')
+})
+
+test('a script over the 150 KB budget keeps its runner', () => {
+	writeRunnerManifest(buildScript)
+	write('skills/demo/scripts/demo-pkg-build.mjs', `// ${'x'.repeat(151 * 1024)}\n`)
+	writeSkill('pnpm exec demo-pkg build')
+	expect(runnerReport().findings.map((f) => f.code)).not.toContain('runner-beside-script')
+})
+
+test('a script in another skill does not clear the runner', () => {
+	writeRunnerManifest({ 'skills/other/scripts/demo-pkg-build.mjs': { source: 'src/build.ts', command: 'build' } })
+	writeSkill('npx demo-pkg build')
+	expect(runnerFinding()).toBeDefined()
+	expect(runnerFinding('runner-beside-script')).toBeUndefined()
+})
+
+test('the longest declared command wins, and a shorter one still clears its own line', () => {
+	writeRunnerManifest({
+		'skills/demo/scripts/demo-pkg-plugin.mjs': { source: 'src/a.ts', command: 'plugin' },
+		'skills/demo/scripts/demo-pkg-plugin-build.mjs': { source: 'src/b.ts', command: 'plugin build' },
+	})
+	writeSkill('npx demo-pkg plugin build')
+	expect(runnerFinding('runner-beside-script')?.detail).toContain('demo-pkg-plugin-build.mjs')
 })
 
 function writeScriptManifest(version: string) {
