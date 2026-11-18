@@ -20,9 +20,23 @@ universal-plugin plugin build [options]
 | `--verbose` | Print field-by-field transformation decisions |
 | `--clean` | Delete generated manifests before building |
 | `--strict-dependencies` | Fail when a refreshed catalog cannot resolve a declared dependency |
-| `--check` | Write nothing; exit 1 when a compiled script or forwarder is missing, stale, or on another version |
+| `--check` | Write nothing; exit 1 when a vendor manifest, catalog, compiled script or forwarder is missing or stale, or a script is on another version |
 | `--root <path>` | Plugin root directory (default: current directory) |
 | `--format json` | Output as JSON |
+
+## Checking the build in CI
+
+Commit the files the build derives, and run `plugin build --check` in CI to keep them current. It
+writes nothing. It exits 1, naming each file with its status, when:
+
+- a vendor manifest is `missing` or `stale`. A vendor is stale when any file it derives (its manifest,
+  a derived hooks or mcp file, a file under `com.github.copilot/`) would be written with other bytes;
+- a repository catalog the build refreshes would change; or
+- a compiled script or forwarder is behind (see [Compiling skill scripts](#compiling-skill-scripts)).
+
+The comparison is by content, not by modification time, so a fresh checkout passes. To fix a failure,
+run `universal-plugin plugin build` and commit the result. `--dry-run` reports the same statuses in its
+`content` column and always exits 0.
 
 ## Vendor identifiers
 

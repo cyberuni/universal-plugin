@@ -6,7 +6,7 @@ import { ROOT_OPTION, resolveRoot } from '../cli-options.js'
 import { compileScripts } from '../compile/compile.js'
 import { rolldownCompiler } from '../compile/rolldown.js'
 import { output } from '../output.js'
-import { type BuildResult, buildPlugin, type VendorRow } from './build.js'
+import { type BuildResult, behindDerivedFiles, buildPlugin, type VendorRow } from './build.js'
 
 // When nothing was derived, the natural follow-up is the skill that can say why (AXI #9, issue #61).
 const NEXT_STEP_NOTHING_BUILT = '→ /universal-plugin:doctor-universal-plugin — diagnose why nothing is declared\n'
@@ -40,7 +40,10 @@ export function buildCommand(): Command {
 	cmd
 		.option('--vendor <id>', 'Build only the named vendor')
 		.option('--dry-run', 'Print what would be written without writing')
-		.option('--check', 'Write nothing; exit 1 when a compiled script is missing, stale, or on another version')
+		.option(
+			'--check',
+			'Write nothing; exit 1 when a vendor manifest, catalog, or compiled script is missing or stale, or a script is on another version',
+		)
 		.option('--verbose', 'Print field-by-field transformation decisions')
 		.option('--clean', 'Delete generated manifests before building')
 		.option('--strict-dependencies', 'Fail when a refreshed catalog cannot resolve a declared dependency')
@@ -51,8 +54,8 @@ export function buildCommand(): Command {
 		.action(async (opts: BuildCliOptions) => {
 			try {
 				const root = resolveRoot(opts.root)
-				// `--check` is a dry run that fails on a behind script, for CI (issue #191); `--dry-run`
-				// alone stays a report that exits 0.
+				// `--check` is a dry run that fails on a derived file or script that is behind, for CI
+				// (issue #191); `--dry-run` alone stays a report that exits 0.
 				const dryRun = opts.dryRun || opts.check
 				const result = buildPlugin(root, {
 					vendor: opts.vendor,
@@ -99,6 +102,14 @@ export function buildCommand(): Command {
 
 				process.stderr.write(nextStep(result, process.cwd()))
 				if (failed > 0 || scripts.summary.failed > 0) process.exitCode = 1
+				const behindDerived = opts.check ? behindDerivedFiles(result) : []
+				if (behindDerived.length > 0) {
+					const named = behindDerived.map((f) => `${f.path} (${f.status})`)
+					process.stderr.write(
+						`error: ${named.length} derived ${named.length === 1 ? 'file is' : 'files are'} behind plugin.json: ${named.join(', ')} — run "universal-plugin plugin build" and commit the result (--check)\n`,
+					)
+					process.exitCode = 1
+				}
 				if (opts.check && scripts.summary.behind > 0) {
 					const behind = scripts.rows
 						.filter((r) => r.status === 'missing' || r.status === 'stale' || r.status === 'version')

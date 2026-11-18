@@ -173,6 +173,15 @@ not a build step.
   never by modification time: a checkout writes every file at the moment it lands, so `plugin.json`
   can be newer than a derived file that is current. A real build's rows carry no `content`. This is
   what `doctor`'s `stale` finding reads.
+- **`--check` fails on a derived file that is behind** — `--check` is the CI form of the dry
+  run: it writes nothing, and it exits 1 when any `built` row's `content` is `stale` or `missing`,
+  when any catalog row is `planned` (the refresh would rewrite it, reported as `stale`), or when a
+  compiled script is behind (below). Each kind prints one error naming every file with its status,
+  for derived files `error: <n> derived files are behind plugin.json: <path> (<status>), … — run
+  "universal-plugin plugin build" and commit the result (--check)`. A vendor's row names its
+  manifest, or `com.github.copilot/` for `copilot-cli`. Plugin repositories run it in CI so the
+  derived files they commit stay current; a repository that commits stale manifests fails it until
+  it runs `plugin build` and commits the result.
 - **Writes keep the repository's JSON format** (issue #164) — every JSON file the build writes over
   (a vendor manifest, a derived hooks or mcp file, a refreshed catalog) keeps the format already on
   disk: its indentation, its line ending, whether it ends in a newline, and the original text of
@@ -269,6 +278,7 @@ not a build step.
     `publish check-version` reports). The summary appends `scripts <n>`.
   - `--check` is the CI form of that dry run (issue #191): it writes nothing, and when any script is
     `missing`, `stale` or `version` it prints an error naming each one with its status and exits 1.
+    It fails on a stale vendor manifest or catalog too (above).
     `--dry-run` alone still exits 0 whatever it reports, so a caller that reads its rows keeps working.
   - An entry's object form can also set bundle options (issue #187): `alias` (a map from import
     specifier to the specifier or plugin-root-relative path the bundle resolves instead) and
@@ -555,6 +565,10 @@ Grouped by use case; 1:1 with [`build.feature`](./build.feature).
 | dry run: current | rebuilt, `plugin.json` newer by mtime only | `--dry-run reports derived content unchanged whatever the mtimes` |
 | dry run: stale | `plugin.json` changed since the build | `--dry-run reports derived content behind plugin.json as stale` |
 | dry run: missing | never built | `--dry-run reports derived content missing before the first build` |
+| check: current | rebuilt, nothing changed | `--check passes when every derived file is current` |
+| check: stale manifest | `plugin.json` changed since the build | `--check fails naming a vendor manifest behind plugin.json` |
+| check: missing manifest | never built | `--check fails naming a vendor manifest that is missing` |
+| check: stale catalog | a catalog entry at an older version | `--check fails naming a catalog the refresh would rewrite` |
 | clean | an earlier build's manifest, `--clean` | `--clean removes existing output before writing` |
 
 ### Writes keep the repository's JSON format

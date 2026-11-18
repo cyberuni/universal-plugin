@@ -291,6 +291,53 @@ test('--check exits 1 naming a missing or stale script, writes nothing, and --dr
 	expect(build('--dry-run').status).toBe(0)
 })
 
+// Scenarios: --check passes when every derived file is current / fails naming a vendor manifest
+// behind plugin.json / fails naming a vendor manifest that is missing
+test('--check exits 1 naming a stale or missing vendor manifest, and writes nothing', () => {
+	const derived = path.join(workspacePackage, '.claude-plugin/plugin.json')
+
+	const missing = build('--check')
+	expect(missing.status).toBe(1)
+	expect(missing.stderr).toContain(
+		'error: 1 derived file is behind plugin.json: .claude-plugin/plugin.json (missing) — run "universal-plugin plugin build" and commit the result (--check)',
+	)
+	expect(built()).toBe(false)
+
+	expect(build().status).toBe(0)
+	expect(build('--check').status).toBe(0)
+
+	const manifestPath = path.join(workspacePackage, 'plugin.json')
+	const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+	manifest.description = 'a changed description'
+	fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, '\t')}\n`)
+	const before = fs.readFileSync(derived, 'utf8')
+
+	const stale = build('--check')
+	expect(stale.status).toBe(1)
+	expect(stale.stderr).toContain('.claude-plugin/plugin.json (stale)')
+	expect(fs.readFileSync(derived, 'utf8')).toBe(before)
+	expect(build('--dry-run').status).toBe(0)
+})
+
+// Scenario: --check fails naming a catalog the refresh would rewrite
+test('--check exits 1 naming a catalog the refresh would rewrite, and leaves it as it is', () => {
+	spawnSync('git', ['-C', repo, 'init', '-q'])
+	const catalogPath = path.join(repo, '.claude-plugin', 'marketplace.json')
+	fs.mkdirSync(path.dirname(catalogPath), { recursive: true })
+	const catalog = (version: string) =>
+		`${JSON.stringify({ name: 'pan-repo-local', owner: { name: 'pan' }, plugins: [{ name: 'pods', source: './packages/pods', version }] }, null, 2)}\n`
+	fs.writeFileSync(catalogPath, catalog('0.1.0'))
+	expect(build().status).toBe(0)
+	expect(build('--check').status).toBe(0)
+
+	fs.writeFileSync(catalogPath, catalog('0.1.0'))
+	const r = build('--check')
+
+	expect(r.status).toBe(1)
+	expect(r.stderr).toContain('error: 1 derived file is behind plugin.json: .claude-plugin/marketplace.json (stale)')
+	expect(fs.readFileSync(catalogPath, 'utf8')).toBe(catalog('0.1.0'))
+})
+
 // Scenarios: a forward entry writes a forwarding script; --check reports a missing forwarder (ADR-0022)
 test('--check covers a CLI forwarder, and plugin version restamps it', () => {
 	const manifestPath = path.join(workspacePackage, 'plugin.json')
@@ -319,7 +366,11 @@ test('--check covers a CLI forwarder, and plugin version restamps it', () => {
 	})
 	expect(stamp.status).toBe(0)
 	expect(fs.readFileSync(forwarder, 'utf8')).toContain('"version":"1.1.0"')
-	expect(build('--check').status).toBe(0)
+	// The forwarder is current; only the manifest `--no-build` left unbuilt is behind.
+	const check = build('--check')
+	expect(check.status).toBe(1)
+	expect(check.stderr).toContain('.claude-plugin/plugin.json (stale)')
+	expect(check.stderr).not.toContain('compiled script')
 })
 
 test('exits 1 when a script entry fails to compile', () => {
