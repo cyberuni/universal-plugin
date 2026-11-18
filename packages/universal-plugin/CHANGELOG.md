@@ -1,5 +1,22 @@
 # universal-plugin
 
+## 0.23.0
+
+### Minor Changes
+
+- db6e7cc: `plugin build --check` now also exits 1 when a vendor manifest (`.claude-plugin/plugin.json`, `.cursor-plugin/plugin.json`, `.codex-plugin/plugin.json`, the `com.github.copilot/` tree, a derived hooks or mcp file) is stale or missing, or when a repository catalog the build refreshes would change. Before, it checked only compiled scripts, so a stale manifest passed CI. The error names each file with its status. A repository whose committed manifests are stale will start failing `--check`. To fix it, run `universal-plugin plugin build` and commit the result.
+- 791d43a: A skill runs a CLI through one forwarding script per CLI (ADR 0022). Declare `"skills/<skill>/scripts/<bin>.mjs": { "forward": "<bin>" }` under `extensions["org.cyberuni.universal-plugin"].scripts`, and `plugin build` writes a small `.mjs` the skill calls with `node <this skill's folder>/scripts/<bin>.mjs <args>`. In a checkout of the package it runs the checkout's bin with `node`, and warns when `dist/` is older than `src/`. Anywhere else it runs `npx -y <pkg>@<version>`, with the version from `plugin.json`. `plugin build --check` reports a forwarder `missing`, `stale` or `version`, `plugin version` restamps it, and `publish check-version` compares it. A CLI from another package pins its version in the entry (`"package"`, `"version"`), and neither the stamp nor the drift check moves it.
+  
+  `doctor-universal-plugin`'s `own-package-runner` now reads `pnpm exec <bin>` as well as `npx` and `upx`, and its repair is the `forward` entry to declare. A new `runner-beside-forwarder` finding flags a runner line in a skill that already has a forwarder for that CLI. `init-universal-plugin` gains an "add a CLI forwarder" route. universal-plugin's own skills run its CLI through `scripts/universal-plugin.mjs`, replacing `build.mjs`, `init.mjs`, `version.mjs`, `add.mjs`, `marketplace.mjs`, `update.mjs` and `validate.mjs`.
+- 2806445: Remove plugin launchers (ADR 0020, superseded). `plugin build` no longer writes `bin/<name>` from `extensions["org.cyberuni.universal-plugin"].launchers`: only Claude Code puts a plugin's `bin/` on `PATH`, and probes found that Cursor and GitHub Copilot CLI do not. A leftover `launchers` key now warns and is ignored; remove it and any `bin/<name>` it wrote, and have each skill run the CLI through a forwarder (ADR 0022).
+
+### Patch Changes
+
+- f38e952: `doctor-universal-plugin` decides `stale` by content, not by modification time. It used to report every derived manifest as stale after a checkout, because a checkout writes `plugin.json` after derived files it did not change. `plugin build --dry-run` now gives each built vendor a `content` of `unchanged`, `stale` or `missing`, found by comparing the bytes it would write with the bytes on disk. The doctor reads that status, so it agrees with the build and also catches a hand-edit to a derived file.
+- 2bde5ee: universal-plugin now depends on `cyber-agentkit` from the `cyber-uni` marketplace (`{ "name": "cyber-agentkit", "marketplace": "cyber-uni" }`), not by bare name. A bare name resolves only in the marketplace the plugin was installed from, so an install from a marketplace that does not list `cyber-agentkit` could not resolve it.
+- 9057513: Name the tsconfig file in a failed `extends` message with `/` separators on Windows too.
+- 9057513: Find the repository's catalogs and release config on Windows when the plugin root is spelled differently from git's top level, such as the 8.3 short name `os.tmpdir()` returns. `plugin build`, `plugin init`, `plugin version`, `publish check-version` and the doctor skill now spell the repository root the way the plugin root is spelled.
+
 ## 0.22.0
 
 ### Minor Changes
