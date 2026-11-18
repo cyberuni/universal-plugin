@@ -16,8 +16,12 @@ jobs:
       skip-playwright: true
 
   release:
-    uses: repobuddy/.github/.github/workflows/pnpm-release-changeset.yml@v2
+    uses: repobuddy/.github/.github/workflows/pnpm-release-changeset-oidc.yml@v2
     needs: code
-    secrets: inherit
+    permissions:
+      id-token: write
+      contents: write
+      pull-requests: write
+      actions: write
     with:
       skip-playwright: true
