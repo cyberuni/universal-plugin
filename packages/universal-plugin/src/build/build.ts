@@ -219,6 +219,17 @@ export interface VendorRow {
 	vendor: string
 	path: string
 	status: 'built' | 'skipped' | 'failed' | 'canonical'
+	/** A dry run's comparison of a `built` vendor's derived files with what is on disk, by content:
+	 *  `missing` when its manifest (or `com.github.copilot/`) does not exist, `stale` when any file it
+	 *  derives would be written differently or removed, else `unchanged`. Absent on a real build. */
+	content?: DerivedContent
+}
+
+export type DerivedContent = 'unchanged' | 'stale' | 'missing'
+
+/** Collects, across one vendor's derived files, whether the build would change any of them. */
+interface Drift {
+	stale: boolean
 }
 
 export interface CatalogRow {
@@ -382,6 +393,7 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 	for (const vendor of vendors) {
 		const relPath = VENDOR_OUTPUT[vendor]
 		const outputPath = path.join(root, relPath)
+		const drift: Drift = { stale: false }
 		const outputDir = path.dirname(outputPath)
 		const vendorFields = harnesses[vendor] ?? {}
 		const components = vendorComponentConfig(componentConfig, vendor)
@@ -415,12 +427,18 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 				)
 			}
 			writeSkillArtifacts(vendor, skills, opts, written)
-			const derived = deriveCopilotNamespace(root, componentConfig, hooks, indent, opts, written, warnings)
+			const nsExists = fs.existsSync(path.join(root, COPILOT_NAMESPACE))
+			const derived = deriveCopilotNamespace(root, componentConfig, hooks, indent, opts, written, warnings, drift)
 			// Nothing to derive is still the old result, and still correct for the plugin that has no
 			// component of a moved kind: root plugin.json serves it whole.
 			rows.push(
 				derived
-					? { vendor, path: `${COPILOT_NAMESPACE}/`, status: 'built' }
+					? {
+							vendor,
+							path: `${COPILOT_NAMESPACE}/`,
+							status: 'built',
+							...(opts.dryRun && { content: derivedContent(nsExists, drift) }),
+						}
 					: { vendor, path: relPath, status: 'canonical' },
 			)
 			continue
@@ -470,26 +488,32 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 		}
 
 		try {
-			if (!opts.dryRun) {
-				const content = derivedJson(outputPath, vendorManifest, indent)
-				if (opts.clean && fs.existsSync(outputPath)) fs.unlinkSync(outputPath)
-				fs.mkdirSync(outputDir, { recursive: true })
-				fs.writeFileSync(outputPath, content)
-			}
-			written.push(outputPath)
+			const manifestExists = fs.existsSync(outputPath)
+			writeArtifact(outputPath, derivedJson(outputPath, vendorManifest, indent), opts, written, drift)
 			if (hooks?.changed) {
 				if (hooks.hooks) {
-					writeArtifact(derivedHooksPath, derivedJson(derivedHooksPath, hooks.hooks, indent), opts, written)
-				} else if (!opts.dryRun && fs.existsSync(derivedHooksPath)) {
+					writeArtifact(derivedHooksPath, derivedJson(derivedHooksPath, hooks.hooks, indent), opts, written, drift)
+				} else {
 					// Nothing runnable is left this time; an earlier build's file would linger unreferenced.
-					fs.unlinkSync(derivedHooksPath)
+					removeArtifact(derivedHooksPath, opts, drift)
 				}
 			}
 			if (mcp?.changed && declaredMcp && !declaredMcp.inline) {
-				writeArtifact(derivedMcpPath, derivedJson(derivedMcpPath, { mcpServers: mcp.servers }, indent), opts, written)
+				writeArtifact(
+					derivedMcpPath,
+					derivedJson(derivedMcpPath, { mcpServers: mcp.servers }, indent),
+					opts,
+					written,
+					drift,
+				)
 			}
 			writeSkillArtifacts(vendor, skills, opts, written)
-			rows.push({ vendor, path: relPath, status: 'built' })
+			rows.push({
+				vendor,
+				path: relPath,
+				status: 'built',
+				...(opts.dryRun && { content: derivedContent(manifestExists, drift) }),
+			})
 		} catch (err) {
 			warnings.push(`Failed to write "${vendor}" → ${relPath}: ${err instanceof Error ? err.message : String(err)}`)
 			rows.push({ vendor, path: relPath, status: 'failed' })
@@ -775,6 +799,7 @@ function deriveCopilotNamespace(
 	opts: BuildOptions,
 	written: string[],
 	warnings: string[],
+	drift: Drift,
 ): boolean {
 	const nsDir = path.join(root, COPILOT_NAMESPACE)
 	if (opts.clean && !opts.dryRun) cleanCopilotNamespace(nsDir)
@@ -801,7 +826,7 @@ function deriveCopilotNamespace(
 			for (const file of listFilesRecursive(sourceDir)) {
 				const relative = path.relative(sourceDir, file)
 				const target = kind === 'agents' ? copilotAgentName(relative) : relative
-				writeArtifact(path.join(nsDir, kind, target), fs.readFileSync(file), opts, written)
+				writeArtifact(path.join(nsDir, kind, target), fs.readFileSync(file), opts, written, drift)
 				derived = true
 			}
 		}
@@ -811,11 +836,11 @@ function deriveCopilotNamespace(
 	// one path spec mode reads.
 	const hooksPath = path.join(nsDir, COPILOT_HOOKS_PATH)
 	if (hooks?.hooks) {
-		writeArtifact(hooksPath, derivedJson(hooksPath, hooks.hooks, indent), opts, written)
+		writeArtifact(hooksPath, derivedJson(hooksPath, hooks.hooks, indent), opts, written, drift)
 		derived = true
-	} else if (hooks && !opts.dryRun && fs.existsSync(hooksPath)) {
+	} else if (hooks) {
 		// Nothing runnable survived this time; an earlier build's file would linger unreferenced.
-		fs.unlinkSync(hooksPath)
+		removeArtifact(hooksPath, opts, drift)
 	}
 
 	// A declared path is copied verbatim. An inline map would mean composing the file, and its
@@ -836,7 +861,7 @@ function deriveCopilotNamespace(
 					)
 					continue
 				}
-				writeArtifact(path.join(nsDir, COPILOT_LSP_PATH), fs.readFileSync(sourceFile), opts, written)
+				writeArtifact(path.join(nsDir, COPILOT_LSP_PATH), fs.readFileSync(sourceFile), opts, written, drift)
 				derived = true
 			}
 		}
@@ -880,13 +905,40 @@ function derivedJson(outputPath: string, value: unknown, manifestIndent: string 
 	return formatJson(value, { existing, indent: readEditorconfigIndent(outputPath) ?? manifestIndent })
 }
 
-function writeArtifact(outputPath: string, content: string | Buffer, opts: BuildOptions, written: string[]) {
+/** Writes one derived file. With `drift`, it first records whether the file on disk differs from
+ *  `content`, so a dry run can tell a current derived file from a stale one by content rather than
+ *  by modification time, which a checkout resets. */
+function writeArtifact(
+	outputPath: string,
+	content: string | Buffer,
+	opts: BuildOptions,
+	written: string[],
+	drift?: Drift,
+) {
+	if (drift && !drift.stale) drift.stale = differsOnDisk(outputPath, content)
 	if (!opts.dryRun) {
 		if (opts.clean && fs.existsSync(outputPath)) fs.unlinkSync(outputPath)
 		fs.mkdirSync(path.dirname(outputPath), { recursive: true })
 		fs.writeFileSync(outputPath, content)
 	}
 	written.push(outputPath)
+}
+
+/** Removes a derived file the build no longer produces. A file left to remove makes the vendor stale. */
+function removeArtifact(outputPath: string, opts: BuildOptions, drift: Drift) {
+	if (!fs.existsSync(outputPath)) return
+	drift.stale = true
+	if (!opts.dryRun) fs.unlinkSync(outputPath)
+}
+
+function differsOnDisk(outputPath: string, content: string | Buffer): boolean {
+	if (!fs.existsSync(outputPath)) return true
+	return !fs.readFileSync(outputPath).equals(typeof content === 'string' ? Buffer.from(content) : content)
+}
+
+function derivedContent(existed: boolean, drift: Drift): DerivedContent {
+	if (!existed) return 'missing'
+	return drift.stale ? 'stale' : 'unchanged'
 }
 
 function summarize(rows: VendorRow[]): BuildResult['summary'] {
