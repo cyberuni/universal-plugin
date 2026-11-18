@@ -161,6 +161,15 @@ its own `entry`, and runs `pnpm exec <bin> <command> ...`. When the project has 
 itself, so a copied skill works the same as a linked one. The scripts that stand alone, such as
 `doctor.mjs`, are compiled from `src/skill-scripts/` and ask the CLI the same way.
 
+### Ship a launcher so a skill calls a bare command
+
+A plugin that ships its own CLI can have `plugin build` write `bin/<name>`, a shim that runs the CLI
+entry the plugin shipped with. Claude Code puts a plugin's `bin/` on the Bash tool's `PATH`, so a skill
+calls `<name> ...`: nothing is fetched at call time, and a permission rule written for `<name> ...`
+matches. This was checked from an npm-sourced install in Claude Code only. Hooks, MCP processes,
+Cursor, Codex, Copilot CLI and Windows are untested. See
+[Writing a launcher](../../cli/build/#writing-a-launcher).
+
 ### Keep a pinned `npx` fallback
 
 Resolving the script's path is model behavior, not a guarantee, so keep one line in the skill body
