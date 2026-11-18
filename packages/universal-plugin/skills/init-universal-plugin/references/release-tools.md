@@ -50,7 +50,7 @@ usually lacks. Without `npm`, semantic-release needs no `package.json` at all.
     "@semantic-release/commit-analyzer",
     "@semantic-release/release-notes-generator",
     ["@semantic-release/exec", {
-      "prepareCmd": "npx universal-plugin@0.22.0 plugin version ${nextRelease.version}"
+      "prepareCmd": "npx universal-plugin@0.23.0 plugin version ${nextRelease.version}"
     }],
     ["@semantic-release/git", {
       "assets": [
@@ -129,7 +129,7 @@ from the latest git tag. Add the stamp as the `after:bump` hook:
 {
   "npm": false,
   "hooks": {
-    "after:bump": "npx universal-plugin@0.22.0 plugin version ${version}"
+    "after:bump": "npx universal-plugin@0.23.0 plugin version ${version}"
   }
 }
 ```

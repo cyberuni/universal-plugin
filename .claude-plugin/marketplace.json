@@ -19,7 +19,7 @@
 			"repository": "https://github.com/cyberuni/universal-plugin",
 			"license": "MIT",
 			"category": "plugin-authoring",
-			"version": "0.22.0",
+			"version": "0.23.0",
 			"keywords": ["universal", "plugin", "agent", "cross-vendor"]
 		}
 	]
