@@ -206,7 +206,7 @@ report({ vendors });
 *  which ones a repository ought to carry. */
 function invalidCatalogs(extraRoots) {
 	return [{
-		catalogRoot: git("rev-parse", "--show-toplevel") ?? root,
+		catalogRoot: repositoryRoot(),
 		own: true
 	}, ...extraRoots.map((r) => ({
 		catalogRoot: path.resolve(r),
@@ -307,7 +307,7 @@ function markdownFiles(dir) {
 *  `changeset publish` there publishes to npm whatever the private-package settings say. */
 function changesetsReleaseFindings() {
 	if (packagePath !== null) return [];
-	const repoRoot = git("rev-parse", "--show-toplevel") ?? root;
+	const repoRoot = repositoryRoot();
 	const workspace = changesetsWorkspace(repoRoot);
 	if (workspace === void 0) return [];
 	const pkg = readJson(path.join(root, "package.json"));
@@ -348,7 +348,7 @@ function changesetsWorkspace(repoRoot) {
 *  release-it from its prompt or increment argument. Config is looked for where each tool loads it:
 *  the plugin root and the repository root. */
 function releaseTool() {
-	const repoRoot = git("rev-parse", "--show-toplevel") ?? root;
+	const repoRoot = repositoryRoot();
 	if (changesetsWorkspace(repoRoot) !== void 0) return "changesets";
 	const rpConfig = readJson(path.join(repoRoot, "release-please-config.json"));
 	if (rpConfig !== null && releasePleaseBumpsManifest(rpConfig, repoRoot)) return "release-please";
@@ -369,7 +369,7 @@ function hasConfig(dir, files, key) {
 *  `--from-package`. */
 function releasePleaseReleaseFindings() {
 	if (packagePath !== null) return [];
-	const repoRoot = git("rev-parse", "--show-toplevel") ?? root;
+	const repoRoot = repositoryRoot();
 	const config = readJson(path.join(repoRoot, "release-please-config.json"));
 	if (config === null || !releasePleaseBumpsManifest(config, repoRoot)) return [];
 	if (!workflowsMention(repoRoot, /plugin version|version\.mjs/)) return [[
@@ -413,7 +413,7 @@ function releasePleaseBumpsManifest(config, repoRoot) {
 *  Each config is read as text, so a JavaScript config is checked only for what it names. A config
 *  that `extends` a shareable config is skipped: the wiring may live in the shared one. */
 function semanticReleaseFindings() {
-	const repoRoot = git("rev-parse", "--show-toplevel") ?? root;
+	const repoRoot = repositoryRoot();
 	return [.../* @__PURE__ */ new Set([root, repoRoot])].flatMap((dir) => {
 		const config = semanticReleaseConfig(dir);
 		if (config === null || /\bextends\b/.test(config.text)) return [];
@@ -530,7 +530,7 @@ function changesetsWorkflowsWithoutPublish(repoRoot) {
 *  release-it reads `.release-it.{json,yaml,yml,toml,js,cjs,mjs,ts}` or the `release-it` key of
 *  package.json. Each is read as text, so the check is only that the stamp is named somewhere. */
 function releaseItConfigsWithoutStamp() {
-	const repoRoot = git("rev-parse", "--show-toplevel") ?? root;
+	const repoRoot = repositoryRoot();
 	const stamps = (text) => /\bplugin\s+version\b/.test(text);
 	return [.../* @__PURE__ */ new Set([root, repoRoot])].flatMap((dir) => {
 		const label = (file) => path.relative(root, path.join(dir, file)) || file;
@@ -539,6 +539,23 @@ function releaseItConfigsWithoutStamp() {
 		if (config !== void 0 && !stamps(JSON.stringify(config))) found.push(label("package.json"));
 		return found;
 	});
+}
+/** The repository root, spelled the way `root` is, or `root` outside any repository. git prints the
+*  top level in its own spelling, which on Windows can differ from `root` (a long name for an 8.3
+*  short one), so paths built from the two would never compare equal. It is rebuilt from `root` and
+*  `--show-cdup`, and git's spelling kept only when that lands elsewhere (a symlinked `root`). */
+function repositoryRoot() {
+	const out = git("rev-parse", "--show-toplevel", "--show-cdup");
+	if (out === null) return root;
+	const [top = "", cdup = ""] = out.split(/\r?\n/);
+	if (top === "") return root;
+	const fromGit = path.resolve(top);
+	const fromRoot = path.resolve(root, cdup);
+	try {
+		return fs.realpathSync.native(fromRoot) === fs.realpathSync.native(fromGit) ? fromRoot : fromGit;
+	} catch {
+		return fromGit;
+	}
 }
 /** Runs git inside `root`, returning its stdout or `null` — a non-zero status, a missing git, and a
 *  directory outside any repository are all the same answer here: no history to read. */

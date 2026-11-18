@@ -67,15 +67,35 @@ export interface CatalogRepo {
 	catalogs: Record<string, string>
 }
 
+/** The root of the git repository holding `root`, spelled the way `root` is.
+ *
+ *  git prints the top level in its own spelling, which on Windows can differ from the caller's: a
+ *  long name where the caller has an 8.3 short one (`RUNNER~1` from `os.tmpdir()`), or forward
+ *  slashes. Paths compared or made relative across the two spellings then never match, so the top
+ *  level is rebuilt from `root` and git's `--show-cdup`, and git's own spelling is kept only when
+ *  that does not land on the same directory (a `root` reached through a symlink). */
 export function gitToplevel(root: string): string | undefined {
+	let out: string
 	try {
-		const top = execFileSync('git', ['-C', root, 'rev-parse', '--show-toplevel'], {
+		out = execFileSync('git', ['-C', root, 'rev-parse', '--show-toplevel', '--show-cdup'], {
 			encoding: 'utf8',
 			stdio: ['ignore', 'pipe', 'ignore'],
-		}).trim()
-		return top === '' ? undefined : path.resolve(top)
+		})
 	} catch {
 		return undefined
+	}
+	const [top = '', cdup = ''] = out.split(/\r?\n/)
+	if (top === '') return undefined
+	const fromGit = path.resolve(top)
+	const fromRoot = path.resolve(root, cdup)
+	return sameDirectory(fromRoot, fromGit) ? fromRoot : fromGit
+}
+
+function sameDirectory(a: string, b: string): boolean {
+	try {
+		return fs.realpathSync.native(a) === fs.realpathSync.native(b)
+	} catch {
+		return false
 	}
 }
 
