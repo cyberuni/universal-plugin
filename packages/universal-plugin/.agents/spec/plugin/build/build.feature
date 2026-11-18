@@ -1127,6 +1127,15 @@ Feature: plugin build — derive per-vendor manifests
     Then stderr contains "pin its version"
     And "skills/demo/scripts/other-cli.mjs" is not written
 
+  Scenario: a forward entry for a plugin that ships to no package fails the build
+    Given plugin.json sets "packagePath" but ".agents/universal-plugin.json" does not
+    And the extension declares scripts { "skills/demo/scripts/demo.mjs": { "forward": "demo" } }
+    When I run "universal-plugin plugin build"
+    Then stderr contains "ships to no package"
+    And the scripts row for "skills/demo/scripts/demo.mjs" is "failed"
+    And stdout contains the aggregate summary "built 1, skipped 0, failed 1, scripts 1"
+    And the exit code is 1
+
   Scenario: the forwarder runs the checkout's bin with node
     Given a forwarder for "demo" inside a checkout whose package.json is "demo-pkg" with bin "demo"
     When I run "node skills/demo/scripts/demo.mjs a 'b c' --flag"

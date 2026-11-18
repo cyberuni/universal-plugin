@@ -71,7 +71,9 @@ export function buildCommand(): Command {
 					process.stderr.write(`warn: ${warning}\n`)
 				}
 
-				const { built, skipped, failed, canonical } = result.summary
+				const { built, skipped, canonical } = result.summary
+				// A failed script row is a failure like a failed vendor row: the summary counts both (issue #295).
+				const failed = result.summary.failed + scripts.summary.failed
 				const jsonResult = {
 					built: result.rows.filter((r) => r.status === 'built'),
 					skipped: result.rows.filter((r) => r.status === 'skipped'),
@@ -80,7 +82,7 @@ export function buildCommand(): Command {
 					catalogs: result.catalogs,
 					scripts: scripts.rows,
 					dependencyIssues: result.dependencyIssues,
-					summary: result.summary,
+					summary: { ...result.summary, failed },
 					warnings,
 				}
 				const counts = `built ${built}, skipped ${skipped}, failed ${failed}`
@@ -101,7 +103,7 @@ export function buildCommand(): Command {
 				})
 
 				process.stderr.write(nextStep(result, process.cwd()))
-				if (failed > 0 || scripts.summary.failed > 0) process.exitCode = 1
+				if (failed > 0) process.exitCode = 1
 				const behindDerived = opts.check ? behindDerivedFiles(result) : []
 				if (behindDerived.length > 0) {
 					const named = behindDerived.map((f) => `${f.path} (${f.status})`)

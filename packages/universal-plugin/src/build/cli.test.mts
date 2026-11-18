@@ -383,7 +383,36 @@ test('exits 1 when a script entry fails to compile', () => {
 
 	expect(r.status).toBe(1)
 	expect(r.stderr).toContain('script source "src/missing.ts" for a.mjs not found')
+	expect(r.stdout).toContain('summary: "built 1, skipped 0, failed 1, scripts 1"')
 	expect(built()).toBe(true)
+})
+
+// Scenario: a forward entry for a plugin that ships to no package fails the build (issue #295)
+test('exits 1 and counts a refused forward entry as failed in the summary', () => {
+	const manifestPath = path.join(workspacePackage, 'plugin.json')
+	const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+	// `packagePath` in plugin.json is never read, so the plugin ships to no package.
+	manifest.extensions['org.cyberuni.universal-plugin'].packagePath = '.'
+	manifest.extensions['org.cyberuni.universal-plugin'].scripts = {
+		'skills/a/scripts/pods.mjs': { forward: 'pods' },
+		'skills/b/scripts/pods.mjs': { forward: 'pods' },
+	}
+	fs.writeFileSync(manifestPath, JSON.stringify(manifest))
+	fs.writeFileSync(
+		path.join(workspacePackage, 'package.json'),
+		JSON.stringify({ name: 'pods', version: '0.0.0-development', bin: { pods: 'bin/pods.mjs' } }),
+	)
+
+	const r = build()
+	expect(r.status).toBe(1)
+	expect(r.stderr).toContain('ships to no package')
+	expect(r.stdout).toContain('summary: "built 1, skipped 0, failed 2, scripts 2"')
+
+	const json = build('--format', 'json')
+	expect(json.status).toBe(1)
+	expect(JSON.parse(json.stdout).summary.failed).toBe(2)
+
+	expect(build('--check').status).toBe(1)
 })
 
 // Scenario: a leftover launchers key warns and writes nothing (ADR-0021)
