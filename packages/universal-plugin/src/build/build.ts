@@ -161,6 +161,8 @@ export interface UniversalPluginExtension {
 	dependencies?: DependencyDeclaration[]
 	/** Skill script entries `plugin build` compiles, output path → source (issue #177). */
 	scripts?: unknown
+	/** Command name → entry inside the package; `plugin build` writes `bin/<name>` for each (issue #276). */
+	launchers?: unknown
 	skills?: unknown
 	[key: string]: unknown
 }
@@ -355,6 +357,8 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 		dependencies: declaredDependencies,
 		// Compiled by `compileScripts`, after the manifests: an entry map is not a component a vendor reads.
 		scripts: _scripts,
+		// Written by `writeLaunchers`: a launcher map is build config, not a component a vendor reads.
+		launchers: _launchers,
 		...componentConfig
 	} = uext
 	// A declaration the runtime accepts and then discards is an invisible loss, and it is one loss to

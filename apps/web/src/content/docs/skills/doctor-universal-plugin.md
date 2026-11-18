@@ -35,6 +35,20 @@ installed the plugin. The skill reports that as `unreleased-content`. It stays q
 moves the number: a plugin that declares `packagePath`, or one that changesets, release-please,
 semantic-release, or release-it versions. It also stays quiet on a tree with no history.
 
+## Skills that run `npx` on the plugin's own package
+
+The skill reports `own-package-runner`, severity `low`, for each skill or agent Markdown file that
+runs `npx` or `upx` on the plugin's own package. The finding names each `file:line`. A fetch at call
+time is slower than a local command, and a permission rule written for the bare command never
+matches it.
+
+The repair is the launcher: call `<name> ...` bare, after [`plugin build`](../../cli/build/#writing-a-launcher)
+writes `bin/<name>`. With no launcher declared, the finding says to declare one under `launchers` first.
+
+It is a warning, not an error. Claude Code's Bash tool, from an npm-sourced install, is the only case
+checked. Hooks, MCP processes, Cursor, Codex, Copilot CLI and Windows are untested, so keep a pinned
+`npx` fallback in a skill that must work there.
+
 ## Changesets release config
 
 A plugin installed from git or a marketplace catalog, rather than npm, can still be released with

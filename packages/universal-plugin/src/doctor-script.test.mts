@@ -615,6 +615,67 @@ test('a skill link that leaves the skill folder is a skill-link-escapes finding'
 	expect(findings()).toContain('skill-link-escapes')
 })
 
+function writeLauncherManifest(launchers?: Record<string, string>) {
+	write(
+		'plugin.json',
+		`${JSON.stringify({
+			$schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json',
+			name: 'demo',
+			version: '1.0.0',
+			description: 'a demo plugin',
+			extensions: {
+				'org.cyberuni.universal-plugin': { vendors: ['claude-code'], ...(launchers ? { launchers } : {}) },
+			},
+		})}\n`,
+	)
+	write('package.json', `${JSON.stringify({ name: 'demo-pkg', version: '1.0.0' })}\n`)
+}
+
+function runnerFinding() {
+	const result = spawnSync('node', [doctor, '--root', root], { encoding: 'utf8' })
+	const report = JSON.parse(result.stdout) as {
+		findings: { code: string; severity: string; detail: string; repair: string }[]
+	}
+	return report.findings.find((f) => f.code === 'own-package-runner')
+}
+
+test('a skill that runs npx on the plugin own package is an own-package-runner warning naming file and line', () => {
+	writeLauncherManifest({ 'demo-pkg': 'dist/cli.js' })
+	writeSkill('Run it:\n\n```bash\nnpx -y demo-pkg@1.0.0 build\n```')
+	const finding = runnerFinding()
+	expect(finding?.severity).not.toBe('high')
+	expect(finding?.severity).not.toBe('critical')
+	expect(finding?.detail).toContain('skills/demo/SKILL.md:9')
+	expect(finding?.repair).toContain('`demo-pkg`')
+	expect(finding?.repair).toContain('bin/demo-pkg')
+})
+
+test('an upx call on the own package is reported too, and an agent body is read', () => {
+	writeLauncherManifest({ 'demo-pkg': 'dist/cli.js' })
+	write('agents/helper.md', 'use `upx demo-pkg@^1 run`\n')
+	expect(runnerFinding()?.detail).toContain('agents/helper.md:1')
+})
+
+test('with no launcher declared the repair says to declare one', () => {
+	writeLauncherManifest()
+	writeSkill('npx demo-pkg@1.0.0 build')
+	expect(runnerFinding()?.repair).toContain('launchers')
+})
+
+test('the repair claims no more than the verified Claude Code Bash case', () => {
+	writeLauncherManifest({ 'demo-pkg': 'dist/cli.js' })
+	writeSkill('npx demo-pkg build')
+	const repair = runnerFinding()?.repair ?? ''
+	expect(repair).toContain("Claude Code's Bash tool")
+	expect(repair).toContain('untested')
+})
+
+test('npx on another package, or a longer name, is not reported', () => {
+	writeLauncherManifest({ 'demo-pkg': 'dist/cli.js' })
+	writeSkill('npx other-tool build\nnpx demo-pkg-extra build')
+	expect(findings()).not.toContain('own-package-runner')
+})
+
 function writeScriptManifest(version: string) {
 	write(
 		'plugin.json',
