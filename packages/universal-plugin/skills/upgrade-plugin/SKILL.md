@@ -84,5 +84,5 @@ grep -rnE "(npx|upx) universal-plugin@" . \
 Commit the changes following the project commit discipline:
 
 ```text
-chore: upgrade npx universal-plugin pin to @<target-version>
+chore: upgrade the universal-plugin pin to @<target-version>
 ```

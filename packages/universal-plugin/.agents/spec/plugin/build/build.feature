@@ -985,7 +985,7 @@ Feature: plugin build — derive per-vendor manifests
     Given a script entry that compiles to more than 150 KB
     When I run "universal-plugin plugin build"
     Then the exit code is 0
-    And stderr contains a warning naming the size, the 150 KB budget, and "pnpm exec"
+    And stderr contains a warning naming the size, the 150 KB budget, and "forward"
 
   Scenario: a compiled script keeps a dependency's invisible characters escaped
     Given a script entry that inlines a dependency whose string literal is '\u{FEFF}'
@@ -1037,14 +1037,83 @@ Feature: plugin build — derive per-vendor manifests
     And "bin/pods" is not written
     And ".claude-plugin/plugin.json" has no "launchers" key
 
+  Scenario: a forward entry writes a forwarding script with the plugin version
+    Given the package "demo-pkg" has bin "demo" and plugin.json has version "1.2.0"
+    And the extension declares scripts { "skills/demo/scripts/demo.mjs": { "forward": "demo" } }
+    When I run "universal-plugin plugin build"
+    Then "skills/demo/scripts/demo.mjs" embeds package "demo-pkg", bin "demo", version "1.2.0" and forward "own"
+    And "skills/demo/scripts/demo.mjs" has no hashbang
+    And the scripts rows report "skills/demo/scripts/demo.mjs" as "compiled"
+
+  Scenario: a forward entry for another package keeps its pinned version
+    Given the extension declares scripts { "skills/demo/scripts/other-cli.mjs": { "forward": "other-cli", "package": "other-pkg", "version": "3.4.5" } }
+    When I run "universal-plugin plugin build"
+    Then "skills/demo/scripts/other-cli.mjs" embeds package "other-pkg", bin "other-cli", version "3.4.5" and forward "pinned"
+    And "universal-plugin plugin version 2.0.0" leaves its version at "3.4.5"
+    And "universal-plugin publish check-version" does not compare it
+
+  Scenario: --check reports a missing forwarder
+    Given a built forward entry whose file was deleted
+    When I run "universal-plugin plugin build --check"
+    Then the exit code is 1
+    And stderr names the forwarder as behind
+
+  Scenario: --check reports a forwarder behind on its version
+    Given a built forward entry, and plugin.json's version moved without a stamp
+    When I run "universal-plugin plugin build --dry-run"
+    Then the scripts rows report the forwarder as "version"
+
+  Scenario: a forward entry not named after its CLI warns and writes nothing
+    Given the extension declares scripts { "skills/demo/scripts/run.mjs": { "forward": "demo" } }
+    When I run "universal-plugin plugin build"
+    Then stderr contains "must be named demo.mjs"
+    And "skills/demo/scripts/run.mjs" is not written
+
+  Scenario: a forward entry for an undeclared bin warns and writes nothing
+    Given the package "demo-pkg" has bin "demo"
+    And the extension declares scripts { "skills/demo/scripts/nope.mjs": { "forward": "nope" } }
+    When I run "universal-plugin plugin build"
+    Then stderr contains "is not a bin of demo-pkg"
+    And "skills/demo/scripts/nope.mjs" is not written
+
+  Scenario: a forward entry for another package without a version warns
+    Given the extension declares scripts { "skills/demo/scripts/other-cli.mjs": { "forward": "other-cli", "package": "other-pkg" } }
+    When I run "universal-plugin plugin build"
+    Then stderr contains "pin its version"
+    And "skills/demo/scripts/other-cli.mjs" is not written
+
+  Scenario: the forwarder runs the checkout's bin with node
+    Given a forwarder for "demo" inside a checkout whose package.json is "demo-pkg" with bin "demo"
+    When I run "node skills/demo/scripts/demo.mjs a 'b c' --flag"
+    Then the checkout's bin receives the arguments "a", "b c", "--flag"
+    And the exit code is the bin's exit code
+    And npx is not run
+
+  Scenario: the forwarder warns when the build output is older than src
+    Given that checkout has a file under "src/" newer than everything under "dist/"
+    When I run the forwarder
+    Then stderr warns that the build output is older than src
+    And the checkout's bin still runs
+
+  Scenario: a copied forwarder runs the pinned package through npx
+    Given the forwarder copied into a folder with no matching package.json above it
+    When I run "node <copy>/demo.mjs a b"
+    Then it runs "npx -y demo-pkg@1.2.0 a b"
+    And the exit code is npx's exit code
+
+  Scenario: a forwarder for another package runs its pinned version through npx
+    Given a pinned forwarder for "other-cli" of "other-pkg" at "3.4.5", inside a checkout of "demo-pkg"
+    When I run the forwarder with "x"
+    Then it runs "npx -y other-pkg@3.4.5 x"
+
   Scenario: doctor warns with file and line when a skill runs npx on the own package
     Given the plugin's package is "demo-pkg" and "skills/demo/SKILL.md" line 9 runs "npx -y demo-pkg@1.0.0 build"
     When I run the doctor script
     Then it reports an "own-package-runner" finding with severity "low"
     And the detail contains "skills/demo/SKILL.md:9"
-    And the repair names the script entry "skills/demo/scripts/demo-pkg-build.mjs" with command "build"
-    And the repair names "node <this skill's folder>/scripts/demo-pkg-build.mjs"
-    And the repair does not recommend a launcher
+    And the repair names the forward entry "skills/demo/scripts/demo-pkg.mjs": { "forward": "demo-pkg" }
+    And the repair names "node <this skill's folder>/scripts/demo-pkg.mjs"
+    And the repair does not recommend a launcher or a per-command script
 
   Scenario: doctor reads pnpm exec on the own bin too
     Given the package "demo-pkg" has bin "demo" and a skill runs "pnpm exec demo plugin build"
@@ -1056,22 +1125,16 @@ Feature: plugin build — derive per-vendor manifests
     When I run the doctor script
     Then it reports no "own-package-runner" finding
 
-  Scenario: doctor flags a runner fallback beside a built script for the same command
-    Given the plugin declares "skills/demo/scripts/demo-pkg-build.mjs" with command "build"
+  Scenario: doctor flags a runner line beside a forwarder for the same CLI
+    Given the plugin declares "skills/demo/scripts/demo-pkg.mjs" with forward "demo-pkg"
     And "skills/demo/SKILL.md" line 3 runs "npx -y demo-pkg@1.0.0 build --root ."
     When I run the doctor script
-    Then it reports a "runner-beside-script" finding with severity "low"
-    And the detail contains "skills/demo/SKILL.md:3" and "skills/demo/scripts/demo-pkg-build.mjs"
+    Then it reports a "runner-beside-forwarder" finding with severity "low"
+    And the detail contains "skills/demo/SKILL.md:3" and "skills/demo/scripts/demo-pkg.mjs"
     And it reports no "own-package-runner" finding
 
-  Scenario: a script over the budget keeps its runner fallback
-    Given the plugin declares "skills/demo/scripts/demo-pkg-build.mjs" with command "build" and the file is over 150 KB
-    And a skill line runs "pnpm exec demo-pkg build"
-    When I run the doctor script
-    Then it reports no "runner-beside-script" finding
-
-  Scenario: a script in another skill does not clear the runner
-    Given the plugin declares "skills/other/scripts/demo-pkg-build.mjs" with command "build"
+  Scenario: a forwarder in another skill does not clear the runner
+    Given the plugin declares "skills/other/scripts/demo-pkg.mjs" with forward "demo-pkg"
     And "skills/demo/SKILL.md" runs "npx demo-pkg build"
     When I run the doctor script
     Then it reports an "own-package-runner" finding

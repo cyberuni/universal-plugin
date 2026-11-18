@@ -32,7 +32,7 @@ Resolve the target in this order. The first rule that yields a target wins:
    holding its `plugin.json` and `.agents/`), through the CLI rather than by reading the file:
 
    ```bash
-   npx universal-plugin config get --key marketplaces --format json --root <plugin-root>
+   node <this skill's folder>/scripts/universal-plugin.mjs config get --key marketplaces --format json --root <plugin-root>
    ```
 
    Each entry is `{ "name": "<label>", "repo": "<owner>/<repo>" }`. With one entry, publish to it.
@@ -47,7 +47,7 @@ Before any other step, tell the user each target and the rule that picked it, fo
 opens.
 
 To remember a target for this plugin, run
-`npx universal-plugin config add --key marketplaces --entry '{"name":"<label>","repo":"<owner>/<repo>"}' --root <plugin-root>`.
+`node <this skill's folder>/scripts/universal-plugin.mjs config add --key marketplaces --entry '{"name":"<label>","repo":"<owner>/<repo>"}' --root <plugin-root>`.
 Re-adding a `name` replaces that entry.
 
 The commands below call one target `<marketplace-repo>` (`<owner>/<repo>`), and its repository name
@@ -233,7 +233,7 @@ root-clone `url`. Read the signals from the plugin's own repository, in this ord
    plugin root:
 
    ```bash
-   npx universal-plugin config get --key packagePath --infer --format json --root <plugin-root>
+   node <this skill's folder>/scripts/universal-plugin.mjs config get --key packagePath --infer --format json --root <plugin-root>
    ```
 
    `null` means the plugin does not ship through npm. Any path means it may: confirm it as
@@ -280,7 +280,7 @@ Pass what the release changes:
   curator set alone.
 
 ```bash
-npx universal-plugin marketplace update <plugin-name> --ref <tag> --sha <commit> --version <version> --dry-run --root .
+node <this skill's folder>/scripts/universal-plugin.mjs marketplace update <plugin-name> --ref <tag> --sha <commit> --version <version> --dry-run --root .
 ```
 
 With no catalog flag it plans every catalog, so a `skipped` row for one that does not list the plugin
@@ -310,7 +310,7 @@ Before moving to Step 3, run the validator against the marketplace repo's workin
 checkout the entries were just written into):
 
 ```bash
-npx universal-plugin marketplace validate --root .
+node <this skill's folder>/scripts/universal-plugin.mjs marketplace validate --root .
 ```
 
 It catches an entry shape no runtime can load (a bad `source`, a missing required key) before it
@@ -371,8 +371,8 @@ Make every change 2b decided, in every catalog from 2a, on this one branch:
   changed fields that `plugin.json` declares, `repository` as a URL and `keywords` comma-joined.
 
   ```bash
-  npx universal-plugin marketplace add npm:<npm-package-name> --claude --codex <metadata> --root .
-  npx universal-plugin marketplace add <owner>/<repo> --subdir <repo-relative-plugin-dir> --ref <tag> --copilot --cursor <metadata> --root .
+  node <this skill's folder>/scripts/universal-plugin.mjs marketplace add npm:<npm-package-name> --claude --codex <metadata> --root .
+  node <this skill's folder>/scripts/universal-plugin.mjs marketplace add <owner>/<repo> --subdir <repo-relative-plugin-dir> --ref <tag> --copilot --cursor <metadata> --root .
   ```
 - **Update** — run the `marketplace update` from 2f without `--dry-run`.
 

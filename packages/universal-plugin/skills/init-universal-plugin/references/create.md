@@ -39,11 +39,11 @@ for. The universal minimum is `skills/<name>/SKILL.md` plus `mcp.json`.
 ## Step 4 — Scaffold
 
 ```bash
-node scripts/init.mjs --name <plugin-name> --vendor claude-code --vendor cursor --scaffold
+node <this skill's folder>/scripts/universal-plugin.mjs plugin init --name <plugin-name> --vendor claude-code --vendor cursor --scaffold
 ```
 
-Resolve `scripts/init.mjs` against this skill's directory; it runs the project's installed CLI, else
-the pinned `npx universal-plugin@0.22.0`. Add `--npm` when an npm package ships the plugin,
+The forwarder runs the checkout's own CLI when this skill sits in a checkout of universal-plugin, else
+the release pinned to this skill's version through `npx`. Add `--npm` when an npm package ships the plugin,
 which also wires that `package.json`'s `files` to carry the derived manifests, copies its `version`
 into the manifest, and, in a changesets repository, wires the root `version` script to run
 `plugin version --from-package` (SKILL.md Phase 3 asks before that rewrite).
@@ -97,7 +97,7 @@ covers what has to hold across runtimes.
 ## Step 7 — Build
 
 ```bash
-npx universal-plugin plugin build
+node <this skill's folder>/scripts/universal-plugin.mjs plugin build
 ```
 
 Useful flags: `--dry-run` to see the plan, `--verbose` for field-by-field decisions, `--vendor <id>`
@@ -109,7 +109,7 @@ rather than as errors.
 ## Step 8 — Install locally to test
 
 ```bash
-npx universal-plugin plugin install
+node <this skill's folder>/scripts/universal-plugin.mjs plugin install
 ```
 
 It installs into every runtime the manifest declares, linking where the runtime follows a symlink

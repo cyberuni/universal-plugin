@@ -7,7 +7,7 @@ and refused at install time, far from the repository that wrote it. Never conclu
 running this.
 
 ```bash
-node scripts/validate.mjs
+node <this skill's folder>/scripts/universal-plugin.mjs marketplace validate
 ```
 
 Resolve that path against this skill's own directory. Exit status is 1 when any selected catalog is invalid, and every issue names the key

@@ -20,7 +20,7 @@ universal-plugin plugin build [options]
 | `--verbose` | Print field-by-field transformation decisions |
 | `--clean` | Delete generated manifests before building |
 | `--strict-dependencies` | Fail when a refreshed catalog cannot resolve a declared dependency |
-| `--check` | Write nothing; exit 1 when a compiled script is missing, stale, or on another version |
+| `--check` | Write nothing; exit 1 when a compiled script or forwarder is missing, stale, or on another version |
 | `--root <path>` | Plugin root directory (default: current directory) |
 | `--format json` | Output as JSON |
 
@@ -147,8 +147,7 @@ package; the skill gets only the built file.
   writes nothing and exits 1 naming each script that is behind. `/universal-plugin:doctor-universal-plugin`
   reports a missing or stale script as `stale-script`.
 - **Keep scripts small.** Over 150 KB the build warns. A skill that needs most of your CLI should call
-  the installed CLI instead: `pnpm exec <bin>`, which this channel guarantees because pnpm links only
-  direct dependencies, with a pinned `npx <pkg>@<version>` fallback.
+  the CLI through a [forwarder](#running-the-plugins-own-cli-from-a-skill) instead.
 - **No hidden characters.** rolldown prints a dependency's `'\u{FEFF}'` as the raw character, which
   skill checks reject because it can hide instructions. The build writes every invisible character
   inside a string, template or regular-expression literal back as a `\uXXXX` escape. One it cannot
@@ -180,37 +179,29 @@ script that is behind only on its version is reported there, as `version-drift`,
 
 ## Running the plugin's own CLI from a skill
 
-A skill that runs a command of the CLI its plugin ships calls a compiled per-command script, not
-`npx` and not a bare command on `PATH`
-([ADR-0021](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/design/decisions/0021-skills-run-the-own-cli-through-compiled-scripts.md)).
-For a CLI `tasks` with a command `task get`, declare one entry per command, in the skill that runs
-it:
+A skill runs a CLI through a forwarding script named after it
+([ADR-0022](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/design/decisions/0022-skills-run-the-own-cli-through-a-forwarding-script.md)).
+[Running your CLI from skills](../../concepts/running-your-cli-from-skills/) explains the approach, how
+the forwarder picks a CLI, and the release wiring. This section lists what the build does with it.
 
 ```json
 "scripts": {
-  "skills/tasks/scripts/tasks-task-get.mjs": { "source": "src/skill-scripts/task-get.ts", "command": "task get" }
+  "skills/tasks/scripts/tasks.mjs": { "forward": "tasks" },
+  "skills/tasks/scripts/other-cli.mjs": { "forward": "other-cli", "package": "other-pkg", "version": "2.1.0" }
 }
 ```
 
-The skill calls it with `node`:
-
-```sh
-node <this skill's folder>/scripts/tasks-task-get.mjs 42
-```
-
-- **Write `node` in front.** Do not rely on a hashbang or an executable bit. Windows and a copy that
-  drops the file mode run neither.
-- **Drop the runner fallback.** A committed script that `plugin build --check` keeps current in CI
-  leaves `npx -y <pkg>@<version>` or `pnpm exec <bin>` nothing to recover, and either one fetches or
-  looks up code at call time and matches no permission rule written for the command.
-- **Over 150 KB, call the installed CLI.** Only a command whose script the build warns is over the
-  budget keeps a pinned `pnpm exec <bin>`, then `npx -y <pkg>@<version>`.
-
-The script is committed and self-contained, so it runs the same from an npm install, a git-sourced
-install (Cursor's git-subdir, Copilot CLI's github source) and a skill pnpm copied on its own.
-[`doctor-universal-plugin`](../../skills/doctor-universal-plugin/) reports a skill line that runs the
-plugin's own package through a runner, and the *add a command script* route of
-[`init-universal-plugin`](../../skills/init-universal-plugin/) sets a script up.
+- **The own form** names a bin of the `package.json` at `packagePath`. The forwarder embeds that
+  package, the bin and `plugin.json`'s version, which `plugin version` restamps and
+  `publish check-version` compares.
+- **The pinned form** names another package and an exact version. No stamp moves it and no drift
+  check compares it; a changed pin makes the file `stale` until the next build.
+- **The file is written, not compiled.** It must be named `<bin>.mjs`, and it takes no `source`,
+  `command`, `alias` or `keepNames`. It has no hashbang; the skill runs it with `node`.
+- **Rows and `--check` treat it like any script:** `unchanged`, `missing`, `stale`, or `version`.
+- **A malformed entry fails and writes nothing:** a bin the own package does not declare, another
+  package without an exact `version`, a `version` on the own form, or a plugin that ships to no
+  package.
 
 ### Launchers are gone
 
@@ -218,7 +209,7 @@ Earlier releases wrote a `bin/<name>` launcher for each entry under `launchers`.
 a plugin's `bin/` on `PATH`. Probes on 2026-11-18 found that GitHub Copilot CLI 1.0.100 and Cursor
 (cursor-agent 2026.09.28) do not: a bare call failed with `command not found` or exit 127. The build
 now warns on a leftover `launchers` key and ignores it. Remove the key and any `bin/<name>` it wrote,
-and compile a script per command instead.
+and declare a forwarder instead.
 
 ### Links that leave the skill folder
 

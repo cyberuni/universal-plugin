@@ -247,6 +247,15 @@ describe('checkVersionDrift — compiled skill scripts (#177)', () => {
 		expect(result.drifted).toEqual([{ path: 'skills/a/scripts/a.mjs', kind: 'compiled-script', version: '1.0.0' }])
 	})
 
+	it('a forwarder to another package is not a surface (ADR-0022)', () => {
+		const pinned = `// Written by \`universal-plugin plugin build\` to forward to the x CLI of x-pkg.\nglobalThis.__SKILL_SCRIPT__ = ${JSON.stringify({ package: 'x-pkg', bin: 'x', version: '3.4.5', entry: 'skills/a/scripts/x.mjs', commands: {}, forward: 'pinned' })};\n`
+		const result = checkVersionDrift(
+			state({ ...npm, skillFiles: [{ path: 'skills/a/scripts/x.mjs', content: pinned }] }),
+		)
+		expect(result.drifted).toEqual([])
+		expect(result.surfaces.map((s) => s.path)).not.toContain('skills/a/scripts/x.mjs')
+	})
+
 	it('a compiled script on the version is not drift', () => {
 		expect(
 			drifted(state({ ...npm, skillFiles: [{ path: 'skills/a/scripts/a.mjs', content: compiled('1.2.3') }] })),

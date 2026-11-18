@@ -254,6 +254,11 @@ Feature: plugin version — move the plugin's version, and keep every version-ca
     And the rest of the script, "npx my-cli@1.2.3" included, is unchanged
     And "universal-plugin plugin build --dry-run" reports the script "unchanged"
 
+  Scenario: a pinned forwarder keeps its version
+    Given "skills/a/scripts/other-cli.mjs" is a forwarder for another package embedding version "3.4.5" and forward "pinned"
+    When I run "universal-plugin plugin version 1.3.0 --root <root>"
+    Then the forwarder still embeds version "3.4.5"
+
   Scenario: a marked inline mcpServers entry is stamped and keeps its marker
     Given "plugin.json" carries an inline mcpServers entry running "npx -y my-cli@1.2.3 mcp" marked "pinToPluginVersion"
     When I run "universal-plugin plugin version --from-package --root <root>"
@@ -519,6 +524,12 @@ Feature: plugin version — move the plugin's version, and keep every version-ca
     When I run "universal-plugin publish check-version --root <root>"
     Then the exit code is 1
     And the script is reported once, with version "0.8.0" and kind "compiled-script"
+
+  Scenario: a pinned forwarder is not drift
+    Given "packagePath" names a package at "0.9.0"
+    And a forwarder for another package embeds version "3.4.5" and forward "pinned"
+    When I run "universal-plugin publish check-version --root <root>"
+    Then the forwarder is not among the surfaces
 
   Scenario: check-version fails loud without a canonical manifest
     Given an empty root

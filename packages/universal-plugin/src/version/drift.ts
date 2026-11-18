@@ -112,8 +112,10 @@ export function checkVersionDrift(state: DriftState): DriftResult {
 	// A compiled skill script embeds the plugin version in its header (issue #177). Only that version
 	// is compared here; a script whose source moved on is `plugin build`'s stale report, not drift.
 	for (const file of state.skillFiles) {
-		const version = file.path.endsWith('.mjs') ? (embeddedData(file.content)?.version ?? null) : null
-		if (version !== null) surfaces.push({ path: file.path, kind: 'compiled-script', version })
+		const data = file.path.endsWith('.mjs') ? embeddedData(file.content) : null
+		// A forwarder to another package carries that package's pinned version, not this plugin's (ADR-0022).
+		if (data === null || data.forward === 'pinned') continue
+		if (data.version !== null) surfaces.push({ path: file.path, kind: 'compiled-script', version: data.version })
 	}
 
 	for (const { path, servers } of state.mcpServers ?? []) {

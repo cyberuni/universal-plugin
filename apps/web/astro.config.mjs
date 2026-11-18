@@ -23,6 +23,7 @@ export default defineConfig({
 					label: 'Concepts',
 					items: [
 						{ label: 'Choosing a runner', slug: 'concepts/npx-and-upx' },
+						{ label: 'Running your CLI from skills', slug: 'concepts/running-your-cli-from-skills' },
 						{ label: 'Reference chain depth', slug: 'concepts/reference-chain-depth' },
 					],
 				},

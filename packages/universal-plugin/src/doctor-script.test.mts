@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
-import { afterAll, afterEach, beforeAll, beforeEach, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 
 // Every case spawns the doctor script, which spawns the CLI and git; a cold CI runner exceeds the 5s default.
 vi.setConfig({ testTimeout: 30_000 })
@@ -14,26 +14,8 @@ const doctor = path.resolve('skills/doctor-universal-plugin/scripts/doctor.mjs')
 
 let root: string
 
-/** The doctor script asks the CLI through `pnpm exec universal-plugin`, because a compiled skill script
- *  carries no CLI beside it. A shim named `pnpm` stands in for the project's install: it runs this
- *  checkout's built CLI. */
-const originalPath = process.env.PATH
-let shimDir: string
-beforeAll(() => {
-	shimDir = fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-pnpm-shim-'))
-	const cli = path.resolve('bin/universal-plugin.mjs')
-	fs.writeFileSync(
-		path.join(shimDir, 'pnpm'),
-		`#!/bin/sh\n[ "$1" = exec ] && [ "$2" = universal-plugin ] || exit 1\nshift 2\nexec node ${cli} "$@"\n`,
-		{ mode: 0o755 },
-	)
-	process.env.PATH = `${shimDir}${path.delimiter}${originalPath}`
-})
-afterAll(() => {
-	process.env.PATH = originalPath
-	fs.rmSync(shimDir, { recursive: true, force: true })
-})
-
+/** The doctor script asks the CLI through the forwarder beside it (ADR-0022), which finds this
+ *  checkout and runs its built CLI. */
 beforeEach(() => {
 	root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'universal-plugin-doctor-')))
 	git('init', '--initial-branch', 'main')
@@ -587,26 +569,26 @@ test('a semantic-release placeholder is reported as unstamped, not as version-dr
 	expect(detail('unstamped')).toBe('package.json holds 0.0.0-development, which the release replaces')
 })
 
-test('a copied doctor script with no CLI beside it runs the pinned npx fallback', () => {
-	// A copy, as pnpm's fallback makes: four levels up is not the package root.
-	const copy = path.join(root, '.claude/skills/pnpm-universal-plugin-doctor/scripts/doctor.mjs')
-	fs.mkdirSync(path.dirname(copy), { recursive: true })
-	fs.copyFileSync(doctor, copy)
+test('a copied doctor skill runs the CLI pinned to the plugin version through npx', () => {
+	// A copy, as pnpm's fallback makes: no checkout of universal-plugin sits above it.
+	const scripts = path.join(root, '.claude/skills/pnpm-universal-plugin-doctor/scripts')
+	fs.mkdirSync(scripts, { recursive: true })
+	for (const file of ['doctor.mjs', 'universal-plugin.mjs']) {
+		fs.copyFileSync(path.join(path.dirname(doctor), file), path.join(scripts, file))
+	}
 	const bin = path.join(root, 'fake-bin')
 	fs.mkdirSync(bin)
 	const log = path.join(root, 'npx.log')
 	fs.writeFileSync(path.join(bin, 'npx'), `#!/bin/sh\necho "$@" >> ${log}\nexit 1\n`, { mode: 0o755 })
-	// The project has no installed CLI either: `pnpm exec` finds nothing.
-	fs.writeFileSync(path.join(bin, 'pnpm'), '#!/bin/sh\nexit 1\n', { mode: 0o755 })
 	writeManifest('1.0.0')
-	spawnSync('node', [copy, '--root', root], {
+	spawnSync('node', [path.join(scripts, 'doctor.mjs'), '--root', root], {
 		encoding: 'utf8',
 		env: { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH}` },
 	})
-	const own = JSON.parse(fs.readFileSync(path.resolve('package.json'), 'utf8')) as { version: string }
+	const own = JSON.parse(fs.readFileSync(path.resolve('plugin.json'), 'utf8')) as { version: string }
 	const calls = fs.readFileSync(log, 'utf8').trim().split('\n')
 	expect(calls.length).toBeGreaterThan(0)
-	for (const call of calls) expect(call.startsWith(`universal-plugin@${own.version} `)).toBe(true)
+	for (const call of calls) expect(call.startsWith(`-y universal-plugin@${own.version} `)).toBe(true)
 })
 
 test('a skill link that leaves the skill folder is a skill-link-escapes finding', () => {
@@ -642,7 +624,8 @@ function runnerFinding(code = 'own-package-runner') {
 	return runnerReport().findings.find((f) => f.code === code)
 }
 
-const buildScript = { 'skills/demo/scripts/demo-pkg-build.mjs': { source: 'src/build.ts', command: 'build' } }
+const forwarder = { 'skills/demo/scripts/demo-pkg.mjs': { forward: 'demo-pkg' } }
+const demoBin = { 'demo-pkg': 'bin/demo.mjs' }
 
 test('a skill that runs npx on the plugin own package is an own-package-runner warning naming file and line', () => {
 	writeRunnerManifest()
@@ -650,10 +633,10 @@ test('a skill that runs npx on the plugin own package is an own-package-runner w
 	const finding = runnerFinding()
 	expect(finding?.severity).toBe('low')
 	expect(finding?.detail).toContain('skills/demo/SKILL.md:9')
-	expect(finding?.repair).toContain('"skills/demo/scripts/demo-pkg-build.mjs"')
-	expect(finding?.repair).toContain('"command": "build"')
-	expect(finding?.repair).toContain("node <this skill's folder>/scripts/")
-	expect(finding?.repair).not.toMatch(/launcher|bin\//)
+	expect(finding?.repair).toContain('"skills/demo/scripts/demo-pkg.mjs": { "forward": "demo-pkg" }')
+	expect(finding?.repair).toContain("node <this skill's folder>/scripts/demo-pkg.mjs <args>")
+	expect(finding?.repair).toContain('add a CLI forwarder')
+	expect(finding?.repair).not.toMatch(/launcher|bin\/|"command"/)
 })
 
 test('an upx call on the own package is reported too, and an agent body is read', () => {
@@ -662,10 +645,10 @@ test('an upx call on the own package is reported too, and an agent body is read'
 	expect(runnerFinding()?.detail).toContain('agents/helper.md:1')
 })
 
-test('pnpm exec on the own bin is reported, and the script is named after the bin and command words', () => {
+test('pnpm exec on the own bin is reported, and the forwarder is named after the bin', () => {
 	writeRunnerManifest(undefined, { demo: 'dist/cli.js' })
 	writeSkill('pnpm exec demo plugin build --root .')
-	expect(runnerFinding()?.repair).toContain('"skills/demo/scripts/demo-plugin-build.mjs"')
+	expect(runnerFinding()?.repair).toContain('"skills/demo/scripts/demo.mjs": { "forward": "demo" }')
 })
 
 test('npx on another package, or a longer name, is not reported', () => {
@@ -673,7 +656,7 @@ test('npx on another package, or a longer name, is not reported', () => {
 	writeSkill('npx other-tool build\nnpx demo-pkg-extra build')
 	const codes = runnerReport().findings.map((f) => f.code)
 	expect(codes).not.toContain('own-package-runner')
-	expect(codes).not.toContain('runner-beside-script')
+	expect(codes).not.toContain('runner-beside-forwarder')
 })
 
 test('a package named with no command after it is a mention, not a run', () => {
@@ -688,41 +671,32 @@ test('a runner inside a YAML or JSON fence is config, not a run', () => {
 	expect(runnerFinding()).toBeUndefined()
 })
 
-test('a runner beside a built script for the same command is runner-beside-script, not own-package-runner', () => {
-	writeRunnerManifest(buildScript)
-	writeSkill('node scripts/demo-pkg-build.mjs\nnpx -y demo-pkg@1.0.0 build --root .')
+test('a runner beside a forwarder for the same CLI is runner-beside-forwarder, not own-package-runner', () => {
+	writeRunnerManifest(forwarder, demoBin)
+	writeSkill('node scripts/demo-pkg.mjs build\nnpx -y demo-pkg@1.0.0 build --root .')
 	const report = runnerReport()
-	const finding = report.findings.find((f) => f.code === 'runner-beside-script')
+	const finding = report.findings.find((f) => f.code === 'runner-beside-forwarder')
 	expect(finding?.severity).toBe('low')
 	expect(finding?.detail).toContain('skills/demo/SKILL.md:')
-	expect(finding?.detail).toContain('skills/demo/scripts/demo-pkg-build.mjs')
-	expect(finding?.repair).toContain("node <this skill's folder>/scripts/demo-pkg-build.mjs")
+	expect(finding?.detail).toContain('skills/demo/scripts/demo-pkg.mjs')
+	expect(finding?.repair).toContain("node <this skill's folder>/scripts/demo-pkg.mjs <args>")
 	expect(report.findings.map((f) => f.code)).not.toContain('own-package-runner')
 })
 
-test('a script over the 150 KB budget keeps its runner', () => {
-	writeRunnerManifest(buildScript)
-	write('skills/demo/scripts/demo-pkg-build.mjs', `// ${'x'.repeat(151 * 1024)}\n`)
-	writeSkill('npx -y demo-pkg@1.0.0 build')
-	const codes = runnerReport().findings.map((f) => f.code)
-	expect(codes).not.toContain('runner-beside-script')
-	expect(codes).not.toContain('own-package-runner')
-})
-
-test('a script in another skill does not clear the runner', () => {
-	writeRunnerManifest({ 'skills/other/scripts/demo-pkg-build.mjs': { source: 'src/build.ts', command: 'build' } })
+test('a forwarder in another skill does not clear the runner', () => {
+	writeRunnerManifest({ 'skills/other/scripts/demo-pkg.mjs': { forward: 'demo-pkg' } }, demoBin)
 	writeSkill('npx demo-pkg build')
 	expect(runnerFinding()).toBeDefined()
-	expect(runnerFinding('runner-beside-script')).toBeUndefined()
+	expect(runnerFinding('runner-beside-forwarder')).toBeUndefined()
 })
 
-test('the longest declared command wins, and a shorter one still clears its own line', () => {
-	writeRunnerManifest({
-		'skills/demo/scripts/demo-pkg-plugin.mjs': { source: 'src/a.ts', command: 'plugin' },
-		'skills/demo/scripts/demo-pkg-plugin-build.mjs': { source: 'src/b.ts', command: 'plugin build' },
-	})
-	writeSkill('npx demo-pkg plugin build')
-	expect(runnerFinding('runner-beside-script')?.detail).toContain('demo-pkg-plugin-build.mjs')
+test('a forwarder to another package does not clear a runner on the own package', () => {
+	writeRunnerManifest(
+		{ 'skills/demo/scripts/demo-pkg.mjs': { forward: 'demo-pkg', package: 'other', version: '1.0.0' } },
+		demoBin,
+	)
+	writeSkill('npx demo-pkg build')
+	expect(runnerFinding()).toBeDefined()
 })
 
 function writeScriptManifest(version: string) {

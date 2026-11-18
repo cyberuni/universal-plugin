@@ -3,12 +3,14 @@ import * as path from 'node:path'
 
 import { readManifest, universalPluginExtension } from '../build/build.js'
 import { getPackagePath } from '../config/config.js'
+import { composeForwarder } from './forwarder.js'
 import { findInvisible, formatCodePoint } from './invisible.js'
 import {
 	binName,
 	commandMap,
 	compareScript,
 	composeScript,
+	type ForwardEntry,
 	parseScriptEntries,
 	type ScriptBundleOptions,
 	type ScriptComparison,
@@ -52,20 +54,31 @@ export async function compileScripts(
 	compiler: ScriptCompiler,
 ): Promise<CompileResult> {
 	const manifest = readManifest(root)
-	const { entries, errors } = parseScriptEntries(universalPluginExtension(manifest).scripts)
+	const { entries, forwards, errors } = parseScriptEntries(universalPluginExtension(manifest).scripts)
 	const rows: ScriptRow[] = []
 	const written: string[] = []
 	const warnings = [...errors]
-	if (entries.length === 0) return { rows, written, warnings, summary: summarize(rows) }
+	if (entries.length === 0 && forwards.length === 0) return { rows, written, warnings, summary: summarize(rows) }
 
 	const packageJson = readPackageJson(root)
 	const packageName = typeof packageJson?.['name'] === 'string' ? (packageJson['name'] as string) : null
 	const commands = commandMap(entries)
 	const bin = binName(packageJson)
 
+	const pluginVersion = typeof manifest.version === 'string' ? manifest.version : null
+	for (const entry of forwards) {
+		const source = `forward ${entry.bin}`
+		const content = forwarderContent(entry, packageJson, pluginVersion, commands)
+		if (typeof content !== 'string') {
+			warnings.push(content.error)
+			rows.push({ path: entry.output, source, status: 'failed' })
+			continue
+		}
+		write(entry.output, source, content)
+	}
+
 	for (const entry of entries) {
 		const sourcePath = path.resolve(root, entry.source)
-		const outputPath = path.join(root, entry.output)
 		if (!fs.existsSync(sourcePath)) {
 			warnings.push(`script source "${entry.source}" for ${entry.output} not found — not compiled`)
 			rows.push({ path: entry.output, source: entry.source, status: 'failed' })
@@ -95,18 +108,80 @@ export async function compileScripts(
 		const hidden = findInvisible(content)
 		if (hidden.length > 0) warnings.push(invisibleWarning(entry.output, hidden))
 
+		write(entry.output, entry.source, content)
+	}
+	return { rows, written, warnings, summary: summarize(rows) }
+
+	/** Writes one entry's file unless a dry run or it is already current, and reports its row. */
+	function write(output: string, source: string, content: string) {
+		const outputPath = path.join(root, output)
+		const bytes = Buffer.byteLength(content)
 		const existing = fs.existsSync(outputPath) ? fs.readFileSync(outputPath, 'utf8') : null
 		const comparison = compareScript(existing, content)
 		if (opts.dryRun || comparison === 'unchanged') {
-			rows.push({ path: entry.output, source: entry.source, status: comparison, bytes })
-			continue
+			rows.push({ path: output, source, status: comparison, bytes })
+			return
 		}
 		fs.mkdirSync(path.dirname(outputPath), { recursive: true })
 		fs.writeFileSync(outputPath, content)
 		written.push(outputPath)
-		rows.push({ path: entry.output, source: entry.source, status: 'compiled', bytes })
+		rows.push({ path: output, source, status: 'compiled', bytes })
 	}
-	return { rows, written, warnings, summary: summarize(rows) }
+}
+
+/** The forwarder a `forward` entry writes (ADR-0022), or why it cannot be written. The own form takes
+ *  its package from `packagePath` and its version from `plugin.json`; another package's CLI carries
+ *  the version its entry pins. */
+function forwarderContent(
+	entry: ForwardEntry,
+	packageJson: Record<string, unknown> | null,
+	pluginVersion: string | null,
+	commands: Record<string, string>,
+): string | { error: string } {
+	const ownName = typeof packageJson?.['name'] === 'string' ? (packageJson['name'] as string) : null
+	const own = entry.package === undefined || entry.package === ownName
+	const fail = (why: string) => ({ error: `scripts "${entry.output}" ${why} — not written` })
+	if (own) {
+		if (ownName === null) {
+			return fail(
+				`forwards to ${entry.bin}, but the plugin ships to no package: set packagePath, or name the package and pin its version`,
+			)
+		}
+		if (entry.version !== undefined) {
+			return fail(`pins a version for the own package ${ownName}, whose version plugin.json carries`)
+		}
+		if (!ownBins(packageJson).includes(entry.bin))
+			return fail(`forwards to ${entry.bin}, which is not a bin of ${ownName}`)
+		if (pluginVersion === null) return fail('forwards to the own package, but plugin.json carries no version')
+		return composeForwarder({
+			package: ownName,
+			bin: entry.bin,
+			version: pluginVersion,
+			entry: entry.output,
+			commands,
+			forward: 'own',
+		})
+	}
+	if (entry.version === undefined) {
+		return fail(`forwards to ${entry.package}, another package: pin its version with "version"`)
+	}
+	return composeForwarder({
+		package: entry.package as string,
+		bin: entry.bin,
+		version: entry.version,
+		entry: entry.output,
+		commands,
+		forward: 'pinned',
+	})
+}
+
+/** The bin names a package.json declares: an object's keys, or the unscoped package name for a string. */
+function ownBins(packageJson: Record<string, unknown> | null): string[] {
+	const bin = packageJson?.['bin']
+	const name = typeof packageJson?.['name'] === 'string' ? (packageJson['name'] as string) : ''
+	if (typeof bin === 'string') return [name.replace(/^@[^/]+\//, '')]
+	if (bin !== null && typeof bin === 'object' && !Array.isArray(bin)) return Object.keys(bin)
+	return []
 }
 
 /** The bundle options the entry sets, and none it does not. */

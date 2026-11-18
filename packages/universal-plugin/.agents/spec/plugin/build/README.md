@@ -272,8 +272,8 @@ not a build step.
   - An entry whose source is missing, or that imports something that cannot be inlined, reports
     `failed` with a warning and exits 1; the manifests and the other entries still derive. A malformed
     declaration warns and compiles the entries that parse.
-  - A compiled file over 150 KB warns that the skill should call the installed CLI instead
-    (`pnpm exec <bin>`, with a pinned `npx` fallback).
+  - A compiled file over 150 KB warns that the skill should run the CLI through a `forward` entry
+    instead.
   - A compiled file holds no raw invisible character inside a literal (issue #190). rolldown prints a
     dependency's `'\u{FEFF}'` as the character itself, which skill checks reject because it can hide
     instructions. Every control (other than tab, line feed and carriage return), format,
@@ -284,36 +284,53 @@ not a build step.
   - The build never moves the embedded version on its own: `plugin version` stamps it into the header
     ([`plugin/version/`](../version/README.md)), so a stamped script stays `unchanged` here.
 - **A leftover `launchers` key warns and writes nothing**
-  ([ADR-0021](../../design/decisions/0021-skills-run-the-own-cli-through-compiled-scripts.md), which
-  supersedes [ADR-0020](../../design/decisions/0020-build-writes-plugin-launchers.md)) —
+  ([ADR-0022](../../design/decisions/0022-skills-run-the-own-cli-through-a-forwarding-script.md) §8,
+  carried from [ADR-0021](../../design/decisions/0021-skills-run-the-own-cli-through-compiled-scripts.md),
+  which superseded [ADR-0020](../../design/decisions/0020-build-writes-plugin-launchers.md)) —
   `extensions["org.cyberuni.universal-plugin"].launchers` is no longer read. Its presence warns that it
-  is ignored, says to remove it and any `bin/<name>` it wrote, and points to compiled scripts. It never
+  is ignored, says to remove it and any `bin/<name>` it wrote, and points to a CLI forwarder. It never
   reaches a derived manifest, no `bin/` file is written or deleted, and the exit code is unaffected.
   Launchers were removed because only Claude Code puts a plugin's `bin/` on `PATH`: GitHub Copilot CLI
   1.0.100 and Cursor (cursor-agent 2026.09.28), probed on 2026-11-18, fail a bare call with
   `command not found` or exit 127.
-- **A skill runs the plugin's own CLI through a compiled per-command script**
-  ([ADR-0021](../../design/decisions/0021-skills-run-the-own-cli-through-compiled-scripts.md)) — for a
-  CLI `cli` with a command `x y`, the plugin declares
-  `"skills/<skill>/scripts/cli-x-y.mjs": { "source": "...", "command": "x y" }`, the build compiles it,
-  and the skill calls `node <this skill's folder>/scripts/cli-x-y.mjs`. No runner fallback sits beside
-  it; only a command whose script is over the 150 KB budget keeps a pinned `pnpm exec <bin>`, then
-  `npx`. `doctor-universal-plugin` reads each skill and agent Markdown file for a line that runs the
-  plugin's own package through `npx`, `upx` or `pnpm exec <bin>` (a `bin` of the `packagePath`
-  `package.json`), and takes the command as the plain words that follow it:
-  - **`own-package-runner`** (severity `low`, one finding per file) names each `file:line` whose command
-    has no script in the same skill folder. The repair names the entry to declare, with the skill's
-    path and the command filled in (`skills/<skill>/scripts/<bin>-x-y.mjs`), the `node` call that
-    replaces the line, and the `init-universal-plugin` *add a command script* route that sets it up. It
-    never recommends a launcher.
-  - **`runner-beside-script`** (severity `low`, one finding per file) names each `file:line` whose
-    command the same skill folder already has a declared script for, and the script, and says to call
-    it with `node` and drop the line. A script on disk over the 150 KB budget clears its lines: the
-    runner is the right call there.
-  - A declared command matches when its words are the first words the line runs; the longest match
-    wins. A package named with no command word after it is a mention, not a run, and is not read.
-    A line inside a `yaml`, `yml`, `json`, `jsonc`, `json5` or `toml` fence is config the user copies
-    (a CI workflow, a release hook), where no skill script exists, and is not read either. `npx` on another package, or on a longer name, is not read.
+- **A `forward` entry writes a forwarding script for a CLI**
+  ([ADR-0022](../../design/decisions/0022-skills-run-the-own-cli-through-a-forwarding-script.md)) — a
+  `scripts` entry `"skills/<skill>/scripts/<cli>.mjs": { "forward": "<cli>" }` names a bin of the
+  `packagePath` `package.json`; `{ "forward": "<cli>", "package": "<pkg>", "version": "<x.y.z>" }`
+  names a CLI of another package and pins it. The build writes the file from a template and compiles
+  nothing. The skill calls `node <this skill's folder>/scripts/<cli>.mjs <args>`.
+  - The file carries the script header (`globalThis.__SKILL_SCRIPT__`) with the package, the bin, the
+    version and `forward: "own"` or `forward: "pinned"`. The own form's version is the canonical
+    `plugin.json`'s; the pinned form's is the entry's. There is no hashbang.
+  - Rows, `--dry-run` and `--check` treat it like any other entry: `unchanged`, `missing`, `stale`, or
+    `version` when only the own form's embedded version differs. A pinned forwarder whose entry's
+    version moved is `stale`.
+  - A malformed `forward` entry warns and writes nothing for it: an output not named `<cli>.mjs`, a
+    `<cli>` the own package does not declare as a bin when no `package` is given, a `package` other
+    than the own one without an exact `version`, a `version` on the own form, or a `source`,
+    `command`, `alias` or `keepNames` beside `forward`.
+  - At run time the script walks up from its own real path to the first `package.json` whose `name`
+    is the package and whose `bin` has the CLI, and runs that bin with `node`, warning on stderr when
+    the build output (`dist/` beside it, else the bin file) is older than the newest file under
+    `src/`. With no such `package.json` it runs `npx -y <package>@<version>`. Every argument, stdio
+    and the exit code pass through; on Windows `npx` runs as `npx.cmd` through the shell, each
+    argument quoted.
+- **`doctor-universal-plugin` reports a package runner on the plugin's own package**
+  ([ADR-0022](../../design/decisions/0022-skills-run-the-own-cli-through-a-forwarding-script.md) §6) —
+  it reads each skill and agent Markdown file for a line that runs the plugin's own package through
+  `npx`, `upx` or `pnpm exec <bin>` (a `bin` of the `packagePath` `package.json`):
+  - **`own-package-runner`** (severity `low`, one finding per file) names each `file:line` in a skill
+    with no forwarder for that CLI. The repair names the `forward` entry to declare, with the skill's
+    path filled in (`skills/<skill>/scripts/<bin>.mjs`), the `node` call that replaces the line, and
+    the `init-universal-plugin` *add a CLI forwarder* route that sets it up. It never recommends a
+    launcher or a compiled per-command script.
+  - **`runner-beside-forwarder`** (severity `low`, one finding per file) names each such `file:line`
+    in a skill that already declares a forwarder for the same CLI, and the forwarder, and says to call
+    it with `node` instead.
+  - A package named with no command word after it is a mention, not a run, and is not read. A line
+    inside a `yaml`, `yml`, `json`, `jsonc`, `json5` or `toml` fence is config the user copies (a CI
+    workflow, a release hook), where no forwarder runs, and is not read either. `npx` on another
+    package, or on a longer name, is not read.
 - **A skill's links stay inside its folder** — pnpm links or copies each skill folder on its own
   into an agent's skill directory, and a plugin cache keeps only what the plugin ships, so a skill
   does not always travel with its package (issue #177). A relative Markdown link (inline, image, or
@@ -599,16 +616,31 @@ Grouped by use case; 1:1 with [`build.feature`](./build.feature).
 |---|---|---|
 | leftover | `launchers: { pods: "dist/cli.js" }` | `a leftover launchers key warns and writes nothing` |
 
+### A `forward` entry writes a forwarding script
+
+| Edge | Path (Given) | Scenario |
+|---|---|---|
+| own | `{ "forward": "demo" }`, own bin `demo` | `a forward entry writes a forwarding script with the plugin version` |
+| pinned | another package with a pinned version | `a forward entry for another package keeps its pinned version` |
+| check | the forwarder deleted | `--check reports a missing forwarder` |
+| check: version | only `plugin.json`'s version moved | `--check reports a forwarder behind on its version` |
+| guard: name | output not named `<cli>.mjs` | `a forward entry not named after its CLI warns and writes nothing` |
+| guard: unknown bin | no such own bin, no `package` | `a forward entry for an undeclared bin warns and writes nothing` |
+| guard: no version | another package with no version | `a forward entry for another package without a version warns` |
+| run: dev checkout | the script inside a checkout of the package | `the forwarder runs the checkout's bin with node` |
+| run: stale dist | `src/` newer than `dist/` | `the forwarder warns when the build output is older than src` |
+| run: copied | the script copied out of any checkout | `a copied forwarder runs the pinned package through npx` |
+| run: other package | a pinned forwarder outside that package's checkout | `a forwarder for another package runs its pinned version through npx` |
+
 ### Doctor reports a package runner on the own package
 
 | Edge | Path (Given) | Scenario |
 | --- | --- | --- |
-| no script | a skill runs `npx <own package> x` | `doctor warns with file and line when a skill runs npx on the own package` |
+| no forwarder | a skill runs `npx <own package> x` | `doctor warns with file and line when a skill runs npx on the own package` |
 | pnpm exec | a skill runs `pnpm exec <own bin> x` | `doctor reads pnpm exec on the own bin too` |
 | not own | `npx` on another package, or a longer name | `doctor ignores npx on another package` |
-| beside a script | the skill declares a script for `x` | `doctor flags a runner fallback beside a built script for the same command` |
-| over budget | that script is over 150 KB | `a script over the budget keeps its runner fallback` |
-| other skill | the script sits in another skill | `a script in another skill does not clear the runner` |
+| beside a forwarder | the skill declares a forwarder for the CLI | `doctor flags a runner line beside a forwarder for the same CLI` |
+| other skill | the forwarder sits in another skill | `a forwarder in another skill does not clear the runner` |
 
 ### A skill's links stay inside its folder
 
@@ -642,4 +674,5 @@ Grouped by use case; 1:1 with [`build.feature`](./build.feature).
 - ADR-0018 (this project) — dependencies checked against the catalogs the build refreshes.
 - ADR-0019 (this project) — skill script entries compiled into committed, self-contained `.mjs`.
 - ADR-0020 (this project) — launchers written as `bin/<name>`; superseded by ADR-0021.
-- ADR-0021 (this project) — skills run the plugin's own CLI through compiled per-command scripts; launchers removed.
+- ADR-0021 (this project) — skills run the plugin's own CLI through compiled per-command scripts; launchers removed. Superseded by ADR-0022.
+- ADR-0022 (this project) — skills run their plugin's CLI through one forwarding script per CLI.

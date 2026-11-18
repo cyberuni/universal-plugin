@@ -3,7 +3,7 @@
 Reads `.claude-plugin/plugin.json`. **The build derives it** — never hand-edit it.
 
 ```bash
-npx universal-plugin plugin build --vendor claude-code
+node <this skill's folder>/scripts/universal-plugin.mjs plugin build --vendor claude-code
 ```
 
 ## What lands in the derived manifest

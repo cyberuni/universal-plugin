@@ -134,10 +134,8 @@ bearing and the user wants it kept, stop rather than shipping the adoption aroun
 Scaffold it, naming exactly the vendors you found in Step 1:
 
 ```bash
-node scripts/init.mjs --name <name> --vendor claude-code --vendor cursor
+node <this skill's folder>/scripts/universal-plugin.mjs plugin init --name <name> --vendor claude-code --vendor cursor
 ```
-
-Resolve `scripts/init.mjs` against this skill's directory.
 
 > `plugin init` writes a **minimal** manifest — `$schema`, `name`, and the `vendors` list. It does
 > not read your existing vendor manifests. Carry the Step 2 buckets in by hand afterwards.
@@ -165,7 +163,7 @@ regenerated rather than edited.
 ## Step 5 — Build
 
 ```bash
-npx universal-plugin plugin build
+node <this skill's folder>/scripts/universal-plugin.mjs plugin build
 ```
 
 ## Step 6 — Prove it was lossless

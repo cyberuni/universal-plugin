@@ -19,7 +19,7 @@ being asked for before deleting anything.
 Derived manifests are build artifacts. The build removes and rewrites them itself:
 
 ```bash
-npx universal-plugin plugin build --clean
+node <this skill's folder>/scripts/universal-plugin.mjs plugin build --clean
 ```
 
 `--clean` deletes exactly what the manifest declares and nothing it does not, which is why it is the

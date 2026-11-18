@@ -354,6 +354,16 @@ describe('planVersion — stamp compiled skill scripts (#177)', () => {
 		expect(result.files).toEqual([{ path: rel, content: compiled('1.3.0', "spawn('npx my-cli@1.2.3 go')\n") }])
 	})
 
+	it('leaves a forwarder to another package at its pinned version (ADR-0022)', () => {
+		const pinned = composeScript(
+			'run()\n',
+			{ output: rel, source: 'src/a.ts' },
+			{ ...data('3.4.5'), forward: 'pinned' },
+		)
+		const result = plan({ ...own, skillFiles: [{ path: rel, content: pinned }] }, '1.3.0')
+		expect(result.files).toEqual([])
+	})
+
 	it('writes nothing for a script already on the version', () => {
 		const result = plan({ ...own, skillFiles: [{ path: rel, content: compiled('1.3.0') }] }, '1.3.0', { force: true })
 		expect(result.files).toEqual([])

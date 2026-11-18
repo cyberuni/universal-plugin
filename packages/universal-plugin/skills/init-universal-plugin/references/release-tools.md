@@ -221,7 +221,7 @@ skill writes, and one workflow step the user adds.
 }
 ```
 
-The restamp step runs `npx -y universal-plugin@0.22.0 plugin version --from-manifest`, which takes
+The restamp step runs `universal-plugin plugin version --from-manifest` through `npx`, which takes
 the number `plugin.json` already holds. Pin it to the CLI version this skill ships with.
 
 ### A plugin that ships on npm

@@ -48,7 +48,7 @@ they refuse.
 
 ## The validation half
 
-`scripts/validate.mjs` checks each catalog against the shape its runtime actually loads and names the
+`marketplace validate` checks each catalog against the shape its runtime actually loads and names the
 key at fault. It exists because a broken catalog fails silently here and loudly at install time, in
 someone else's terminal. Two shapes reach a repository unnoticed, both of them what `package.json`
 carries: `owner` as a `"Name <email>"` string, and `repository` as a `{ type, url }` object. Claude

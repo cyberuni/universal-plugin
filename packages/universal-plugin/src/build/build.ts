@@ -367,7 +367,7 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 	warnings.push(...canonicalMetadataWarnings(manifest, vendors))
 	if (leftoverLaunchers !== undefined) {
 		warnings.push(
-			`extensions["org.cyberuni.universal-plugin"].launchers is no longer supported and is ignored: no runtime but Claude Code puts a plugin's bin/ on PATH. Remove the key and any bin/<name> it wrote, and have each skill call a compiled per-command script with node (ADR-0021)`,
+			`extensions["org.cyberuni.universal-plugin"].launchers is no longer supported and is ignored: no runtime but Claude Code puts a plugin's bin/ on PATH. Remove the key and any bin/<name> it wrote, and have each skill run the CLI through a forwarder: declare { "forward": "<bin>" } in the scripts extension and call it with node (ADR-0022)`,
 		)
 	}
 	const skills = readSkills(root, manifest, warnings)

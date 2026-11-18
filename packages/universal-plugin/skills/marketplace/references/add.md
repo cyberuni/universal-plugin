@@ -33,7 +33,7 @@ Two shapes collide, and both have a flag that settles them:
 directory inside it is the plugin. `--subdir` says it, which turns the source into `git-subdir`:
 
 ```bash
-node scripts/add.mjs cyberuni/cyber-sdd --subdir plugins/aced
+node <this skill's folder>/scripts/universal-plugin.mjs marketplace add cyberuni/cyber-sdd --subdir plugins/aced
 # { "source": "git-subdir", "url": "https://github.com/cyberuni/cyber-sdd.git", "path": "plugins/aced" }
 ```
 
@@ -94,7 +94,7 @@ scope, the repository name, or the directory name.
 ## 4. Preview, then write
 
 ```bash
-node scripts/add.mjs npm:repobuddy --description "Repo automation" --dry-run
+node <this skill's folder>/scripts/universal-plugin.mjs marketplace add npm:repobuddy --description "Repo automation" --dry-run
 ```
 
 Resolve that path against this skill's own directory. Run `--dry-run` first and show the plan, including the skips. The command never prompts.

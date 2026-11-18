@@ -1,6 +1,6 @@
 ---
 title: Choosing a runner
-description: Which runner word a skill should shell out through — npx, upx, a compiled script, or no runner at all — and what each choice costs.
+description: Which runner word a skill should shell out through — npx, upx, a CLI forwarder, a compiled script, or no runner at all — and what each choice costs.
 ---
 
 Skills invoke CLIs by shelling out. The runner word at the front of that command decides how much
@@ -137,46 +137,21 @@ runs it, and on Windows a shebang does nothing regardless of mode.
 
 **Keep the script small.** The build warns above 150 KB. One command with a small argument parser
 compiles to tens of kilobytes; a whole CLI with an SDK can pass a megabyte. A skill that needs most
-of the CLI should call it instead of compiling it in: `pnpm exec <bin>` in the pnpm channel, where
-the CLI is guaranteed because pnpm links only direct dependencies, with the pinned `npx` fallback
-below.
+of the CLI should run it through a forwarder instead of compiling it in.
 
-### Call the installed CLI when it is too big to compile
+### Run the plugin's CLI through a forwarder
 
-universal-plugin's own skills do this for every command that runs the CLI (`plugin build`,
-`plugin init`, `plugin version`, `marketplace add`, `marketplace init`, `marketplace validate`). The
-full CLI is far over the budget, so one source, `src/skill-scripts/run-cli.ts`, is declared once per
-command:
+A skill that runs its plugin's CLI calls a forwarding script per CLI with `node`, not a runner word. In
+a checkout it runs your local build, and anywhere else the pinned release. See
+[Running your CLI from skills](../running-your-cli-from-skills/).
 
-```json
-"scripts": {
-  "skills/build-plugin/scripts/build.mjs": { "source": "src/skill-scripts/run-cli.ts", "command": "plugin build" },
-  "skills/version/scripts/version.mjs": { "source": "src/skill-scripts/run-cli.ts", "command": "plugin version" }
-}
-```
+### Pin `npx` where you call it directly
 
-Each compiled file is about 2 KB. It finds its command in the embedded command map, by looking up
-its own `entry`, and runs `pnpm exec <bin> <command> ...`. When the project has no such CLI, it runs
-`npx <package>@<version> <command> ...`, with the version the file embeds. It never looks beside
-itself, so a copied skill works the same as a linked one. The scripts that stand alone, such as
-`doctor.mjs`, are compiled from `src/skill-scripts/` and ask the CLI the same way.
-
-### Drop the runner fallback beside a compiled script
-
-A skill that has a compiled script for a command calls it with `node` and nothing else. The script is
-committed, and `plugin build --check` in CI keeps it current, so an `npx` or `pnpm exec` line beside it
-has nothing to recover. [`doctor-universal-plugin`](../../skills/doctor-universal-plugin/) reports
-such a line as `runner-beside-script`. A `bin/<name>` launcher is no answer either: only Claude Code
-puts a plugin's `bin/` on `PATH`, and the build no longer writes one. See
-[Running the plugin's own CLI from a skill](../../cli/build/#running-the-plugins-own-cli-from-a-skill).
-
-### Pin the `npx` fallback where one stays
-
-A command too big to compile (over 150 KB) and a CLI the plugin does not ship are called through a
-runner, with a pinned `npx <pkg>@<version>` as the last resort.
+A CLI called through a runner in skill text, rather than through a forwarder, gets a pinned
+`npx <pkg>@<version>`.
 
 Pin it to the version that shipped the skill. A skill states the flags and output of its own version,
-so an unpinned fallback can hand an agent a CLI its documentation does not describe. A hand-written
+so an unpinned call can hand an agent a CLI its documentation does not describe. A hand-written
 script that shells out to `npx` follows the same rule. Write the pin as one `npx <pkg>@<version>`
 string so the release finds it:
 
@@ -189,15 +164,15 @@ A compiled script takes the version from `globalThis.__SKILL_SCRIPT__.version` i
 The release keeps every such pin current, in Markdown and in scripts:
 [`plugin version`](../../cli/overview/#plugin-version-stamps-every-place) re-pins the plugin's own
 package and every other workspace package the skills reference, whichever release tool calls it. A
-compiled script needs no literal pin: its header embeds the package, the bin and the plugin version,
-and `plugin version` stamps that version too.
+compiled script or a forwarder needs no literal pin: its header embeds the package, the bin and the
+version, and `plugin version` stamps that version too.
 
 ## Choosing a runner
 
 | Situation | Use |
 | --- | --- |
-| The CLI ships in the same plugin as the skill | A [compiled per-command script](../../cli/build/#running-the-plugins-own-cli-from-a-skill) in the skill's `scripts/`, run as `node scripts/<cli>-<command>.mjs`, with no runner fallback |
-| The same, but the command needs most of the CLI (over 150 KB compiled) | `pnpm exec <bin>`, with a pinned `npx <pkg>@<exact>` fallback |
+| The CLI ships in the same plugin as the skill | A [forwarder](../running-your-cli-from-skills/) in the skill's `scripts/`, `{ "forward": "<bin>" }`, run as `node <this skill's folder>/scripts/<bin>.mjs`, with no runner line beside it |
+| A skill runs another package's CLI | A forwarder that pins it: `{ "forward": "<bin>", "package": "<pkg>", "version": "<exact>" }` |
 | The CLI exposes a library API and you control the call site | Import in-process — no runner at all |
 | A skill shipped to unknown machines, or via a non-npm plugin source | `npx <pkg>@<exact>` |
 | A skill called many times per run, on a machine you set up | `upx <pkg>@^<major>` |

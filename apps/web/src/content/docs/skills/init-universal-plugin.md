@@ -58,7 +58,8 @@ never touches release config.
 
 - `@semantic-release/exec` runs
   `prepareCmd: "universal-plugin plugin version ${nextRelease.version}"`, which stamps the release
-  number into `plugin.json`, the vendor manifests, the catalogs, and the skill pins.
+  number into `plugin.json`, the vendor manifests, the catalogs, the skill pins, and the version
+  each [CLI forwarder](../../cli/build/#running-the-plugins-own-cli-from-a-skill) embeds.
 - `@semantic-release/git` commits those files back. Copilot CLI and GitHub-hosted marketplaces read
   `plugin.json` from the repository, so they only see a release that was committed.
 - For a plugin that ships to no npm package, `@semantic-release/npm` is dropped. Setting

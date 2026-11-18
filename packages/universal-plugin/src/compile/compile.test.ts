@@ -164,4 +164,94 @@ describe('compileScripts', () => {
 		expect(result.warnings).toEqual([expect.stringMatching(/^a\.mjs is 160 KB, over the 150 KB budget/)])
 		expect(result.rows[0]?.status).toBe('compiled')
 	})
+
+	describe('forward entries (ADR-0022)', () => {
+		const ownPackage = () => {
+			write('.agents/universal-plugin.json', JSON.stringify({ packagePath: '.' }))
+			write(
+				'package.json',
+				JSON.stringify({ name: 'demo-pkg', version: '0.0.0-development', bin: { demo: 'bin/demo.mjs' } }),
+			)
+		}
+
+		it('writes a forwarder for the own CLI with the plugin.json version, then leaves it unchanged', async () => {
+			manifest({ 'skills/a/scripts/demo.mjs': { forward: 'demo' } }, '1.2.0')
+			ownPackage()
+
+			const first = await compileScripts(dir, {}, echo)
+			expect(first.rows).toEqual([
+				{ path: 'skills/a/scripts/demo.mjs', source: 'forward demo', status: 'compiled', bytes: expect.any(Number) },
+			])
+			const content = read('skills/a/scripts/demo.mjs')
+			expect(content.startsWith('#!')).toBe(false)
+			expect(embeddedData(content)).toMatchObject({
+				package: 'demo-pkg',
+				bin: 'demo',
+				version: '1.2.0',
+				forward: 'own',
+			})
+
+			expect((await compileScripts(dir, {}, echo)).rows[0]?.status).toBe('unchanged')
+		})
+
+		it('writes a forwarder for another package at its pinned version', async () => {
+			manifest({ 'skills/a/scripts/other-cli.mjs': { forward: 'other-cli', package: 'other-pkg', version: '3.4.5' } })
+			ownPackage()
+
+			await compileScripts(dir, {}, echo)
+
+			expect(embeddedData(read('skills/a/scripts/other-cli.mjs'))).toMatchObject({
+				package: 'other-pkg',
+				bin: 'other-cli',
+				version: '3.4.5',
+				forward: 'pinned',
+			})
+		})
+
+		it('reports a missing forwarder, then one behind only on its version, on a dry run', async () => {
+			manifest({ 'skills/a/scripts/demo.mjs': { forward: 'demo' } }, '1.2.0')
+			ownPackage()
+			expect((await compileScripts(dir, { dryRun: true }, echo)).rows[0]?.status).toBe('missing')
+
+			await compileScripts(dir, {}, echo)
+			manifest({ 'skills/a/scripts/demo.mjs': { forward: 'demo' } }, '1.3.0')
+			const result = await compileScripts(dir, { dryRun: true }, echo)
+			expect(result.rows[0]?.status).toBe('version')
+			expect(result.summary.behind).toBe(1)
+		})
+
+		it('reports a pinned forwarder whose entry moved its pin as stale', async () => {
+			ownPackage()
+			manifest({ 'skills/a/scripts/x.mjs': { forward: 'x', package: 'x-pkg', version: '1.0.0' } })
+			await compileScripts(dir, {}, echo)
+			manifest({ 'skills/a/scripts/x.mjs': { forward: 'x', package: 'x-pkg', version: '1.1.0' } })
+			expect((await compileScripts(dir, { dryRun: true }, echo)).rows[0]?.status).toBe('stale')
+		})
+
+		it('fails a forwarder for a bin the own package does not declare, or another package without a version', async () => {
+			ownPackage()
+			manifest({
+				'skills/a/scripts/nope.mjs': { forward: 'nope' },
+				'skills/a/scripts/other-cli.mjs': { forward: 'other-cli', package: 'other-pkg' },
+				'skills/a/scripts/demo.mjs': { forward: 'demo', package: 'demo-pkg', version: '1.0.0' },
+			})
+
+			const result = await compileScripts(dir, {}, echo)
+
+			expect(result.warnings).toEqual([
+				'scripts "skills/a/scripts/nope.mjs" forwards to nope, which is not a bin of demo-pkg — not written',
+				'scripts "skills/a/scripts/other-cli.mjs" forwards to other-pkg, another package: pin its version with "version" — not written',
+				'scripts "skills/a/scripts/demo.mjs" pins a version for the own package demo-pkg, whose version plugin.json carries — not written',
+			])
+			expect(result.summary.failed).toBe(3)
+			expect(fs.existsSync(path.join(dir, 'skills/a/scripts/nope.mjs'))).toBe(false)
+		})
+
+		it('fails an own forwarder when the plugin ships to no package', async () => {
+			manifest({ 'skills/a/scripts/demo.mjs': { forward: 'demo' } })
+			const result = await compileScripts(dir, {}, echo)
+			expect(result.warnings[0]).toMatch(/the plugin ships to no package/)
+			expect(result.rows[0]?.status).toBe('failed')
+		})
+	})
 })
