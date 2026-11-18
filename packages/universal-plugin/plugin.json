@@ -24,34 +24,13 @@
 				"skills/adopt-upx/scripts/rewrite-upx.mjs": "src/skill-scripts/rewrite-upx.ts",
 				"skills/doctor-universal-plugin/scripts/doctor.mjs": "src/skill-scripts/doctor.ts",
 				"skills/marketplace/scripts/install-docs.mjs": "src/skill-scripts/install-docs.ts",
-				"skills/build-plugin/scripts/build.mjs": {
-					"source": "src/skill-scripts/run-cli.ts",
-					"command": "plugin build"
-				},
-				"skills/init-universal-plugin/scripts/init.mjs": {
-					"source": "src/skill-scripts/run-cli.ts",
-					"command": "plugin init"
-				},
-				"skills/version/scripts/version.mjs": {
-					"source": "src/skill-scripts/run-cli.ts",
-					"command": "plugin version"
-				},
-				"skills/marketplace/scripts/add.mjs": {
-					"source": "src/skill-scripts/run-cli.ts",
-					"command": "marketplace add"
-				},
-				"skills/marketplace/scripts/marketplace.mjs": {
-					"source": "src/skill-scripts/run-cli.ts",
-					"command": "marketplace init"
-				},
-				"skills/marketplace/scripts/update.mjs": {
-					"source": "src/skill-scripts/run-cli.ts",
-					"command": "marketplace update"
-				},
-				"skills/marketplace/scripts/validate.mjs": {
-					"source": "src/skill-scripts/run-cli.ts",
-					"command": "marketplace validate"
-				}
+				"skills/build-plugin/scripts/universal-plugin.mjs": { "forward": "universal-plugin" },
+				"skills/doctor-universal-plugin/scripts/universal-plugin.mjs": { "forward": "universal-plugin" },
+				"skills/init-universal-plugin/scripts/universal-plugin.mjs": { "forward": "universal-plugin" },
+				"skills/marketplace/scripts/universal-plugin.mjs": { "forward": "universal-plugin" },
+				"skills/publish-plugin/scripts/universal-plugin.mjs": { "forward": "universal-plugin" },
+				"skills/remove-plugin/scripts/universal-plugin.mjs": { "forward": "universal-plugin" },
+				"skills/version/scripts/universal-plugin.mjs": { "forward": "universal-plugin" }
 			}
 		}
 	}

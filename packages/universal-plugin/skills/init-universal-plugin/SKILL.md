@@ -213,22 +213,21 @@ Three asks leave this skill rather than routing inside it. Hand them over instea
 route: **`doctor-universal-plugin`** reports what is declared, built, stale, or drifting; **`version`** moves the
 number; **`remove-plugin`** deletes derived manifests or the plugin itself.
 
-Every route ends in the same two commands. Scaffold with this skill's script, which runs the project's installed CLI or the pinned `npx` one:
+Every route ends in the same two commands. Scaffold with this skill's forwarder, which runs the checkout's CLI or the release pinned to this skill's version:
 
 ```bash
-node scripts/init.mjs --name <plugin-name> --vendor claude-code --vendor cursor
+node <this skill's folder>/scripts/universal-plugin.mjs plugin init --name <plugin-name> --vendor claude-code --vendor cursor
 ```
 
-Resolve that path against this skill's own directory.
 `plugin init` never prompts, so it is safe to run unattended (`--yes` is accepted as a no-op).
 
 Then derive the vendor manifests:
 
 ```bash
-npx universal-plugin plugin build
+node <this skill's folder>/scripts/universal-plugin.mjs plugin build
 ```
 
-To try the result before publishing, `npx universal-plugin plugin install` puts the working copy
+To try the result before publishing, `node <this skill's folder>/scripts/universal-plugin.mjs plugin install` puts the working copy
 into every runtime the manifest declares and names the reload each one needs. Never hand-write a
 symlink for this — `references/create.md` records why the recipe that circulated for it does not
 work.

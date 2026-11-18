@@ -3,7 +3,7 @@
 Reads `.cursor-plugin/plugin.json`. **The build derives it** — never hand-edit it.
 
 ```bash
-npx universal-plugin plugin build --vendor cursor
+node <this skill's folder>/scripts/universal-plugin.mjs plugin build --vendor cursor
 ```
 
 ## Extra requirements

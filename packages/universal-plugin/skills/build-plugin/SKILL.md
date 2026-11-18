@@ -42,13 +42,12 @@ carries the project's own `--root` and whatever it chains after the build, such 
 the written JSON. Otherwise run this skill's script:
 
 ```bash
-node scripts/build.mjs --root <plugin-root>
+node <this skill's folder>/scripts/universal-plugin.mjs plugin build --root <plugin-root>
 ```
 
-Resolve `scripts/build.mjs` against this skill's own directory. It runs the CLI the project installed
-(`pnpm exec universal-plugin`), else the CLI pinned to the version this skill shipped with
-(`npx universal-plugin@0.22.0`), so it works in a skill that was linked or copied on its own. `--root` defaults to the working directory and
-must name the directory that holds the canonical `plugin.json`.
+The forwarder runs the checkout's own CLI when this skill sits in a checkout of universal-plugin, else
+the release pinned to this skill's version through `npx`, so it works in a skill that was linked or
+copied on its own. `--root` defaults to the working directory and must name the directory that holds the canonical `plugin.json`.
 
 The command never prompts, so it is safe to run unattended.
 
@@ -83,8 +82,8 @@ usually an import that does not resolve; the build exits 1 and the warning names
 
 A leftover `launchers` key warns and writes nothing: launchers were removed, because only Claude Code
 puts a plugin's `bin/` on `PATH`. Tell the user to remove the key and any `bin/<name>` it wrote, and to
-have each skill call a compiled per-command script with `node`, set up through
-`init-universal-plugin`'s *add a command script* route.
+have each skill call a CLI forwarder with `node`, set up through
+`init-universal-plugin`'s *add a CLI forwarder* route.
 
 A catalog row reads `updated`, `unchanged`, or `planned` on `--dry-run`. A build **never creates** a
 catalog, and it keeps an entry's non-local source, such as an npm package, while it re-derives the

@@ -19,9 +19,10 @@ and that judgment belongs to the skill that owns the write.
 node scripts/doctor.mjs
 ```
 
-Resolve that path against this skill's own directory. It asks the project's installed CLI
-(`pnpm exec universal-plugin`), else the CLI pinned to this skill's version (`npx`), about the
-current working directory; add `--root <path>` to diagnose elsewhere.
+Resolve that path against this skill's own directory. It runs the CLI through this skill's
+`scripts/universal-plugin.mjs` forwarder (the checkout's own CLI when the skill sits in a checkout of
+universal-plugin, else the release pinned to this skill's version through `npx`) about the current
+working directory; add `--root <path>` to diagnose elsewhere.
 Add `--marketplace-root <path>` (repeatable) to also check a **separately-cloned** shared marketplace
 repository (e.g. a local clone of `cyberuni/cyberplace`) — see
 [Catalogs are checked at the repository root](#catalogs-are-checked-at-the-repository-root).
@@ -145,7 +146,7 @@ the diff:
 
 ```bash
 git status --short          # must be clean first, or the diff proves nothing
-npx universal-plugin plugin build
+node <this skill's folder>/scripts/universal-plugin.mjs plugin build
 git diff -- .claude-plugin .cursor-plugin .codex-plugin com.github.copilot
 ```
 

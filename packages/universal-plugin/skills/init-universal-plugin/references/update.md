@@ -3,7 +3,7 @@
 Change which vendors or components an existing plugin declares. Every path ends with a rebuild:
 
 ```bash
-npx universal-plugin plugin build
+node <this skill's folder>/scripts/universal-plugin.mjs plugin build
 ```
 
 ## Add a vendor

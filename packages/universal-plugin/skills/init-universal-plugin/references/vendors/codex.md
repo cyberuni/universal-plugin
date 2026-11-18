@@ -3,7 +3,7 @@
 Reads `.codex-plugin/plugin.json`. **The build derives it** — never hand-edit it.
 
 ```bash
-npx universal-plugin plugin build --vendor codex
+node <this skill's folder>/scripts/universal-plugin.mjs plugin build --vendor codex
 ```
 
 ## Extra requirements — the build enforces these

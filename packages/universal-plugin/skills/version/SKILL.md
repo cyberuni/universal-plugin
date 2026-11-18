@@ -189,14 +189,13 @@ release-it reads the tag, not `plugin.json`: without one it starts from `0.0.0`,
 ## Step 2 — Run it
 
 ```bash
-node scripts/version.mjs <bump-or-number>
-node scripts/version.mjs --from-package
-node scripts/version.mjs --from-manifest
+node <this skill's folder>/scripts/universal-plugin.mjs plugin version <bump-or-number>
+node <this skill's folder>/scripts/universal-plugin.mjs plugin version --from-package
+node <this skill's folder>/scripts/universal-plugin.mjs plugin version --from-manifest
 ```
 
-Resolve that path against this skill's own directory; it runs the project's installed CLI
-(`pnpm exec universal-plugin`), else `npx universal-plugin@0.22.0` pinned to this skill's version.
-`universal-plugin plugin version` on the `PATH` is the fallback. The command never prompts, so it is safe to run unattended once the
+The forwarder runs the checkout's own CLI when this skill sits in a checkout of universal-plugin, else
+the release pinned to this skill's version through `npx`. The command never prompts, so it is safe to run unattended once the
 source is decided.
 
 | `<bump>` | From `1.2.3` you get |
@@ -230,7 +229,7 @@ manifest, the `packagePath` `package.json` for a release type or explicit number
 files, `.plugin/pins.json`, and one derived manifest per declared harness:
 
 ```bash
-node scripts/version.mjs --from-package --format json
+node <this skill's folder>/scripts/universal-plugin.mjs plugin version --from-package --format json
 ```
 
 Default stdout is TOON, which is the machine contract this CLI documents; `--format json` is there

@@ -38,7 +38,7 @@ runtime.
 ## 3. Generate
 
 ```bash
-node scripts/marketplace.mjs --claude --copilot --dry-run
+node <this skill's folder>/scripts/universal-plugin.mjs marketplace init --claude --copilot --dry-run
 ```
 
 Resolve that path against this skill's own directory. Run `--dry-run` first and show the plan. The command never prompts.
