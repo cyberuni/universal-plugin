@@ -303,3 +303,45 @@ test('exits 1 when a script entry fails to compile', () => {
 	expect(r.stderr).toContain('script source "src/missing.ts" for a.mjs not found')
 	expect(built()).toBe(true)
 })
+
+// Scenarios: build writes an executable bin/<name> launcher that runs; --check fails when it is behind (issue #276)
+test('writes a mode-755 launcher that runs its entry, and --check names one that is behind', () => {
+	const manifestPath = path.join(workspacePackage, 'plugin.json')
+	const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+	manifest.extensions['org.cyberuni.universal-plugin'].launchers = { pods: 'dist/cli.js' }
+	fs.writeFileSync(manifestPath, JSON.stringify(manifest))
+	fs.mkdirSync(path.join(workspacePackage, 'dist'))
+	fs.writeFileSync(path.join(workspacePackage, 'dist/cli.js'), 'console.log("ran", process.argv.slice(2).join(" "))\n')
+
+	const dry = build('--check')
+	expect(dry.status).toBe(1)
+	expect(dry.stderr).toMatch(/bin\/pods \(missing\)/)
+	expect(fs.existsSync(path.join(workspacePackage, 'bin/pods'))).toBe(false)
+
+	expect(build().status).toBe(0)
+	const launcher = path.join(workspacePackage, 'bin/pods')
+	expect(fs.statSync(launcher).mode & 0o777).toBe(0o755)
+	expect(build('--check').status).toBe(0)
+
+	const run = spawnSync(launcher, ['a', 'b'], { cwd: os.tmpdir(), encoding: 'utf8' })
+	expect(run.stdout.trim()).toBe('ran a b')
+
+	fs.chmodSync(launcher, 0o644)
+	expect(build('--check').stderr).toMatch(/bin\/pods \(stale\)/)
+
+	fs.chmodSync(launcher, 0o755)
+	fs.rmSync(path.join(workspacePackage, 'dist/cli.js'))
+	const missing = spawnSync(launcher, [], { encoding: 'utf8' })
+	expect(missing.status).toBe(127)
+	expect(missing.stderr).toMatch(/dist\/cli\.js is missing/)
+})
+
+test('a malformed launchers declaration exits 1 and writes no launcher', () => {
+	const manifestPath = path.join(workspacePackage, 'plugin.json')
+	const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+	manifest.extensions['org.cyberuni.universal-plugin'].launchers = { 'a/b': 'dist/cli.js' }
+	fs.writeFileSync(manifestPath, JSON.stringify(manifest))
+	const r = build()
+	expect(r.status).toBe(1)
+	expect(r.stderr).toMatch(/plain command name/)
+})

@@ -20,7 +20,7 @@ universal-plugin plugin build [options]
 | `--verbose` | Print field-by-field transformation decisions |
 | `--clean` | Delete generated manifests before building |
 | `--strict-dependencies` | Fail when a refreshed catalog cannot resolve a declared dependency |
-| `--check` | Write nothing; exit 1 when a compiled script is missing, stale, or on another version |
+| `--check` | Write nothing; exit 1 when a compiled script or launcher is missing, stale, or on another version |
 | `--root <path>` | Plugin root directory (default: current directory) |
 | `--format json` | Output as JSON |
 
@@ -178,6 +178,52 @@ reading it is up to your script or the library it inlines.
 script that is behind only on its version is reported there, as `version-drift`, and not also as
 `stale-script`.
 
+## Writing a launcher
+
+A plugin that ships its own CLI can give its skills a bare command instead of `npx` fetching the
+package at call time. An `npx -y <pkg>@<version>` call downloads and runs code with your credentials,
+and a permission rule written for `<cli> ...` never matches it. Declare a launcher, and the build
+writes `bin/<name>`:
+
+```json
+{
+  "extensions": {
+    "org.cyberuni.universal-plugin": {
+      "launchers": { "cyber-asana": "dist/cli.js" }
+    }
+  }
+}
+```
+
+The key is the command name. The value is an entry inside the package, relative to the plugin root.
+The build writes `bin/cyber-asana`: an extensionless file with mode 755 and a `#!/bin/sh` shim that
+runs `node` on that entry, found from the shim's own location. The launcher runs the entry the plugin
+shipped with, so its version is the plugin's.
+
+- **Commit it.** Like the vendor manifests, the launcher is derived and committed, so a git-sourced
+  install carries it. `--dry-run` reports it as `unchanged`, `missing`, or `stale` (the content
+  differs, or the file is not executable). `--check` writes nothing and exits 1 naming each one that
+  is behind.
+- **Publish it.** The package's `files` list has to include `bin`. When it does not, the build warns
+  that the launcher would not be published.
+- **Build the entry first.** The launcher does not compile anything. When the entry is missing, for
+  example in a git-sourced install that was never built, the shim exits 127, names the entry, and
+  prints the pinned `npx -y <package>@<version>` that would run instead.
+- **`node` has to be on `PATH`.** The launcher does not supply it.
+- **The declaration is build input.** It never reaches a vendor manifest, and `--vendor` does not
+  narrow it. A name that is not a plain command name, or an entry outside the plugin, fails the build.
+
+### What has been tested
+
+Claude Code puts a plugin's `bin/` on the Bash tool's `PATH`, after your own, so a launcher cannot
+shadow a system command ([docs](https://code.claude.com/docs/en/plugins/components.md), "Executables").
+It was checked on 2026-11-17 against cyber-asana 0.28.0 installed from an `npm` source: the bare
+command resolved from the Bash tool.
+
+These were **not** tested, and this page claims nothing about them: hooks, MCP server processes,
+Cursor, Codex, Copilot CLI, and Windows. Where a skill runs on one of those, call the entry by path
+instead.
+
 ### Links that leave the skill folder
 
 For the same reason, a relative Markdown link in a skill that climbs out of the skill folder
@@ -198,7 +244,8 @@ For each vendor in `extensions["org.cyberuni.universal-plugin"].vendors`:
 7. Enforce required fields (fails build on missing)
 8. Write to the vendor output path — and for `copilot-cli`, derive the `com.github.copilot/` component tree instead of a manifest
 
-Then, once per build, every declared script entry is compiled into its `.mjs` (see
+Then, once per build, every declared launcher is written to `bin/` (see
+[Writing a launcher](#writing-a-launcher)), every declared script entry is compiled into its `.mjs` (see
 [Compiling skill scripts](#compiling-skill-scripts)), and each repository-local marketplace catalog the repository **already carries**
 has this plugin's entry re-derived, for the vendors just built, so a catalog entry's version follows
 the canonical manifest instead of drifting. No catalog is created — that stays with

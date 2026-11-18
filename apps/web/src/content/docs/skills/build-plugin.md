@@ -13,6 +13,10 @@ it, so nothing is downloaded. It reads the result back rather than calling it do
 names something a vendor cannot represent and will not deliver, and a `built 0` result goes to
 [`doctor-universal-plugin`](../doctor-universal-plugin/) instead of being reported as success.
 
+When the plugin declares `launchers`, the skill also writes each `bin/<name>` and tells you to commit
+it and to publish `bin`. See [Writing a launcher](../../cli/build/#writing-a-launcher) for what has and
+has not been tested.
+
 ## See also
 
 - [`version`](../version/) moves the number and builds in the same step
