@@ -207,7 +207,7 @@ Route by what Phase 2 found. Read exactly the reference for the work at hand —
 | nothing — greenfield | scaffold a canonical manifest and its components | [`references/create.md`](./references/create.md) |
 | adoptable | carry it onto the canonical manifest, losslessly | [`references/adopt.md`](./references/adopt.md) |
 | canonical, and a vendor or component changes | edit `extensions`, then rebuild | [`references/update.md`](./references/update.md) |
-| canonical, and a skill runs a command of the plugin's own CLI | add a command script: declare `{ "source", "command" }` under `scripts`, build, call it with `node` | [`references/command-script.md`](./references/command-script.md) |
+| canonical, and a skill runs the plugin's own CLI, or another package's | add a CLI forwarder: declare `{ "forward": "<bin>" }` under `scripts`, build, rewrite the skill's runner lines to `node <this skill's folder>/scripts/<bin>.mjs` | [`references/cli-forwarder.md`](./references/cli-forwarder.md) |
 
 Three asks leave this skill rather than routing inside it. Hand them over instead of improvising a
 route: **`doctor-universal-plugin`** reports what is declared, built, stale, or drifting; **`version`** moves the
