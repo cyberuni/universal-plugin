@@ -732,6 +732,33 @@ Feature: plugin build — derive per-vendor manifests
     When I run "universal-plugin plugin build --dry-run --format json"
     Then the result's built row for "claude-code" has content "missing"
 
+  Scenario: --check passes when every derived file is current
+    Given ".claude-plugin/plugin.json" was built and nothing has changed since
+    When I run "universal-plugin plugin build --check"
+    Then the exit code is 0
+
+  Scenario: --check fails naming a vendor manifest behind plugin.json
+    Given ".claude-plugin/plugin.json" was built and "plugin.json" has changed since
+    When I run "universal-plugin plugin build --check"
+    Then the exit code is 1
+    And stderr contains ".claude-plugin/plugin.json (stale)"
+    And stderr says to run "universal-plugin plugin build" and commit the result
+    And ".claude-plugin/plugin.json" is unchanged
+
+  Scenario: --check fails naming a vendor manifest that is missing
+    Given the manifest declares harnesses for "claude-code" and no build has run
+    When I run "universal-plugin plugin build --check"
+    Then the exit code is 1
+    And stderr contains ".claude-plugin/plugin.json (missing)"
+    And ".claude-plugin/plugin.json" is NOT written
+
+  Scenario: --check fails naming a catalog the refresh would rewrite
+    Given the build is current and the repository's ".claude-plugin/marketplace.json" lists this plugin at an older version
+    When I run "universal-plugin plugin build --check"
+    Then the exit code is 1
+    And stderr contains ".claude-plugin/marketplace.json (stale)"
+    And ".claude-plugin/marketplace.json" is unchanged
+
   Scenario: --clean removes existing output before writing
     Given ".claude-plugin/plugin.json" already exists from a previous build
     When I run "universal-plugin plugin build --clean"
