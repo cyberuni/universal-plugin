@@ -1,0 +1,356 @@
+{
+	"version": 1,
+	"skill": "publish-plugin",
+	"at": "2026-11-18T15:38:21.029Z",
+	"verification": "skill-design.aspects.verification from cyber-agentkit",
+	"model": "sonnet",
+	"runs": 3,
+	"threshold": 2,
+	"baseline": "without the skill",
+	"trigger": [
+		{
+			"case": "trigger-1",
+			"prompt": "publish my plugin to the marketplace",
+			"expect": "fire",
+			"fired": 3,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-2",
+			"prompt": "I just released v1.1.0 of my plugin, get the new version into cyber-uni/marketplace",
+			"expect": "fire",
+			"fired": 3,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-3",
+			"prompt": "submit this plugin to acme/plugins so people can install it in Cursor and Claude Code",
+			"expect": "fire",
+			"fired": 3,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-4",
+			"prompt": "update the marketplace listing for ai-commit to the version I just tagged",
+			"expect": "fire",
+			"fired": 3,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-5",
+			"prompt": "set up a marketplace catalog in this repo so users can add it directly",
+			"expect": "skip",
+			"fired": 0,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-6",
+			"prompt": "bump the plugin version to 1.2.0",
+			"expect": "skip",
+			"fired": 0,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-7",
+			"prompt": "take my plugin out of the cyber-uni marketplace",
+			"expect": "skip",
+			"fired": 0,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-8",
+			"prompt": "build the vendor manifests for this plugin",
+			"expect": "skip",
+			"fired": 0,
+			"ran": 3,
+			"status": "pass"
+		}
+	],
+	"criteria": [
+		{
+			"id": "C1",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"baseline": {
+				"passed": 3,
+				"ran": 3
+			}
+		},
+		{
+			"id": "C2",
+			"status": "pass",
+			"passed": 2,
+			"ran": 3,
+			"baseline": {
+				"passed": 0,
+				"ran": 3
+			},
+			"failures": [
+				{
+					"case": "preflight-fail",
+					"run": 1,
+					"output": "The plugin isn't ready, so I stopped before touching `acme/plugins`. I opened no branch, commit or PR.\n\n**Readiness check for `code-formatter` v0.3.0**\n- **Failed:** the Claude Code manifest is missing. `.claude-plugin/plugin.json` is declared but was never built, so Claude Code would see no plugin. Only the Codex manifest, `.codex-plugin/plugin.json`, exists.\n- **Fix:** run `universal-plugin plugin build` (the `build-plugin` skill). That writes files, so I didn't run it.\n- **Not run yet:** the rest of pre-flight. That covers the `plugin.json` metadata fields, a skills check, and confirming that a v0.3.0 tag or npm release exists. A missing release would also block publishing.\n\n**Other blockers**\n- **No `gh` CLI:** `gh` isn't installed in this environment. I couldn't check your write access to `acme/plugins` or whether it accepts pull requests, and I couldn't open a PR. You'll need to install and authenticate `gh`.\n- **No `origin` remote:** the cwd has no remote. The pre-flight release check needs the plugin's git clone URL to look for the v0.3.0 tag, so I'll need that URL.\n\nDo you want me to run the build now, then re-run pre-flight? Once `gh` is available, I can continue to the marketplace entry and the PR."
+				}
+			]
+		},
+		{
+			"id": "C3",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"baseline": {
+				"passed": 1,
+				"ran": 3
+			}
+		},
+		{
+			"id": "C4",
+			"status": "not-tested",
+			"reason": "its rubric needs a judge, and none was named"
+		},
+		{
+			"id": "C5",
+			"status": "not-tested",
+			"reason": "no outcome case that runs tests it"
+		},
+		{
+			"id": "C6",
+			"status": "not-tested",
+			"reason": "no outcome case that runs tests it"
+		},
+		{
+			"id": "C7",
+			"status": "not-tested",
+			"reason": "no outcome case that runs tests it"
+		},
+		{
+			"id": "C8",
+			"status": "not-tested",
+			"reason": "no outcome case that runs tests it"
+		},
+		{
+			"id": "C9",
+			"status": "not-tested",
+			"reason": "no outcome case that runs tests it"
+		},
+		{
+			"id": "C10",
+			"status": "not-tested",
+			"reason": "no outcome case that runs tests it"
+		}
+	],
+	"cases": [
+		{
+			"case": "trigger-1",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "trigger-2",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "trigger-3",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "trigger-4",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "trigger-5",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "trigger-6",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "trigger-7",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "trigger-8",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "fallback-target",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "missing-release",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "preflight-fail",
+			"status": "pass",
+			"passed": 2,
+			"ran": 3
+		},
+		{
+			"case": "add-new",
+			"status": "not-run"
+		},
+		{
+			"case": "update-in-place",
+			"status": "not-run"
+		},
+		{
+			"case": "already-published",
+			"status": "not-run"
+		},
+		{
+			"case": "monorepo-subdir",
+			"status": "not-run"
+		},
+		{
+			"case": "add-metadata",
+			"status": "not-run"
+		},
+		{
+			"case": "cwd-is-marketplace",
+			"status": "not-run"
+		},
+		{
+			"case": "npm-package",
+			"status": "not-run"
+		},
+		{
+			"case": "dependencies",
+			"status": "not-run"
+		},
+		{
+			"case": "curated-target",
+			"status": "not-run"
+		},
+		{
+			"case": "configured-targets",
+			"status": "not-run"
+		},
+		{
+			"case": "named-target",
+			"status": "not-run"
+		}
+	],
+	"notRun": [
+		{
+			"case": "add-new",
+			"reason": "it has an outside effect the run cannot contain"
+		},
+		{
+			"case": "update-in-place",
+			"reason": "it has an outside effect the run cannot contain"
+		},
+		{
+			"case": "already-published",
+			"reason": "it has an outside effect the run cannot contain"
+		},
+		{
+			"case": "monorepo-subdir",
+			"reason": "it has an outside effect the run cannot contain"
+		},
+		{
+			"case": "add-metadata",
+			"reason": "it has an outside effect the run cannot contain"
+		},
+		{
+			"case": "cwd-is-marketplace",
+			"reason": "it has an outside effect the run cannot contain"
+		},
+		{
+			"case": "npm-package",
+			"reason": "it has an outside effect the run cannot contain"
+		},
+		{
+			"case": "dependencies",
+			"reason": "it has an outside effect the run cannot contain"
+		},
+		{
+			"case": "curated-target",
+			"reason": "it has an outside effect the run cannot contain"
+		},
+		{
+			"case": "configured-targets",
+			"reason": "it has an outside effect the run cannot contain"
+		},
+		{
+			"case": "named-target",
+			"reason": "it has an outside effect the run cannot contain"
+		}
+	],
+	"blocked": [
+		{
+			"case": "missing-release",
+			"arm": "baseline",
+			"run": 1,
+			"what": "network",
+			"target": "github.com"
+		},
+		{
+			"case": "missing-release",
+			"arm": "skill",
+			"run": 1,
+			"what": "network",
+			"target": "github.com"
+		},
+		{
+			"case": "missing-release",
+			"arm": "baseline",
+			"run": 2,
+			"what": "network",
+			"target": "github.com"
+		},
+		{
+			"case": "missing-release",
+			"arm": "skill",
+			"run": 2,
+			"what": "network",
+			"target": "github.com"
+		},
+		{
+			"case": "missing-release",
+			"arm": "skill",
+			"run": 3,
+			"what": "network",
+			"target": "github.com"
+		},
+		{
+			"case": "preflight-fail",
+			"arm": "skill",
+			"run": 3,
+			"what": "network",
+			"target": "github.com"
+		}
+	],
+	"cost": 3.023,
+	"durationMs": 199091,
+	"totalRuns": 42,
+	"noPrevious": true
+}
