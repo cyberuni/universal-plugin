@@ -38,10 +38,20 @@ function checkout(rel: string) {
 	write(`${rel}/bin/demo.mjs`, 'console.log(JSON.stringify({ bin: process.argv.slice(2) }))\nprocess.exit(3)\n')
 }
 
-function run(rel: string, args: string[]) {
+/** The environment with the fake npx first on the search path. Windows spells the key `Path`, and a
+ *  second `PATH` key beside it leaves which one the child sees to chance, so replace the one there. */
+function fakeNpxEnv() {
+	const env = { ...process.env }
+	const key = Object.keys(env).find((k) => k.toUpperCase() === 'PATH') ?? 'PATH'
+	env[key] = `${fakeBin}${path.delimiter}${env[key] ?? ''}`
+	return env
+}
+
+function run(rel: string, args: string[], input?: string) {
 	const result = spawnSync(process.execPath, [path.join(dir, rel), ...args], {
 		encoding: 'utf8',
-		env: { ...process.env, PATH: `${fakeBin}${path.delimiter}${process.env['PATH'] ?? ''}` },
+		env: fakeNpxEnv(),
+		input,
 	})
 	return { status: result.status, stdout: JSON.parse(result.stdout.trim() || 'null'), stderr: result.stderr }
 }
@@ -117,6 +127,49 @@ describe('the forwarder at run time', () => {
 
 		expect(result.stdout).toEqual({ npx: ['-y', 'demo-pkg@1.2.0', 'a', 'b c', 'x&y'] })
 		expect(result.status).toBe(7)
+	})
+
+	// On Windows this goes through npx.cmd and cmd.exe, whose quoting the forwarder has to get right.
+	it('passes arguments cmd.exe would reinterpret through npx unchanged', () => {
+		forwarder('copy/demo.mjs', demo)
+		const args = [
+			'two words',
+			'say "hi"',
+			'"',
+			'a&b',
+			'a && b',
+			'caret^',
+			'100%',
+			'%PATH%',
+			'!bang!',
+			'pipe|x',
+			'<in>',
+			'(paren)',
+			'semi;colon,comma',
+			'star*?',
+			'trail\\',
+			'back\\"slash',
+			'',
+		]
+
+		const result = run('copy/demo.mjs', args)
+
+		expect(result.stdout).toEqual({ npx: ['-y', 'demo-pkg@1.2.0', ...args] })
+		expect(result.status).toBe(7)
+	})
+
+	it('passes stdin, stdout and stderr through npx', () => {
+		write(
+			'fake-bin/fake-npx.mjs',
+			"import * as fs from 'node:fs'\nprocess.stderr.write('to stderr')\nconsole.log(JSON.stringify({ stdin: fs.readFileSync(0, 'utf8') }))\nprocess.exit(5)\n",
+		)
+		forwarder('copy/demo.mjs', demo)
+
+		const result = run('copy/demo.mjs', [], 'from stdin\n')
+
+		expect(result.stdout).toEqual({ stdin: 'from stdin\n' })
+		expect(result.stderr).toBe('to stderr')
+		expect(result.status).toBe(5)
 	})
 
 	it('runs a package.json of another name as no checkout', () => {

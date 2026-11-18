@@ -29,7 +29,9 @@ describe('realPrepareFs', () => {
 		})
 		const prepareFs = realPrepareFs('claude-code', { scope: 'global' }, environment())
 		expect(prepareFs.readManifest()).toEqual({ 'cyber-github': '1.2.0' })
-		expect(prepareFs.readPluginRoots()).toEqual({ 'cyber-github': '~/.claude/plugins/cache/mkt/cyber-github/1.2.0' })
+		expect(prepareFs.readPluginRoots()).toEqual({
+			'cyber-github': path.join('~', '.claude/plugins/cache/mkt/cyber-github/1.2.0'),
+		})
 	})
 
 	it('reads Copilot CLI installs from its installed-plugins folders', () => {
@@ -42,7 +44,7 @@ describe('realPrepareFs', () => {
 		})
 		const prepareFs = realPrepareFs('copilot-cli', { scope: 'global' }, environment())
 		expect(prepareFs.readManifest()).toEqual({ 'cyber-github': '2.0.0', 'direct-one': 'unknown' })
-		expect(prepareFs.readPluginRoots()['direct-one']).toBe('~/.copilot/installed-plugins/_direct/abc123')
+		expect(prepareFs.readPluginRoots()['direct-one']).toBe(path.join('~', '.copilot/installed-plugins/_direct/abc123'))
 	})
 
 	it('reads the newest cached version of each Codex plugin', () => {
@@ -50,7 +52,7 @@ describe('realPrepareFs', () => {
 			fs.mkdirSync(path.join(home, `.codex/plugins/cache/mkt/aced/${v}`), { recursive: true })
 		const prepareFs = realPrepareFs('codex', { scope: 'global' }, environment())
 		expect(prepareFs.readManifest()).toEqual({ aced: '1.10.0' })
-		expect(prepareFs.readPluginRoots()).toEqual({ aced: '~/.codex/plugins/cache/mkt/aced/1.10.0' })
+		expect(prepareFs.readPluginRoots()).toEqual({ aced: path.join('~', '.codex/plugins/cache/mkt/aced/1.10.0') })
 	})
 
 	it('reports nothing when the harness has installed nothing yet', () => {

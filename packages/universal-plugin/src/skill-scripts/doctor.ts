@@ -470,7 +470,7 @@ report({ vendors })
  *  when every catalog is fine — a missing catalog is not a fault, and this reports no opinion on
  *  which ones a repository ought to carry. */
 function invalidCatalogs(extraRoots: string[]) {
-	const catalogRoot = git('rev-parse', '--show-toplevel') ?? root
+	const catalogRoot = repositoryRoot()
 	const targets = [
 		{ catalogRoot, own: true },
 		...extraRoots.map((r: string) => ({ catalogRoot: path.resolve(r), own: false })),
@@ -588,7 +588,7 @@ function markdownFiles(dir: string): string[] {
  *  `changeset publish` there publishes to npm whatever the private-package settings say. */
 function changesetsReleaseFindings(): [string, string, string, string][] {
 	if (packagePath !== null) return []
-	const repoRoot = git('rev-parse', '--show-toplevel') ?? root
+	const repoRoot = repositoryRoot()
 	const workspace = changesetsWorkspace(repoRoot)
 	if (workspace === undefined) return []
 	const pkg = readJson(path.join(root, 'package.json'))
@@ -640,7 +640,7 @@ function changesetsWorkspace(repoRoot: string): string | undefined {
  *  release-it from its prompt or increment argument. Config is looked for where each tool loads it:
  *  the plugin root and the repository root. */
 function releaseTool(): string | null {
-	const repoRoot = git('rev-parse', '--show-toplevel') ?? root
+	const repoRoot = repositoryRoot()
 	if (changesetsWorkspace(repoRoot) !== undefined) return 'changesets'
 	const rpConfig = readJson(path.join(repoRoot, 'release-please-config.json'))
 	if (rpConfig !== null && releasePleaseBumpsManifest(rpConfig, repoRoot)) return 'release-please'
@@ -663,7 +663,7 @@ function hasConfig(dir: string, files: string[], key: string): boolean {
  *  `--from-package`. */
 function releasePleaseReleaseFindings(): [string, string, string, string][] {
 	if (packagePath !== null) return []
-	const repoRoot = git('rev-parse', '--show-toplevel') ?? root
+	const repoRoot = repositoryRoot()
 	const config = readJson(path.join(repoRoot, 'release-please-config.json'))
 	if (config === null || !releasePleaseBumpsManifest(config, repoRoot)) return []
 	if (!workflowsMention(repoRoot, /plugin version|version\.mjs/)) {
@@ -717,7 +717,7 @@ function releasePleaseBumpsManifest(config: Record<string, unknown>, repoRoot: s
  *  Each config is read as text, so a JavaScript config is checked only for what it names. A config
  *  that `extends` a shareable config is skipped: the wiring may live in the shared one. */
 function semanticReleaseFindings(): [string, string, string, string][] {
-	const repoRoot = git('rev-parse', '--show-toplevel') ?? root
+	const repoRoot = repositoryRoot()
 	return [...new Set([root, repoRoot])].flatMap((dir) => {
 		const config = semanticReleaseConfig(dir)
 		if (config === null || /\bextends\b/.test(config.text)) return []
@@ -841,7 +841,7 @@ function changesetsWorkflowsWithoutPublish(repoRoot: string): string[] {
  *  release-it reads `.release-it.{json,yaml,yml,toml,js,cjs,mjs,ts}` or the `release-it` key of
  *  package.json. Each is read as text, so the check is only that the stamp is named somewhere. */
 function releaseItConfigsWithoutStamp(): string[] {
-	const repoRoot = git('rev-parse', '--show-toplevel') ?? root
+	const repoRoot = repositoryRoot()
 	const stamps = (text: string) => /\bplugin\s+version\b/.test(text)
 	return [...new Set([root, repoRoot])].flatMap((dir) => {
 		const label = (file: string) => path.relative(root, path.join(dir, file)) || file
@@ -852,6 +852,24 @@ function releaseItConfigsWithoutStamp(): string[] {
 		if (config !== undefined && !stamps(JSON.stringify(config))) found.push(label('package.json'))
 		return found
 	})
+}
+
+/** The repository root, spelled the way `root` is, or `root` outside any repository. git prints the
+ *  top level in its own spelling, which on Windows can differ from `root` (a long name for an 8.3
+ *  short one), so paths built from the two would never compare equal. It is rebuilt from `root` and
+ *  `--show-cdup`, and git's spelling kept only when that lands elsewhere (a symlinked `root`). */
+function repositoryRoot(): string {
+	const out = git('rev-parse', '--show-toplevel', '--show-cdup')
+	if (out === null) return root
+	const [top = '', cdup = ''] = out.split(/\r?\n/)
+	if (top === '') return root
+	const fromGit = path.resolve(top)
+	const fromRoot = path.resolve(root, cdup)
+	try {
+		return fs.realpathSync.native(fromRoot) === fs.realpathSync.native(fromGit) ? fromRoot : fromGit
+	} catch {
+		return fromGit
+	}
 }
 
 /** Runs git inside `root`, returning its stdout or `null` — a non-zero status, a missing git, and a

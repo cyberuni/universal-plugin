@@ -103,7 +103,8 @@ test('re-running changes nothing and stays green', () => {
 test('--list resolves the destinations without writing', () => {
 	const r = run('plugin', 'install', '--vendor', 'claude-code', '--list')
 	expect(r.status).toBe(0)
-	expect(r.stdout).toContain(claudeDest())
+	// The listing quotes the path as a JSON string, which escapes Windows backslashes.
+	expect(r.stdout).toContain(JSON.stringify(claudeDest()).slice(1, -1))
 	expect(fs.existsSync(claudeDest())).toBe(false)
 })
 
