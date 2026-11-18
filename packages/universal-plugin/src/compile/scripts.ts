@@ -42,6 +42,19 @@ export interface ScriptData {
 	entry: string
 	/** Command path → the entry that runs it, relative to the plugin root. */
 	commands: Record<string, string>
+	/** Set on a CLI forwarder (ADR-0022): `own` when it forwards to the plugin's own package, whose
+	 *  version `plugin version` stamps; `pinned` when it forwards to another package at the version its
+	 *  entry pins, which no stamp moves. */
+	forward?: 'own' | 'pinned'
+}
+
+/** One declared CLI forwarder (ADR-0022): the output path, named `<bin>.mjs`, and the CLI it forwards
+ *  to. `package` and `version` are set only for a CLI of another package, which pins its version. */
+export interface ForwardEntry {
+	output: string
+	bin: string
+	package?: string
+	version?: string
 }
 
 /** The global the header assigns the script data to. Framework-neutral: a script's own code, or the
@@ -49,8 +62,7 @@ export interface ScriptData {
 export const SCRIPT_GLOBAL = '__SKILL_SCRIPT__'
 
 /** The size above which a compiled script should not be committed into a skill. Over it, the skill
- *  should call the installed CLI instead: `pnpm exec <bin>` (pnpm links only direct dependencies, so
- *  the CLI is there) with a pinned `npx` fallback. */
+ *  should run the CLI through a forwarder instead (ADR-0022). */
 export const SIZE_BUDGET_BYTES = 150 * 1024
 
 const HEADER_PREFIX = '// Compiled by `universal-plugin plugin build` from '
@@ -59,16 +71,27 @@ const DATA_PREFIX = `globalThis.${SCRIPT_GLOBAL} = `
 /** Reads the `scripts` declaration of the canonical manifest's extension: a map from output path to
  *  either a source path or `{ source, command? }`. A malformed declaration or entry is an error, never
  *  a silent skip — a script the author declared and the build dropped is a skill that breaks later. */
-export function parseScriptEntries(declaration: unknown): { entries: ScriptEntry[]; errors: string[] } {
-	if (declaration === undefined) return { entries: [], errors: [] }
+export function parseScriptEntries(declaration: unknown): {
+	entries: ScriptEntry[]
+	forwards: ForwardEntry[]
+	errors: string[]
+} {
+	if (declaration === undefined) return { entries: [], forwards: [], errors: [] }
 	if (declaration === null || typeof declaration !== 'object' || Array.isArray(declaration)) {
-		return { entries: [], errors: ['scripts is not a map from output path to source — no script was compiled'] }
+		return {
+			entries: [],
+			forwards: [],
+			errors: ['scripts is not a map from output path to source — no script was compiled'],
+		}
 	}
 	const entries: ScriptEntry[] = []
+	const forwards: ForwardEntry[] = []
 	const errors: string[] = []
 	for (const [output, value] of Object.entries(declaration as Record<string, unknown>)) {
-		const entry = parseEntry(output, value)
+		const isForward = value !== null && typeof value === 'object' && !Array.isArray(value) && 'forward' in value
+		const entry = isForward ? parseForward(output, value as Record<string, unknown>) : parseEntry(output, value)
 		if (typeof entry === 'string') errors.push(entry)
+		else if ('bin' in entry) forwards.push(entry)
 		else entries.push(entry)
 	}
 	const commands = new Map<string, string>()
@@ -80,8 +103,40 @@ export function parseScriptEntries(declaration: unknown): { entries: ScriptEntry
 		}
 		commands.set(entry.command, entry.output)
 	}
-	return { entries, errors }
+	return { entries, forwards, errors }
 }
+
+/** A `{ "forward": "<bin>" }` entry, or `{ "forward", "package", "version" }` for another package's
+ *  CLI. Whether `<bin>` is the own package's bin is the caller's to check: it needs `package.json`. */
+function parseForward(output: string, value: Record<string, unknown>): ForwardEntry | string {
+	const normalized = normalizeRelative(output)
+	if (normalized === null) return `scripts "${output}" is not a path inside the plugin`
+	const { forward, package: pkg, version, ...rest } = value
+	if (typeof forward !== 'string' || !/^[\w@.-][\w.-]*$/.test(forward)) {
+		return `scripts "${output}" has a forward that is not a bin name`
+	}
+	const extra = Object.keys(rest)
+	if (extra.length > 0) {
+		return `scripts "${output}" forwards to ${forward} and takes no ${extra.join(', ')}: a forwarder is written, not compiled`
+	}
+	if (normalized.split('/').pop() !== `${forward}.mjs`) {
+		return `scripts "${output}" forwards to ${forward}, so it must be named ${forward}.mjs`
+	}
+	if (pkg !== undefined && (typeof pkg !== 'string' || pkg.length === 0)) {
+		return `scripts "${output}" has a package that is not a package name`
+	}
+	if (version !== undefined && (typeof version !== 'string' || !EXACT_VERSION.test(version))) {
+		return `scripts "${output}" has a version that is not an exact version`
+	}
+	return {
+		output: normalized,
+		bin: forward,
+		...(pkg === undefined ? {} : { package: pkg }),
+		...(version === undefined ? {} : { version }),
+	}
+}
+
+const EXACT_VERSION = /^\d+\.\d+\.\d+(?:-[\w.-]+)?(?:\+[\w.-]+)?$/
 
 function parseEntry(output: string, value: unknown): ScriptEntry | string {
 	const normalized = normalizeRelative(output)
@@ -195,7 +250,8 @@ export function compareScript(existing: string | null, compiled: string): Script
  *  `plugin version` applies (#179). `null` when the file carries no header or already holds it. */
 export function stampScript(content: string, version: string | null): string | null {
 	const data = embeddedData(content)
-	if (data === null || data.version === version) return null
+	// A forwarder to another package keeps the version its entry pins (ADR-0022 §5).
+	if (data === null || data.version === version || data.forward === 'pinned') return null
 	return content.replace(
 		`${DATA_PREFIX}${JSON.stringify(data)};`,
 		`${DATA_PREFIX}${JSON.stringify({ ...data, version })};`,
@@ -206,8 +262,8 @@ export function stampScript(content: string, version: string | null): string | n
 export function sizeWarning(output: string, bytes: number, bin: string | null): string | null {
 	if (bytes <= SIZE_BUDGET_BYTES) return null
 	const kb = (n: number) => `${Math.round(n / 1024)} KB`
-	const call = bin === null ? 'the installed CLI' : `the installed CLI (pnpm exec ${bin}, with a pinned npx fallback)`
-	return `${output} is ${kb(bytes)}, over the ${kb(SIZE_BUDGET_BYTES)} budget for a compiled skill script — have the skill call ${call} instead`
+	const forward = bin === null ? '{ "forward": "<bin>" }' : `{ "forward": "${bin}" }`
+	return `${output} is ${kb(bytes)}, over the ${kb(SIZE_BUDGET_BYTES)} budget for a compiled skill script — have the skill run the CLI through a forwarder instead: declare ${forward} in the scripts extension (ADR-0022)`
 }
 
 /** Compiles one entry into a single self-contained ES module, with the bundle options the entry

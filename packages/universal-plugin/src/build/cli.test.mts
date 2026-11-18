@@ -291,6 +291,37 @@ test('--check exits 1 naming a missing or stale script, writes nothing, and --dr
 	expect(build('--dry-run').status).toBe(0)
 })
 
+// Scenarios: a forward entry writes a forwarding script; --check reports a missing forwarder (ADR-0022)
+test('--check covers a CLI forwarder, and plugin version restamps it', () => {
+	const manifestPath = path.join(workspacePackage, 'plugin.json')
+	const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+	manifest.extensions['org.cyberuni.universal-plugin'].scripts = {
+		'skills/a/scripts/pods.mjs': { forward: 'pods' },
+	}
+	fs.writeFileSync(manifestPath, JSON.stringify(manifest))
+	fs.mkdirSync(path.join(workspacePackage, '.agents'))
+	fs.writeFileSync(path.join(workspacePackage, '.agents/universal-plugin.json'), JSON.stringify({ packagePath: '.' }))
+	fs.writeFileSync(
+		path.join(workspacePackage, 'package.json'),
+		JSON.stringify({ name: 'pods', version: '0.0.0-development', bin: { pods: 'bin/pods.mjs' } }),
+	)
+	const forwarder = path.join(workspacePackage, 'skills/a/scripts/pods.mjs')
+
+	expect(build('--check').status).toBe(1)
+	expect(build().status).toBe(0)
+	expect(fs.readFileSync(forwarder, 'utf8')).toContain('"version":"1.0.0"')
+	expect(build('--check').status).toBe(0)
+
+	const stamp = spawnSync('node', [bin, 'plugin', 'version', '1.1.0', '--no-build'], {
+		cwd: workspacePackage,
+		encoding: 'utf8',
+		env: { ...process.env, NODE_NO_WARNINGS: '1' },
+	})
+	expect(stamp.status).toBe(0)
+	expect(fs.readFileSync(forwarder, 'utf8')).toContain('"version":"1.1.0"')
+	expect(build('--check').status).toBe(0)
+})
+
 test('exits 1 when a script entry fails to compile', () => {
 	const manifestPath = path.join(workspacePackage, 'plugin.json')
 	const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))

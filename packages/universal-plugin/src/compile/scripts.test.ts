@@ -23,9 +23,43 @@ const data = (overrides: Partial<ScriptData> = {}): ScriptData => ({
 	...overrides,
 })
 
+describe('parseScriptEntries — forward entries (ADR-0022)', () => {
+	it('reads the own form and the pinned form', () => {
+		expect(
+			parseScriptEntries({
+				'skills/a/scripts/demo.mjs': { forward: 'demo' },
+				'./skills/a/scripts/other-cli.mjs': { forward: 'other-cli', package: 'other-pkg', version: '3.4.5' },
+			}),
+		).toEqual({
+			entries: [],
+			forwards: [
+				{ output: 'skills/a/scripts/demo.mjs', bin: 'demo' },
+				{ output: 'skills/a/scripts/other-cli.mjs', bin: 'other-cli', package: 'other-pkg', version: '3.4.5' },
+			],
+			errors: [],
+		})
+	})
+
+	it('rejects a forwarder not named after its CLI, with compile options, or with an inexact version', () => {
+		expect(
+			parseScriptEntries({
+				'skills/a/scripts/run.mjs': { forward: 'demo' },
+				'skills/a/scripts/demo.mjs': { forward: 'demo', source: 'src/a.ts' },
+				'skills/b/scripts/x.mjs': { forward: 'x', package: 'x', version: '^1.0.0' },
+				'skills/c/scripts/y.mjs': { forward: '' },
+			}).errors,
+		).toEqual([
+			'scripts "skills/a/scripts/run.mjs" forwards to demo, so it must be named demo.mjs',
+			'scripts "skills/a/scripts/demo.mjs" forwards to demo and takes no source: a forwarder is written, not compiled',
+			'scripts "skills/b/scripts/x.mjs" has a version that is not an exact version',
+			'scripts "skills/c/scripts/y.mjs" has a forward that is not a bin name',
+		])
+	})
+})
+
 describe('parseScriptEntries', () => {
 	it('reads nothing from an absent declaration', () => {
-		expect(parseScriptEntries(undefined)).toEqual({ entries: [], errors: [] })
+		expect(parseScriptEntries(undefined)).toEqual({ entries: [], forwards: [], errors: [] })
 	})
 
 	it('reads the string and the object form', () => {
@@ -39,6 +73,7 @@ describe('parseScriptEntries', () => {
 				{ output: 'skills/a/scripts/a.mjs', source: 'src/a.ts' },
 				{ output: 'skills/b/scripts/b.mjs', source: 'src/b.ts', command: 'task get' },
 			],
+			forwards: [],
 			errors: [],
 		})
 	})
@@ -79,6 +114,7 @@ describe('parseScriptEntries', () => {
 			entries: [
 				{ output: 'a.mjs', source: 'a.ts', alias: { 'jsonc-parser': 'jsonc-parser/lib/esm/main.js' }, keepNames: true },
 			],
+			forwards: [],
 			errors: [],
 		})
 	})
@@ -196,8 +232,20 @@ describe('sizeWarning', () => {
 
 	it('names the size, the budget and the installed CLI over it', () => {
 		expect(sizeWarning('a.mjs', 300 * 1024, 'tool')).toBe(
-			'a.mjs is 300 KB, over the 150 KB budget for a compiled skill script — have the skill call the installed CLI (pnpm exec tool, with a pinned npx fallback) instead',
+			'a.mjs is 300 KB, over the 150 KB budget for a compiled skill script — have the skill run the CLI through a forwarder instead: declare { "forward": "tool" } in the scripts extension (ADR-0022)',
 		)
+	})
+})
+
+describe('stampScript — forwarders', () => {
+	it('leaves a pinned forwarder at the version its entry pins', () => {
+		const pinned = composeScript('run()\n', entry, data({ version: '3.4.5', forward: 'pinned' }))
+		expect(stampScript(pinned, '2.0.0')).toBeNull()
+	})
+
+	it('stamps an own forwarder like any compiled script', () => {
+		const own = composeScript('run()\n', entry, data({ forward: 'own' }))
+		expect(embeddedData(stampScript(own, '2.0.0') ?? '')?.version).toBe('2.0.0')
 	})
 })
 
