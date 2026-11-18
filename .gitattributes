@@ -1,0 +1,3 @@
+# Check out LF on every platform. Windows runners otherwise convert to CRLF, and biome and the
+# compiled-script drift check then read every file as changed.
+* text=auto eol=lf

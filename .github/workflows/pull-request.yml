@@ -8,13 +8,16 @@ jobs:
   code:
     uses: repobuddy/.github/.github/workflows/pnpm-verify.yml@v2
     with:
-      os: '["ubuntu-latest"]'
+      # Windows runs the test suite too: skill forwarders spawn npx through npx.cmd and cmd.exe
+      # there (ADR-0022), and only a Windows run exercises that quoting for real. Being in this
+      # matrix puts it inside the required `code / all-checks`.
+      os: '["ubuntu-latest", "windows-latest"]'
       skip-playwright: true
 
-  # The verify matrix runs on Linux only. This job proves the CLI runs on Windows, where an absolute
-  # path passed to `import()` crashes Node's ESM loader (issue #250). The package's own plugin.json
-  # compiles skill scripts, so `plugin build --check` exercises the build, the script compiler and
-  # the drift check end to end.
+  # This job proves the CLI runs on Windows, where an absolute path passed to `import()` crashes
+  # Node's ESM loader (issue #250). The package's own plugin.json compiles skill scripts, so
+  # `plugin build --check` exercises the build, the script compiler and the drift check end to end.
+  # It sits outside the required `code / all-checks`, so it reports but does not gate a merge.
   windows-build:
     runs-on: windows-latest
     steps:
