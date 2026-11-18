@@ -1,3 +1,4 @@
+import * as path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import type { DestState, VendorTarget } from './install.js'
@@ -17,6 +18,8 @@ const cursor: VendorTarget = {
 	link: false,
 	manifestPath: '.cursor-plugin/plugin.json',
 }
+/** Where the plan puts the plugin for Claude Code, in the platform's own separators. */
+const CLAUDE_DEST = path.join(claudeCode.dir ?? '', 'my-plugin')
 const codex: VendorTarget = { vendor: 'codex', dir: null, link: false, manifestPath: '.codex-plugin/plugin.json' }
 
 const absent: DestState = { kind: 'absent' }
@@ -39,10 +42,8 @@ function input(overrides: Partial<Parameters<typeof planInstall>[0]> = {}) {
 describe('planInstall — destination resolution', () => {
 	it('installs into the vendor local plugin directory under the plugin name', () => {
 		const plan = planInstall(input())
-		expect(plan.rows).toEqual([{ vendor: 'claude-code', path: '/home/dev/.claude/skills/my-plugin', action: 'linked' }])
-		expect(plan.writes).toEqual([
-			{ vendor: 'claude-code', dest: '/home/dev/.claude/skills/my-plugin', mode: 'link', replace: false },
-		])
+		expect(plan.rows).toEqual([{ vendor: 'claude-code', path: CLAUDE_DEST, action: 'linked' }])
+		expect(plan.writes).toEqual([{ vendor: 'claude-code', dest: CLAUDE_DEST, mode: 'link', replace: false }])
 	})
 
 	it('plans one row per target vendor', () => {
@@ -170,7 +171,7 @@ describe('planUninstall', () => {
 	it('removes our own symlink', () => {
 		const plan = planUninstall(input({ dest: { 'claude-code': ourLink } }))
 		expect(plan.rows[0]).toMatchObject({ vendor: 'claude-code', action: 'removed' })
-		expect(plan.removals).toEqual(['/home/dev/.claude/skills/my-plugin'])
+		expect(plan.removals).toEqual([CLAUDE_DEST])
 	})
 
 	it('removes our own copy', () => {

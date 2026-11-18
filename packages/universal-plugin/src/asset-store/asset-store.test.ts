@@ -13,13 +13,15 @@ describe('globalStorePath', () => {
 
 describe('projectStorePath', () => {
 	it('returns <root>/.agents/.universal-plugin/plugins/', () => {
-		expect(projectStorePath('/my/project')).toBe('/my/project/.agents/.universal-plugin/plugins')
+		expect(projectStorePath('/my/project')).toBe(path.join('/my/project', '.agents/.universal-plugin/plugins'))
 	})
 })
 
 describe('storeEntryPath', () => {
 	it('joins store root with segment', () => {
-		expect(storeEntryPath('/store', 'npm/universal-plugin@1.2.3')).toBe('/store/npm/universal-plugin@1.2.3')
+		expect(storeEntryPath('/store', 'npm/universal-plugin@1.2.3')).toBe(
+			path.join('/store', 'npm/universal-plugin@1.2.3'),
+		)
 	})
 })
 

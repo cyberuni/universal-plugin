@@ -596,12 +596,19 @@ test('a copied doctor skill runs the CLI pinned to the plugin version through np
 	const bin = path.join(root, 'fake-bin')
 	fs.mkdirSync(bin)
 	const log = path.join(root, 'npx.log')
-	fs.writeFileSync(path.join(bin, 'npx'), `#!/bin/sh\necho "$@" >> ${log}\nexit 1\n`, { mode: 0o755 })
+	// One fake for both platforms: POSIX runs the `npx` script, Windows the `npx.cmd` shim through cmd.exe.
+	fs.writeFileSync(
+		path.join(bin, 'fake-npx.cjs'),
+		`require('node:fs').appendFileSync(${JSON.stringify(log)}, process.argv.slice(2).join(' ') + '\\n')\nprocess.exit(1)\n`,
+	)
+	fs.writeFileSync(path.join(bin, 'npx'), '#!/bin/sh\nexec node "$(dirname "$0")/fake-npx.cjs" "$@"\n', { mode: 0o755 })
+	fs.writeFileSync(path.join(bin, 'npx.cmd'), '@node "%~dp0fake-npx.cjs" %*\r\n')
 	writeManifest('1.0.0')
-	spawnSync('node', [path.join(scripts, 'doctor.mjs'), '--root', root], {
-		encoding: 'utf8',
-		env: { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH}` },
-	})
+	// Windows spells the key `Path`; a second `PATH` beside it leaves which one the child reads to chance.
+	const env = { ...process.env }
+	const pathKey = Object.keys(env).find((key) => key.toUpperCase() === 'PATH') ?? 'PATH'
+	env[pathKey] = `${bin}${path.delimiter}${env[pathKey] ?? ''}`
+	spawnSync('node', [path.join(scripts, 'doctor.mjs'), '--root', root], { encoding: 'utf8', env })
 	const own = JSON.parse(fs.readFileSync(path.resolve('plugin.json'), 'utf8')) as { version: string }
 	const calls = fs.readFileSync(log, 'utf8').trim().split('\n')
 	expect(calls.length).toBeGreaterThan(0)
