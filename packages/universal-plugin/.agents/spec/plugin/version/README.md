@@ -145,6 +145,10 @@ One call writes all of these, and a failing guard writes none.
   stamp skips these files: a pin the compiled code inlines came from its source, so rewriting it
   would leave the script behind its source. A script behind its source is `plugin build`'s to
   re-derive. Stamped rows read `stamped`, and `--no-build` does not skip them.
+  A CLI forwarder ([ADR-0022](../../design/decisions/0022-skills-run-the-own-cli-through-a-forwarding-script.md))
+  carries the same header and is stamped the same way when it forwards to the plugin's own package
+  (`forward: "own"`). One that forwards to another package (`forward: "pinned"`) keeps the version
+  its entry pins.
 - **Marked `mcpServers` entries.** Each authored entry with `pinToPluginVersion: true` is stamped in
   place: inline in `plugin.json` under `extensions["org.cyberuni.universal-plugin"].mcpServers`, or
   in the declared mcp file(s), or the spec-fixed `./mcp.json`. The marker stays so the next stamp
@@ -189,6 +193,8 @@ missed sync fails the release PR rather than the published package.
   ([ADR-0019](../../design/decisions/0019-build-compiles-skill-scripts.md)) is compared by the version
   its header embeds (kind `compiled-script`), and only by that: a pin its inlined code carries is not
   a second surface, and a script whose source moved on is `plugin build`'s `stale` report, not drift.
+  An own-package CLI forwarder ([ADR-0022](../../design/decisions/0022-skills-run-the-own-cli-through-a-forwarding-script.md))
+  is a `compiled-script` surface too; a pinned forwarder for another package is not compared.
   One file is never reported twice.
 - **Unstamped, not drifted.** A place holding `0.0.0-development` is reported in a separate
   `unstamped` list and never as drift: a semantic-release repo commits the placeholder, and the
@@ -416,6 +422,7 @@ Grouped by concern; 1:1 with [`version.feature`](./version.feature).
 | mcp untouched | file with nothing to move | `an mcp file with nothing to move is left unwritten` |
 | mcp warn | marked entry, command not a runner | `a marked entry that cannot be stamped warns and does not fail` |
 | compiled script | a compiled script at the old version | `a compiled script's embedded version is stamped and nothing else in it` |
+| pinned forwarder | a forwarder for another package | `a pinned forwarder keeps its version` |
 | dry run | `--dry-run` | `--dry-run plans every stamped place and writes none` |
 
 ### Keep the npm package.json in lockstep
@@ -474,6 +481,7 @@ Grouped by concern; 1:1 with [`version.feature`](./version.feature).
 | disagree | package and manifest differ | `a package and manifest that disagree point at the version skill` |
 | not a version | pins `<version>` and `latest` | `a pin that is not a version is not compared` |
 | compiled script | a compiled script's embedded version behind | `a compiled script behind on its version is drift, reported once` |
+| pinned forwarder | a forwarder for another package at its own version | `a pinned forwarder is not drift` |
 | guard: no manifest | empty root | `check-version fails loud without a canonical manifest` |
 
 ### Deprecated aliases

@@ -1,11 +1,18 @@
 # 0021 — Skills run the plugin's own CLI through compiled per-command scripts
 
-**Status:** accepted
+**Status:** superseded by [0022](./0022-skills-run-the-own-cli-through-a-forwarding-script.md) on 2026-11-18
 **Date:** 2026-11-18
 **Builds on:** [0019](./0019-build-compiles-skill-scripts.md) — `plugin build` compiles a declared
 entry into one committed, self-contained `.mjs`.
 **Supersedes:** [0020](./0020-build-writes-plugin-launchers.md) — launchers are removed.
 **Upstream:** [issue #284](https://github.com/cyberuni/universal-plugin/issues/284).
+
+> **Superseded, 2026-11-18:** compiled per-command scripts did not scale for a CLI that skills use
+> broadly: cyber-asana's whole CLI is 1.6 MB minified, and its skills mention about 73 distinct
+> commands that a per-command split must each cover. [0022](./0022-skills-run-the-own-cli-through-a-forwarding-script.md)
+> replaces them with one thin forwarding script per CLI. §6, the launcher removal, carries over
+> unchanged. Compiled scripts ([0019](./0019-build-compiles-skill-scripts.md)) still cover a script
+> that stands alone.
 
 ## Context
 
