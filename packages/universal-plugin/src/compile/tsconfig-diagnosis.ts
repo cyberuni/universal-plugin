@@ -75,7 +75,8 @@ export function findExtendsOwner(entry: string, spec: string): string | undefine
 /** Explains a tsconfig failure: names the file and the `extends` path, and the usual fix. */
 export function explainTsconfigFailure(entry: string, root: string, spec: string): string {
 	const owner = findExtendsOwner(entry, spec)
-	const where = owner ? `${path.relative(root, owner) || path.basename(owner)} extends` : 'a tsconfig extends'
+	const shown = owner ? path.relative(root, owner).split(path.sep).join('/') || path.basename(owner) : undefined
+	const where = shown ? `${shown} extends` : 'a tsconfig extends'
 	const hint = spec.endsWith('.json')
 		? ''
 		: ' Add the `.json` extension to it: rolldown, unlike tsc, does not resolve an `extends` without one.'
