@@ -35,19 +35,25 @@ installed the plugin. The skill reports that as `unreleased-content`. It stays q
 moves the number: a plugin that declares `packagePath`, or one that changesets, release-please,
 semantic-release, or release-it versions. It also stays quiet on a tree with no history.
 
-## Skills that run `npx` on the plugin's own package
+## Skills that run the plugin's own CLI through a package runner
 
-The skill reports `own-package-runner`, severity `low`, for each skill or agent Markdown file that
-runs `npx` or `upx` on the plugin's own package. The finding names each `file:line`. A fetch at call
-time is slower than a local command, and a permission rule written for the bare command never
-matches it.
+A skill runs its plugin's own CLI through a compiled per-command script: `plugin build` compiles
+`skills/<skill>/scripts/<cli>-x-y.mjs` for the command `x y`, and the skill calls it with
+`node <this skill's folder>/scripts/<cli>-x-y.mjs`. See
+[Running the plugin's own CLI from a skill](../../cli/build/#running-the-plugins-own-cli-from-a-skill).
+The skill reads each skill and agent Markdown file for a line that runs the plugin's own package
+through `npx`, `upx` or `pnpm exec <bin>`, and reports two findings, both severity `low`:
 
-The repair is the launcher: call `<name> ...` bare, after [`plugin build`](../../cli/build/#writing-a-launcher)
-writes `bin/<name>`. With no launcher declared, the finding says to declare one under `launchers` first.
+- `own-package-runner`: the command has no script in that skill. The repair names the script entry to
+  declare, with the path and the command filled in, and the `node` call that replaces the line. The
+  *add a command script* route of [`init-universal-plugin`](../init-universal-plugin/) does the setup.
+- `runner-beside-script`: the same skill already has a script for the command, so the runner line is
+  a fallback with nothing to recover. Call the script and drop the line.
 
-It is a warning, not an error. Claude Code's Bash tool, from an npm-sourced install, is the only case
-checked. Hooks, MCP processes, Cursor, Codex, Copilot CLI and Windows are untested, so keep a pinned
-`npx` fallback in a skill that must work there.
+A runner fetches or looks up code at call time, a permission rule written for the command never
+matches it, and it fails where the package is not installed. A command whose script is over the
+150 KB budget keeps a pinned `pnpm exec <bin>`, then `npx`; the build warns for it, and the doctor
+leaves its lines alone.
 
 ## Changesets release config
 

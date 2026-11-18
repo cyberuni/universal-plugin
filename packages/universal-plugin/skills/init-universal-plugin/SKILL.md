@@ -213,14 +213,13 @@ Three asks leave this skill rather than routing inside it. Hand them over instea
 route: **`doctor-universal-plugin`** reports what is declared, built, stale, or drifting; **`version`** moves the
 number; **`remove-plugin`** deletes derived manifests or the plugin itself.
 
-Every route ends in the same two commands. Scaffold with this skill's launcher, which runs the project's installed CLI or the pinned `npx` one:
+Every route ends in the same two commands. Scaffold with this skill's script, which runs the project's installed CLI or the pinned `npx` one:
 
 ```bash
 node scripts/init.mjs --name <plugin-name> --vendor claude-code --vendor cursor
 ```
 
-Resolve that path against this skill's own directory. The launcher runs the bundled CLI, so nothing
-is downloaded; fall back to `npx universal-plugin plugin init` when the path cannot be resolved.
+Resolve that path against this skill's own directory.
 `plugin init` never prompts, so it is safe to run unattended (`--yes` is accepted as a no-op).
 
 Then derive the vendor manifests:

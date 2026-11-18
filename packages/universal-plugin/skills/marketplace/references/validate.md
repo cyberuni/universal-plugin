@@ -10,8 +10,7 @@ running this.
 node scripts/validate.mjs
 ```
 
-Resolve that path against this skill's own directory; `npx universal-plugin marketplace validate` is
-the fallback. Exit status is 1 when any selected catalog is invalid, and every issue names the key
+Resolve that path against this skill's own directory. Exit status is 1 when any selected catalog is invalid, and every issue names the key
 and the value to write instead, on stderr:
 
 ```

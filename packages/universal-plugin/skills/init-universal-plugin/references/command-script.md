@@ -6,8 +6,8 @@ route when the author adds a CLI command a skill runs, or when `doctor-universal
 [ADR-0021](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/design/decisions/0021-skills-run-the-own-cli-through-compiled-scripts.md).
 
 A compiled script is one committed, self-contained `.mjs` in the skill folder. It ships with a git
-install and an npm install alike, and needs no `dist/`, no `PATH` and no `npx`. A launcher
-(`bin/<name>`) is not this route: only Claude Code puts a plugin's `bin/` on `PATH`.
+install and an npm install alike, and needs no `dist/`, no `PATH` and no `npx`. Launchers
+(`bin/<name>`) were removed: only Claude Code puts a plugin's `bin/` on `PATH`.
 
 ## 1. Name the script
 

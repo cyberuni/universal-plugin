@@ -13,9 +13,9 @@ it, so nothing is downloaded. It reads the result back rather than calling it do
 names something a vendor cannot represent and will not deliver, and a `built 0` result goes to
 [`doctor-universal-plugin`](../doctor-universal-plugin/) instead of being reported as success.
 
-When the plugin declares `launchers`, the skill also writes each `bin/<name>` and tells you to commit
-it and to publish `bin`. See [Writing a launcher](../../cli/build/#writing-a-launcher) for what has and
-has not been tested.
+A leftover `launchers` key warns and writes nothing: launchers were removed, because only Claude
+Code puts a plugin's `bin/` on `PATH`. See
+[Running the plugin's own CLI from a skill](../../cli/build/#running-the-plugins-own-cli-from-a-skill).
 
 ## See also
 
