@@ -283,6 +283,29 @@ not a build step.
     the raw text) warns, naming the file, line, column and code point.
   - The build never moves the embedded version on its own: `plugin version` stamps it into the header
     ([`plugin/version/`](../version/README.md)), so a stamped script stays `unchanged` here.
+- **Launchers write `bin/<name>`** ([ADR-0020](../../design/decisions/0020-build-writes-plugin-launchers.md))
+  — `extensions["org.cyberuni.universal-plugin"].launchers` maps a command name to an entry inside the
+  package, relative to the plugin root (`{ "cyber-asana": "dist/cli.js" }`). Each entry becomes
+  `bin/<name>`: extensionless, mode 755, a `#!/bin/sh` shim that runs
+  `exec node "<plugin root>/<entry>" "$@"`, so the version is the plugin's by construction and nothing
+  is fetched at call time. The output is committed, like the compiled scripts (issue #276).
+  - The declaration never reaches a derived manifest, and `--vendor` does not narrow it.
+  - The shim finds the entry from its own location, so it works from any directory. Missing entry (a
+    git-sourced install that was not built): it exits 127, names the entry, and prints the pinned
+    `npx -y <package>@<version>` that would run instead (the version read from `plugin.json` at run time,
+    so `plugin version` stamps nothing here; no package name, no `npx` line).
+  - It needs `node` on `PATH` and does not supply it.
+  - The result carries one `launchers` row per entry. A write reports `written` or `unchanged`;
+    `--dry-run` writes nothing and reports `unchanged`, `missing`, or `stale` (the content differs or the
+    file is not executable). The summary appends `launchers <n>`.
+  - `--check` fails (exit 1) naming each launcher that is `missing` or `stale`; `--dry-run` alone exits 0.
+  - A malformed declaration, a name that is not a plain command name, or an entry that is absolute or
+    leaves the plugin warns and exits 1; no launcher is written for it.
+  - When the `packagePath` `package.json` has a `files` list that omits `bin`, the build warns that
+    the launchers would not be published.
+  - **What is verified.** Claude Code puts a plugin's `bin/` on the Bash tool's `PATH`, after the user's
+    own, so a launcher cannot shadow a system command. Verified for an npm-sourced install only. Hooks, MCP
+    server processes, Cursor, Codex, Copilot CLI and Windows are untested; nothing here claims them.
 - **A skill's links stay inside its folder** — pnpm links or copies each skill folder on its own
   into an agent's skill directory, and a plugin cache keeps only what the plugin ships, so a skill
   does not always travel with its package (issue #177). A relative Markdown link (inline, image, or
@@ -562,6 +585,18 @@ Grouped by use case; 1:1 with [`build.feature`](./build.feature).
 | invisible: literal | a dependency whose literal escapes U+FEFF | `a compiled script keeps a dependency's invisible characters escaped` |
 | invisible: elsewhere | an invisible character in a comment | `an invisible character the build cannot escape warns` |
 
+### Launchers write `bin/<name>`
+
+| Edge | Path (Given) | Scenario |
+|---|---|---|
+| write | `launchers: { pods: "dist/cli.js" }` | `a launcher is written as an executable bin/<name> that runs its entry` |
+| not a component | any `launchers` declaration | `the launchers declaration never reaches a derived manifest` |
+| check: behind | a launcher missing, or not executable | `--check fails naming each launcher that is behind` |
+| check: dry run stays 0 | a missing launcher, `--dry-run` | `--dry-run exits 0 when a launcher is behind` |
+| guard: missing entry | the entry is not built | `a launcher whose entry is missing exits 127 naming the pinned npx` |
+| guard: malformed | a name with a slash | `a malformed launchers declaration exits 1` |
+| files | `package.json` `files` without `bin` | `a files list that omits bin warns` |
+
 ### A skill's links stay inside its folder
 
 | Edge | Path (Given) | Scenario |
@@ -593,3 +628,4 @@ Grouped by use case; 1:1 with [`build.feature`](./build.feature).
 - ADR-0017 (this project) — governance retired for the `reference` skill; the build copies none.
 - ADR-0018 (this project) — dependencies checked against the catalogs the build refreshes.
 - ADR-0019 (this project) — skill script entries compiled into committed, self-contained `.mjs`.
+- ADR-0020 (this project) — launchers written as `bin/<name>`.
