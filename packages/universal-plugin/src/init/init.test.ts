@@ -6,7 +6,15 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { VENDOR_SHIPPED_PATHS } from '../build/build.js'
 import { realInitFs } from './fs.js'
-import { buildManifest, type InitOptions, type InitState, planInit, wireChangesets, wireFiles } from './init.js'
+import {
+	buildManifest,
+	type InitOptions,
+	type InitState,
+	packageScripts,
+	planInit,
+	wireChangesets,
+	wireFiles,
+} from './init.js'
 
 const resolve = (v: string) => VENDOR_SHIPPED_PATHS[v as keyof typeof VENDOR_SHIPPED_PATHS] ?? []
 const empty: InitState = { manifestExists: false, packageJson: null }
@@ -217,6 +225,82 @@ describe('wireChangesets', () => {
 			'1.2.3',
 		)
 		expect(wired).toEqual({ content: null })
+	})
+})
+
+describe('planInit package scripts', () => {
+	const opts: InitOptions = { vendors: [], scaffold: false, force: false, npm: false, cliVersion: '1.2.3' }
+	const stateWith = (pluginPath: string, packageJson: Record<string, unknown> | null): InitState => ({
+		manifestExists: false,
+		packageJson: pluginPath === '' ? packageJson : null,
+		scripts: { pluginPath, packageJson },
+	})
+
+	it('adds build, check and check-version with the table commands, and the devDependency', () => {
+		const plan = planInit(stateWith('', { name: 'p' }), opts, 'p', resolve)
+		expect(plan.packageJson).toEqual({
+			name: 'p',
+			scripts: {
+				build: 'universal-plugin plugin build',
+				check: 'universal-plugin plugin build --check',
+				'check-version': 'universal-plugin publish check-version',
+			},
+			devDependencies: { 'universal-plugin': '^1.2.3' },
+		})
+		expect(plan.rows).toContainEqual({ path: 'package.json', action: 'updated' })
+	})
+
+	it('passes --root for a plugin below the repository root and writes the root package.json', () => {
+		const plan = planInit(stateWith('packages/p', { name: 'root' }), opts, 'p', resolve)
+		expect(plan.packageJson).toBeNull()
+		expect(plan.workspacePackageJson?.path).toBe('../../package.json')
+		expect(plan.workspacePackageJson?.content.scripts).toEqual(packageScripts('packages/p'))
+		expect(packageScripts('packages/p').check).toBe('universal-plugin plugin build --check --root packages/p')
+	})
+
+	it('offers the scripts without .changeset/', () => {
+		const plan = planInit(stateWith('', {}), opts, 'p', resolve)
+		expect(plan.packageJson?.scripts).toEqual(packageScripts(''))
+	})
+
+	it('keeps an existing custom script and prints the line to append', () => {
+		const plan = planInit(stateWith('', { scripts: { check: 'vitest', build: 'tsc' } }), opts, 'p', resolve)
+		const scripts = plan.packageJson?.scripts as Record<string, string>
+		expect(scripts.check).toBe('vitest')
+		expect(scripts.build).toBe('tsc')
+		expect(scripts['check-version']).toBe('universal-plugin publish check-version')
+		expect(plan.notes.join('\n')).toContain('"check": "universal-plugin plugin build --check"')
+		expect(plan.notes.join('\n')).toContain('"build": "universal-plugin plugin build"')
+	})
+
+	it('leaves a script that already equals the command alone, with no note', () => {
+		const pkg = { scripts: packageScripts(''), devDependencies: { 'universal-plugin': '^1.0.0' } }
+		const plan = planInit(stateWith('', pkg), opts, 'p', resolve)
+		expect(plan.packageJson).toBeNull()
+		expect(plan.notes).toEqual([])
+		expect(plan.rows).toEqual([{ path: 'plugin.json', action: 'created' }])
+	})
+
+	it('prints the three lines and creates no package.json when none exists', () => {
+		const plan = planInit(stateWith('', null), opts, 'p', resolve)
+		expect(plan.packageJson).toBeNull()
+		expect(plan.notes.join('\n')).toContain('no package.json exists')
+		for (const [name, command] of Object.entries(packageScripts(''))) {
+			expect(plan.notes.join('\n')).toContain(`"${name}": "${command}"`)
+		}
+	})
+
+	it('a second run over the wired package changes nothing', () => {
+		const first = planInit(stateWith('', { name: 'p' }), opts, 'p', resolve)
+		const second = planInit(stateWith('', first.packageJson), opts, 'p', resolve)
+		expect(second.packageJson).toBeNull()
+		expect(second.notes).toEqual([])
+	})
+
+	it('--no-scripts adds none', () => {
+		const plan = planInit(stateWith('', { name: 'p' }), { ...opts, scripts: false }, 'p', resolve)
+		expect(plan.packageJson).toBeNull()
+		expect(plan.notes).toEqual([])
 	})
 })
 
@@ -609,7 +693,7 @@ describe('realInitFs integration', () => {
 		const state = realInitFs.gather(pluginRoot)
 		const plan = planInit(
 			state,
-			{ vendors: [], scaffold: false, force: false, npm: true, cliVersion: '1.2.3' },
+			{ vendors: [], scaffold: false, force: false, npm: true, scripts: false, cliVersion: '1.2.3' },
 			'my-plugin',
 			resolve,
 		)
@@ -625,6 +709,34 @@ describe('realInitFs integration', () => {
 			devDependencies: { 'universal-plugin': '^1.2.3' },
 		})
 		expect(JSON.parse(fs.readFileSync(path.join(pluginRoot, 'plugin.json'), 'utf8')).version).toBe('0.8.0')
+	})
+
+	it('adds the scripts to the repository root package.json from a nested plugin, once', () => {
+		execFileSync('git', ['-C', dir, 'init', '-q'])
+		fs.writeFileSync(
+			path.join(dir, 'package.json'),
+			`${JSON.stringify({ name: 'root', scripts: { check: 'vitest' } })}\n`,
+		)
+		const pluginRoot = path.join(dir, 'packages', 'my-plugin')
+		fs.mkdirSync(pluginRoot, { recursive: true })
+		const run = () => {
+			const plan = planInit(
+				realInitFs.gather(pluginRoot),
+				{ vendors: [], scaffold: false, force: true, npm: false, cliVersion: '1.2.3' },
+				'my-plugin',
+				resolve,
+			)
+			realInitFs.apply(pluginRoot, plan)
+			return plan
+		}
+		const first = run()
+		const pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'))
+		expect(pkg.scripts.check).toBe('vitest')
+		expect(pkg.scripts.build).toBe('universal-plugin plugin build --root packages/my-plugin')
+		expect(first.notes.filter((n) => n.includes('"check"'))).toHaveLength(1)
+		const second = run()
+		expect(second.workspacePackageJson).toBeNull()
+		expect(JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'))).toEqual(pkg)
 	})
 
 	it('writes a private package.json for a changesets repository without npm', () => {

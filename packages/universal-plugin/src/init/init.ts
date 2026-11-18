@@ -32,6 +32,9 @@ export interface InitOptions {
 	/** `--no-changesets` opts out of every changesets wiring; the default is to wire a repository
 	 *  that carries `.changeset/`. */
 	changesets?: boolean
+	/** `--no-scripts` opts out of the `build`, `check` and `check-version` package scripts; the
+	 *  default is to add them. */
+	scripts?: boolean
 	/** The running CLI's own version, which the changesets wiring pins its devDependency to. */
 	cliVersion?: string
 }
@@ -61,6 +64,15 @@ export interface ChangesetsState {
 	config?: Record<string, unknown> | null
 }
 
+/** The `package.json` the build and check scripts go into: the repository root's, or the plugin
+ *  root's outside a repository. Absent from a state that did not gather it. */
+export interface ScriptsState {
+	/** POSIX path from that root to the plugin root; empty when they are the same. */
+	pluginPath: string
+	/** The parsed `package.json` there, or `null` when absent. */
+	packageJson: Record<string, unknown> | null
+}
+
 export interface InitState {
 	manifestExists: boolean
 	/** The version the existing `plugin.json` carries, when it carries one. */
@@ -70,6 +82,8 @@ export interface InitState {
 	repo?: RepoState
 	/** Present only when the workspace root carries a `.changeset/` directory. */
 	changesets?: ChangesetsState
+	/** Where the `build`, `check` and `check-version` scripts go. */
+	scripts?: ScriptsState
 }
 
 export interface FileRow {
@@ -181,6 +195,51 @@ export function wireChangesets(
 		next.devDependencies = { ...devDeps, [CLI_PACKAGE]: cliVersion ? `^${cliVersion}` : 'latest' }
 	}
 	return { content: next }
+}
+
+/** The `package.json` scripts init offers, whether or not the repository uses changesets: none of
+ *  them depends on a release tool. */
+export function packageScripts(pluginPath: string): Record<string, string> {
+	const root = pluginPath === '' ? '' : ` --root ${pluginPath}`
+	return {
+		build: `${CLI_PACKAGE} plugin build${root}`,
+		check: `${CLI_PACKAGE} plugin build --check${root}`,
+		'check-version': `${CLI_PACKAGE} publish check-version${root}`,
+	}
+}
+
+/** Adds the scripts of `packageScripts` the package does not have. A script that exists under a
+ *  name is never touched: when it differs from the command, the caller is told the line to append.
+ *  `universal-plugin` joins the devDependencies when a script was added and the package carries it
+ *  nowhere. Returns `null` content when nothing changes. */
+export function wirePackageScripts(
+	pkg: Record<string, unknown>,
+	pluginPath: string,
+	cliVersion: string | undefined,
+): { content: Record<string, unknown> | null; notes: string[] } {
+	const scripts = (typeof pkg.scripts === 'object' && pkg.scripts !== null ? pkg.scripts : {}) as Record<
+		string,
+		unknown
+	>
+	const added: Record<string, string> = {}
+	const notes: string[] = []
+	for (const [name, command] of Object.entries(packageScripts(pluginPath))) {
+		if (!(name in scripts)) added[name] = command
+		else if (scripts[name] !== command) {
+			notes.push(
+				`scripts: the "${name}" script already exists; add it under another name if you want it: "${name}": "${command}"`,
+			)
+		}
+	}
+	if (Object.keys(added).length === 0) return { content: null, notes }
+
+	const next: Record<string, unknown> = { ...pkg, scripts: { ...scripts, ...added } }
+	const deps = (pkg.dependencies ?? {}) as Record<string, unknown>
+	const devDeps = (pkg.devDependencies ?? {}) as Record<string, unknown>
+	if (!(CLI_PACKAGE in deps) && !(CLI_PACKAGE in devDeps)) {
+		next.devDependencies = { ...devDeps, [CLI_PACKAGE]: cliVersion ? `^${cliVersion}` : 'latest' }
+	}
+	return { content: next, notes }
 }
 
 const CHANGESET_PUBLISH = 'changeset publish'
@@ -450,6 +509,37 @@ export function planInit(
 		const wired = planPrivateRelease(opts, name, privateVersion, changesets, rows, notes)
 		packageJson = wired.packageJson
 		workspacePackageJson = wired.workspacePackageJson
+	}
+
+	if (opts.scripts !== false && state.scripts) {
+		const target = state.scripts
+		const sameFile = target.pluginPath === ''
+		const current = sameFile
+			? (packageJson ?? target.packageJson)
+			: (workspacePackageJson?.content ?? target.packageJson)
+		if (current === null) {
+			const lines = Object.entries(packageScripts(target.pluginPath))
+				.map(([scriptName, command]) => `"${scriptName}": "${command}"`)
+				.join(', ')
+			notes.push(
+				`scripts: no package.json exists at the ${sameFile ? 'plugin' : 'repository'} root, so none was created for the build and check scripts; add to its "scripts": ${lines}`,
+			)
+		} else {
+			const wired = wirePackageScripts(current, target.pluginPath, opts.cliVersion)
+			notes.push(...wired.notes)
+			if (wired.content) {
+				const rowPath = sameFile
+					? 'package.json'
+					: `${target.pluginPath
+							.split('/')
+							.map(() => '..')
+							.join('/')}/package.json`
+				if (sameFile) packageJson = wired.content
+				else workspacePackageJson = { path: rowPath, content: wired.content }
+				const row = rows.find((r) => r.path === rowPath)
+				if (row === undefined) rows.push({ path: rowPath, action: 'updated' })
+			}
+		}
 	}
 
 	const created = rows.filter((r) => r.action === 'created').length

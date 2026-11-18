@@ -5,7 +5,7 @@ import * as path from 'node:path'
 import { readEditorconfigIndent } from '../editorconfig/fs.js'
 import { formatJson } from '../json.js'
 import { gatherCatalogRepo } from '../marketplace/fs.js'
-import type { ChangesetsState, InitPlan, InitState, RepoState } from './init.js'
+import type { ChangesetsState, InitPlan, InitState, RepoState, ScriptsState } from './init.js'
 
 /** Gathers the filesystem state `planInit` needs and applies the plan it returns. Each JSON file is
  *  written in its own format when it exists; a new one takes `.editorconfig`'s indentation, then a
@@ -65,6 +65,13 @@ function gatherChangesets(root: string, repo: RepoState | undefined): Changesets
 	}
 }
 
+/** The `package.json` the build and check scripts go into: the repository root's. */
+function gatherScripts(root: string, repo: RepoState | undefined): ScriptsState {
+	const pluginPath = repo?.pluginPath ?? ''
+	const top = pluginPath === '' ? root : path.join(root, ...pluginPath.split('/').map(() => '..'))
+	return { pluginPath, packageJson: readJson(packageJsonPath(top)) }
+}
+
 function readJsonSafe(file: string): Record<string, unknown> | null {
 	try {
 		return readJson(file)
@@ -93,6 +100,7 @@ export const realInitFs: InitFs = {
 			packageJson: readJson(packageJsonPath(root)),
 			repo,
 			changesets: gatherChangesets(root, repo),
+			scripts: gatherScripts(root, repo),
 		}
 	},
 	apply(root, plan) {
