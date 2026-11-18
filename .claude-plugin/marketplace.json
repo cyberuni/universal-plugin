@@ -21,13 +21,6 @@
 			"category": "plugin-authoring",
 			"version": "0.22.0",
 			"keywords": ["universal", "plugin", "agent", "cross-vendor"]
-		},
-		{
-			"name": "cyber-agent-harness",
-			"source": {
-				"source": "npm",
-				"package": "@cyberuni/agent-harness"
-			}
 		}
 	]
 }
