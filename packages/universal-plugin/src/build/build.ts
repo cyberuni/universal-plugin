@@ -941,6 +941,28 @@ function derivedContent(existed: boolean, drift: Drift): DerivedContent {
 	return drift.stale ? 'stale' : 'unchanged'
 }
 
+/** One derived file a dry run found behind `plugin.json`, as `--check` names it. */
+export interface BehindFile {
+	path: string
+	status: 'stale' | 'missing'
+}
+
+/** The vendor manifests and catalogs a dry run found behind: a `built` row whose content is `stale`
+ *  or `missing`, and a catalog the refresh would rewrite (`planned`, named `stale`). `--check` fails
+ *  on any of them, so committed derived files cannot drift past CI. */
+export function behindDerivedFiles(result: Pick<BuildResult, 'rows' | 'catalogs'>): BehindFile[] {
+	const behind: BehindFile[] = []
+	for (const row of result.rows) {
+		if (row.status === 'built' && (row.content === 'stale' || row.content === 'missing')) {
+			behind.push({ path: row.path, status: row.content })
+		}
+	}
+	for (const catalog of result.catalogs) {
+		if (catalog.status === 'planned') behind.push({ path: catalog.path, status: 'stale' })
+	}
+	return behind
+}
+
 function summarize(rows: VendorRow[]): BuildResult['summary'] {
 	return {
 		built: rows.filter((r) => r.status === 'built').length,
