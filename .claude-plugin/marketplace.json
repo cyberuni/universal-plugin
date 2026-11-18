@@ -6,6 +6,7 @@
 		"email": "homawong@gmail.com"
 	},
 	"description": "Local marketplace for developing and testing the universal-plugin toolkit from this repository.",
+	"allowCrossMarketplaceDependenciesOn": ["cyber-uni"],
 	"plugins": [
 		{
 			"name": "universal-plugin",
