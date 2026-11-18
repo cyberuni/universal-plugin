@@ -311,7 +311,9 @@ not a build step.
     it with `node` and drop the line. A script on disk over the 150 KB budget clears its lines: the
     runner is the right call there.
   - A declared command matches when its words are the first words the line runs; the longest match
-    wins. `npx` on another package, or on a longer name, is not read.
+    wins. A package named with no command word after it is a mention, not a run, and is not read.
+    A line inside a `yaml`, `yml`, `json`, `jsonc`, `json5` or `toml` fence is config the user copies
+    (a CI workflow, a release hook), where no skill script exists, and is not read either. `npx` on another package, or on a longer name, is not read.
 - **A skill's links stay inside its folder** — pnpm links or copies each skill folder on its own
   into an agent's skill directory, and a plugin cache keeps only what the plugin ships, so a skill
   does not always travel with its package (issue #177). A relative Markdown link (inline, image, or

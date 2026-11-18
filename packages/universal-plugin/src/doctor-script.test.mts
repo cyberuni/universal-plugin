@@ -676,6 +676,18 @@ test('npx on another package, or a longer name, is not reported', () => {
 	expect(codes).not.toContain('runner-beside-script')
 })
 
+test('a package named with no command after it is a mention, not a run', () => {
+	writeRunnerManifest()
+	writeSkill('It falls back to the CLI pinned to this version (`npx demo-pkg@1.0.0`).')
+	expect(runnerFinding()).toBeUndefined()
+})
+
+test('a runner inside a YAML or JSON fence is config, not a run', () => {
+	writeRunnerManifest()
+	writeSkill('```yaml\nrun: npx -y demo-pkg@1.0.0 build\n```\n\n```json\n{ "prepareCmd": "npx demo-pkg build" }\n```')
+	expect(runnerFinding()).toBeUndefined()
+})
+
 test('a runner beside a built script for the same command is runner-beside-script, not own-package-runner', () => {
 	writeRunnerManifest(buildScript)
 	writeSkill('node scripts/demo-pkg-build.mjs\nnpx -y demo-pkg@1.0.0 build --root .')
@@ -691,8 +703,10 @@ test('a runner beside a built script for the same command is runner-beside-scrip
 test('a script over the 150 KB budget keeps its runner', () => {
 	writeRunnerManifest(buildScript)
 	write('skills/demo/scripts/demo-pkg-build.mjs', `// ${'x'.repeat(151 * 1024)}\n`)
-	writeSkill('pnpm exec demo-pkg build')
-	expect(runnerReport().findings.map((f) => f.code)).not.toContain('runner-beside-script')
+	writeSkill('npx -y demo-pkg@1.0.0 build')
+	const codes = runnerReport().findings.map((f) => f.code)
+	expect(codes).not.toContain('runner-beside-script')
+	expect(codes).not.toContain('own-package-runner')
 })
 
 test('a script in another skill does not clear the runner', () => {

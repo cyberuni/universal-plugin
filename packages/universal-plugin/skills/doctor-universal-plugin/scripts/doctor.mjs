@@ -41,6 +41,18 @@ function runCli$1(args, options = {}) {
 }
 // src/skill-scripts/doctor.ts
 const UP_NAMESPACE = "org.cyberuni.universal-plugin";
+/** The size above which a compiled skill script is over budget (ADR-0019 §4): there the skill keeps
+*  a pinned `pnpm exec <bin>`, then `npx`. */
+const SCRIPT_BUDGET_BYTES = 153600;
+/** Fenced-block languages whose content is config a user copies, not a command an agent runs. */
+const CONFIG_FENCES = /* @__PURE__ */ new Set([
+	"yaml",
+	"yml",
+	"json",
+	"jsonc",
+	"json5",
+	"toml"
+]);
 const argv = process.argv.slice(2);
 const verbose = argv.includes("--verbose");
 const rootFlag = argv.indexOf("--root");
@@ -241,9 +253,6 @@ function invalidCatalogs(extraRoots) {
 		})) : [];
 	});
 }
-/** The size above which a compiled skill script is over budget (ADR-0019 §4): there the skill keeps
-*  a pinned `pnpm exec <bin>`, then `npx`. */
-const SCRIPT_BUDGET_BYTES = 153600;
 /** Lines of shipped skill and agent Markdown that run this plugin's own package through `npx`, `upx`
 *  or `pnpm exec <bin>` (ADR-0021). A line whose command the same skill folder has a compiled script
 *  for is `runner-beside-script`: the script replaces it. Any other is `own-package-runner`, whose
@@ -266,9 +275,17 @@ function ownPackageRunnerFindings() {
 		const local = skill === null ? [] : scripts.filter((s) => s.path.startsWith(skill));
 		const missing = [];
 		const beside = [];
+		let fence = null;
 		fs.readFileSync(file, "utf8").split("\n").forEach((text, i) => {
+			const marker = /^\s*(```+|~~~+)\s*([\w-]*)/.exec(text);
+			if (marker) {
+				fence = fence === null ? (marker[2] ?? "").toLowerCase() : null;
+				return;
+			}
+			if (fence !== null && CONFIG_FENCES.has(fence)) return;
 			for (const runner of runners) for (const match of text.matchAll(runner)) {
 				const args = (match[1] ?? "").trim().split(/\s+/).filter(Boolean);
+				if (args.length === 0) continue;
 				const script = local.filter((s) => s.command.length <= args.length && s.command.every((w, j) => args[j] === w)).sort((x, y) => y.command.length - x.command.length)[0];
 				if (script === void 0) missing.push({
 					line: i + 1,
