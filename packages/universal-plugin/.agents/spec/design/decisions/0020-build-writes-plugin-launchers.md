@@ -1,11 +1,24 @@
 # 0020 — `plugin build` writes plugin-local launchers as `bin/<name>`
 
-**Status:** accepted
+**Status:** superseded by [0021](./0021-skills-run-the-own-cli-through-compiled-scripts.md) on 2026-11-18
 **Date:** 2026-11-17
 **Builds on:** [0019](./0019-build-compiles-skill-scripts.md) — a derived file is committed and
 reported as `missing` or `stale` by `--dry-run` and `--check`.
 **Upstream:** [issue #276](https://github.com/cyberuni/universal-plugin/issues/276), and the design
 comment on it.
+
+> **Superseded, 2026-11-18:** launchers worked in Claude Code only, and were removed. Probes found no
+> other runtime that puts a plugin's `bin/` on `PATH`: GitHub Copilot CLI 1.0.100 copies `bin/` into
+> `~/.copilot/installed-plugins/`, but a bare `bin/<name>` call fails with `command not found`, and
+> no plugin path is on `PATH`; Cursor (cursor-agent 2026.09.28), with `--plugin-dir` and with
+> `~/.cursor/plugins/local/<name>`, loads the skill, but a bare call exits 127, and no plugin path is
+> on `PATH`. A `plugin@marketplace` install was not tested on either. A launcher whose entry is
+> `dist/` also fails in a git-sourced install, which has no `dist/`
+> ([cyber-agentkit#319](https://github.com/cyber-uni/cyber-agentkit/pull/319)). `plugin build` no
+> longer writes `bin/<name>`; it warns on a leftover `launchers` key and ignores it. A skill runs its
+> plugin's own CLI through a compiled per-command script
+> ([0021](./0021-skills-run-the-own-cli-through-compiled-scripts.md)). The record below is kept as it
+> was decided.
 
 ## Context
 
@@ -45,4 +58,4 @@ Hooks, MCP server processes, Cursor, Codex, Copilot CLI and Windows were not tes
 | A `#!/usr/bin/env node` ESM file importing the entry | Its module type depends on the plugin's `package.json` `type` |
 | Embed the version in the shim and stamp it | Touches `plugin version` and the drift check for a message read only on failure |
 | Compile the entry into the launcher | That is [#177](https://github.com/cyberuni/universal-plugin/issues/177); a launcher can point at its output |
-| Doctor warning for `npx <own package>` in skills | Separate unit; left open on #276 |
+| Doctor warning for `npx <own package>` in skills | Separate unit; left open on #276, and settled by [0021](./0021-skills-run-the-own-cli-through-compiled-scripts.md) |

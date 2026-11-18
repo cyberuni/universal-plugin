@@ -39,8 +39,7 @@ Two pin rules to state to the user before running:
 node scripts/update.mjs repobuddy --source https://github.com/cyberuni/repobuddy.git --dry-run
 ```
 
-Resolve that path against this skill's own directory; `npx universal-plugin marketplace update` is
-the fallback. Run `--dry-run` first and show the plan. The command never prompts.
+Resolve that path against this skill's own directory. Run `--dry-run` first and show the plan. The command never prompts.
 
 | Status | Means |
 | --- | --- |

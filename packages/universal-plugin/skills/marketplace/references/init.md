@@ -41,8 +41,7 @@ runtime.
 node scripts/marketplace.mjs --claude --copilot --dry-run
 ```
 
-Resolve that path against this skill's own directory; `npx universal-plugin marketplace init` is the
-fallback. Run `--dry-run` first and show the plan. The command never prompts.
+Resolve that path against this skill's own directory. Run `--dry-run` first and show the plan. The command never prompts.
 
 Then generate for real. Selected targets compose as a union, so name every target you want each run.
 

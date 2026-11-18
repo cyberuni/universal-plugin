@@ -36,22 +36,21 @@ Exactly one of them writes the canonical `plugin.json`. That is `init-universal-
 `upgrade-plugin` moves the version your project *calls*. `version` moves the version your plugin
 *publishes*. They are different numbers.
 
-## Bundled launchers
+## Bundled scripts
 
 `init-universal-plugin`, `doctor-universal-plugin`, `version`, `build-plugin`, and `marketplace` each
-ship a launcher in their own `scripts/` directory. The launcher imports the CLI that shipped beside it, so a scaffold
-or a diagnosis needs no network fetch and cannot resolve a different version than the one you
-installed.
+ship compiled scripts in their own `scripts/` directory. `plugin build` compiles each one into a
+single self-contained `.mjs`, so it works when pnpm links the skill, when it copies the skill folder
+on its own, and from a git-sourced install.
 
 ```sh
 node scripts/doctor.mjs
 ```
 
-The launcher reaches the CLI by climbing out of the skill to the package root. That works when the
-skill is installed with its package, and when pnpm links it as a symlink. When pnpm copies the skill
-folder on its own, there is no package to reach, and every skill body keeps a pinned `npx` fallback
-for that case. For your own plugin, compile each script into the skill instead, so a copy works too:
-see [Running a CLI your own plugin ships](../../concepts/npx-and-upx/#running-a-cli-your-own-plugin-ships).
+A script for a CLI command runs the project's installed CLI (`pnpm exec universal-plugin`), else the
+CLI pinned to the version the skill shipped with, because the full CLI is over the 150 KB budget for
+compiling it in. For your own plugin, compile a script per command, and call it with `node`: see
+[Running the plugin's own CLI from a skill](../../cli/build/#running-the-plugins-own-cli-from-a-skill).
 
 ## Why four skills and not one
 

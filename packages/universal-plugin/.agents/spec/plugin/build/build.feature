@@ -1029,62 +1029,49 @@ Feature: plugin build — derive per-vendor manifests
     Then the exit code is 0
     And stdout contains a synopsis, the flags, and one example
 
-  Scenario: a launcher is written as an executable bin/<name> that runs its entry
+  Scenario: a leftover launchers key warns and writes nothing
     Given the extension declares launchers { "pods": "dist/cli.js" }
     When I run "universal-plugin plugin build"
-    Then "bin/pods" exists with mode 755 and starts with "#!/bin/sh"
-    And running "bin/pods a b" from another directory runs "dist/cli.js" with "a b"
-    And the summary ends with "launchers 1"
-
-  Scenario: the launchers declaration never reaches a derived manifest
-    Given the extension declares launchers { "pods": "dist/cli.js" }
-    When I run "universal-plugin plugin build"
-    Then ".claude-plugin/plugin.json" has no "launchers" key
-
-  Scenario: --check fails naming each launcher that is behind
-    Given "bin/pods" was written and then made not executable
-    When I run "universal-plugin plugin build --check"
-    Then the exit code is 1
-    And stderr contains "bin/pods (stale)"
-
-  Scenario: --dry-run exits 0 when a launcher is behind
-    Given the extension declares launchers { "pods": "dist/cli.js" } and "bin/pods" does not exist
-    When I run "universal-plugin plugin build --dry-run"
     Then the exit code is 0
+    And stderr contains "launchers is no longer supported"
     And "bin/pods" is not written
-
-  Scenario: a launcher whose entry is missing exits 127 naming the pinned npx
-    Given "bin/pods" was written and "dist/cli.js" does not exist
-    When I run "bin/pods"
-    Then the exit code is 127
-    And stderr contains "dist/cli.js is missing"
-
-  Scenario: a malformed launchers declaration exits 1
-    Given the extension declares launchers { "a/b": "dist/cli.js" }
-    When I run "universal-plugin plugin build"
-    Then the exit code is 1
-    And stderr contains "plain command name"
-    And no launcher is written
-
-  Scenario: a files list that omits bin warns
-    Given a launcher is declared and the package's "files" is ["dist"]
-    When I run "universal-plugin plugin build"
-    Then stderr contains "does not list \"bin\""
+    And ".claude-plugin/plugin.json" has no "launchers" key
 
   Scenario: doctor warns with file and line when a skill runs npx on the own package
     Given the plugin's package is "demo-pkg" and "skills/demo/SKILL.md" line 9 runs "npx -y demo-pkg@1.0.0 build"
     When I run the doctor script
     Then it reports an "own-package-runner" finding with severity "low"
     And the detail contains "skills/demo/SKILL.md:9"
-    And the repair names the bare launcher command
+    And the repair names the script entry "skills/demo/scripts/demo-pkg-build.mjs" with command "build"
+    And the repair names "node <this skill's folder>/scripts/demo-pkg-build.mjs"
+    And the repair does not recommend a launcher
+
+  Scenario: doctor reads pnpm exec on the own bin too
+    Given the package "demo-pkg" has bin "demo" and a skill runs "pnpm exec demo plugin build"
+    When I run the doctor script
+    Then it reports an "own-package-runner" finding
 
   Scenario: doctor ignores npx on another package
     Given a skill runs "npx other-tool build" and "npx demo-pkg-extra build"
     When I run the doctor script
     Then it reports no "own-package-runner" finding
 
-  Scenario: the doctor warning claims only the verified Claude Code case
-    Given a skill runs "npx demo-pkg build"
+  Scenario: doctor flags a runner fallback beside a built script for the same command
+    Given the plugin declares "skills/demo/scripts/demo-pkg-build.mjs" with command "build"
+    And "skills/demo/SKILL.md" line 3 runs "npx -y demo-pkg@1.0.0 build --root ."
     When I run the doctor script
-    Then the repair mentions Claude Code's Bash tool
-    And the repair says hooks, MCP servers, Cursor, Codex, Copilot CLI and Windows are untested
+    Then it reports a "runner-beside-script" finding with severity "low"
+    And the detail contains "skills/demo/SKILL.md:3" and "skills/demo/scripts/demo-pkg-build.mjs"
+    And it reports no "own-package-runner" finding
+
+  Scenario: a script over the budget keeps its runner fallback
+    Given the plugin declares "skills/demo/scripts/demo-pkg-build.mjs" with command "build" and the file is over 150 KB
+    And a skill line runs "pnpm exec demo-pkg build"
+    When I run the doctor script
+    Then it reports no "runner-beside-script" finding
+
+  Scenario: a script in another skill does not clear the runner
+    Given the plugin declares "skills/other/scripts/demo-pkg-build.mjs" with command "build"
+    And "skills/demo/SKILL.md" runs "npx demo-pkg build"
+    When I run the doctor script
+    Then it reports an "own-package-runner" finding

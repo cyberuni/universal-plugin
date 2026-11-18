@@ -20,7 +20,7 @@ universal-plugin plugin build [options]
 | `--verbose` | Print field-by-field transformation decisions |
 | `--clean` | Delete generated manifests before building |
 | `--strict-dependencies` | Fail when a refreshed catalog cannot resolve a declared dependency |
-| `--check` | Write nothing; exit 1 when a compiled script or launcher is missing, stale, or on another version |
+| `--check` | Write nothing; exit 1 when a compiled script is missing, stale, or on another version |
 | `--root <path>` | Plugin root directory (default: current directory) |
 | `--format json` | Output as JSON |
 
@@ -178,51 +178,47 @@ reading it is up to your script or the library it inlines.
 script that is behind only on its version is reported there, as `version-drift`, and not also as
 `stale-script`.
 
-## Writing a launcher
+## Running the plugin's own CLI from a skill
 
-A plugin that ships its own CLI can give its skills a bare command instead of `npx` fetching the
-package at call time. An `npx -y <pkg>@<version>` call downloads and runs code with your credentials,
-and a permission rule written for `<cli> ...` never matches it. Declare a launcher, and the build
-writes `bin/<name>`:
+A skill that runs a command of the CLI its plugin ships calls a compiled per-command script, not
+`npx` and not a bare command on `PATH`
+([ADR-0021](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/design/decisions/0021-skills-run-the-own-cli-through-compiled-scripts.md)).
+For a CLI `tasks` with a command `task get`, declare one entry per command, in the skill that runs
+it:
 
 ```json
-{
-  "extensions": {
-    "org.cyberuni.universal-plugin": {
-      "launchers": { "cyber-asana": "dist/cli.js" }
-    }
-  }
+"scripts": {
+  "skills/tasks/scripts/tasks-task-get.mjs": { "source": "src/skill-scripts/task-get.ts", "command": "task get" }
 }
 ```
 
-The key is the command name. The value is an entry inside the package, relative to the plugin root.
-The build writes `bin/cyber-asana`: an extensionless file with mode 755 and a `#!/bin/sh` shim that
-runs `node` on that entry, found from the shim's own location. The launcher runs the entry the plugin
-shipped with, so its version is the plugin's.
+The skill calls it with `node`:
 
-- **Commit it.** Like the vendor manifests, the launcher is derived and committed, so a git-sourced
-  install carries it. `--dry-run` reports it as `unchanged`, `missing`, or `stale` (the content
-  differs, or the file is not executable). `--check` writes nothing and exits 1 naming each one that
-  is behind.
-- **Publish it.** The package's `files` list has to include `bin`. When it does not, the build warns
-  that the launcher would not be published.
-- **Build the entry first.** The launcher does not compile anything. When the entry is missing, for
-  example in a git-sourced install that was never built, the shim exits 127, names the entry, and
-  prints the pinned `npx -y <package>@<version>` that would run instead.
-- **`node` has to be on `PATH`.** The launcher does not supply it.
-- **The declaration is build input.** It never reaches a vendor manifest, and `--vendor` does not
-  narrow it. A name that is not a plain command name, or an entry outside the plugin, fails the build.
+```sh
+node <this skill's folder>/scripts/tasks-task-get.mjs 42
+```
 
-### What has been tested
+- **Write `node` in front.** Do not rely on a hashbang or an executable bit. Windows and a copy that
+  drops the file mode run neither.
+- **Drop the runner fallback.** A committed script that `plugin build --check` keeps current in CI
+  leaves `npx -y <pkg>@<version>` or `pnpm exec <bin>` nothing to recover, and either one fetches or
+  looks up code at call time and matches no permission rule written for the command.
+- **Over 150 KB, call the installed CLI.** Only a command whose script the build warns is over the
+  budget keeps a pinned `pnpm exec <bin>`, then `npx -y <pkg>@<version>`.
 
-Claude Code puts a plugin's `bin/` on the Bash tool's `PATH`, after your own, so a launcher cannot
-shadow a system command ([docs](https://code.claude.com/docs/en/plugins/components.md), "Executables").
-It was checked on 2026-11-17 against cyber-asana 0.28.0 installed from an `npm` source: the bare
-command resolved from the Bash tool.
+The script is committed and self-contained, so it runs the same from an npm install, a git-sourced
+install (Cursor's git-subdir, Copilot CLI's github source) and a skill pnpm copied on its own.
+[`doctor-universal-plugin`](../../skills/doctor-universal-plugin/) reports a skill line that runs the
+plugin's own package through a runner, and the *add a command script* route of
+[`init-universal-plugin`](../../skills/init-universal-plugin/) sets a script up.
 
-These were **not** tested, and this page claims nothing about them: hooks, MCP server processes,
-Cursor, Codex, Copilot CLI, and Windows. Where a skill runs on one of those, call the entry by path
-instead.
+### Launchers are gone
+
+Earlier releases wrote a `bin/<name>` launcher for each entry under `launchers`. Only Claude Code puts
+a plugin's `bin/` on `PATH`. Probes on 2026-11-18 found that GitHub Copilot CLI 1.0.100 and Cursor
+(cursor-agent 2026.09.28) do not: a bare call failed with `command not found` or exit 127. The build
+now warns on a leftover `launchers` key and ignores it. Remove the key and any `bin/<name>` it wrote,
+and compile a script per command instead.
 
 ### Links that leave the skill folder
 
@@ -244,8 +240,7 @@ For each vendor in `extensions["org.cyberuni.universal-plugin"].vendors`:
 7. Enforce required fields (fails build on missing)
 8. Write to the vendor output path — and for `copilot-cli`, derive the `com.github.copilot/` component tree instead of a manifest
 
-Then, once per build, every declared launcher is written to `bin/` (see
-[Writing a launcher](#writing-a-launcher)), every declared script entry is compiled into its `.mjs` (see
+Then, once per build, every declared script entry is compiled into its `.mjs` (see
 [Compiling skill scripts](#compiling-skill-scripts)), and each repository-local marketplace catalog the repository **already carries**
 has this plugin's entry re-derived, for the vendors just built, so a catalog entry's version follows
 the canonical manifest instead of drifting. No catalog is created — that stays with

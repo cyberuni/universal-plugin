@@ -97,8 +97,7 @@ scope, the repository name, or the directory name.
 node scripts/add.mjs npm:repobuddy --description "Repo automation" --dry-run
 ```
 
-Resolve that path against this skill's own directory; `npx universal-plugin marketplace add` is the
-fallback. Run `--dry-run` first and show the plan, including the skips. The command never prompts.
+Resolve that path against this skill's own directory. Run `--dry-run` first and show the plan, including the skips. The command never prompts.
 
 | Status | Means |
 | --- | --- |

@@ -161,19 +161,19 @@ its own `entry`, and runs `pnpm exec <bin> <command> ...`. When the project has 
 itself, so a copied skill works the same as a linked one. The scripts that stand alone, such as
 `doctor.mjs`, are compiled from `src/skill-scripts/` and ask the CLI the same way.
 
-### Ship a launcher so a skill calls a bare command
+### Drop the runner fallback beside a compiled script
 
-A plugin that ships its own CLI can have `plugin build` write `bin/<name>`, a shim that runs the CLI
-entry the plugin shipped with. Claude Code puts a plugin's `bin/` on the Bash tool's `PATH`, so a skill
-calls `<name> ...`: nothing is fetched at call time, and a permission rule written for `<name> ...`
-matches. This was checked from an npm-sourced install in Claude Code only. Hooks, MCP processes,
-Cursor, Codex, Copilot CLI and Windows are untested. See
-[Writing a launcher](../../cli/build/#writing-a-launcher).
+A skill that has a compiled script for a command calls it with `node` and nothing else. The script is
+committed, and `plugin build --check` in CI keeps it current, so an `npx` or `pnpm exec` line beside it
+has nothing to recover. [`doctor-universal-plugin`](../../skills/doctor-universal-plugin/) reports
+such a line as `runner-beside-script`. A `bin/<name>` launcher is no answer either: only Claude Code
+puts a plugin's `bin/` on `PATH`, and the build no longer writes one. See
+[Running the plugin's own CLI from a skill](../../cli/build/#running-the-plugins-own-cli-from-a-skill).
 
-### Keep a pinned `npx` fallback
+### Pin the `npx` fallback where one stays
 
-Resolving the script's path is model behavior, not a guarantee, so keep one line in the skill body
-that works without the script: `npx <pkg>@<version>`.
+A command too big to compile (over 150 KB) and a CLI the plugin does not ship are called through a
+runner, with a pinned `npx <pkg>@<version>` as the last resort.
 
 Pin it to the version that shipped the skill. A skill states the flags and output of its own version,
 so an unpinned fallback can hand an agent a CLI its documentation does not describe. A hand-written
@@ -196,7 +196,7 @@ and `plugin version` stamps that version too.
 
 | Situation | Use |
 | --- | --- |
-| The CLI ships in the same plugin as the skill | A [compiled script entry](../../cli/build/#compiling-skill-scripts) in the skill's `scripts/`, run as `node scripts/<name>.mjs` |
+| The CLI ships in the same plugin as the skill | A [compiled per-command script](../../cli/build/#running-the-plugins-own-cli-from-a-skill) in the skill's `scripts/`, run as `node scripts/<cli>-<command>.mjs`, with no runner fallback |
 | The same, but the command needs most of the CLI (over 150 KB compiled) | `pnpm exec <bin>`, with a pinned `npx <pkg>@<exact>` fallback |
 | The CLI exposes a library API and you control the call site | Import in-process — no runner at all |
 | A skill shipped to unknown machines, or via a non-npm plugin source | `npx <pkg>@<exact>` |

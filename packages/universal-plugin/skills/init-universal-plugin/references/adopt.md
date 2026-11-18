@@ -137,8 +137,7 @@ Scaffold it, naming exactly the vendors you found in Step 1:
 node scripts/init.mjs --name <name> --vendor claude-code --vendor cursor
 ```
 
-Resolve `scripts/init.mjs` against this skill's directory; `npx universal-plugin plugin init` is the
-fallback.
+Resolve `scripts/init.mjs` against this skill's directory.
 
 > `plugin init` writes a **minimal** manifest — `$schema`, `name`, and the `vendors` list. It does
 > not read your existing vendor manifests. Carry the Step 2 buckets in by hand afterwards.
