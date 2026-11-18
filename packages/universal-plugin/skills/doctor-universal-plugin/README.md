@@ -25,9 +25,10 @@ unattended, including from a session-start hook.
 
 ## Why a script rather than a checklist
 
-The checks are deterministic: same tree, same findings. The one check that is not scriptable is the
-definitive staleness test — rebuild on a clean tree and read the diff — because it writes. The skill
-reports that one as a repair for the user to run.
+The checks are deterministic: same tree, same findings. Staleness is decided by content, through
+the build's own dry run, never by file times. The one check that is not scriptable is the full
+rebuild-and-diff, which also covers the files the build rewrites in place, because it writes. The
+skill reports that one as a repair for the user to run.
 
 Manifest validation is a CLI capability (`plugin validate`). This script stays a thin composition
 on purpose, so it folds into that command rather than competing with it.

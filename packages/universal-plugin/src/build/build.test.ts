@@ -1564,9 +1564,19 @@ describe('buildPlugin — the copilot spec-mode namespace (ADR-0015)', () => {
 
 		const result = buildPlugin(dir, { dryRun: true })
 
-		expect(result.rows).toEqual([{ vendor: 'copilot-cli', path: `${NS}/`, status: 'built' }])
+		expect(result.rows).toEqual([{ vendor: 'copilot-cli', path: `${NS}/`, status: 'built', content: 'missing' }])
 		expect(result.written).toEqual([path.join(dir, NS, 'agents', 'reviewer.agent.md')])
 		expect(fs.existsSync(path.join(dir, NS))).toBe(false)
+	})
+
+	it('--dry-run reports a namespace file behind its source as stale content', () => {
+		writeComponent('agents/reviewer.agent.md', 'agent\n')
+		copilotManifest({ agents: './agents/' })
+		buildPlugin(dir)
+		expect(buildPlugin(dir, { dryRun: true }).rows[0]?.content).toBe('unchanged')
+
+		writeComponent('agents/reviewer.agent.md', 'agent, revised\n')
+		expect(buildPlugin(dir, { dryRun: true }).rows[0]?.content).toBe('stale')
 	})
 })
 
@@ -1698,5 +1708,45 @@ describe('buildPlugin — shared metadata forms (issue #260)', () => {
 		expect(result.warnings).toEqual([
 			'claude-code rejects an author without a name — left out of the derived manifest; set author.name in plugin.json',
 		])
+	})
+})
+
+describe('buildPlugin — derived content in a dry run', () => {
+	const manifest = (description: string) => ({
+		name: 'my-plugin',
+		version: '1.0.0',
+		description,
+		extensions: up({ vendors: ['claude-code', 'cursor'] }),
+	})
+
+	it('--dry-run reports derived content missing before the first build', () => {
+		writeManifest(manifest('first'))
+		expect(buildPlugin(dir, { dryRun: true }).rows.map((r) => r.content)).toEqual(['missing', 'missing'])
+	})
+
+	it('--dry-run reports derived content unchanged whatever the mtimes', () => {
+		writeManifest(manifest('first'))
+		buildPlugin(dir)
+		const past = new Date(Date.now() - 60_000)
+		for (const rel of ['.claude-plugin/plugin.json', '.cursor-plugin/plugin.json']) {
+			fs.utimesSync(path.join(dir, rel), past, past)
+		}
+
+		expect(buildPlugin(dir, { dryRun: true }).rows.map((r) => r.content)).toEqual(['unchanged', 'unchanged'])
+	})
+
+	it('--dry-run reports derived content behind plugin.json as stale', () => {
+		writeManifest(manifest('first'))
+		buildPlugin(dir)
+		writeManifest(manifest('second'))
+		const past = new Date(Date.now() - 60_000)
+		fs.utimesSync(path.join(dir, 'plugin.json'), past, past)
+
+		expect(buildPlugin(dir, { dryRun: true }).rows.map((r) => r.content)).toEqual(['stale', 'stale'])
+	})
+
+	it('leaves content off the rows of a real build', () => {
+		writeManifest(manifest('first'))
+		expect(buildPlugin(dir).rows.every((r) => r.content === undefined)).toBe(true)
 	})
 })

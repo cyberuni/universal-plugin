@@ -166,6 +166,13 @@ not a build step.
   skipped; no targets at all is a definitive empty state — exit 0, zero built rows.
 - **`--dry-run` / `--clean`** — `--dry-run` resolves and validates but writes nothing; `--clean`
   removes an existing output file before rewriting it.
+- **A dry run compares derived content** — under `--dry-run` each `built` row carries `content`:
+  `missing` when the vendor's manifest (for `copilot-cli`, `com.github.copilot/`) does not exist,
+  `stale` when any file the vendor derives (its manifest, a derived hooks or mcp file, a namespace
+  file) would be written with other bytes or removed, else `unchanged`. The comparison is by content,
+  never by modification time: a checkout writes every file at the moment it lands, so `plugin.json`
+  can be newer than a derived file that is current. A real build's rows carry no `content`. This is
+  what `doctor`'s `stale` finding reads.
 - **Writes keep the repository's JSON format** (issue #164) — every JSON file the build writes over
   (a vendor manifest, a derived hooks or mcp file, a refreshed catalog) keeps the format already on
   disk: its indentation, its line ending, whether it ends in a newline, and the original text of
@@ -545,6 +552,9 @@ Grouped by use case; 1:1 with [`build.feature`](./build.feature).
 | Edge | Path (Given) | Scenario |
 |---|---|---|
 | dry run | `--dry-run` | `--dry-run skips file writes` |
+| dry run: current | rebuilt, `plugin.json` newer by mtime only | `--dry-run reports derived content unchanged whatever the mtimes` |
+| dry run: stale | `plugin.json` changed since the build | `--dry-run reports derived content behind plugin.json as stale` |
+| dry run: missing | never built | `--dry-run reports derived content missing before the first build` |
 | clean | an earlier build's manifest, `--clean` | `--clean removes existing output before writing` |
 
 ### Writes keep the repository's JSON format

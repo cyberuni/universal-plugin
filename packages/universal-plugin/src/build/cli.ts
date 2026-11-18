@@ -84,7 +84,13 @@ export function buildCommand(): Command {
 				const catalogSummary = result.catalogs.length > 0 ? `, catalogs ${result.catalogs.length}` : ''
 				const scriptSummary = scripts.rows.length > 0 ? `, scripts ${scripts.rows.length}` : ''
 				output(jsonResult, {
-					vendors: result.rows.map((r: VendorRow) => ({ vendor: r.vendor, path: r.path, status: r.status })),
+					// A dry run also says whether each built vendor's derived files match what it would write.
+					vendors: result.rows.map((r: VendorRow) => ({
+						vendor: r.vendor,
+						path: r.path,
+						status: r.status,
+						...(dryRun && { content: r.content ?? '-' }),
+					})),
 					catalogs: result.catalogs.map((r) => ({ path: r.path, status: r.status })),
 					...(scripts.rows.length > 0 && { scripts: scripts.rows.map((r) => ({ path: r.path, status: r.status })) }),
 					summary:

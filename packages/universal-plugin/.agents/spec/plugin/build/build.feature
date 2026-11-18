@@ -714,6 +714,24 @@ Feature: plugin build — derive per-vendor manifests
     Then the exit code is 0
     And ".claude-plugin/plugin.json" is NOT written
 
+  Scenario: --dry-run reports derived content unchanged whatever the mtimes
+    Given the manifest declares harnesses for "claude-code" and ".claude-plugin/plugin.json" was built from it
+    And "plugin.json" is newer than ".claude-plugin/plugin.json" by modification time only
+    When I run "universal-plugin plugin build --dry-run --format json"
+    Then the result's built row for "claude-code" has content "unchanged"
+
+  Scenario: --dry-run reports derived content behind plugin.json as stale
+    Given ".claude-plugin/plugin.json" was built and "plugin.json" has changed since
+    And ".claude-plugin/plugin.json" is newer than "plugin.json" by modification time
+    When I run "universal-plugin plugin build --dry-run --format json"
+    Then the result's built row for "claude-code" has content "stale"
+    And ".claude-plugin/plugin.json" is unchanged
+
+  Scenario: --dry-run reports derived content missing before the first build
+    Given the manifest declares harnesses for "claude-code" and no build has run
+    When I run "universal-plugin plugin build --dry-run --format json"
+    Then the result's built row for "claude-code" has content "missing"
+
   Scenario: --clean removes existing output before writing
     Given ".claude-plugin/plugin.json" already exists from a previous build
     When I run "universal-plugin plugin build --clean"
