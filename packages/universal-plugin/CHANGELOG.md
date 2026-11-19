@@ -1,5 +1,13 @@
 # universal-plugin
 
+## 0.23.1
+
+### Patch Changes
+
+- 61b502a: fix: the plugin's `cyber-agentkit` dependency is now a bare name instead of being pinned to the `cyber-uni` marketplace, so it resolves against whichever marketplace the plugin is installed from.
+- 6e4fa6d: fix(build): the `plugin build` summary's `failed` count now includes failed script and forward entries, so it matches the rows ([#295](https://github.com/cyberuni/universal-plugin/issues/295)).
+- 22e2e76: fix(forwarder): a git-sourced install with no build output now falls through to `npx -y <pkg>@<version>` instead of crashing with `ERR_MODULE_NOT_FOUND`. The forwarder runs a checkout only when its bin and every file the bin imports by a literal relative path exist. The stale-output warning now reads the output folder from those imports, such as `esm/`, and stays quiet when it can't tell ([#298](https://github.com/cyberuni/universal-plugin/issues/298)).
+
 ## 0.23.0
 
 ### Minor Changes

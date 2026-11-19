@@ -133,7 +133,7 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
       - if: ${{ steps.release.outputs.prs_created == 'true' }}
         run: |
-          npx -y universal-plugin@0.23.0 plugin version --from-manifest
+          npx -y universal-plugin@0.23.1 plugin version --from-manifest
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
