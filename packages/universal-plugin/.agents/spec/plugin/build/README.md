@@ -331,9 +331,13 @@ not a build step.
     version, or `plugin.json` carries no version) reports a `failed` row with a warning and exits 1,
     with or without `--check`; the summary's `failed` counts it (issue #295).
   - At run time the script walks up from its own real path to the first `package.json` whose `name`
-    is the package and whose `bin` has the CLI, and runs that bin with `node`, warning on stderr when
-    the build output (`dist/` beside it, else the bin file) is older than the newest file under
-    `src/`. With no such `package.json` it runs `npx -y <package>@<version>`. Every argument, stdio
+    is the package and whose `bin` has the CLI. It runs that bin with `node` only when the bin file
+    exists and every file the bin names by a literal relative specifier (`import`, `from`, `import()`
+    or `require()`) exists, resolved with or without an extension (issue #298). It warns on stderr
+    when the build output is older than the newest file under `src/`; the build output is the top
+    folder of the checkout where the first such import that leaves the bin's own top folder lands
+    (`dist/`, `esm/`), and with no such import it does not warn. With no such `package.json`, or a bin
+    that cannot load, it runs `npx -y <package>@<version>`. Every argument, stdio
     and the exit code pass through; on Windows `npx` runs as `npx.cmd` through the shell, each
     argument quoted.
 - **`doctor-universal-plugin` reports a package runner on the plugin's own package**
@@ -657,7 +661,9 @@ Grouped by use case; 1:1 with [`build.feature`](./build.feature).
 | guard: no version | another package with no version | `a forward entry for another package without a version warns` |
 | guard: no package | `packagePath` set only in `plugin.json` | `a forward entry for a plugin that ships to no package fails the build` |
 | run: dev checkout | the script inside a checkout of the package | `the forwarder runs the checkout's bin with node` |
-| run: stale dist | `src/` newer than `dist/` | `the forwarder warns when the build output is older than src` |
+| run: stale output | `src/` newer than the folder the bin imports | `the forwarder warns when the build output is older than src` |
+| run: unknown output | the bin imports nothing outside its folder | `the forwarder does not warn when it cannot tell the build output` |
+| run: unbuilt | a git-sourced install: the bin imports build output that is not there | `an unbuilt checkout runs the pinned package through npx` |
 | run: copied | the script copied out of any checkout | `a copied forwarder runs the pinned package through npx` |
 | run: other package | a pinned forwarder outside that package's checkout | `a forwarder for another package runs its pinned version through npx` |
 

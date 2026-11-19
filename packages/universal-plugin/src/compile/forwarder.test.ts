@@ -38,6 +38,14 @@ function checkout(rel: string) {
 	write(`${rel}/bin/demo.mjs`, 'console.log(JSON.stringify({ bin: process.argv.slice(2) }))\nprocess.exit(3)\n')
 }
 
+/** A checkout whose committed bin imports its build output under `output/`, as repobuddy's
+ *  `bin/buddy.js` imports `../esm/bin.js`. The CLI reports its arguments and exits 4. */
+function builtCheckout(rel: string, output: string) {
+	write(`${rel}/package.json`, JSON.stringify({ name: 'demo-pkg', bin: { demo: 'bin/demo.mjs' } }))
+	write(`${rel}/bin/demo.mjs`, `#!/usr/bin/env node\nimport '../${output}/cli.mjs'\n`)
+	write(`${rel}/${output}/cli.mjs`, 'console.log(JSON.stringify({ cli: process.argv.slice(2) }))\nprocess.exit(4)\n')
+}
+
 /** The environment with the fake npx first on the search path. Windows spells the key `Path`, and a
  *  second `PATH` key beside it leaves which one the child sees to chance, so replace the one there. */
 function fakeNpxEnv() {
@@ -95,26 +103,73 @@ describe('the forwarder at run time', () => {
 		expect(run('agent/skills/demo/scripts/demo.mjs', ['x']).stdout).toEqual({ bin: ['x'] })
 	})
 
-	it('warns when the build output is older than src, and still runs the bin', () => {
-		checkout('pkg')
-		write('pkg/dist/cli.mjs', '')
-		write('pkg/src/cli.ts', '')
-		const past = new Date(Date.now() - 60_000)
-		fs.utimesSync(path.join(dir, 'pkg/dist/cli.mjs'), past, past)
+	it('runs a built checkout whose bin imports its build output', () => {
+		builtCheckout('pkg', 'esm')
 		forwarder('pkg/skills/demo/scripts/demo.mjs', demo)
 
-		const result = run('pkg/skills/demo/scripts/demo.mjs', ['x'])
+		const result = run('pkg/skills/demo/scripts/demo.mjs', ['a'])
 
-		expect(result.stderr).toMatch(/dist in .* is older than src\//)
-		expect(result.stdout).toEqual({ bin: ['x'] })
+		expect(result.stdout).toEqual({ cli: ['a'] })
+		expect(result.status).toBe(4)
 	})
 
+	it('runs npx when the bin imports build output the checkout does not have, as a git install does', () => {
+		builtCheckout('pkg', 'esm')
+		fs.rmSync(path.join(dir, 'pkg/esm'), { recursive: true })
+		forwarder('pkg/skills/demo/scripts/demo.mjs', demo)
+
+		const result = run('pkg/skills/demo/scripts/demo.mjs', ['a'])
+
+		expect(result.stdout).toEqual({ npx: ['-y', 'demo-pkg@1.2.0', 'a'] })
+		expect(result.stderr).toBe('')
+	})
+
+	it('runs npx when the declared bin file itself is missing', () => {
+		write('pkg/package.json', JSON.stringify({ name: 'demo-pkg', bin: { demo: 'dist/cli.mjs' } }))
+		forwarder('pkg/skills/demo/scripts/demo.mjs', demo)
+
+		expect(run('pkg/skills/demo/scripts/demo.mjs', ['a']).stdout).toEqual({ npx: ['-y', 'demo-pkg@1.2.0', 'a'] })
+	})
+
+	it('resolves a require without an extension', () => {
+		write('pkg/package.json', JSON.stringify({ name: 'demo-pkg', bin: { demo: 'bin/demo.cjs' } }))
+		write('pkg/bin/demo.cjs', "require('../lib/cli')\n")
+		write('pkg/lib/cli.js', 'console.log(JSON.stringify({ cli: process.argv.slice(2) }))\n')
+		forwarder('pkg/skills/demo/scripts/demo.mjs', demo)
+
+		expect(run('pkg/skills/demo/scripts/demo.mjs', ['a']).stdout).toEqual({ cli: ['a'] })
+	})
+
+	for (const output of ['dist', 'esm']) {
+		it(`warns when ${output}/, the folder the bin imports, is older than src, and still runs the bin`, () => {
+			builtCheckout('pkg', output)
+			write('pkg/src/cli.ts', '')
+			const past = new Date(Date.now() - 60_000)
+			fs.utimesSync(path.join(dir, `pkg/${output}/cli.mjs`), past, past)
+			forwarder('pkg/skills/demo/scripts/demo.mjs', demo)
+
+			const result = run('pkg/skills/demo/scripts/demo.mjs', ['x'])
+
+			expect(result.stderr).toMatch(new RegExp(`${output}/ in .* is older than src/`))
+			expect(result.stdout).toEqual({ cli: ['x'] })
+		})
+	}
+
 	it('does not warn when the build output is newer than src', () => {
-		checkout('pkg')
+		builtCheckout('pkg', 'esm')
 		write('pkg/src/cli.ts', '')
-		write('pkg/dist/cli.mjs', '')
 		const past = new Date(Date.now() - 60_000)
 		fs.utimesSync(path.join(dir, 'pkg/src/cli.ts'), past, past)
+		forwarder('pkg/skills/demo/scripts/demo.mjs', demo)
+
+		expect(run('pkg/skills/demo/scripts/demo.mjs', []).stderr).toBe('')
+	})
+
+	it('does not warn when the bin imports nothing outside its folder, so the output is unknown', () => {
+		checkout('pkg')
+		write('pkg/src/cli.ts', '')
+		const past = new Date(Date.now() - 60_000)
+		fs.utimesSync(path.join(dir, 'pkg/bin/demo.mjs'), past, past)
 		forwarder('pkg/skills/demo/scripts/demo.mjs', demo)
 
 		expect(run('pkg/skills/demo/scripts/demo.mjs', []).stderr).toBe('')
