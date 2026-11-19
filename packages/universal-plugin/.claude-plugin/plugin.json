@@ -16,9 +16,6 @@
 	],
 	"skills": "./skills/",
 	"dependencies": [
-		{
-			"name": "cyber-agentkit",
-			"marketplace": "cyber-uni"
-		}
+		"cyber-agentkit"
 	]
 }
