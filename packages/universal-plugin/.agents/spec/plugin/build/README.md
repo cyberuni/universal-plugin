@@ -227,7 +227,8 @@ not a build step.
 - **TOON by default, `--format json` escape hatch** — a successful build prints a TOON result to
   stdout, one row per vendor (`vendor, path, status`), plus a pre-computed aggregate summary
   (`built N, skipped M, failed K`, with `served by plugin.json N` appended when any vendor is
-  `canonical`); `--format json` returns the same shape as structured JSON;
+  `canonical`). `failed K` counts every `failed` row, vendor and script alike, and the JSON
+  `summary.failed` carries the same count (issue #295); `--format json` returns the same shape as structured JSON;
   `--format toon` names the default explicitly.
 - **Definitive empty state** — no targets at all (neither `vendors` nor `harnesses`) still emits a
   TOON result on stdout (zero built rows, aggregate `built 0`) with exit 0, plus "nothing to build" on
@@ -326,6 +327,9 @@ not a build step.
     `<cli>` the own package does not declare as a bin when no `package` is given, a `package` other
     than the own one without an exact `version`, a `version` on the own form, or a `source`,
     `command`, `alias` or `keepNames` beside `forward`.
+  - An entry the build refuses at write time (the plugin ships to no package, the own form pins a
+    version, or `plugin.json` carries no version) reports a `failed` row with a warning and exits 1,
+    with or without `--check`; the summary's `failed` counts it (issue #295).
   - At run time the script walks up from its own real path to the first `package.json` whose `name`
     is the package and whose `bin` has the CLI, and runs that bin with `node`, warning on stderr when
     the build output (`dist/` beside it, else the bin file) is older than the newest file under
@@ -651,6 +655,7 @@ Grouped by use case; 1:1 with [`build.feature`](./build.feature).
 | guard: name | output not named `<cli>.mjs` | `a forward entry not named after its CLI warns and writes nothing` |
 | guard: unknown bin | no such own bin, no `package` | `a forward entry for an undeclared bin warns and writes nothing` |
 | guard: no version | another package with no version | `a forward entry for another package without a version warns` |
+| guard: no package | `packagePath` set only in `plugin.json` | `a forward entry for a plugin that ships to no package fails the build` |
 | run: dev checkout | the script inside a checkout of the package | `the forwarder runs the checkout's bin with node` |
 | run: stale dist | `src/` newer than `dist/` | `the forwarder warns when the build output is older than src` |
 | run: copied | the script copied out of any checkout | `a copied forwarder runs the pinned package through npx` |
