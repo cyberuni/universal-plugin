@@ -1144,10 +1144,23 @@ Feature: plugin build — derive per-vendor manifests
     And npx is not run
 
   Scenario: the forwarder warns when the build output is older than src
-    Given that checkout has a file under "src/" newer than everything under "dist/"
+    Given that checkout's bin imports "../esm/cli.mjs"
+    And it has a file under "src/" newer than everything under "esm/"
     When I run the forwarder
-    Then stderr warns that the build output is older than src
+    Then stderr warns that "esm/" is older than src
     And the checkout's bin still runs
+
+  Scenario: the forwarder does not warn when it cannot tell the build output
+    Given that checkout's bin imports nothing outside "bin/"
+    And it has a file under "src/" newer than the bin
+    When I run the forwarder
+    Then stderr is empty
+
+  Scenario: an unbuilt checkout runs the pinned package through npx
+    Given a checkout of "demo-pkg" whose bin imports "../esm/cli.mjs" and has no "esm/" folder
+    When I run "node skills/demo/scripts/demo.mjs a"
+    Then it runs "npx -y demo-pkg@1.2.0 a"
+    And the checkout's bin is not run
 
   Scenario: a copied forwarder runs the pinned package through npx
     Given the forwarder copied into a folder with no matching package.json above it

@@ -16,12 +16,13 @@ test('a Windows path is not a valid import specifier until it is a file URL', ()
 const binDir = path.resolve('bin')
 const launchers = fs.readdirSync(binDir).filter((f) => f.endsWith('.mjs'))
 
-test.each(launchers)('bin/%s imports a file only through a file URL', (file) => {
+test.each(launchers)('bin/%s imports a file only through a file URL or a quoted specifier', (file) => {
 	const source = fs.readFileSync(path.join(binDir, file), 'utf8')
 	const calls = [...source.matchAll(/\bawait import\((.*)\)/g)].map((m) => m[1] as string)
 	for (const arg of calls) {
-		// A quoted package specifier resolves through node_modules; anything else is a computed path.
-		if (/^(['"])[^./][^'"]*\1$/.test(arg)) continue
+		// A quoted specifier is a URL: a package resolves through node_modules, and a relative one
+		// resolves against this file's URL, never as a Windows path. Anything else is a computed path.
+		if (/^(['"])[^'"]+\1$/.test(arg)) continue
 		expect(arg, `bin/${file}: import(${arg})`).toMatch(/^pathToFileURL\(.*\)\.href$/)
 	}
 })

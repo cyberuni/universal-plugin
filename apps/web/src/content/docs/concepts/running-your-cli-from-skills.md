@@ -11,7 +11,7 @@ works wherever the skill ends up, and why the other ways fall short.
 A skill's command line has to work on every route the skill travels:
 
 - an npm install, where the package sits in `node_modules`;
-- a git-sourced install (Cursor's git-subdir, Copilot CLI's github source), which has no `dist/`;
+- a git-sourced install (Cursor's git-subdir, Copilot CLI's github source), which has no build output;
 - a skill folder pnpm links or copies on its own, and a plugin cache that keeps only what the plugin
   ships;
 - your own checkout, where you test the skill against the change you just made.
@@ -35,14 +35,26 @@ so no command can be missed. It picks the CLI each time it runs:
 ```text
 scripts/<cli-name>.mjs
   │ walk up from its own real path
-  ├─ a package.json whose name is the package and whose bin has the CLI?
-  │    yes → node <that checkout>/<bin> <args>     (warns when dist/ is older than src/)
+  ├─ a package.json whose name is the package and whose bin has the CLI,
+  │  and the bin and every file it imports by a relative path exist?
+  │    yes → node <that checkout>/<bin> <args>     (warns when the output is older than src/)
   │    no  ↓
   └─ npx -y <package>@<version> <args>            (version written in by plugin build)
 ```
 
 The first rung is your checkout. A skill linked through a symlink resolves to it too, because the walk
-starts from the real path. The second rung covers every install. The forwarder never runs your
+starts from the real path. The second rung covers every install.
+
+A git-sourced install has your `package.json` and bin but no build output, because the output is
+gitignored. So the forwarder runs the checkout only when the bin can load. The bin file has to exist,
+and so does every file it names by a literal relative path, such as `import '../esm/cli.js'` or
+`require('../dist/cli')`. Otherwise it falls through to `npx`. Write that import as a literal: a bin
+that builds the path at run time cannot be checked, so it runs as a checkout even when the output is
+missing.
+
+The stale warning compares `src/` with the folder that import lands in, such as `dist/` or `esm/`.
+When the bin imports nothing outside its own folder, the forwarder cannot tell where the output is, so
+it does not warn. The forwarder never runs your
 TypeScript source: tsx is not there in an install, and Node's type stripping cannot resolve `.js`
 specifiers to `.ts`.
 

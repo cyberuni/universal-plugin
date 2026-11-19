@@ -44,12 +44,26 @@ written. The choice has to be made in code.
    own form, and takes no `version`.
 3. **Resolution is chosen by the script, at run time.**
    - **Dev checkout.** Starting from its own real path, the script walks up to the first
-     `package.json` whose `name` is the package and whose `bin` has the CLI, and runs that bin with
-     `node`. It warns on stderr when the build output (`dist/` beside that `package.json`, else the
-     bin file) is older than the newest file under `src/`. A skill linked through a symlink resolves
-     to the checkout, because the walk starts from the real path.
-   - **Otherwise** (an installed skill, a copied skill folder, a plugin cache): `npx -y
-     <package>@<version> <args>`.
+     `package.json` whose `name` is the package and whose `bin` has the CLI. It runs that bin with
+     `node` only when the checkout can load it: the bin file exists, and so does every file the bin
+     names by a literal relative specifier (`import`, `from`, `import()` or `require()`), with or
+     without an extension. A skill linked through a symlink resolves to the checkout, because the
+     walk starts from the real path.
+   - **Why that check** ([issue #298](https://github.com/cyberuni/universal-plugin/issues/298)). A
+     git-sourced install (Cursor's git-subdir, Copilot CLI's github source, `skills add`) carries
+     `package.json` and the committed bin but not the build output, which is gitignored. The bin is
+     the committed file, and the build output is what it imports, so one hop from the bin reaches
+     the missing part in every layout seen: repobuddy's `bin/buddy.js` imports `../esm/bin.js`,
+     buddy-agent-harness's bin imports `dist/cli.mjs`, and a bin that points into the output itself
+     is simply missing. The check reads one file and names no build folder. A bin that computes its
+     import path cannot be checked and runs as a checkout, so write the import as a literal;
+     universal-plugin's own bin does.
+   - **Stale warning.** It warns on stderr when the build output is older than the newest file
+     under `src/`. The build output is the top folder of the checkout where the first import that
+     leaves the bin's own top folder lands, such as `dist/` or `esm/`. With no such import the bin may
+     be hand-written, so the script cannot tell and does not warn.
+   - **Otherwise** (an installed skill, a copied skill folder, a plugin cache, an unbuilt checkout):
+     `npx -y <package>@<version> <args>`.
    - Every argument passes through unchanged, stdio is inherited, and the script exits with the
      CLI's exit code. On Windows, `npx` runs through the shell as `npx.cmd`, with each argument
      quoted.
@@ -89,6 +103,9 @@ They are no longer the route for running a plugin's CLI.
 | Compiled per-command scripts (0021) | A broadly used CLI is far over the budget in full, and a per-command split misses any command it leaves out |
 | A pinned `npx <pkg>@<version>` in skill text | In development it runs the last release, so testing a skill exercises the wrong CLI; the model, not code, decides whether to substitute the local build |
 | `@<version>` placeholders in skill text | A placeholder is a line the model must rewrite before running it |
+| Run the checkout and fall back to npx on `ERR_MODULE_NOT_FOUND` | Telling a startup failure from one inside the CLI needs its stderr piped, which takes the terminal away from the CLI, and a later failure would run the command twice |
+| Look for a known build folder (`dist/`, `esm/`) | Every package names its output differently; the bin's own imports name it without a list |
+| Follow the bin's imports recursively | The gap is always the first hop, from the committed bin into the ignored output; a deeper walk costs a parse per file on every call |
 | Run from source in the dev checkout | tsx is unavailable in an install, and Node's type stripping cannot resolve `.js` specifiers to `.ts` |
 | A separate `forwarders` key | The `scripts` map already owns every file the build writes into a skill, with its `--check`, stamp and drift rules; a second key would repeat all three |
 | Look up the CLI with `pnpm exec` before `npx` | pnpm links only direct dependencies, and the lookup spawns a process on every call; the dev walk finds a checkout without one |
