@@ -1,6 +1,7 @@
 ---
 name: build-plugin
-description: Use this skill to build a universal agent plugin — regenerate the Claude Code, Cursor, and Codex manifests and the Copilot CLI component tree from the canonical plugin.json, after editing the manifest, a skill, an agent, a hook, or a command. It also refreshes this plugin's entry in the repository's marketplace catalogs. Trigger on "build the plugin", "regenerate the vendor manifests", "sync the manifests after my change", "run plugin build", or "update .claude-plugin/plugin.json".
+description: Build a universal agent plugin, regenerating each vendor's manifest from plugin.json. Rewrites the Claude Code, Cursor, and Codex manifests, the Copilot CLI component tree, and this plugin's marketplace catalog entries after a change to the manifest, a skill, an agent, a hook, or a command. "Build the plugin", "regenerate the vendor manifests", "sync the manifests after my change", "run plugin build", "update .claude-plugin/plugin.json", or "is plugin build --check going to pass".
+argument-hint: "[--dry-run | --check] [--vendor <id>] [--root <plugin-root>]"
 ---
 
 # Build a plugin
@@ -154,3 +155,17 @@ Validation runs before the first write, so a failed build leaves the tree untouc
 - [ADR-0014](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/design/decisions/0014-build-refreshes-catalogs.md): the build refreshes catalogs it finds
 - [ADR-0017](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/design/decisions/0017-retire-governance-for-reference.md): the build no longer copies governances into skills
 - [ADR-0019](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/design/decisions/0019-build-compiles-skill-scripts.md): the build compiles skill script entries into committed `.mjs`
+
+## Done when
+
+Before reporting done, check each of these against the result. Report any that fails.
+
+- **C1.** Each vendor manifest `plugin.json` declares exists and carries its current `name`, `version`, and
+  `description`, so `plugin build --check` exits 0.
+- **C2.** When asked only to check, no file changed, and the reply names each derived file `--check` reported
+  `missing` or `stale`.
+- **C3.** When the build printed `built 0` with "nothing to build", the reply does not report the build done, and
+  names `doctor-universal-plugin`.
+- **C4.** The reply names each warning the build printed on stderr.
+- **C5.** When asked to commit, the source change and every derived file the build wrote are in one commit, and
+  `git status` shows no derived file left out.

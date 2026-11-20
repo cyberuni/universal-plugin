@@ -1,0 +1,70 @@
+runs: 3
+threshold: 2
+trigger:
+  - prompt: build the plugin
+    expect: fire
+  - prompt: I added a hook to plugin.json, regenerate the vendor manifests
+    expect: fire
+  - prompt: sync the manifests after my change to the skills folder
+    expect: fire
+  - prompt: run plugin build for this repo
+    expect: fire
+  - prompt: update .claude-plugin/plugin.json so it matches the canonical manifest
+    expect: fire
+  - prompt: bump the plugin version to 1.2.0
+    expect: skip
+  - prompt: add Codex support to this plugin
+    expect: skip
+  - prompt: publish my plugin to the cyber-uni marketplace
+    expect: skip
+  - prompt: delete the generated vendor manifests and drop Cursor
+    expect: skip
+outcome:
+  - id: check-only
+    prompt: >-
+      CI runs `plugin build --check` on this plugin (the cwd). Will it pass? Only check; change
+      nothing.
+    files: files/stale
+    criteria: [C2]
+    network: [registry.npmjs.org]
+  - id: build-and-commit
+    prompt: >-
+      I bumped git-summary to 0.2.0 in plugin.json but haven't committed it. Build the plugin and
+      commit the change with what the build wrote. I approve each step; don't ask again.
+    files: files/stale
+    setup: setup/uncommitted-bump.sh
+    criteria: [C1, C5]
+    network: [registry.npmjs.org]
+  - id: no-vendor
+    prompt: Build the plugin in the cwd. I approve each step; don't ask again.
+    files: files/no-vendor
+    criteria: [C3]
+    network: [registry.npmjs.org]
+  - id: warning
+    prompt: Build the plugin in the cwd. I approve each step; don't ask again.
+    files: files/launchers
+    criteria: [C4]
+    network: [registry.npmjs.org]
+rubrics:
+  C1:
+    - file-contains:
+        path: .claude-plugin/plugin.json
+        text: '"version": "0.2.0"'
+    - file-contains:
+        path: .codex-plugin/plugin.json
+        text: '"version": "0.2.0"'
+  C2:
+    - script: 'test -z "$(git status --porcelain)"'
+    - regex: '\.claude-plugin/plugin\.json'
+    - regex: '\.codex-plugin/plugin\.json'
+    - regex: '[Ss]tale'
+    - regex: '[Mm]issing'
+  C3:
+    - regex: 'doctor-universal-plugin'
+    - regex: '([Nn]othing to build|[Nn]o vendors?|built 0)'
+    - not-regex: '([Bb]uild (succeeded|is done|complete)|[Ss]uccessfully built)'
+  C4:
+    - regex: 'launchers'
+  C5:
+    - script: 'git show --name-only --format= HEAD | grep -qx plugin.json && git show --name-only --format= HEAD | grep -qx .claude-plugin/plugin.json && git show --name-only --format= HEAD | grep -qx .codex-plugin/plugin.json'
+    - script: 'test -z "$(git status --porcelain)"'

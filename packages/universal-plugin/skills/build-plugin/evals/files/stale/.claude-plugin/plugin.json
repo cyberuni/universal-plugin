@@ -1,0 +1,6 @@
+{
+	"name": "git-summary",
+	"version": "0.1.0",
+	"description": "Summarize git history.",
+	"skills": "./skills/"
+}
