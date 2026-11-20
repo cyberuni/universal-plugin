@@ -64,6 +64,9 @@ function run(rel: string, args: string[], input?: string) {
 	return { status: result.status, stdout: JSON.parse(result.stdout.trim() || 'null'), stderr: result.stderr }
 }
 
+/** A bin that builds its output path at run time, so it names no file a forwarder can check. */
+const COMPUTED_IMPORT = "const out = 'dist'\nawait import(`../$" + '{out}/cli.mjs`)\n'
+
 const demo = { package: 'demo-pkg', bin: 'demo', version: '1.2.0' }
 
 describe('composeForwarder', () => {
@@ -135,6 +138,48 @@ describe('the forwarder at run time', () => {
 		write('pkg/package.json', JSON.stringify({ name: 'demo-pkg', bin: { demo: 'bin/demo.cjs' } }))
 		write('pkg/bin/demo.cjs', "require('../lib/cli')\n")
 		write('pkg/lib/cli.js', 'console.log(JSON.stringify({ cli: process.argv.slice(2) }))\n')
+		forwarder('pkg/skills/demo/scripts/demo.mjs', demo)
+
+		expect(run('pkg/skills/demo/scripts/demo.mjs', ['a']).stdout).toEqual({ cli: ['a'] })
+	})
+
+	// A computed path names no file to check, so even a built checkout cannot be told from a git
+	// install that lacks the output (issue #303).
+	for (const [kind, line] of [
+		['a computed import()', COMPUTED_IMPORT],
+		[
+			'an import() of a variable',
+			"const file = new URL('../dist/cli.mjs', import.meta.url).href\nawait import(file)\n",
+		],
+		['a computed require()', "const path = require('node:path')\nrequire(path.join(__dirname, '../dist/cli'))\n"],
+	]) {
+		it(`runs npx when the bin has ${kind}, even with the build output present`, () => {
+			const ext = kind.includes('require') ? 'cjs' : 'mjs'
+			write('pkg/package.json', JSON.stringify({ name: 'demo-pkg', bin: { demo: `bin/demo.${ext}` } }))
+			write(`pkg/bin/demo.${ext}`, line)
+			write('pkg/dist/cli.mjs', 'console.log(JSON.stringify({ cli: process.argv.slice(2) }))\n')
+			write('pkg/dist/cli.js', 'console.log(JSON.stringify({ cli: process.argv.slice(2) }))\n')
+			forwarder('pkg/skills/demo/scripts/demo.mjs', demo)
+
+			const result = run('pkg/skills/demo/scripts/demo.mjs', ['a'])
+
+			expect(result.stdout).toEqual({ npx: ['-y', 'demo-pkg@1.2.0', 'a'] })
+			expect(result.stderr).toBe('')
+		})
+	}
+
+	it('runs npx for a git install whose bin computes its import path and has no build output', () => {
+		write('pkg/package.json', JSON.stringify({ name: 'demo-pkg', bin: { demo: 'bin/demo.mjs' } }))
+		write('pkg/bin/demo.mjs', COMPUTED_IMPORT)
+		forwarder('pkg/skills/demo/scripts/demo.mjs', demo)
+
+		expect(run('pkg/skills/demo/scripts/demo.mjs', ['a']).stdout).toEqual({ npx: ['-y', 'demo-pkg@1.2.0', 'a'] })
+	})
+
+	it('still runs a checkout whose bin uses import() with a literal path', () => {
+		write('pkg/package.json', JSON.stringify({ name: 'demo-pkg', bin: { demo: 'bin/demo.mjs' } }))
+		write('pkg/bin/demo.mjs', "await import( '../dist/cli.mjs' )\n")
+		write('pkg/dist/cli.mjs', 'console.log(JSON.stringify({ cli: process.argv.slice(2) }))\n')
 		forwarder('pkg/skills/demo/scripts/demo.mjs', demo)
 
 		expect(run('pkg/skills/demo/scripts/demo.mjs', ['a']).stdout).toEqual({ cli: ['a'] })

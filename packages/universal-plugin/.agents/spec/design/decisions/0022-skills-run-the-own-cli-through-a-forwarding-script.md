@@ -55,9 +55,13 @@ written. The choice has to be made in code.
      the committed file, and the build output is what it imports, so one hop from the bin reaches
      the missing part in every layout seen: repobuddy's `bin/buddy.js` imports `../esm/bin.js`,
      buddy-agent-harness's bin imports `dist/cli.mjs`, and a bin that points into the output itself
-     is simply missing. The check reads one file and names no build folder. A bin that computes its
-     import path cannot be checked and runs as a checkout, so write the import as a literal;
-     universal-plugin's own bin does.
+     is simply missing. The check reads one file and names no build folder.
+   - **A computed import path** ([issue #303](https://github.com/cyberuni/universal-plugin/issues/303)).
+     A bin with an `import()` or `require()` whose argument is not a string literal, such as
+     ``import(`../${out}/cli.js`)`` or `import(file)`, names no file to check, so a git install and a
+     built checkout look the same. The script treats such a bin as one that cannot load and runs
+     `npx`. A checkout with that bin therefore runs the published package, so write the import as a
+     literal; universal-plugin's own bin does.
    - **Stale warning.** It warns on stderr when the build output is older than the newest file
      under `src/`. The build output is the top folder of the checkout where the first import that
      leaves the bin's own top folder lands, such as `dist/` or `esm/`. With no such import the bin may
@@ -105,6 +109,8 @@ They are no longer the route for running a plugin's CLI.
 | `@<version>` placeholders in skill text | A placeholder is a line the model must rewrite before running it |
 | Run the checkout and fall back to npx on `ERR_MODULE_NOT_FOUND` | Telling a startup failure from one inside the CLI needs its stderr piped, which takes the terminal away from the CLI, and a later failure would run the command twice |
 | Look for a known build folder (`dist/`, `esm/`) | Every package names its output differently; the bin's own imports name it without a list |
+| Run a bin with a computed import as a checkout (the first cut of this ADR) | On a git install it crashes on the missing build output (issue #303); npx is always safe, and a literal import gets the checkout back |
+| Have `plugin build` warn on a bin with a computed import | The run-time fall-through already makes every install safe; a warning would repeat what the docs say without changing what runs |
 | Follow the bin's imports recursively | The gap is always the first hop, from the committed bin into the ignored output; a deeper walk costs a parse per file on every call |
 | Run from source in the dev checkout | tsx is unavailable in an install, and Node's type stripping cannot resolve `.js` specifiers to `.ts` |
 | A separate `forwarders` key | The `scripts` map already owns every file the build writes into a skill, with its `--check`, stamp and drift rules; a second key would repeat all three |

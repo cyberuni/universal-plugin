@@ -333,7 +333,9 @@ not a build step.
   - At run time the script walks up from its own real path to the first `package.json` whose `name`
     is the package and whose `bin` has the CLI. It runs that bin with `node` only when the bin file
     exists and every file the bin names by a literal relative specifier (`import`, `from`, `import()`
-    or `require()`) exists, resolved with or without an extension (issue #298). It warns on stderr
+    or `require()`) exists, resolved with or without an extension (issue #298). A bin with an
+    `import()` or `require()` whose argument is not a string literal cannot be checked, so it counts
+    as a bin that cannot load (issue #303). It warns on stderr
     when the build output is older than the newest file under `src/`; the build output is the top
     folder of the checkout where the first such import that leaves the bin's own top folder lands
     (`dist/`, `esm/`), and with no such import it does not warn. With no such `package.json`, or a bin

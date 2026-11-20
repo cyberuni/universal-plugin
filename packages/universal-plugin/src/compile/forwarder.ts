@@ -46,7 +46,8 @@ function findCheckout(dir) {
 }
 
 /** The files the bin names by a literal relative specifier, resolved from its folder; null when the
- *  bin itself is missing. */
+ *  bin itself is missing, or when it computes an \`import()\` or \`require()\` path, since the files
+ *  that names cannot be checked (issue #303). */
 function relativeImports(target) {
 	let text
 	try {
@@ -54,6 +55,7 @@ function relativeImports(target) {
 	} catch {
 		return null
 	}
+	if (/\\b(?:import|require)\\s*\\(\\s*(?![\\s'"])/.test(text)) return null
 	const found = []
 	for (const m of text.matchAll(/\\b(?:from|import|require)\\s*\\(?\\s*['"](\\.\\.?\\/[^'"]+)['"]/g)) {
 		found.push(path.resolve(path.dirname(target), m[1]))
