@@ -13,7 +13,7 @@ Read this when a publish step fails, or a listing it produced does not install.
 | Nothing to publish | 2b found every catalog at this version already; bump and release the plugin first if a new version was intended |
 | Plugin loads but skills missing | Add `skills` array to the Claude Code marketplace entry |
 | Entry installs nothing for a monorepo plugin | `source` was `url`/root-clone instead of `git-subdir` — redo 2c/2d with the plugin's actual repo-relative path |
-| Install fails resolving a dependency | 2g was skipped — list the plain dependency in this marketplace, or allow the named marketplace in `allowCrossMarketplaceDependenciesOn` |
+| Install fails resolving a dependency | 2g was skipped — list the plain dependency in this marketplace, or allow the named marketplace with `universal-plugin marketplace set --allow-dependencies-on <marketplace>` |
 | `marketplace validate` fails after 2h | Fix the reported shape before opening the PR — do not open it while validation fails |
 | PR closed automatically as soon as it opened | The target is curated — redo 0c and use its submission route instead of a PR |
 | Entry's `repository`/`source.url` points at the marketplace repo | Step 0 role detection was skipped or overridden wrongly — re-check which repo the cwd is |

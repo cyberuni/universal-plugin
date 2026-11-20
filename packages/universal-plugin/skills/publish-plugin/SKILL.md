@@ -376,8 +376,9 @@ Make every change 2b decided, in every catalog from 2a, on this one branch:
   ```
 - **Update** — run the `marketplace update` from 2f without `--dry-run`.
 
-Add any `allowCrossMarketplaceDependenciesOn` change the user accepted in 2g. Preserve formatting and
-all existing entries exactly.
+Make any `allowCrossMarketplaceDependenciesOn` change the user accepted in 2g with
+`node <this skill's folder>/scripts/universal-plugin.mjs marketplace set --allow-dependencies-on <marketplace> --root .`,
+not by hand. Preserve formatting and all existing entries exactly.
 
 ### 3d. Commit and push
 

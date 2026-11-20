@@ -3,7 +3,7 @@
 Run a repository's own plugin marketplace: generate the catalogs the runtimes read, list plugins
 that live elsewhere, and check that what is on disk is what each runtime will load.
 
-## A gateway over four routes
+## A gateway over six routes
 
 `SKILL.md` holds no procedure. It classifies the request and loads one reference:
 
@@ -12,6 +12,8 @@ that live elsewhere, and check that what is on disk is what each runtime will lo
 | `init` | The repository holds the plugins. Derive a catalog from `plugins/`, then offer the README install section. | `references/init.md` |
 | `add` | The plugin lives elsewhere — an npm package, a GitHub repo, or `<plugin>@<marketplace>`. | `references/add.md` |
 | `update` | An entry is already listed. Change its source, a pin, or one field, and keep the rest. | `references/update.md` |
+| `remove` | An entry is listed and should go. Drops it from every catalog that lists it. | `references/remove.md` |
+| `set` | The catalog's own fields change: the dependency allowlist, owner, description. | `references/set.md` |
 | `validate` | Check the catalogs against the schema each runtime loads. Every other route ends here. | `references/validate.md` |
 
 The split exists because the two writing routes answer different questions and share almost no
@@ -27,6 +29,9 @@ build output.
 replaces the entry with what `add` derives and drops what it cannot, such as `category` and
 `author`, and the skill forbids patching a catalog by hand. `update` changes only the fields it is
 given and validates every catalog before it writes.
+
+`remove` and `set` exist for the same reason: the skill forbids patching a catalog by hand, and
+neither deleting an entry nor editing a top-level field was reachable any other way.
 
 ## Support is uneven, and the skill says so
 
@@ -69,5 +74,7 @@ document.
 - [`marketplace add` spec](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/marketplace/add/README.md)
 - [`marketplace init` spec](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/marketplace/init/README.md)
 - [`marketplace update` spec](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/marketplace/update/README.md)
+- [`marketplace remove` spec](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/marketplace/remove/README.md)
+- [`marketplace set` spec](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/marketplace/set/README.md)
 - [`marketplace validate` spec](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/marketplace/validate/README.md)
 - [Official Claude Code marketplace schema](https://json.schemastore.org/claude-code-marketplace.json)

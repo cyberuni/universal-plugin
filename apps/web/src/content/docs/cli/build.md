@@ -375,7 +375,8 @@ reading only files already on disk:
 
 - A plain dependency the catalog does not list warns. Fix it by listing the dependency there
   (`universal-plugin marketplace add npm:<package>`), or by qualifying it with the marketplace that
-  does list it and adding that marketplace to the catalog's `allowCrossMarketplaceDependenciesOn`.
+  does list it and adding that marketplace to the catalog's `allowCrossMarketplaceDependenciesOn`
+  (`universal-plugin marketplace set --allow-dependencies-on <marketplace>`).
 - A name qualified with this catalog's own name is your explicit choice, and is not checked.
 - A name qualified with another marketplace warns unless the catalog lists that marketplace in
   `allowCrossMarketplaceDependenciesOn`. Claude Code refuses the dependency otherwise.

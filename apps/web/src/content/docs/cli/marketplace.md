@@ -77,7 +77,9 @@ universal-plugin marketplace init --claude --codex --copilot --cursor
 This one discovers plugins instead of registering a single one: every `<scan-root>/<dir>/plugin.json`
 below `plugins/`, or below each `--plugin-scan-dir` you name. With no target flags it writes all
 four catalogs. `--dry-run` prints the plan, and a catalog that differs from what would be generated
-stops the run until you pass `--force`, so a hand-edited file is never replaced silently.
+stops the run until you pass `--force`, so a hand-edited file is never replaced silently. With
+`--force`, each hand-set field or entry it drops is named on stderr, such as `owner.email`,
+`description`, or `plugins[alpha].category`.
 
 Discovery walks directories, so it only speaks for plugins that are in them. An entry whose source
 is **not** a local path survives a regeneration untouched, and a discovered plugin whose entry names
@@ -200,6 +202,45 @@ Every catalog is validated before anything is written, with the checks `marketpl
 An update that would introduce an issue stops and writes nothing; an issue that was already there is
 left for `validate` to report. `--dry-run` shows the plan.
 
+## `marketplace remove` drops an entry
+
+```bash
+universal-plugin marketplace remove repobuddy
+```
+
+The inverse of `add`. It drops the entry from every selected catalog that lists it and keeps
+everything else. A catalog that does not list the entry is `skipped`, and an entry no selected
+catalog lists stops the run.
+
+Every catalog is validated before anything is written. If a plugin still listed depends on the entry,
+the run stops. Pass `--force` to remove it anyway, with a warning naming the dependent plugin.
+`--dry-run` shows the plan, and each row is `removed`, `planned`, or `skipped`.
+
+If the entry's `./` path still holds a `plugin.json`, the command warns: `plugin build` or
+`marketplace init` will list the plugin again. Delete the directory, or leave it out of the scan.
+
+## `marketplace set` edits the catalog's own fields
+
+```bash
+universal-plugin marketplace set --allow-dependencies-on other-marketplace
+```
+
+`update` changes an entry. `set` changes the catalog's top-level fields in place and keeps the rest:
+
+| Change | Flags | Catalogs |
+|---|---|---|
+| Allow or stop allowing a marketplace's plugins as dependencies | `--allow-dependencies-on <marketplace>`, `--disallow-dependencies-on <marketplace>`, repeatable | Claude only |
+| Describe the catalog | `--description` | Claude, Copilot, Cursor |
+| Name the owner | `--owner`, `--owner-email`, `--owner-url` | Claude, Copilot, Cursor |
+| Remove a field | `--unset description`, `owner.email`, `owner.url`, or `allowCrossMarketplaceDependenciesOn`, repeatable | as above |
+
+The dependency allowlist is Claude-only because Claude Code is the only runtime that resolves
+dependencies. An allowlist that ends up empty drops the key, and a new key is written before
+`plugins`. Codex carries none of the other fields, so its catalog is `skipped`.
+
+Every catalog is validated before anything is written. Each row is `updated`, `unchanged`,
+`planned`, or `skipped`, and carries the `fields` it touched. `--dry-run` shows the plan.
+
 ## `marketplace validate` checks what the repository carries
 
 ```bash
@@ -249,7 +290,12 @@ source (its built `.claude-plugin/plugin.json`, or the canonical declaration bef
 listed from npm or git is not fetched, so its dependencies are for the
 [`publish-plugin`](../../skills/publish-plugin/) skill to check when it lists the plugin.
 
-Nothing is repaired. A catalog you edited is yours to correct.
+Nothing is repaired. A catalog you edited is yours to correct. For a missing allowlist entry, the
+repair message names the command:
+
+```bash
+universal-plugin marketplace set --allow-dependencies-on other-marketplace
+```
 
 ## The version is derived, never written
 
