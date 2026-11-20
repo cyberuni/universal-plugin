@@ -1,6 +1,6 @@
 ---
 name: version
-description: Use this skill to move a universal agent plugin's version — bump it, set an explicit one, cut a release number, or reconcile a version that drifted between the canonical plugin.json and its npm package.json. Handles every release model: a plain repository, where the author picks the number, and a release tool (changesets, release-please, semantic-release, release-it) that decides it and hands it to plugin version to stamp everywhere. Trigger on "bump the plugin version", "release a new version of this plugin", "set the plugin version to 1.0.0", "cut a patch release", or "the manifest and package.json versions disagree".
+description: 'Use this skill to move a universal agent plugin''s version — bump it, set an explicit one, cut a release number, or reconcile a version that drifted between the canonical plugin.json and its npm package.json. Handles every release model: a plain repository, where the author picks the number, and a release tool (changesets, release-please, semantic-release, release-it) that decides it and hands it to plugin version to stamp everywhere. Trigger on "bump the plugin version", "release a new version of this plugin", "set the plugin version to 1.0.0", "cut a patch release", or "the manifest and package.json versions disagree".'
 ---
 
 # Move a plugin's version
