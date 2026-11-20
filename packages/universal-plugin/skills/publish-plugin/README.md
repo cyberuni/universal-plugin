@@ -50,7 +50,7 @@ A plain dependency (no marketplace named) resolves against the marketplace the p
 from, so publishing a plugin whose plain dependency the catalog does not list publishes something
 nobody can install. The skill lists such a dependency in the same PR, or stops and asks for it to be
 published first. A dependency that names another marketplace only needs that marketplace in the
-catalog's `allowCrossMarketplaceDependenciesOn`, which the skill offers to add.
+catalog's `allowCrossMarketplaceDependenciesOn`, which the skill offers to add with `universal-plugin marketplace set --allow-dependencies-on <marketplace>`.
 
 ## Some marketplaces take no pull requests
 

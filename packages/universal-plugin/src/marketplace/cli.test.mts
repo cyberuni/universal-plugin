@@ -209,3 +209,36 @@ test('update changes one entry in place and keeps the fields it was not asked ab
 	expect(empty.status).toBe(1)
 	expect(empty.stderr).toMatch(/nothing to change/)
 })
+
+function runSub(command: string, ...args: string[]) {
+	return spawnSync('node', [bin, 'marketplace', command, ...args, '--root', root], {
+		encoding: 'utf8',
+		env: { ...process.env, NODE_NO_WARNINGS: '1' },
+	})
+}
+
+test('remove drops an entry from every catalog and reports JSON rows', () => {
+	expect(runSub('add', 'npm:repobuddy').status).toBe(0)
+	const result = runSub('remove', 'repobuddy', '--format', 'json')
+	expect(result.status).toBe(0)
+	expect(JSON.parse(result.stdout)).toMatchObject([
+		{ target: 'claude', status: 'removed', entry: 'repobuddy' },
+		{ target: 'codex', status: 'removed' },
+		{ target: 'copilot', status: 'skipped' },
+		{ target: 'cursor', status: 'skipped' },
+	])
+	expect(result.stderr).toMatch(/no marketplace publication/i)
+	const catalog = JSON.parse(fs.readFileSync(path.join(root, '.claude-plugin/marketplace.json'), 'utf8'))
+	expect(catalog.plugins).toEqual([])
+	expect(runSub('remove', 'repobuddy').status).toBe(1)
+})
+
+test('set adds a marketplace to the allowlist through the CLI', () => {
+	expect(runSub('add', 'npm:repobuddy', '--claude').status).toBe(0)
+	const result = runSub('set', '--allow-dependencies-on', 'cyber-uni', '--allow-dependencies-on', 'other')
+	expect(result.status).toBe(0)
+	expect(result.stdout).toMatch(/claude/)
+	const catalog = JSON.parse(fs.readFileSync(path.join(root, '.claude-plugin/marketplace.json'), 'utf8'))
+	expect(catalog.allowCrossMarketplaceDependenciesOn).toEqual(['cyber-uni', 'other'])
+	expect(runSub('set').status).toBe(1)
+})

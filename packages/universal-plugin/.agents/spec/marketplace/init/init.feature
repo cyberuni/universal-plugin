@@ -347,6 +347,11 @@ Feature: marketplace init — derive local marketplace metadata
     Then the Claude catalog still lists "cyberplace" in allowCrossMarketplaceDependenciesOn
     And the "alpha" entry carries the new description
 
+  Scenario: a forced regeneration names the hand-set fields it drops
+    Given the Claude catalog carries a description, an owner email, and a category on the "alpha" entry
+    When I run "universal-plugin marketplace init --claude --force --root <root>"
+    Then stderr warns that it dropped description, owner.email, and plugins[alpha].category
+
   Scenario: a kept entry is not a conflict on rerun
     Given the Claude catalog carries a kept entry and is otherwise current
     When I run "universal-plugin marketplace init --claude --root <root>"

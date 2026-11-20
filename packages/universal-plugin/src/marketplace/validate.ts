@@ -166,3 +166,34 @@ function parseAndCheck(content: string, check: (parsed: unknown) => CatalogIssue
 	}
 	return check(parsed)
 }
+
+/** Reads the catalogs as they would be once `writes` landed, so validation sees a result before
+ *  anything is written. */
+function overlay(fs: MarketplaceFs, writes: Map<string, string>): MarketplaceFs {
+	return {
+		...fs,
+		exists: (file) => writes.has(file) || fs.exists(file),
+		read: (file) => writes.get(file) ?? fs.read(file),
+	}
+}
+
+function issueKey(file: string, issue: CatalogIssue): string {
+	return `${file}\0${issue.path}\0${issue.message}`
+}
+
+/** The issues the catalogs would have once `writes` landed and do not have now, per catalog. A
+ *  command that edits a catalog in place stops on these; the issues a catalog already had are
+ *  `validate`'s to report, not a reason to refuse an unrelated edit. */
+export function introducedIssues(
+	root: string,
+	targets: MarketplaceTarget[],
+	writes: Map<string, string>,
+	fs: MarketplaceFs = realMarketplaceFs,
+): { path: string; issues: CatalogIssue[] }[] {
+	const before = validateMarketplace(root, { targets }, fs)
+	const after = validateMarketplace(root, { targets }, overlay(fs, writes))
+	const known = new Set(before.flatMap((row) => row.issues.map((issue) => issueKey(row.path, issue))))
+	return after
+		.map((row) => ({ path: row.path, issues: row.issues.filter((issue) => !known.has(issueKey(row.path, issue))) }))
+		.filter((row) => row.issues.length > 0)
+}

@@ -19,7 +19,8 @@ The command is a **local edit**. It reads the catalogs under `--root` and writes
 catalogs. Nothing is fetched.
 
 **Non-goals:** creating a catalog or an entry (that is `add` and `init`); renaming an entry; copying
-from another marketplace; editing a catalog's top level; publishing; verifying that a remote source
+from another marketplace; editing a catalog's top level (that is [`set`](../set/README.md));
+removing an entry (that is [`remove`](../remove/README.md)); publishing; verifying that a remote source
 resolves to a real plugin.
 
 ## Use Cases

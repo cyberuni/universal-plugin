@@ -19,7 +19,8 @@ an object (`{ "name", "marketplace"?, "version"?, ... }`). Sort each one:
   it. When the named marketplace is **not** this catalog's `name`, Claude Code refuses the
   dependency at install unless this catalog's top-level `allowCrossMarketplaceDependenciesOn` lists
   that marketplace. If it does not, tell the user that installs from this marketplace need it, and
-  offer to add the marketplace name to that array in the same PR.
+  offer to add it in the same PR with
+  `universal-plugin marketplace set --allow-dependencies-on <marketplace>`.
 
 Report how each dependency was sorted and what was done about it, and include the dependency entries
 in what you show the user to confirm.

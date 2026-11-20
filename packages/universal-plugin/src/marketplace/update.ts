@@ -17,8 +17,8 @@ import {
 	TARGET_CATALOG_PATHS,
 } from './marketplace.js'
 import { assertCommitSha, isGitSource, parsePluginSpec, type SourceKind } from './spec.js'
-import { validateMarketplace } from './validate.js'
-import { type CatalogIssue, formatCatalogIssues } from './validation.js'
+import { introducedIssues } from './validate.js'
+import { formatCatalogIssues } from './validation.js'
 
 /** The fields `update` sets by flag: the ones `add` writes, plus `category`, which a curator sets by
  *  hand and `add --force` has no way to keep. */
@@ -186,20 +186,6 @@ interface PlannedTarget {
 	skipped?: string
 }
 
-/** Reads the catalogs as they would be once `writes` landed, so validation sees the result before
- *  anything is written. */
-function overlay(fs: MarketplaceFs, writes: Map<string, string>): MarketplaceFs {
-	return {
-		...fs,
-		exists: (file) => writes.has(file) || fs.exists(file),
-		read: (file) => writes.get(file) ?? fs.read(file),
-	}
-}
-
-function issueKey(file: string, issue: CatalogIssue): string {
-	return `${file}\0${issue.path}\0${issue.message}`
-}
-
 /** Changes one entry already listed in this repository's catalogs, in place.
  *
  *  `marketplace add --force` replaces an entry with what it can derive, which drops anything it
@@ -274,12 +260,7 @@ export function updateMarketplaceEntry(
 			(entry.existing === undefined || !sameCatalogContent(entry.existing, entry.content)),
 	)
 	const writes = new Map(changed.map((entry) => [entry.file, entry.content as string]))
-	const before = validateMarketplace(root, { targets }, fs)
-	const after = validateMarketplace(root, { targets }, overlay(fs, writes))
-	const known = new Set(before.flatMap((row) => row.issues.map((issue) => issueKey(row.path, issue))))
-	const introduced = after
-		.map((row) => ({ path: row.path, issues: row.issues.filter((issue) => !known.has(issueKey(row.path, issue))) }))
-		.filter((row) => row.issues.length > 0)
+	const introduced = introducedIssues(root, targets, writes, fs)
 	if (introduced.length > 0) {
 		throw new Error(introduced.map((row) => formatCatalogIssues(row.path, row.issues)).join('\n'))
 	}
