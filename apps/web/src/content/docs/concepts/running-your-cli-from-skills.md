@@ -49,8 +49,8 @@ A git-sourced install has your `package.json` and bin but no build output, becau
 gitignored. So the forwarder runs the checkout only when the bin can load. The bin file has to exist,
 and so does every file it names by a literal relative path, such as `import '../esm/cli.js'` or
 `require('../dist/cli')`. Otherwise it falls through to `npx`. Write that import as a literal: a bin
-that builds the path at run time cannot be checked, so it runs as a checkout even when the output is
-missing.
+that builds the path at run time, such as ``import(`../${out}/cli.js`)``, cannot be checked, so the
+forwarder always runs `npx` for it, even in your checkout.
 
 The stale warning compares `src/` with the folder that import lands in, such as `dist/` or `esm/`.
 When the bin imports nothing outside its own folder, the forwarder cannot tell where the output is, so

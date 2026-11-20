@@ -1162,6 +1162,12 @@ Feature: plugin build — derive per-vendor manifests
     Then it runs "npx -y demo-pkg@1.2.0 a"
     And the checkout's bin is not run
 
+  Scenario: a checkout whose bin computes its import path runs the pinned package through npx
+    Given a checkout of "demo-pkg" whose bin runs "await import(`../${out}/cli.mjs`)"
+    When I run "node skills/demo/scripts/demo.mjs a"
+    Then it runs "npx -y demo-pkg@1.2.0 a"
+    And the checkout's bin is not run
+
   Scenario: a copied forwarder runs the pinned package through npx
     Given the forwarder copied into a folder with no matching package.json above it
     When I run "node <copy>/demo.mjs a b"
