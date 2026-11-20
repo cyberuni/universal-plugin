@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Compiled by `universal-plugin plugin build` from src/skill-scripts/rewrite-upx.ts. Edit the source, not this file.
-globalThis.__SKILL_SCRIPT__ = {"package":"universal-plugin","bin":"universal-plugin","version":"0.23.1","entry":"skills/adopt-upx/scripts/rewrite-upx.mjs","commands":{}};
+globalThis.__SKILL_SCRIPT__ = {"package":"universal-plugin","bin":"universal-plugin","version":"0.24.0","entry":"skills/adopt-upx/scripts/rewrite-upx.mjs","commands":{}};
 import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 // src/skill-scripts/rewrite-upx.ts

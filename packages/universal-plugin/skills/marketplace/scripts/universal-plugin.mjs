@@ -1,5 +1,5 @@
 // Written by `universal-plugin plugin build` to forward to the universal-plugin CLI of universal-plugin. Edit plugin.json, not this file.
-globalThis.__SKILL_SCRIPT__ = {"package":"universal-plugin","bin":"universal-plugin","version":"0.23.1","entry":"skills/marketplace/scripts/universal-plugin.mjs","commands":{},"forward":"own"};
+globalThis.__SKILL_SCRIPT__ = {"package":"universal-plugin","bin":"universal-plugin","version":"0.24.0","entry":"skills/marketplace/scripts/universal-plugin.mjs","commands":{},"forward":"own"};
 import { spawnSync } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
