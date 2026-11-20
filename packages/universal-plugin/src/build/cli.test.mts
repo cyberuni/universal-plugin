@@ -415,6 +415,24 @@ test('exits 1 and counts a refused forward entry as failed in the summary', () =
 	expect(build('--check').status).toBe(1)
 })
 
+// Scenario: a forwarder named differently from its bin fails the check (issue #304)
+test('--check exits 1 and counts a forwarder named differently from its bin as failed', () => {
+	const manifestPath = path.join(workspacePackage, 'plugin.json')
+	const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+	manifest.extensions['org.cyberuni.universal-plugin'].scripts = { 'skills/a/scripts/run.mjs': { forward: 'pods' } }
+	fs.writeFileSync(manifestPath, JSON.stringify(manifest))
+	expect(build().status).toBe(1)
+
+	const r = build('--check')
+	expect(r.status).toBe(1)
+	expect(r.stderr).toContain('forwards to pods, so it must be named pods.mjs')
+	expect(r.stdout).toContain('failed 1')
+
+	const json = build('--check', '--format', 'json')
+	expect(json.status).toBe(1)
+	expect(JSON.parse(json.stdout).summary.failed).toBe(1)
+})
+
 // Scenario: a leftover launchers key warns and writes nothing (ADR-0021)
 test('a leftover launchers key warns, writes no bin/, and never reaches a derived manifest', () => {
 	const manifestPath = path.join(workspacePackage, 'plugin.json')

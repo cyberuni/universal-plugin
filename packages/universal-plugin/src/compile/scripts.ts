@@ -68,30 +68,42 @@ export const SIZE_BUDGET_BYTES = 150 * 1024
 const HEADER_PREFIX = '// Compiled by `universal-plugin plugin build` from '
 const DATA_PREFIX = `globalThis.${SCRIPT_GLOBAL} = `
 
+/** A declared entry the parser refused: its output as declared, and what it names as its source. */
+export interface RejectedEntry {
+	output: string
+	source: string
+}
+
 /** Reads the `scripts` declaration of the canonical manifest's extension: a map from output path to
  *  either a source path or `{ source, command? }`. A malformed declaration or entry is an error, never
- *  a silent skip — a script the author declared and the build dropped is a skill that breaks later. */
+ *  a silent skip — a script the author declared and the build dropped is a skill that breaks later.
+ *  Each refused entry is also listed in `rejected`, so the build reports it as a failed row (#304). */
 export function parseScriptEntries(declaration: unknown): {
 	entries: ScriptEntry[]
 	forwards: ForwardEntry[]
+	rejected: RejectedEntry[]
 	errors: string[]
 } {
-	if (declaration === undefined) return { entries: [], forwards: [], errors: [] }
+	if (declaration === undefined) return { entries: [], forwards: [], rejected: [], errors: [] }
 	if (declaration === null || typeof declaration !== 'object' || Array.isArray(declaration)) {
 		return {
 			entries: [],
 			forwards: [],
+			rejected: [],
 			errors: ['scripts is not a map from output path to source — no script was compiled'],
 		}
 	}
 	const entries: ScriptEntry[] = []
 	const forwards: ForwardEntry[] = []
+	const rejected: RejectedEntry[] = []
 	const errors: string[] = []
 	for (const [output, value] of Object.entries(declaration as Record<string, unknown>)) {
 		const isForward = value !== null && typeof value === 'object' && !Array.isArray(value) && 'forward' in value
 		const entry = isForward ? parseForward(output, value as Record<string, unknown>) : parseEntry(output, value)
-		if (typeof entry === 'string') errors.push(entry)
-		else if ('bin' in entry) forwards.push(entry)
+		if (typeof entry === 'string') {
+			errors.push(entry)
+			rejected.push({ output, source: declaredSource(value, isForward) })
+		} else if ('bin' in entry) forwards.push(entry)
 		else entries.push(entry)
 	}
 	const commands = new Map<string, string>()
@@ -103,7 +115,16 @@ export function parseScriptEntries(declaration: unknown): {
 		}
 		commands.set(entry.command, entry.output)
 	}
-	return { entries, forwards, errors }
+	return { entries, forwards, rejected, errors }
+}
+
+/** What a refused entry names as its source, for its row: `forward <bin>` or the source path. */
+function declaredSource(value: unknown, isForward: boolean): string {
+	if (typeof value === 'string') return value
+	const record = value !== null && typeof value === 'object' ? (value as Record<string, unknown>) : {}
+	const named = isForward ? record['forward'] : record['source']
+	if (typeof named !== 'string') return isForward ? 'forward' : ''
+	return isForward ? `forward ${named}` : named
 }
 
 /** A `{ "forward": "<bin>" }` entry, or `{ "forward", "package", "version" }` for another package's

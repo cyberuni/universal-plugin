@@ -54,8 +54,9 @@ export async function compileScripts(
 	compiler: ScriptCompiler,
 ): Promise<CompileResult> {
 	const manifest = readManifest(root)
-	const { entries, forwards, errors } = parseScriptEntries(universalPluginExtension(manifest).scripts)
-	const rows: ScriptRow[] = []
+	const { entries, forwards, rejected, errors } = parseScriptEntries(universalPluginExtension(manifest).scripts)
+	// A refused entry is a failed row, so `--check` fails on it rather than passing without it (#304).
+	const rows: ScriptRow[] = rejected.map(({ output, source }) => ({ path: output, source, status: 'failed' }))
 	const written: string[] = []
 	const warnings = [...errors]
 	if (entries.length === 0 && forwards.length === 0) return { rows, written, warnings, summary: summarize(rows) }

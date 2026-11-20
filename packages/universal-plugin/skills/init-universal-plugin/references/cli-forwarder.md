@@ -28,8 +28,9 @@ in `plugin.json`. For a bin `cli` of the plugin's own package (the `packagePath`
 }
 ```
 
-The file name must be `<bin>.mjs`. A skill folder can be linked or copied on its own, so a skill never
-calls a forwarder in another skill's folder: two skills that run the CLI each get one.
+The file name must be `<bin>.mjs`: `plugin build` and `plugin build --check` fail on an entry named
+otherwise. A skill folder can be linked or copied on its own, so a skill never calls a forwarder in
+another skill's folder: two skills that run the CLI each get one.
 
 For a CLI that another package ships, name the package and pin its version:
 `{ "forward": "other-cli", "package": "other-pkg", "version": "2.1.0" }`. `plugin version` leaves that
