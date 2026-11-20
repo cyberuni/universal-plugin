@@ -289,7 +289,9 @@ not a build step.
     inlines resolves in place; neither fails the entry (issue #187).
   - An entry whose source is missing, or that imports something that cannot be inlined, reports
     `failed` with a warning and exits 1; the manifests and the other entries still derive. A malformed
-    declaration warns and compiles the entries that parse.
+    entry does the same: it reports a `failed` row under its declared output, with a warning, and the
+    entries that parse still compile, with or without `--check` (issue #304). A `scripts` value that is
+    not a map warns and compiles nothing.
   - A compiled file over 150 KB warns that the skill should run the CLI through a `forward` entry
     instead.
   - A compiled file holds no raw invisible character inside a literal (issue #190). rolldown prints a
@@ -323,7 +325,8 @@ not a build step.
   - Rows, `--dry-run` and `--check` treat it like any other entry: `unchanged`, `missing`, `stale`, or
     `version` when only the own form's embedded version differs. A pinned forwarder whose entry's
     version moved is `stale`.
-  - A malformed `forward` entry warns and writes nothing for it: an output not named `<cli>.mjs`, a
+  - A malformed `forward` entry warns, writes nothing for it, and reports a `failed` row that fails
+    the build and `--check` (issue #304): an output not named `<cli>.mjs`, a
     `<cli>` the own package does not declare as a bin when no `package` is given, a `package` other
     than the own one without an exact `version`, a `version` on the own form, or a `source`,
     `command`, `alias` or `keepNames` beside `forward`.
@@ -658,7 +661,7 @@ Grouped by use case; 1:1 with [`build.feature`](./build.feature).
 | pinned | another package with a pinned version | `a forward entry for another package keeps its pinned version` |
 | check | the forwarder deleted | `--check reports a missing forwarder` |
 | check: version | only `plugin.json`'s version moved | `--check reports a forwarder behind on its version` |
-| guard: name | output not named `<cli>.mjs` | `a forward entry not named after its CLI warns and writes nothing` |
+| guard: name | output not named `<cli>.mjs` | `a forward entry not named after its CLI fails and writes nothing` |
 | guard: unknown bin | no such own bin, no `package` | `a forward entry for an undeclared bin warns and writes nothing` |
 | guard: no version | another package with no version | `a forward entry for another package without a version warns` |
 | guard: no package | `packagePath` set only in `plugin.json` | `a forward entry for a plugin that ships to no package fails the build` |

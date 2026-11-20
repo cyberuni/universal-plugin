@@ -36,19 +36,27 @@ describe('parseScriptEntries — forward entries (ADR-0022)', () => {
 				{ output: 'skills/a/scripts/demo.mjs', bin: 'demo' },
 				{ output: 'skills/a/scripts/other-cli.mjs', bin: 'other-cli', package: 'other-pkg', version: '3.4.5' },
 			],
+			rejected: [],
 			errors: [],
 		})
 	})
 
 	it('rejects a forwarder not named after its CLI, with compile options, or with an inexact version', () => {
-		expect(
-			parseScriptEntries({
-				'skills/a/scripts/run.mjs': { forward: 'demo' },
-				'skills/a/scripts/demo.mjs': { forward: 'demo', source: 'src/a.ts' },
-				'skills/b/scripts/x.mjs': { forward: 'x', package: 'x', version: '^1.0.0' },
-				'skills/c/scripts/y.mjs': { forward: '' },
-			}).errors,
-		).toEqual([
+		const { forwards, rejected, errors } = parseScriptEntries({
+			'skills/a/scripts/run.mjs': { forward: 'demo' },
+			'skills/a/scripts/demo.mjs': { forward: 'demo', source: 'src/a.ts' },
+			'skills/b/scripts/x.mjs': { forward: 'x', package: 'x', version: '^1.0.0' },
+			'skills/c/scripts/y.mjs': { forward: '' },
+		})
+		expect(forwards).toEqual([])
+		// Each refused entry is listed, so the build reports it as a failed row (#304).
+		expect(rejected).toEqual([
+			{ output: 'skills/a/scripts/run.mjs', source: 'forward demo' },
+			{ output: 'skills/a/scripts/demo.mjs', source: 'forward demo' },
+			{ output: 'skills/b/scripts/x.mjs', source: 'forward x' },
+			{ output: 'skills/c/scripts/y.mjs', source: 'forward ' },
+		])
+		expect(errors).toEqual([
 			'scripts "skills/a/scripts/run.mjs" forwards to demo, so it must be named demo.mjs',
 			'scripts "skills/a/scripts/demo.mjs" forwards to demo and takes no source: a forwarder is written, not compiled',
 			'scripts "skills/b/scripts/x.mjs" has a version that is not an exact version',
@@ -59,7 +67,7 @@ describe('parseScriptEntries — forward entries (ADR-0022)', () => {
 
 describe('parseScriptEntries', () => {
 	it('reads nothing from an absent declaration', () => {
-		expect(parseScriptEntries(undefined)).toEqual({ entries: [], forwards: [], errors: [] })
+		expect(parseScriptEntries(undefined)).toEqual({ entries: [], forwards: [], rejected: [], errors: [] })
 	})
 
 	it('reads the string and the object form', () => {
@@ -74,6 +82,7 @@ describe('parseScriptEntries', () => {
 				{ output: 'skills/b/scripts/b.mjs', source: 'src/b.ts', command: 'task get' },
 			],
 			forwards: [],
+			rejected: [],
 			errors: [],
 		})
 	})
@@ -85,12 +94,17 @@ describe('parseScriptEntries', () => {
 	})
 
 	it('rejects an output that is not .mjs, or leaves the plugin', () => {
-		const { entries, errors } = parseScriptEntries({
+		const { entries, rejected, errors } = parseScriptEntries({
 			'skills/a/scripts/a.js': 'src/a.ts',
 			'../outside.mjs': 'src/b.ts',
 			'/abs.mjs': 'src/c.ts',
 		})
 		expect(entries).toEqual([])
+		expect(rejected).toEqual([
+			{ output: 'skills/a/scripts/a.js', source: 'src/a.ts' },
+			{ output: '../outside.mjs', source: 'src/b.ts' },
+			{ output: '/abs.mjs', source: 'src/c.ts' },
+		])
 		expect(errors).toEqual([
 			'scripts "skills/a/scripts/a.js" must name a .mjs file',
 			'scripts "../outside.mjs" is not a path inside the plugin',
@@ -115,6 +129,7 @@ describe('parseScriptEntries', () => {
 				{ output: 'a.mjs', source: 'a.ts', alias: { 'jsonc-parser': 'jsonc-parser/lib/esm/main.js' }, keepNames: true },
 			],
 			forwards: [],
+			rejected: [],
 			errors: [],
 		})
 	})

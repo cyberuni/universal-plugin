@@ -78,7 +78,8 @@ written. The choice has to be made in code.
    `forward: "own"` or `forward: "pinned"`. The own form's version is `plugin.json`'s, never
    `package.json`'s (0019 §7). `plugin version` restamps it like a compiled script's header, and
    `publish check-version` reads it as a `compiled-script` surface. `plugin build --check` reports a
-   forwarder `missing`, `stale` or `version` like any other script entry.
+   forwarder `missing`, `stale` or `version` like any other script entry, and fails on one it refuses,
+   such as an output not named `<bin>.mjs` ([issue #304](https://github.com/cyberuni/universal-plugin/issues/304)).
    - changesets: `changeset version && universal-plugin plugin version`.
    - semantic-release: `@semantic-release/exec` runs `universal-plugin plugin version
      ${nextRelease.version}` in `prepare`, and `@semantic-release/git` commits the stamped files.

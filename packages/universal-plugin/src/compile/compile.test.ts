@@ -149,12 +149,16 @@ describe('compileScripts', () => {
 		])
 	})
 
-	it('reports a malformed declaration as a warning and compiles the valid entries', async () => {
+	it('fails a malformed entry with a warning and compiles the valid entries', async () => {
 		manifest({ 'a.js': 'src/a.ts', 'b.mjs': 'src/b.ts' })
 		write('src/b.ts', 'b()\n')
 		const result = await compileScripts(dir, {}, echo)
 		expect(result.warnings).toEqual(['scripts "a.js" must name a .mjs file'])
-		expect(result.rows.map((r) => r.path)).toEqual(['b.mjs'])
+		expect(result.rows.map((r) => [r.path, r.status])).toEqual([
+			['a.js', 'failed'],
+			['b.mjs', 'compiled'],
+		])
+		expect(result.summary.failed).toBe(1)
 	})
 
 	it('warns on a script over the size budget', async () => {
@@ -245,6 +249,22 @@ describe('compileScripts', () => {
 			])
 			expect(result.summary.failed).toBe(3)
 			expect(fs.existsSync(path.join(dir, 'skills/a/scripts/nope.mjs'))).toBe(false)
+		})
+
+		// Issue #304: a refused entry was warned about and dropped, so `--check` passed without it.
+		it('fails a forwarder named differently from its bin, on a write and on a dry run', async () => {
+			ownPackage()
+			manifest({ 'skills/a/scripts/run.mjs': { forward: 'demo' }, 'skills/a/scripts/demo.mjs': { forward: 'demo' } })
+
+			for (const dryRun of [false, true]) {
+				const result = await compileScripts(dir, { dryRun }, echo)
+				expect(result.rows[0]).toEqual({ path: 'skills/a/scripts/run.mjs', source: 'forward demo', status: 'failed' })
+				expect(result.warnings).toContain(
+					'scripts "skills/a/scripts/run.mjs" forwards to demo, so it must be named demo.mjs',
+				)
+				expect(result.summary.failed).toBe(1)
+			}
+			expect(fs.existsSync(path.join(dir, 'skills/a/scripts/run.mjs'))).toBe(false)
 		})
 
 		it('fails an own forwarder when the plugin ships to no package', async () => {

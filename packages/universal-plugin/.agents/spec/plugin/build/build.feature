@@ -1108,11 +1108,21 @@ Feature: plugin build — derive per-vendor manifests
     When I run "universal-plugin plugin build --dry-run"
     Then the scripts rows report the forwarder as "version"
 
-  Scenario: a forward entry not named after its CLI warns and writes nothing
+  Scenario: a forward entry not named after its CLI fails and writes nothing
     Given the extension declares scripts { "skills/demo/scripts/run.mjs": { "forward": "demo" } }
     When I run "universal-plugin plugin build"
     Then stderr contains "must be named demo.mjs"
+    And the scripts row for "skills/demo/scripts/run.mjs" is "failed"
+    And the exit code is 1
     And "skills/demo/scripts/run.mjs" is not written
+
+  Scenario: --check fails on a forward entry not named after its CLI
+    Given the extension declares scripts { "skills/demo/scripts/run.mjs": { "forward": "demo" } }
+    When I run "universal-plugin plugin build --check"
+    Then stderr contains "must be named demo.mjs"
+    And the scripts row for "skills/demo/scripts/run.mjs" is "failed"
+    And the summary's failed count is 1
+    And the exit code is 1
 
   Scenario: a forward entry for an undeclared bin warns and writes nothing
     Given the package "demo-pkg" has bin "demo"
