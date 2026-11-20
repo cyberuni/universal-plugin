@@ -6,6 +6,7 @@ import {
 	assertMarketplaceName,
 	CLAUDE_CATALOG_READERS,
 	catalogEntryNames,
+	droppedCatalogFields,
 	type MarketplaceOwner,
 	type MarketplacePlugin,
 	type MarketplaceStatus,
@@ -34,6 +35,9 @@ export interface MarketplaceResult {
 	reason?: string
 	/** Entries the runtime cannot install, left out of its catalog. */
 	omitted?: OmittedEntry[]
+	/** What `--force` drops from a catalog it replaces: each field or entry the existing file has and
+	 *  the regenerated one does not, as `<path>: <field>`. */
+	dropped?: string[]
 }
 
 interface RootMetadata {
@@ -277,6 +281,13 @@ export function initializeMarketplace(
 		if (plugins.length === 0)
 			return { target, status: 'empty', paths: [], plugins: [], reason: 'no plugins discovered' }
 		const unchanged = artifacts.every((artifact) => sameArtifact(fs, path.join(root, artifact.path), artifact.content))
+		// --force replaces a catalog someone may have edited by hand. Discovery keeps what it can (the
+		// allowlist, remote entries), and the rest is named here rather than lost without a word.
+		const dropped = artifacts.flatMap((artifact) => {
+			const output = path.join(root, artifact.path)
+			if (!fs.exists(output)) return []
+			return droppedCatalogFields(fs.read(output), artifact.content).map((field) => `${artifact.path}: ${field}`)
+		})
 		return {
 			target,
 			status: opts.dryRun ? 'planned' : unchanged ? 'unchanged' : 'generated',
@@ -285,6 +296,7 @@ export function initializeMarketplace(
 			// from the existing file is visible in the report rather than silently present.
 			plugins: [...new Set(artifacts.flatMap((artifact) => catalogEntryNames(artifact.content)))],
 			...(omitted.length > 0 ? { omitted } : {}),
+			...(dropped.length > 0 ? { dropped } : {}),
 			...(shielded.has(target)
 				? {
 						reason: `written so ${target} does not read ${TARGET_CATALOG_PATHS.claude}, which lists entries it cannot install`,

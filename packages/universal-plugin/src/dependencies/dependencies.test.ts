@@ -186,7 +186,7 @@ describe('catalogDependencyIssues', () => {
 
 	it('names a bare dependency the catalog does not list, and both fixes', () => {
 		expect(catalogDependencyIssues(['cyber-asana'], catalog)).toEqual([
-			'dependency "cyber-asana" is not listed in ".claude-plugin/marketplace.json" (marketplace "uip-pods-local"), and a bare name resolves only there — list it in that catalog (universal-plugin marketplace add npm:<package>), or qualify it with the marketplace that lists it ({ "name": "cyber-asana", "marketplace": "<marketplace>" }) and add that marketplace to the catalog\'s allowCrossMarketplaceDependenciesOn',
+			'dependency "cyber-asana" is not listed in ".claude-plugin/marketplace.json" (marketplace "uip-pods-local"), and a bare name resolves only there — list it in that catalog (universal-plugin marketplace add npm:<package>), or qualify it with the marketplace that lists it ({ "name": "cyber-asana", "marketplace": "<marketplace>" }) and add that marketplace to the catalog\'s allowCrossMarketplaceDependenciesOn (universal-plugin marketplace set --allow-dependencies-on <marketplace>)',
 		])
 	})
 
@@ -202,7 +202,7 @@ describe('catalogDependencyIssues', () => {
 
 	it('names a cross-marketplace dependency the catalog does not allow', () => {
 		expect(catalogDependencyIssues([{ name: 'cyber-asana', marketplace: 'cyberuni' }], catalog)).toEqual([
-			'dependency "cyber-asana@cyberuni" names marketplace "cyberuni", which ".claude-plugin/marketplace.json" (marketplace "uip-pods-local") does not list in allowCrossMarketplaceDependenciesOn, so the dependency is refused at install — add "cyberuni" to that list',
+			'dependency "cyber-asana@cyberuni" names marketplace "cyberuni", which ".claude-plugin/marketplace.json" (marketplace "uip-pods-local") does not list in allowCrossMarketplaceDependenciesOn, so the dependency is refused at install — allow it with universal-plugin marketplace set --allow-dependencies-on cyberuni',
 		])
 	})
 

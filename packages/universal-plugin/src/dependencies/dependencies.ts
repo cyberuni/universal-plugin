@@ -173,13 +173,13 @@ export function catalogDependencyIssues(declaration: unknown, catalog: Dependenc
 		if (marketplace === undefined) {
 			if (catalog.plugins.includes(name)) continue
 			issues.push(
-				`dependency "${name}" is not listed in ${where}, and a bare name resolves only there — list it in that catalog (universal-plugin marketplace add npm:<package>), or qualify it with the marketplace that lists it ({ "name": "${name}", "marketplace": "<marketplace>" }) and add that marketplace to the catalog's allowCrossMarketplaceDependenciesOn`,
+				`dependency "${name}" is not listed in ${where}, and a bare name resolves only there — list it in that catalog (universal-plugin marketplace add npm:<package>), or qualify it with the marketplace that lists it ({ "name": "${name}", "marketplace": "<marketplace>" }) and add that marketplace to the catalog's allowCrossMarketplaceDependenciesOn (universal-plugin marketplace set --allow-dependencies-on <marketplace>)`,
 			)
 			continue
 		}
 		if (catalog.allowedMarketplaces?.includes(marketplace)) continue
 		issues.push(
-			`dependency "${name}@${marketplace}" names marketplace "${marketplace}", which ${where} does not list in allowCrossMarketplaceDependenciesOn, so the dependency is refused at install — add "${marketplace}" to that list`,
+			`dependency "${name}@${marketplace}" names marketplace "${marketplace}", which ${where} does not list in allowCrossMarketplaceDependenciesOn, so the dependency is refused at install — allow it with universal-plugin marketplace set --allow-dependencies-on ${marketplace}`,
 		)
 	}
 	return issues

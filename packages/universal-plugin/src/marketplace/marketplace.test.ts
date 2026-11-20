@@ -561,3 +561,25 @@ test('a forced regeneration keeps the catalog allowCrossMarketplaceDependenciesO
 		fs.rmSync(root, { recursive: true, force: true })
 	}
 })
+
+test('a forced regeneration names the hand-set fields it drops', () => {
+	const root = fixture('universal-plugin-marketplace-dropped-')
+	try {
+		initializeMarketplace(root, { targets: ['claude'] })
+		const file = path.join(root, '.claude-plugin/marketplace.json')
+		const catalog = JSON.parse(fs.readFileSync(file, 'utf8'))
+		catalog.description = 'Curated'
+		catalog.owner = { ...catalog.owner, email: 'me@example.com' }
+		catalog.plugins[0].category = 'tools'
+		fs.writeFileSync(file, JSON.stringify(catalog))
+
+		const [row] = initializeMarketplace(root, { targets: ['claude'], force: true, dryRun: true })
+		expect(row?.dropped).toEqual([
+			'.claude-plugin/marketplace.json: owner.email',
+			'.claude-plugin/marketplace.json: description',
+			'.claude-plugin/marketplace.json: plugins[alpha].category',
+		])
+	} finally {
+		fs.rmSync(root, { recursive: true, force: true })
+	}
+})

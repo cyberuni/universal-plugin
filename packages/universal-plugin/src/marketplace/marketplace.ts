@@ -640,3 +640,87 @@ export function serializeTarget(
 			return [cursorArtifact(metadata, plugins)]
 	}
 }
+
+/** The catalog without the entry of this name. The top level and every other entry stay exactly as
+ *  they were, in their order. */
+export function removeCatalogEntry(content: string, catalogPath: string, name: string): string {
+	const catalog = parseCatalog(content, catalogPath)
+	const entries = Array.isArray(catalog.plugins) ? (catalog.plugins as unknown[]) : []
+	return json({
+		...catalog,
+		plugins: entries.filter(
+			(candidate) =>
+				!(typeof candidate === 'object' && candidate !== null && (candidate as Record<string, unknown>).name === name),
+		),
+	})
+}
+
+/** The catalog's top-level object, for a caller that edits it as a whole. */
+export function readCatalogTopLevel(content: string, catalogPath: string): Record<string, unknown> {
+	return parseCatalog(content, catalogPath)
+}
+
+/** A catalog with its top-level fields edited: `set` names the values to write, `unset` the keys to
+ *  drop. A key already present keeps its place; a new one goes before `plugins`, so the entries stay
+ *  at the end of the file where a reader expects them. */
+export function editCatalogTopLevel(
+	content: string,
+	catalogPath: string,
+	set: Record<string, unknown>,
+	unset: readonly string[] = [],
+): string {
+	const catalog = parseCatalog(content, catalogPath)
+	const next: Record<string, unknown> = {}
+	const pending = Object.keys(set).filter((key) => !(key in catalog))
+	for (const [key, value] of Object.entries(catalog)) {
+		if (key === 'plugins') for (const added of pending.splice(0)) next[added] = set[added]
+		if (unset.includes(key)) continue
+		next[key] = key in set ? set[key] : value
+	}
+	for (const added of pending) next[added] = set[added]
+	return json(next)
+}
+
+function droppedKeys(before: unknown, after: unknown, at: string, out: string[]): void {
+	if (typeof before !== 'object' || before === null || Array.isArray(before)) return
+	const next =
+		typeof after === 'object' && after !== null && !Array.isArray(after) ? (after as Record<string, unknown>) : {}
+	for (const [key, value] of Object.entries(before as Record<string, unknown>)) {
+		const keyPath = at === '' ? key : `${at}.${key}`
+		if (!(key in next)) out.push(keyPath)
+		else droppedKeys(value, next[key], keyPath, out)
+	}
+}
+
+/** What a regenerated catalog no longer says that the file it replaces did: each top-level key and
+ *  owner field it loses, each field an entry loses (the entry named in brackets), and each entry it
+ *  drops whole. A value that changes is not listed; only one that is gone. Content that is not JSON
+ *  has nothing to report. */
+export function droppedCatalogFields(existing: string, generated: string): string[] {
+	let before: unknown
+	let after: unknown
+	try {
+		before = JSON.parse(existing)
+		after = JSON.parse(generated)
+	} catch {
+		return []
+	}
+	if (typeof before !== 'object' || before === null || Array.isArray(before)) return []
+	const previous = before as Record<string, unknown>
+	const next = (typeof after === 'object' && after !== null ? after : {}) as Record<string, unknown>
+	const dropped: string[] = []
+	droppedKeys({ ...previous, plugins: undefined }, { ...next, plugins: undefined }, '', dropped)
+	const entriesOf = (catalog: Record<string, unknown>) =>
+		new Map(
+			(Array.isArray(catalog.plugins) ? catalog.plugins : [])
+				.filter((entry): entry is Record<string, unknown> => typeof entry === 'object' && entry !== null)
+				.map((entry) => [String(entry.name), entry] as const),
+		)
+	const nextEntries = entriesOf(next)
+	for (const [name, entry] of entriesOf(previous)) {
+		const kept = nextEntries.get(name)
+		if (kept === undefined) dropped.push(`plugins[${name}]`)
+		else droppedKeys(entry, kept, `plugins[${name}]`, dropped)
+	}
+	return dropped
+}

@@ -5,6 +5,8 @@ import { output } from '../output.js'
 import { addToMarketplace, ENTRY_METADATA_FIELDS, type MarketplaceAddOptions } from './add.js'
 import { initializeMarketplace, type MarketplaceInitOptions } from './init.js'
 import type { MarketplaceTarget } from './marketplace.js'
+import { removeMarketplaceEntry } from './remove.js'
+import { SET_UNSET_FIELDS, setMarketplaceFields } from './set.js'
 import type { SourceKind } from './spec.js'
 import { UPDATE_FIELDS, type UpdateField, updateMarketplaceEntry } from './update.js'
 import { validateMarketplace } from './validate.js'
@@ -260,6 +262,144 @@ function updateCommand(): Command {
 		})
 }
 
+function assertFormat(format: string | undefined): void {
+	if (format !== undefined && format !== 'toon' && format !== 'json') {
+		throw new Error('error: --format must be "toon" or "json"')
+	}
+}
+
+const LOCAL_ONLY = (dryRun: boolean | undefined) =>
+	`${dryRun ? 'Planned' : 'Wrote'} repository metadata only; no marketplace publication, registration, installation, authentication, or provisioning occurred.\n`
+
+function removeCommand(): Command {
+	return new Command('remove')
+		.description("Drop one entry from every one of this repository's marketplace catalogs that lists it")
+		.argument('<name>', 'The entry to remove, as the catalogs list it')
+		.option('--claude', 'Remove from the Claude marketplace catalog')
+		.option('--codex', 'Remove from the Codex marketplace catalog')
+		.option('--copilot', 'Remove from the Copilot marketplace catalog')
+		.option('--cursor', 'Remove from the Cursor marketplace catalog')
+		.option('--force', 'Remove the entry even when a listed plugin depends on it')
+		.option('--dry-run', 'Preview the removal without writing it')
+		.option('--format <format>', 'Output format: toon or json (default: toon)')
+		.addOption(ROOT_OPTION)
+		.addHelpText(
+			'after',
+			'\nExamples:\n' +
+				'  $ universal-plugin marketplace remove cyber-agent-harness\n' +
+				'  $ universal-plugin marketplace remove repobuddy --claude --dry-run\n',
+		)
+		.action((name: string, opts: MarketplaceCliOptions & { force?: boolean }) => {
+			try {
+				assertFormat(opts.format)
+				const { results, warnings } = removeMarketplaceEntry(resolveRoot(opts.root), name, {
+					targets: targetsFromOptions(opts),
+					force: opts.force,
+					dryRun: opts.dryRun,
+				})
+				output(results, {
+					targets: results.map((row) => ({
+						target: row.target,
+						status: row.status,
+						entry: row.entry,
+						source: row.source,
+						path: row.path,
+						reason: row.reason ?? '-',
+					})),
+					summary: `${results.filter((row) => row.status !== 'skipped').length} of ${results.length} ${opts.dryRun ? 'planned' : 'removed'}`,
+				})
+				for (const row of results.filter((row) => row.status === 'skipped')) {
+					process.stderr.write(`skipped ${row.target}: ${row.reason}\n`)
+				}
+				for (const warning of warnings) process.stderr.write(`${warning}\n`)
+				process.stderr.write(LOCAL_ONLY(opts.dryRun))
+			} catch (err) {
+				process.stderr.write(`${err instanceof Error ? err.message : String(err)}\n`)
+				process.exitCode = 1
+			}
+		})
+}
+
+interface SetCliOptions extends MarketplaceCliOptions {
+	allowDependenciesOn?: string[]
+	disallowDependenciesOn?: string[]
+	description?: string
+	ownerEmail?: string
+	ownerUrl?: string
+	unset?: string[]
+}
+
+const repeatable = (value: string, previous: string[] = []) => [...previous, value]
+
+function setCommand(): Command {
+	return new Command('set')
+		.description(
+			"Set or change the catalog's own fields — owner, description, and the marketplaces its plugins may depend on — keeping the rest",
+		)
+		.option('--claude', 'Change the Claude marketplace catalog')
+		.option('--codex', 'Change the Codex marketplace catalog')
+		.option('--copilot', 'Change the Copilot marketplace catalog')
+		.option('--cursor', 'Change the Cursor marketplace catalog')
+		.option(
+			'--allow-dependencies-on <marketplace>',
+			'Add a marketplace to allowCrossMarketplaceDependenciesOn (repeatable)',
+			repeatable,
+		)
+		.option(
+			'--disallow-dependencies-on <marketplace>',
+			'Take a marketplace out of allowCrossMarketplaceDependenciesOn (repeatable)',
+			repeatable,
+		)
+		.option('--description <text>', 'Catalog description')
+		.option('--owner <name>', "The owner's name")
+		.option('--owner-email <email>', "The owner's email")
+		.option('--owner-url <url>', "The owner's URL")
+		.option('--unset <field>', `Remove a top-level field: ${SET_UNSET_FIELDS.join(', ')} (repeatable)`, repeatable)
+		.option('--dry-run', 'Preview the change without writing it')
+		.option('--format <format>', 'Output format: toon or json (default: toon)')
+		.addOption(ROOT_OPTION)
+		.addHelpText(
+			'after',
+			'\nExamples:\n' +
+				'  $ universal-plugin marketplace set --allow-dependencies-on cyber-uni\n' +
+				'  $ universal-plugin marketplace set --owner-email me@example.com --description "Plugins for X"\n' +
+				'  $ universal-plugin marketplace set --disallow-dependencies-on old-marketplace --dry-run\n',
+		)
+		.action((opts: SetCliOptions) => {
+			try {
+				assertFormat(opts.format)
+				const results = setMarketplaceFields(resolveRoot(opts.root), {
+					targets: targetsFromOptions(opts),
+					allowDependenciesOn: opts.allowDependenciesOn,
+					disallowDependenciesOn: opts.disallowDependenciesOn,
+					description: opts.description,
+					owner: opts.owner,
+					ownerEmail: opts.ownerEmail,
+					ownerUrl: opts.ownerUrl,
+					unset: opts.unset,
+					dryRun: opts.dryRun,
+				})
+				output(results, {
+					targets: results.map((row) => ({
+						target: row.target,
+						status: row.status,
+						path: row.path,
+						fields: row.fields,
+						reason: row.reason ?? '-',
+					})),
+					summary: `${results.filter((row) => row.status === 'skipped').length} skipped of ${results.length}`,
+				})
+				for (const row of results.filter((row) => row.status === 'skipped')) {
+					process.stderr.write(`skipped ${row.target}: ${row.reason}\n`)
+				}
+				process.stderr.write(LOCAL_ONLY(opts.dryRun))
+			} catch (err) {
+				process.stderr.write(`${err instanceof Error ? err.message : String(err)}\n`)
+				process.exitCode = 1
+			}
+		})
+}
+
 function initCommand(): Command {
 	return new Command('init')
 		.description('Generate local marketplace metadata without publishing or provisioning')
@@ -307,6 +447,11 @@ function initCommand(): Command {
 						process.stderr.write(`warning: omitted "${entry.name}" from ${row.target}: ${entry.reason}\n`)
 					}
 					if (row.reason) process.stderr.write(`${row.target}: ${row.reason}\n`)
+					for (const field of row.dropped ?? []) {
+						process.stderr.write(
+							`warning: ${opts.dryRun ? 'would drop' : 'dropped'} ${field} (set it again with marketplace set or marketplace update)\n`,
+						)
+					}
 				}
 				process.stderr.write(
 					'Generated repository metadata only; no marketplace publication, registration, installation, authentication, or provisioning occurred.\n',
@@ -365,6 +510,8 @@ export function marketplaceCommand(): Command {
 		.description('Generate repository-local marketplace metadata')
 		.addCommand(addCommand())
 		.addCommand(initCommand())
+		.addCommand(removeCommand())
+		.addCommand(setCommand())
 		.addCommand(updateCommand())
 		.addCommand(validateCommand())
 }
