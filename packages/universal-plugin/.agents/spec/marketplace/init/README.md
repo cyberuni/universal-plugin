@@ -107,7 +107,10 @@ proving a discovered plugin will install successfully in every vendor runtime.
   `unchanged` regardless of object-key order or whitespace.
 - The command validates metadata and plans every selected artifact before changing any of them. A
   differing selected artifact stops the whole command with a `--force` remedy. `--force` replaces
-  only selected artifacts; `--dry-run` always writes nothing. Each selected artifact is written
+  only selected artifacts; `--dry-run` always writes nothing. A forced replacement names on stderr
+  each field and each entry the existing catalog has and the new one does not, such as an
+  `owner.email` or an entry's `category`, so a hand edit is not lost without a word. The row carries
+  them as `dropped`. Setting them again is `set`'s and `update`'s job. Each selected artifact is written
   atomically. If a later selected write fails, the command reports the error and exits non-zero; it
   does not claim cross-artifact rollback.
 - A selected artifact path and every existing parent segment are resolved through symbolic links
@@ -204,6 +207,7 @@ flowchart TD
 | foreign convergence | the catalog already carries a kept entry | `a kept entry is not a conflict on rerun` |
 | unparseable existing | the existing catalog is not JSON | `a catalog that is not JSON is regenerated under force` |
 | allowlist kept | the catalog carries `allowCrossMarketplaceDependenciesOn`; `--force` | `a forced regeneration keeps the cross-marketplace allowlist` |
+| dropped named | the catalog carries hand-set fields; `--force` | `a forced regeneration names the hand-set fields it drops` |
 | force branch | a selected artifact differs; `--force` | `force replaces only selected differing artifacts` |
 | write-error branch | a selected artifact write fails | `a selected-artifact write failure reports an error` |
 | output link guard | selected output parent is a link outside `--root` | `an external selected-output symlink fails before writes` |
