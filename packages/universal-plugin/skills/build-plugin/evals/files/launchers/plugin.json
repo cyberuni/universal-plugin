@@ -1,0 +1,21 @@
+{
+	"$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+	"name": "git-summary",
+	"version": "0.1.0",
+	"description": "Summarize git history.",
+	"author": {
+		"name": "Example Author"
+	},
+	"homepage": "https://github.com/example-org/git-summary",
+	"repository": "https://github.com/example-org/git-summary",
+	"license": "MIT",
+	"extensions": {
+		"org.cyberuni.universal-plugin": {
+			"skills": "./skills/",
+			"launchers": { "git-summary": "scripts/cli.mjs" },
+			"harnesses": {
+				"claude-code": {}
+			}
+		}
+	}
+}
