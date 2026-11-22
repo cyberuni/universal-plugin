@@ -151,6 +151,20 @@ test('a local plugin manifest dependencies are checked against the catalog', () 
 		{ path: 'plugins[0].source', message: expect.stringMatching(/dependency "delta" is not listed/) },
 	])
 
+	fs.writeFileSync(
+		path.join(alpha, 'plugin.json'),
+		JSON.stringify({
+			name: 'alpha',
+			extensions: {
+				'org.cyberuni.universal-plugin': { dependencies: ['beta'] },
+				'io.github.cyber-uni.plugin-manager': { dependencies: ['epsilon'] },
+			},
+		}),
+	)
+	expect(claudeIssues()).toEqual([
+		{ path: 'plugins[0].source', message: expect.stringMatching(/dependency "epsilon" is not listed/) },
+	])
+
 	fs.mkdirSync(path.join(alpha, '.claude-plugin'))
 	fs.writeFileSync(path.join(alpha, '.claude-plugin', 'plugin.json'), JSON.stringify({ dependencies: ['gamma'] }))
 	expect(claudeIssues()).toEqual([

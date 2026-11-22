@@ -77,6 +77,17 @@ describe('validateCanonicalManifest — schema', () => {
 		])
 	})
 
+	it('reports a malformed declaration under the plugin-manager key against that key', () => {
+		const result = validate({
+			$schema: SCHEMA_URL,
+			name: 'pods',
+			extensions: { 'io.github.cyber-uni.plugin-manager': { dependencies: { a: '1' } } },
+		})
+		expect(result.schemaViolations).toEqual([
+			expect.objectContaining({ field: 'extensions.io.github.cyber-uni.plugin-manager.dependencies' }),
+		])
+	})
+
 	it('reports a manifest that is not an object', () => {
 		expect(validate([]).schemaViolations).toEqual([
 			{ field: '', rule: 'type', message: 'plugin.json must be a JSON object' },

@@ -711,6 +711,45 @@ describe('buildPlugin — dependencies', () => {
 		expect('dependencies' in readJson('.claude-plugin/plugin.json')).toBe(false)
 	})
 
+	it('delivers a declaration under the plugin-manager key to the claude-code manifest', () => {
+		writeManifest({
+			name: 'my-plugin',
+			extensions: {
+				...up({ harnesses: { 'claude-code': {} } }),
+				'io.github.cyber-uni.plugin-manager': { dependencies: ['cyber-agent-harness'] },
+			},
+		})
+		const result = buildPlugin(dir)
+		expect(readJson('.claude-plugin/plugin.json').dependencies).toEqual(['cyber-agent-harness'])
+		expect(result.warnings).toEqual([])
+	})
+
+	it('reads the plugin-manager key over the universal-plugin key, and warns that the old list is ignored', () => {
+		writeManifest({
+			name: 'my-plugin',
+			extensions: {
+				...up({ dependencies: ['old-list'], harnesses: { 'claude-code': {} } }),
+				'io.github.cyber-uni.plugin-manager': { dependencies: ['new-list'] },
+			},
+		})
+		const result = buildPlugin(dir)
+		expect(readJson('.claude-plugin/plugin.json').dependencies).toEqual(['new-list'])
+		expect(result.warnings).toEqual([
+			'extensions["org.cyberuni.universal-plugin"].dependencies is ignored: extensions["io.github.cyber-uni.plugin-manager"].dependencies is read instead. Remove the old list',
+		])
+	})
+
+	it('fails the build on a malformed declaration under the plugin-manager key', () => {
+		writeManifest({
+			name: 'my-plugin',
+			extensions: {
+				...up({ harnesses: { 'claude-code': {} } }),
+				'io.github.cyber-uni.plugin-manager': { dependencies: { 'cyber-asana': '^0.9.0' } },
+			},
+		})
+		expect(() => buildPlugin(dir)).toThrow('dependencies must be an array')
+	})
+
 	it('lets a harnesses override still set dependencies for the vendor that reads them', () => {
 		writeManifest({
 			name: 'my-plugin',
@@ -995,6 +1034,25 @@ describe('buildPlugin — dependencies against the catalogs it refreshes', () =>
 		owner: { name: 'me' },
 		...extra,
 		plugins: [{ name: 'uip-pods', source: './packages/pods', version: '0.3.0', description: 'Pods' }],
+	})
+
+	it('checks a declaration under the plugin-manager key against the catalog', () => {
+		writeCatalog(claudeCatalog, localCatalog())
+		fs.writeFileSync(
+			path.join(pluginRoot, 'plugin.json'),
+			JSON.stringify({
+				name: 'uip-pods',
+				version: '0.3.0',
+				description: 'Pods',
+				extensions: {
+					...up({ harnesses: { 'claude-code': {} } }),
+					'io.github.cyber-uni.plugin-manager': { dependencies: ['cyber-asana'] },
+				},
+			}),
+		)
+
+		const result = buildPlugin(pluginRoot, {})
+		expect(result.dependencyIssues).toEqual([expect.stringContaining('"cyber-asana"')])
 	})
 
 	it('warns when a bare dependency is not listed in the catalog, naming both fixes', () => {

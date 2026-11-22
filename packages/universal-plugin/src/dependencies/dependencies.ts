@@ -80,6 +80,50 @@ const CANONICAL_SERVED = new Set(['copilot-cli'])
 const DEPENDENCY_STRING = /^[A-Za-z0-9][-A-Za-z0-9._]*(@[A-Za-z0-9][-A-Za-z0-9._]*)?(@\^[^@]*)?$/
 const RANGE_TAIL = /@(\^[^@]*)$/
 
+/** The extension key a plugin's dependency list is authored under, shared with cyber-agentkit
+ *  (ADR-0024). */
+export const PLUGIN_MANAGER_NAMESPACE = 'io.github.cyber-uni.plugin-manager'
+
+/** universal-plugin's own key, where ADR-0013 first put the list. Still read as the fallback. */
+export const FALLBACK_DEPENDENCY_NAMESPACE = 'org.cyberuni.universal-plugin'
+
+export interface DeclaredDependencies {
+	/** The declaration as authored; `undefined` when neither key declares one. */
+	declaration: unknown
+	/** The extension key the declaration was read from. */
+	namespace?: string
+	warnings: string[]
+}
+
+/** Reads the dependency list from a canonical manifest's `extensions` map (ADR-0024): the
+ *  plugin-manager key when it declares `dependencies`, else universal-plugin's own key. When both
+ *  declare one, the plugin-manager key wins and the build warns that the other is ignored. */
+export function readDeclaredDependencies(extensions: unknown): DeclaredDependencies {
+	const read = (namespace: string): unknown => {
+		if (!isRecord(extensions)) return undefined
+		const block = extensions[namespace]
+		return isRecord(block) ? block['dependencies'] : undefined
+	}
+	const current = read(PLUGIN_MANAGER_NAMESPACE)
+	const fallback = read(FALLBACK_DEPENDENCY_NAMESPACE)
+	if (current === undefined) {
+		return fallback === undefined
+			? { declaration: undefined, warnings: [] }
+			: { declaration: fallback, namespace: FALLBACK_DEPENDENCY_NAMESPACE, warnings: [] }
+	}
+	const warnings =
+		fallback === undefined
+			? []
+			: [
+					`extensions["${FALLBACK_DEPENDENCY_NAMESPACE}"].dependencies is ignored: extensions["${PLUGIN_MANAGER_NAMESPACE}"].dependencies is read instead. Remove the old list`,
+				]
+	return { declaration: current, namespace: PLUGIN_MANAGER_NAMESPACE, warnings }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
 /** Checks the shape of a `dependencies` declaration. Errors are author mistakes the runtime would
  *  reject; warnings are declarations the runtime accepts and then quietly ignores. */
 export function validateDependencies(declaration: unknown): DependencyValidation {

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
 	catalogDependencyIssues,
 	dependencyCatalogEntries,
+	readDeclaredDependencies,
 	translateDependencies,
 	validateDependencies,
 } from './dependencies.js'
@@ -218,5 +219,48 @@ describe('catalogDependencyIssues', () => {
 
 	it('says nothing for an absent declaration', () => {
 		expect(catalogDependencyIssues(undefined, catalog)).toEqual([])
+	})
+})
+
+describe('readDeclaredDependencies', () => {
+	const pluginManager = 'io.github.cyber-uni.plugin-manager'
+	const universalPlugin = 'org.cyberuni.universal-plugin'
+
+	it('reads the plugin-manager key', () => {
+		expect(readDeclaredDependencies({ [pluginManager]: { dependencies: ['a'] } })).toEqual({
+			declaration: ['a'],
+			namespace: pluginManager,
+			warnings: [],
+		})
+	})
+
+	it('falls back to the universal-plugin key, without a warning', () => {
+		expect(readDeclaredDependencies({ [universalPlugin]: { dependencies: ['a'] } })).toEqual({
+			declaration: ['a'],
+			namespace: universalPlugin,
+			warnings: [],
+		})
+	})
+
+	it('reads the plugin-manager key when both declare one, and warns that the other is ignored', () => {
+		const read = readDeclaredDependencies({
+			[universalPlugin]: { dependencies: ['old'] },
+			[pluginManager]: { dependencies: ['new'] },
+		})
+		expect(read.declaration).toEqual(['new'])
+		expect(read.namespace).toBe(pluginManager)
+		expect(read.warnings).toEqual([expect.stringContaining(`extensions["${universalPlugin}"].dependencies is ignored`)])
+	})
+
+	it('lets an empty list under the plugin-manager key win, so a plugin can clear its list there', () => {
+		expect(
+			readDeclaredDependencies({ [universalPlugin]: { dependencies: ['old'] }, [pluginManager]: { dependencies: [] } })
+				.declaration,
+		).toEqual([])
+	})
+
+	it('reads nothing when neither key declares one', () => {
+		expect(readDeclaredDependencies(undefined)).toEqual({ declaration: undefined, warnings: [] })
+		expect(readDeclaredDependencies({ [pluginManager]: {} })).toEqual({ declaration: undefined, warnings: [] })
 	})
 })
