@@ -325,12 +325,13 @@ Unrecognized vendor keys in `extensions["org.cyberuni.universal-plugin"].harness
 ## Plugin dependencies
 
 Declare the plugins your plugin needs once, under
-`extensions["org.cyberuni.universal-plugin"].dependencies`:
+`extensions["io.github.cyber-uni.plugin-manager"].dependencies`. The key is shared with cyber-agentkit,
+which reads the same list:
 
 ```json
 {
   "extensions": {
-    "org.cyberuni.universal-plugin": {
+    "io.github.cyber-uni.plugin-manager": {
       "dependencies": [
         "cyber-asana",
         { "name": "cyber-notion", "marketplace": "cyberuni", "version": "^0.9.0" }
@@ -339,6 +340,10 @@ Declare the plugins your plugin needs once, under
   }
 }
 ```
+
+`dependencies` under `extensions["org.cyberuni.universal-plugin"]`, where earlier releases read it, is
+still read when the `io.github.cyber-uni.plugin-manager` key declares none. When both declare a list,
+the build reads `io.github.cyber-uni.plugin-manager` and warns that the other list is ignored.
 
 An entry is a plugin name, optionally `@marketplace`-qualified, or an object carrying that name with a
 constraint beside it:

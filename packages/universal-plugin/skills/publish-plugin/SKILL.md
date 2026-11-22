@@ -297,6 +297,7 @@ the plugin but not what it depends on publishes a plugin nobody can install. Rea
 Claude Code receives, from the **plugin location**: `dependencies` in `.claude-plugin/plugin.json`
 (the built manifest), or, if that has not been built, the canonical one —
 `extensions["org.cyberuni.universal-plugin"].harnesses["claude-code"].dependencies`, else
+`extensions["io.github.cyber-uni.plugin-manager"].dependencies`, else
 `extensions["org.cyberuni.universal-plugin"].dependencies` in `plugin.json`. No declaration means
 nothing to do here.
 

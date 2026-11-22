@@ -157,14 +157,16 @@ Each vendor's reference file in `init-universal-plugin` (`references/vendors/<ve
 ## Plugin Dependencies
 
 A plugin declares the plugins it needs under
-`extensions["org.cyberuni.universal-plugin"].dependencies`, once, whatever it targets. Claude Code is
-the only runtime that reads a dependency; build drops the declaration for the rest and warns
-(ADR-0013). The build stays green.
+`extensions["io.github.cyber-uni.plugin-manager"].dependencies`, once, whatever it targets. Claude Code
+is the only runtime that reads a dependency; build drops the declaration for the rest and warns
+(ADR-0013). The build stays green. The key is shared with cyber-agentkit (ADR-0024).
+`extensions["org.cyberuni.universal-plugin"].dependencies` is still read when the new key declares
+none; when both declare a list, the new key wins and the build warns.
 
 ```json
 {
   "extensions": {
-    "org.cyberuni.universal-plugin": {
+    "io.github.cyber-uni.plugin-manager": {
       "dependencies": [
         "cyber-asana",
         { "name": "cyber-notion", "marketplace": "cyberuni", "version": "^0.9.0" }
