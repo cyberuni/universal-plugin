@@ -1,6 +1,6 @@
 ---
 name: init-universal-plugin
-description: Creates or changes a universal agent plugin's canonical plugin.json. Scaffold a new plugin, adopt an existing vendor-specific plugin or already-shipped skills onto the open Agent Plugins Specification, or add and remove vendors and components for Claude Code, Cursor, Codex, and GitHub Copilot CLI. "Init a plugin here", "make my Claude Code plugin work in Cursor", "convert this to the open plugin standard", "turn these skills into a plugin", "add Codex support", or "add a hooks component".
+description: Creates or changes a universal agent plugin's canonical plugin.json. Scaffold a new plugin, adopt an existing vendor-specific plugin or already-shipped skills onto the open Agent Plugins Specification, add and remove vendors and components for Claude Code, Cursor, Codex, and GitHub Copilot CLI, or add, change, and remove the plugins it depends on. "Init a plugin here", "make my Claude Code plugin work in Cursor", "convert this to the open plugin standard", "turn these skills into a plugin", "add Codex support", "add a hooks component", or "add tracer@acme to my plugin's declared dependencies".
 argument-hint: '[--name <name>] [--vendor <id>] [--scaffold] [--npm] [--no-marketplace] [--force]'
 ---
 
@@ -176,11 +176,14 @@ Route by what Phase 2 found. Read exactly the reference for the work at hand —
 | nothing — greenfield | scaffold a canonical manifest and its components | [`references/create.md`](./references/create.md) |
 | adoptable | carry it onto the canonical manifest, losslessly | [`references/adopt.md`](./references/adopt.md) |
 | canonical, and a vendor or component changes | edit `extensions`, then rebuild | [`references/update.md`](./references/update.md) |
+| canonical, and a dependency is added, changed, or removed | edit `extensions["io.github.cyber-uni.plugin-manager"].dependencies`, then rebuild | [`references/update.md`](./references/update.md#add-change-or-remove-a-dependency) |
 | canonical, and a skill runs the plugin's own CLI, or another package's | add a CLI forwarder: declare `{ "forward": "<bin>" }` under `scripts`, build, rewrite the skill's runner lines to `node <this skill's folder>/scripts/<bin>.mjs` | [`references/cli-forwarder.md`](./references/cli-forwarder.md) |
 
-Three asks leave this skill rather than routing inside it. Hand them over instead of improvising a
+Four asks leave this skill rather than routing inside it. Hand them over instead of improvising a
 route: **`doctor-universal-plugin`** reports what is declared, built, stale, or drifting; **`version`** moves the
-number; **`remove-plugin`** deletes derived manifests or the plugin itself.
+number; **`remove-plugin`** deletes derived manifests or the plugin itself; and the **`dependency`** skill of
+`cyber-agentkit` (`dependency doctor`) says whether the declared dependencies are installed. This skill only
+edits the declaration.
 
 Every route ends in the same two commands. Scaffold with this skill's forwarder, which runs the checkout's CLI or the release pinned to this skill's version:
 
@@ -278,6 +281,7 @@ This skill is not a formatter. If the project has one, run it over the written f
 | Make the repository installable, and document how | `marketplace` |
 | Move the plugin's version, or reconcile one that drifted | `version` |
 | Delete derived manifests, or the whole plugin | `remove-plugin` |
+| Check whether the declared dependencies are installed | `cyber-agentkit:dependency` (`dependency doctor`) |
 | Move a repo-root plugin into its npm package | `migrate-plugin` |
 | Publish a packaged plugin to the marketplace | `publish-plugin` |
 | Bump the pinned `universal-plugin@<version>` the project *calls* (not the plugin's own version) | `upgrade-plugin` |
@@ -301,3 +305,6 @@ Before reporting done, check each of these against the result. Report any that f
   manifest was hand-edited: `plugin build --check` exits 0 after the final build.
 - **C2.** No file the user authored was deleted, replaced, or rewritten before the user approved the Phase 3 plan.
 - **C3.** An adoption's reply names every non-spec field it dropped, by name and value.
+- **C4.** A dependency the request adds, changes, or removes is written, in that form, under
+  `extensions["io.github.cyber-uni.plugin-manager"].dependencies` in root `plugin.json`, and
+  `extensions["org.cyberuni.universal-plugin"]` holds no `dependencies` list.

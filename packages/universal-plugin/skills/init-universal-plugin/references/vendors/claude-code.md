@@ -67,8 +67,11 @@ vendor docs before relying on it.
 Claude Code is the only runtime that reads a plugin dependency, and it acts on one: it installs a
 missing dependency, enables it alongside the plugin that needs it, prunes it once nothing needs it,
 and refuses to load a plugin whose declared range the installed version does not satisfy. Declare it
-once, canonically, under `extensions["org.cyberuni.universal-plugin"].dependencies` — not under
-`harnesses["claude-code"]` (ADR-0013):
+once, canonically, under `extensions["io.github.cyber-uni.plugin-manager"].dependencies` — not under
+`harnesses["claude-code"]`. A plugin built before that key carries the list at
+`extensions["org.cyberuni.universal-plugin"].dependencies`, which the build still reads.
+[`update.md`](../update.md#add-change-or-remove-a-dependency) has the steps to add, change, remove, or
+move an entry:
 
 ```json
 "dependencies": ["cyber-asana", { "name": "cyber-notion", "marketplace": "cyberuni", "version": "^0.9.0" }]

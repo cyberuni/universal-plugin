@@ -9,6 +9,14 @@ trigger:
     expect: fire
   - prompt: add Codex support to this plugin
     expect: fire
+  - prompt: add tracer@acme to my plugin's declared dependencies
+    expect: fire
+  - prompt: drop cyber-notion from this plugin's dependencies
+    expect: fire
+  - prompt: make my plugin require cyber-asana ^1.0.0 instead of any version
+    expect: fire
+  - prompt: are all the plugins my plugin depends on installed?
+    expect: skip
   - prompt: regenerate the vendor manifests after my change
     expect: skip
   - prompt: bump the plugin version to 1.2.0
@@ -35,6 +43,13 @@ outcome:
     files: files/legacy-root
     criteria: [C3]
     network: [registry.npmjs.org]
+  - id: add-dependency
+    prompt: >-
+      Add tracer@acme to the declared dependencies of the plugin in the cwd. I approve each step;
+      don't ask again.
+    files: files/canonical
+    criteria: [C4]
+    network: [registry.npmjs.org]
 rubrics:
   C1:
     - script: 'grep -q cursor plugin.json && test -f .cursor-plugin/plugin.json'
@@ -45,3 +60,9 @@ rubrics:
     - regex: 'category'
     - regex: 'productivity'
     - regex: 'tags'
+  C4:
+    - script: >-
+        node -e 'const m=require("./plugin.json").extensions;
+        const d=(m["io.github.cyber-uni.plugin-manager"]||{}).dependencies||[];
+        const ok=d.some(e=>e==="tracer@acme"||(e&&e.name==="tracer"&&e.marketplace==="acme"));
+        process.exit(ok&&!("dependencies" in m["org.cyberuni.universal-plugin"])?0:1)'

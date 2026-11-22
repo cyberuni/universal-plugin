@@ -50,7 +50,10 @@ lives under one namespaced key, `extensions["org.cyberuni.universal-plugin"]`:
 | `vendors` | the build targets. When absent, the `harnesses` keys are the targets |
 | `harnesses` | per-vendor overrides, keyed by vendor id. `{}` opts in with no overrides |
 | component paths (`skills`, `commands`, `agents`, `hooks`, …) | where each component lives |
-| `dependencies` | the plugins this plugin needs. Only Claude Code reads them; see [`vendors/claude-code.md`](./vendors/claude-code.md) |
+
+The plugins this plugin needs sit under a second key, shared with cyber-agentkit:
+`extensions["io.github.cyber-uni.plugin-manager"].dependencies`. Only Claude Code reads them; see
+[`vendors/claude-code.md`](./vendors/claude-code.md#dependencies).
 
 `packagePath` does not belong here. The npm package whose `package.json` carries the same version is
 named in `.agents/universal-plugin.json` beside `plugin.json`, as a path relative to the plugin root

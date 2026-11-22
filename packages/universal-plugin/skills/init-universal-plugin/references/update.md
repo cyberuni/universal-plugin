@@ -29,3 +29,39 @@ node <this skill's folder>/scripts/universal-plugin.mjs plugin build
    table and which runtimes each one reaches.
 2. Scaffold or delete the corresponding files.
 3. Rebuild to regenerate all vendor manifests.
+
+## Add, change, or remove a dependency
+
+A dependency is another plugin this one needs. Declare the list once, in root `plugin.json`, at
+`extensions["io.github.cyber-uni.plugin-manager"].dependencies`. That key is shared with
+cyber-agentkit, which reads the same list to say whether the dependencies are installed. The build
+turns it into Claude Code's `dependencies`, the one runtime that reads it
+([`vendors/claude-code.md`](./vendors/claude-code.md#dependencies)).
+
+```json
+"extensions": {
+  "io.github.cyber-uni.plugin-manager": {
+    "dependencies": ["cyber-asana", "tracer@acme", { "name": "cyber-notion", "marketplace": "cyberuni", "version": "^0.9.0" }]
+  },
+  "org.cyberuni.universal-plugin": { "vendors": ["claude-code"] }
+}
+```
+
+1. **Add.** Append the entry. Write `"<name>"` for a plugin in this plugin's own marketplace, and
+   `"<name>@<marketplace>"` for one in another. Use the object form when the request names a version
+   range or a commit: `{ "name", "marketplace", "version" }`, or `sha` in place of `version`. Never put
+   a range in the string (`"tracer@acme@^1.0.0"`): Claude Code accepts it and then drops the range.
+2. **Change.** Edit the entry in place. Moving to a range or a pin turns a string into the object
+   form; dropping both turns it back into a string.
+3. **Remove.** Delete the entry. Delete the `dependencies` key once the list is empty, and the
+   `io.github.cyber-uni.plugin-manager` object once it holds nothing else.
+4. **Move an older list.** A plugin built before that key carries its list at
+   `extensions["org.cyberuni.universal-plugin"].dependencies`. When the request edits the list, move
+   every entry to the new key and delete the old one, so the plugin declares one list. Say that you
+   moved it.
+5. Rebuild, then read `dependencies` in `.claude-plugin/plugin.json`: it lists each entry as
+   declared. A build warning that names a dependency the refreshed marketplace catalog cannot
+   resolve is the user's to settle; relay it.
+
+A dependency in another marketplace installs only when the root marketplace allows it, in
+`allowCrossMarketplaceDependenciesOn`. That is the `marketplace` skill's setting.
