@@ -1,6 +1,6 @@
 ---
 name: init-universal-plugin
-description: Use this skill to create or change a universal agent plugin — scaffold a new one, adopt an existing vendor-specific plugin or already-shipped skills onto the open Agent Plugins Specification, or add and remove vendors and components on the canonical plugin.json that drives Claude Code, Cursor, Codex, and GitHub Copilot CLI. Trigger on "init a plugin here", "make my Claude Code plugin work in Cursor", "convert this to the open plugin standard", "turn these skills into a plugin", "add Codex support", or "add a hooks component".
+description: Creates or changes a universal agent plugin's canonical plugin.json. Scaffold a new plugin, adopt an existing vendor-specific plugin or already-shipped skills onto the open Agent Plugins Specification, add and remove vendors and components for Claude Code, Cursor, Codex, and GitHub Copilot CLI, or add, change, and remove the plugins it depends on. "Init a plugin here", "make my Claude Code plugin work in Cursor", "convert this to the open plugin standard", "turn these skills into a plugin", "add Codex support", "add a hooks component", or "add tracer@acme to my plugin's declared dependencies".
 argument-hint: '[--name <name>] [--vendor <id>] [--scaffold] [--npm] [--no-marketplace] [--force]'
 ---
 
@@ -96,7 +96,7 @@ Sort each finding into exactly one bucket:
   `.cursor/rules/`). It is this project's own tooling, not something it distributes. Say nothing
   about packaging it.
 
-`references/detection.md` maps each signal to its bucket, and draws the public-versus-private line
+[`references/detection.md`](./references/detection.md) maps each signal to its bucket, and draws the public-versus-private line
 that decides the last two.
 
 ## 3. Confirm
@@ -154,49 +154,18 @@ plan and show the file; if the user declines, add `--no-changesets` to the init 
 notes: a plugin below the repository root must be a workspace package, and `.changeset/config.json`
 needs `"privatePackages": { "version": true, "tag": true }` before `changeset publish` tags anything.
 
-A plugin released with **semantic-release** gets the release wiring as a plan line too.
-`plugin init` writes nothing for it, so the skill edits the config itself, once the user approves.
-Add `@semantic-release/exec` with
-`prepareCmd: "universal-plugin plugin version ${nextRelease.version}"`, and add
-`@semantic-release/git` with the stamped files as `assets`. For a plugin that ships to no npm
-package, also drop `@semantic-release/npm`: `npmPublish: false` is not enough, because the plugin
-still edits `package.json`. Show the `plugins` list before and after, and edit the config file the
-survey found, in its own format. [`references/release-tools.md`](./references/release-tools.md) has
-the config, the plugin order, the full `assets` list, and the packages the release job must
-install. If the user declines, leave the config alone.
-
-A plugin released with **release-it** gets its wiring as a plan line as well. Add an `after:bump`
-hook running `universal-plugin plugin version ${version}`, after any hook the user already has. For a
-plugin that ships to no npm package, also set `"npm": false`, and run the hook through the pinned
-`npx universal-plugin@0.23.1`. release-it then reads the current number from the latest git tag,
-so when `git describe --tags` finds none, propose tagging the current commit with the version
-`plugin.json` holds (`git tag v1.2.0`). Without that tag the first release starts from `0.0.0` and
-fails. Create the tag only once the user approves, and leave pushing it to the user.
-
-A plugin released with **release-please** gets its wiring as a plan line too. For a plugin that
-ships to no npm package, write `release-please-config.json` with `release-type: simple` and an
-`extra-files` entry bumping `plugin.json`. Put the version `plugin.json` holds in
-`.release-please-manifest.json`, so the first release PR starts from it. The restamp runs in a
-workflow step on the release PR and pushes with a GitHub App token, so the PR's checks run. Show that
-step and the App setup, and hand both to the user.
-
-[`references/release-tools.md`](./references/release-tools.md) has the configs for release-it and
-release-please, the npm-shipped variants, and the tag and manifest checks. Show each file before and
-after. If the user declines, leave the config alone.
+A plugin released with **semantic-release**, **release-it**, or **release-please** gets its release
+wiring as a plan line too. `plugin init` writes nothing for these tools, so the skill edits the config
+the survey found, in its own format, once the user approves.
+[`references/release-tools.md`](./references/release-tools.md) has each tool's wiring, the variants
+for a plugin that ships to no npm package, and the initial tag and manifest checks. Show each file
+before and after. If the user declines, leave the config alone.
 
 When the survey found **no** release tool, ask the user how the plugin will be released before
-running init. A new repository may simply not have set one up yet:
-
-- **changesets.** Set up `.changeset/` first (`buddy-changesets:init-changesets` when it is
-  installed, else `npx @changesets/cli init`), then run init. It then finds `.changeset/` and writes
-  the private `package.json` above.
-- **semantic-release.** Propose a new `.releaserc.json` carrying the wiring above, and write it once
-  the user approves. No `package.json` is needed.
-- **release-it.** Propose a new `.release-it.json` carrying the wiring above, with the initial tag
-  for a plugin that ships to no npm package. Write it once the user approves.
-- **release-please.** Propose `release-please-config.json` and `.release-please-manifest.json` as
-  above, and hand over the workflow step. Write them once the user approves.
-- **None.** Run init as planned. The author picks each number with `version`.
+running init: changesets (set up `.changeset/` first, with `buddy-changesets:init-changesets` when it
+is installed, else `npx @changesets/cli init`), semantic-release, release-it, or release-please (each
+proposed as a new config per `release-tools.md`), or none (the author picks each number with
+`version`).
 
 ## 4. Apply
 
@@ -207,11 +176,14 @@ Route by what Phase 2 found. Read exactly the reference for the work at hand —
 | nothing — greenfield | scaffold a canonical manifest and its components | [`references/create.md`](./references/create.md) |
 | adoptable | carry it onto the canonical manifest, losslessly | [`references/adopt.md`](./references/adopt.md) |
 | canonical, and a vendor or component changes | edit `extensions`, then rebuild | [`references/update.md`](./references/update.md) |
+| canonical, and a dependency is added, changed, or removed | edit `extensions["io.github.cyber-uni.plugin-manager"].dependencies`, then rebuild | [`references/update.md`](./references/update.md#add-change-or-remove-a-dependency) |
 | canonical, and a skill runs the plugin's own CLI, or another package's | add a CLI forwarder: declare `{ "forward": "<bin>" }` under `scripts`, build, rewrite the skill's runner lines to `node <this skill's folder>/scripts/<bin>.mjs` | [`references/cli-forwarder.md`](./references/cli-forwarder.md) |
 
-Three asks leave this skill rather than routing inside it. Hand them over instead of improvising a
+Four asks leave this skill rather than routing inside it. Hand them over instead of improvising a
 route: **`doctor-universal-plugin`** reports what is declared, built, stale, or drifting; **`version`** moves the
-number; **`remove-plugin`** deletes derived manifests or the plugin itself.
+number; **`remove-plugin`** deletes derived manifests or the plugin itself; and the **`dependency`** skill of
+`cyber-agentkit` (`dependency doctor`) says whether the declared dependencies are installed. This skill only
+edits the declaration.
 
 Every route ends in the same two commands. Scaffold with this skill's forwarder, which runs the checkout's CLI or the release pinned to this skill's version:
 
@@ -309,6 +281,7 @@ This skill is not a formatter. If the project has one, run it over the written f
 | Make the repository installable, and document how | `marketplace` |
 | Move the plugin's version, or reconcile one that drifted | `version` |
 | Delete derived manifests, or the whole plugin | `remove-plugin` |
+| Check whether the declared dependencies are installed | `cyber-agentkit:dependency` (`dependency doctor`) |
 | Move a repo-root plugin into its npm package | `migrate-plugin` |
 | Publish a packaged plugin to the marketplace | `publish-plugin` |
 | Bump the pinned `universal-plugin@<version>` the project *calls* (not the plugin's own version) | `upgrade-plugin` |
@@ -323,3 +296,15 @@ This skill is not a formatter. If the project has one, run it over the written f
 - Extension schema (the body of `extensions["org.cyberuni.universal-plugin"]`), shipped in the package at
   `schema/extension.schema.json`: https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/schema/extension.schema.json
 - Examples: https://github.com/cyberuni/universal-plugin/tree/main/examples
+
+## Done when
+
+Before reporting done, check each of these against the result. Report any that fails.
+
+- **C1.** Every change landed in the root `plugin.json` or the component files it names, and no derived vendor
+  manifest was hand-edited: `plugin build --check` exits 0 after the final build.
+- **C2.** No file the user authored was deleted, replaced, or rewritten before the user approved the Phase 3 plan.
+- **C3.** An adoption's reply names every non-spec field it dropped, by name and value.
+- **C4.** A dependency the request adds, changes, or removes is written, in that form, under
+  `extensions["io.github.cyber-uni.plugin-manager"].dependencies` in root `plugin.json`, and
+  `extensions["org.cyberuni.universal-plugin"]` holds no `dependencies` list.

@@ -50,6 +50,15 @@ Plugin authoring only. Setting a repository up to *consume* skills — `AGENTS.m
 `.agents/skills/` layout, per-harness bridges — is `buddy-agent-harness:init-buddy-agent-harness`. This skill does not
 touch CI, repository settings, or unrelated project files.
 
+## Research
+
+The skill predates its research record; it rests on the repository's vendor findings rather than a
+search of its own. Each runtime's manifest, components, and dependency support are in
+[`.research/plugin-schema/`](https://github.com/cyberuni/universal-plugin/tree/main/.research/plugin-schema),
+and the decisions that shape the canonical manifest are the
+[ADRs](https://github.com/cyberuni/universal-plugin/tree/main/packages/universal-plugin/.agents/spec/design/decisions).
+No other skill writes the canonical manifest, so the research changed nothing in the Intent.
+
 ## References
 
 - [Spec](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/spec.md)

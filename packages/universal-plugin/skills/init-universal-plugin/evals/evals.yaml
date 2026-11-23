@@ -1,0 +1,68 @@
+runs: 3
+threshold: 2
+trigger:
+  - prompt: init a plugin here
+    expect: fire
+  - prompt: make my Claude Code plugin work in Cursor
+    expect: fire
+  - prompt: turn these skills into a plugin
+    expect: fire
+  - prompt: add Codex support to this plugin
+    expect: fire
+  - prompt: add tracer@acme to my plugin's declared dependencies
+    expect: fire
+  - prompt: drop cyber-notion from this plugin's dependencies
+    expect: fire
+  - prompt: make my plugin require cyber-asana ^1.0.0 instead of any version
+    expect: fire
+  - prompt: are all the plugins my plugin depends on installed?
+    expect: skip
+  - prompt: regenerate the vendor manifests after my change
+    expect: skip
+  - prompt: bump the plugin version to 1.2.0
+    expect: skip
+  - prompt: publish my plugin to the cyber-uni marketplace
+    expect: skip
+  - prompt: delete the generated vendor manifests
+    expect: skip
+outcome:
+  - id: add-vendor
+    prompt: Add Cursor support to the plugin in the cwd. I approve each step; don't ask again.
+    files: files/canonical
+    criteria: [C1]
+    network: [registry.npmjs.org]
+  - id: adopt-unapproved
+    prompt: Put the plugin in the cwd onto the open plugin standard.
+    files: files/legacy-root
+    criteria: [C2]
+    network: [registry.npmjs.org]
+  - id: adopt-drops
+    prompt: >-
+      Put the plugin in the cwd onto the open plugin standard for Claude Code. I approve each step;
+      don't ask again.
+    files: files/legacy-root
+    criteria: [C3]
+    network: [registry.npmjs.org]
+  - id: add-dependency
+    prompt: >-
+      Add tracer@acme to the declared dependencies of the plugin in the cwd. I approve each step;
+      don't ask again.
+    files: files/canonical
+    criteria: [C4]
+    network: [registry.npmjs.org]
+rubrics:
+  C1:
+    - script: 'grep -q cursor plugin.json && test -f .cursor-plugin/plugin.json'
+    - script: 'node -e "process.exit(require(\"./.claude-plugin/plugin.json\").name === \"git-summary\" ? 0 : 1)"'
+  C2:
+    - script: 'test -z "$(git status --porcelain -- plugin.json)"'
+  C3:
+    - regex: 'category'
+    - regex: 'productivity'
+    - regex: 'tags'
+  C4:
+    - script: >-
+        node -e 'const m=require("./plugin.json").extensions;
+        const d=(m["io.github.cyber-uni.plugin-manager"]||{}).dependencies||[];
+        const ok=d.some(e=>e==="tracer@acme"||(e&&e.name==="tracer"&&e.marketplace==="acme"));
+        process.exit(ok&&!("dependencies" in m["org.cyberuni.universal-plugin"])?0:1)'

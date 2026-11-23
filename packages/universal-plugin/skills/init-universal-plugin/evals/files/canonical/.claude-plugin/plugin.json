@@ -1,0 +1,12 @@
+{
+	"name": "git-summary",
+	"version": "0.2.0",
+	"description": "Summarize git history.",
+	"author": {
+		"name": "Example Author"
+	},
+	"homepage": "https://github.com/example-org/git-summary",
+	"repository": "https://github.com/example-org/git-summary",
+	"license": "MIT",
+	"skills": "./skills/"
+}

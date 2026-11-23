@@ -1,0 +1,12 @@
+{
+	"name": "git-summary",
+	"version": "0.2.0",
+	"description": "Summarize git history.",
+	"author": {
+		"name": "Example Author"
+	},
+	"license": "MIT",
+	"category": "productivity",
+	"tags": ["git", "summary"],
+	"skills": "./skills/"
+}

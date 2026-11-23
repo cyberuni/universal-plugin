@@ -63,7 +63,7 @@ What Codex reads from `.codex-plugin/plugin.json` depends on the root `plugin.js
 
 - **Root declares the canonical `$schema`** (`https://agent-plugins.org/schemas/1.0.0/plugin.schema.json`,
   the normal universal-plugin layout). Codex reads root `plugin.json` as an Agent Plugins manifest,
-  takes skills from `./skills` and MCP servers from `./mcp.json`, and uses `.codex-plugin/plugin.json`
+  takes skills from `./skills` and MCP servers from its `mcp.json`, and uses `.codex-plugin/plugin.json`
   only as an overlay for `apps`, `hooks`, and `interface`. Any other key there is ignored, and
   commands are not read at all.
 - **Root has no `$schema`**. `.codex-plugin/plugin.json` is the manifest. Codex reads `skills`,
