@@ -58,7 +58,9 @@ turns it into Claude Code's `dependencies`, the one runtime that reads it
 4. **Move an older list.** A plugin built before that key carries its list at
    `extensions["org.cyberuni.universal-plugin"].dependencies`. When the request edits the list, move
    every entry to the new key and delete the old one, so the plugin declares one list. Say that you
-   moved it.
+   moved it. While both keys declare a list, the build reads only the new one and warns that the old
+   one is ignored
+   ([ADR-0024](https://github.com/cyberuni/universal-plugin/blob/main/packages/universal-plugin/.agents/spec/design/decisions/0024-dependencies-under-the-plugin-manager-key.md)).
 5. Rebuild, then read `dependencies` in `.claude-plugin/plugin.json`: it lists each entry as
    declared. A build warning that names a dependency the refreshed marketplace catalog cannot
    resolve is the user's to settle; relay it.

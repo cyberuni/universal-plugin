@@ -69,7 +69,8 @@ missing dependency, enables it alongside the plugin that needs it, prunes it onc
 and refuses to load a plugin whose declared range the installed version does not satisfy. Declare it
 once, canonically, under `extensions["io.github.cyber-uni.plugin-manager"].dependencies` — not under
 `harnesses["claude-code"]`. A plugin built before that key carries the list at
-`extensions["org.cyberuni.universal-plugin"].dependencies`, which the build still reads.
+`extensions["org.cyberuni.universal-plugin"].dependencies`, which the build reads when the new key
+declares none (ADR-0024).
 [`update.md`](../update.md#add-change-or-remove-a-dependency) has the steps to add, change, remove, or
 move an entry:
 
