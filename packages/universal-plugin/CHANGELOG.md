@@ -1,5 +1,42 @@
 # universal-plugin
 
+## 0.24.0
+
+### Minor Changes
+
+- 6e7b2e3: `plugin build` reads a plugin's dependencies from `extensions["io.github.cyber-uni.plugin-manager"].dependencies`, the key cyber-agentkit reads (ADR 0024). `extensions["org.cyberuni.universal-plugin"].dependencies` is still read when the new key declares none, so existing plugins build as before. When both declare a list, the new key wins and the build warns that the old list is ignored. `plugin validate` and `marketplace validate` read the same key.
+- 59ce7d3: The `init-universal-plugin` skill adds, changes, and removes the plugins a plugin depends on. It writes them in root
+  `plugin.json` under `extensions["io.github.cyber-uni.plugin-manager"].dependencies`, moves a list it finds under
+  `org.cyberuni.universal-plugin` to that key, and hands checking whether they are installed to cyber-agentkit's
+  `dependency doctor`.
+- b8d7a9d: Add `marketplace remove <name>` and `marketplace set`.
+  
+  `marketplace remove` drops an entry from every catalog that lists it and keeps the rest of each
+  catalog as it was. It refuses when a listed plugin still depends on the entry; `--force` removes it
+  anyway and names what broke.
+  
+  `marketplace set` edits a catalog's own fields in place: `--allow-dependencies-on` and
+  `--disallow-dependencies-on` change `allowCrossMarketplaceDependenciesOn`, and `--description`,
+  `--owner`, `--owner-email`, and `--owner-url` change the description and owner. Each runtime's
+  catalog gets only the fields it carries.
+  
+  A dependency check that finds a cross-marketplace dependency the catalog does not allow now names
+  the `marketplace set --allow-dependencies-on` command that fixes it. `marketplace init --force`
+  warns about each hand-set field and entry it drops.
+
+### Patch Changes
+
+- 58a635d: `build-plugin` skill: add a `## Done when` list, an `argument-hint`, and evals, and shorten its description's opening sentence, so it passes `/skill check`.
+- c77b246: fix(build): a `scripts` entry the build refuses while reading it, such as a forwarder not named `<bin>.mjs`, now reports a `failed` row and fails `plugin build` and `plugin build --check`, where it was only warned about and dropped ([#304](https://github.com/cyberuni/universal-plugin/issues/304)).
+- afef190: The CLI forwarder now runs `npx` when the bin builds its import path at run time, such as
+  ``import(`../${out}/cli.js`)``. That path names no file the forwarder can check, so a git install
+  without build output ran the checkout and crashed. Write the bin's import as a literal to run the
+  checkout.
+- 59ce7d3: The `init-universal-plugin` skill passes the skill check: its description opens with what it does, it lists its
+  `## Done when` criteria and ships the evals that test them, and its release-tool wiring now lives only in
+  `references/release-tools.md`.
+- 58a635d: `version` skill: quote its description so the front matter is valid YAML.
+
 ## 0.23.1
 
 ### Patch Changes
