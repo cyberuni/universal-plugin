@@ -1,6 +1,6 @@
 import * as path from 'node:path'
 
-import { catalogDependencyIssues } from '../dependencies/dependencies.js'
+import { catalogDependencyIssues, readDeclaredDependencies } from '../dependencies/dependencies.js'
 import { type MarketplaceFs, realMarketplaceFs } from './fs.js'
 import {
 	CLAUDE_CATALOG_READERS,
@@ -62,14 +62,14 @@ function readJsonObject(fs: MarketplaceFs, file: string): Record<string, unknown
 
 /** The dependencies a plugin kept in this repository declares, read from the files on disk: the
  *  derived `.claude-plugin/plugin.json` Claude Code loads, or — before a build has written it — the
- *  canonical declaration under the universal-plugin extension. */
+ *  canonical declaration under the plugin-manager extension, else the universal-plugin one (ADR-0024). */
 function localPluginDependencies(fs: MarketplaceFs, pluginRoot: string): unknown {
 	const derived = readJsonObject(fs, path.join(pluginRoot, '.claude-plugin', 'plugin.json'))
 	if (derived !== undefined) return derived.dependencies
 	const canonical = readJsonObject(fs, path.join(pluginRoot, 'plugin.json'))
 	const extension = (canonical?.extensions as Record<string, Record<string, unknown>> | undefined)?.[UP_NAMESPACE]
 	const harness = (extension?.harnesses as Record<string, Record<string, unknown>> | undefined)?.['claude-code']
-	return harness?.dependencies ?? extension?.dependencies
+	return harness?.dependencies ?? readDeclaredDependencies(canonical?.extensions).declaration
 }
 
 /** Claude Code resolves a plain dependency name through the catalog its dependent was installed

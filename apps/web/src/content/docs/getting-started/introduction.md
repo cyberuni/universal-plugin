@@ -54,7 +54,7 @@ Build merges and strips. Apart from the hooks file, it does not rewrite the cont
 - **Hooks** are derived per vendor from one canonical hooks file with PascalCase event names. Claude Code, Codex, and Copilot CLI read PascalCase; Cursor gets camelCase event names and its own flat file shape. A handler type a vendor cannot run is dropped from that vendor's file, and the build warns for each one. A vendor whose form differs from the canonical file gets its own `hooks.json` beside its manifest, and Copilot CLI reads its copy from `com.github.copilot/hooks/hooks.json`.
 - **Skill invocation policy** is projected. A skill declaring `invocation-policy` gets the matching Claude Code frontmatter flag written into its `SKILL.md`. Codex invokes skills natively, so it needs nothing extra, and the build writes nothing outside the plugin tree.
 
-- **Plugin dependencies** declared under `extensions["org.cyberuni.universal-plugin"].dependencies` reach Claude Code, the only runtime that reads one. Every other vendor's manifest is built without them, and the build says which ones it dropped. See [build](../../cli/build/#plugin-dependencies).
+- **Plugin dependencies** declared under `extensions["io.github.cyber-uni.plugin-manager"].dependencies` reach Claude Code, the only runtime that reads one. Every other vendor's manifest is built without them, and the build says which ones it dropped. See [build](../../cli/build/#plugin-dependencies).
 
 A `harnesses` entry for `copilot-cli` is the one merge that goes nowhere. That vendor reads the canonical manifest directly, and the canonical schema is closed, so the build warns instead of delivering the field.
 

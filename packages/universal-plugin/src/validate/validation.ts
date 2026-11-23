@@ -9,7 +9,7 @@
  *
  *  Pure domain code: the manifest is handed in already parsed. */
 
-import { validateDependencies } from '../dependencies/dependencies.js'
+import { readDeclaredDependencies, validateDependencies } from '../dependencies/dependencies.js'
 
 export const SCHEMA_URL = 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json'
 
@@ -154,11 +154,13 @@ function schemaRuleViolations(manifest: unknown, warnings: string[]): Violation[
 			for (const [namespace, value] of Object.entries(manifest.extensions)) {
 				if (!isObject(value)) push(`extensions.${namespace}`, 'type', 'must be an object')
 			}
-			const uext = manifest.extensions[UP_NAMESPACE]
-			if (isObject(uext)) {
-				const dependencies = validateDependencies(uext.dependencies)
-				for (const error of dependencies.errors) push(`extensions.${UP_NAMESPACE}.dependencies`, 'dependencies', error)
-				warnings.push(...dependencies.warnings)
+			const declared = readDeclaredDependencies(manifest.extensions)
+			if (declared.namespace !== undefined) {
+				const dependencies = validateDependencies(declared.declaration)
+				for (const error of dependencies.errors) {
+					push(`extensions.${declared.namespace}.dependencies`, 'dependencies', error)
+				}
+				warnings.push(...declared.warnings, ...dependencies.warnings)
 			}
 		}
 	}

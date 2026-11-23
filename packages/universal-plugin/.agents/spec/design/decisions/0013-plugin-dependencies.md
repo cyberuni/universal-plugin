@@ -1,6 +1,7 @@
 # 0013 — Plugin dependencies: canonical to us, vendor-extension to the standard
 
-**Status:** accepted
+**Status:** accepted. §1's extension key superseded by
+[0024](./0024-dependencies-under-the-plugin-manager-key.md).
 **Date:** 2026-08-18
 **Extends:** [0007](./0007-adopt-agent-plugins-spec-canonical.md) — the canonical manifest is the one
 authored artifact. **Applies:** [0011](./0011-warn-and-drop-unrepresentable-hook-handlers.md) — what

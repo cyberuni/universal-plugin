@@ -19,8 +19,9 @@ The schema half follows the open standard, not a stricter house rule
 their types, and a top-level key the standard does not define (such as the pre-0.6
 `vendorExtensions` block) is a violation, because tool-specific data belongs under `extensions`.
 `version` is not a schema requirement. Codex requires it, so it is a codex vendor rule. The
-`dependencies` declaration in the `org.cyberuni.universal-plugin` namespace is checked as a schema
-violation too (ADR-0013). The rest of that namespace is not yet checked against
+`dependencies` declaration is checked as a schema violation too (ADR-0013), read from the
+`io.github.cyber-uni.plugin-manager` namespace, else the `org.cyberuni.universal-plugin` one, and
+reported against the namespace it came from (ADR-0024). The rest of that namespace is not yet checked against
 `schema/extension.schema.json`.
 
 ## Use Cases

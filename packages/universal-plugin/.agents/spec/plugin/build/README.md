@@ -204,6 +204,10 @@ not a build step.
   a plugin with no scripts (issue #86). The build never *chooses* a non-local source: an author
   opts in once with `marketplace add npm:<pkg> --force`, which writes the npm entry to the Claude
   and Codex catalogs and skips Copilot CLI and Cursor, which document local paths only.
+- **The dependency list is read from the plugin-manager key** ([ADR-0024](../../design/decisions/0024-dependencies-under-the-plugin-manager-key.md))
+  — `extensions["io.github.cyber-uni.plugin-manager"].dependencies`, shared with cyber-agentkit, else
+  `extensions["org.cyberuni.universal-plugin"].dependencies` with no warning. When both declare a
+  list, the plugin-manager key's list is delivered and the build warns that the other is ignored.
 - **Dependencies are checked against the catalogs the build refreshes** ([ADR-0018](../../design/decisions/0018-build-checks-dependencies-against-catalogs.md))
   — a bare dependency name resolves only against the marketplace its dependent is installed from, so
   a catalog that does not list it ships a plugin nobody can install (issue #147). While refreshing a
@@ -714,5 +718,7 @@ Grouped by use case; 1:1 with [`build.feature`](./build.feature).
 - ADR-0018 (this project) — dependencies checked against the catalogs the build refreshes.
 - ADR-0019 (this project) — skill script entries compiled into committed, self-contained `.mjs`.
 - ADR-0020 (this project) — launchers written as `bin/<name>`; superseded by ADR-0021.
+- ADR-0024 (this project) — the dependency list read from `io.github.cyber-uni.plugin-manager`, with
+  `org.cyberuni.universal-plugin` as the fallback.
 - ADR-0021 (this project) — skills run the plugin's own CLI through compiled per-command scripts; launchers removed. Superseded by ADR-0022.
 - ADR-0022 (this project) — skills run their plugin's CLI through one forwarding script per CLI.

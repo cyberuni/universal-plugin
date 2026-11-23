@@ -4,6 +4,7 @@ import {
 	catalogDependencyIssues,
 	type DependencyDeclaration,
 	dependencyCatalogEntries,
+	readDeclaredDependencies,
 	translateDependencies,
 	validateDependencies,
 	vendorResolvesDependencies,
@@ -285,7 +286,7 @@ export function validateManifest(manifest: PluginManifest, targets?: string[]): 
 	errors.push(...vendorRuleViolations(manifest, harnesses, checked).map((v) => v.message))
 	// Dependency shape is a canonical rule, not a vendor one: a malformed declaration is rejected by
 	// the runtime that reads it whichever vendors this build targets.
-	errors.push(...validateDependencies(uext.dependencies).errors)
+	errors.push(...validateDependencies(readDeclaredDependencies(manifest.extensions).declaration).errors)
 	return errors
 }
 
@@ -365,13 +366,17 @@ export function buildPlugin(root: string, opts: BuildOptions = {}): BuildResult 
 		vendors: _vendors,
 		packagePath: _packagePath,
 		harnesses: _harnesses,
-		dependencies: declaredDependencies,
+		dependencies: _dependencies,
 		// Compiled by `compileScripts`, after the manifests: an entry map is not a component a vendor reads.
 		scripts: _scripts,
 		// Removed with ADR-0021; kept out of every manifest and reported below.
 		launchers: leftoverLaunchers,
 		...componentConfig
 	} = uext
+	// The list is read from the plugin-manager key, else this extension's own (ADR-0024).
+	const dependencyRead = readDeclaredDependencies(manifest.extensions)
+	const declaredDependencies = dependencyRead.declaration as DependencyDeclaration[] | undefined
+	warnings.push(...dependencyRead.warnings)
 	// A declaration the runtime accepts and then discards is an invisible loss, and it is one loss to
 	// fix however many vendors are targeted.
 	warnings.push(...validateDependencies(declaredDependencies).warnings)
