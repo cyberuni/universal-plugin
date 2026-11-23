@@ -1,0 +1,253 @@
+{
+	"version": 1,
+	"skill": "init-universal-plugin",
+	"at": "2026-11-23T06:21:19.058Z",
+	"verification": "skill-design.aspects.verification from cyber-agentkit",
+	"model": "sonnet",
+	"runs": 3,
+	"threshold": 2,
+	"baseline": "without the skill",
+	"trigger": [
+		{
+			"case": "trigger-1",
+			"prompt": "init a plugin here",
+			"expect": "fire",
+			"fired": 3,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-2",
+			"prompt": "make my Claude Code plugin work in Cursor",
+			"expect": "fire",
+			"fired": 3,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-3",
+			"prompt": "turn these skills into a plugin",
+			"expect": "fire",
+			"fired": 3,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-4",
+			"prompt": "add Codex support to this plugin",
+			"expect": "fire",
+			"fired": 3,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-5",
+			"prompt": "add tracer@acme to my plugin's declared dependencies",
+			"expect": "fire",
+			"fired": 3,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-6",
+			"prompt": "drop cyber-notion from this plugin's dependencies",
+			"expect": "fire",
+			"fired": 3,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-7",
+			"prompt": "make my plugin require cyber-asana ^1.0.0 instead of any version",
+			"expect": "fire",
+			"fired": 3,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-8",
+			"prompt": "are all the plugins my plugin depends on installed?",
+			"expect": "skip",
+			"fired": 0,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-9",
+			"prompt": "regenerate the vendor manifests after my change",
+			"expect": "skip",
+			"fired": 0,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-10",
+			"prompt": "bump the plugin version to 1.2.0",
+			"expect": "skip",
+			"fired": 0,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-11",
+			"prompt": "publish my plugin to the cyber-uni marketplace",
+			"expect": "skip",
+			"fired": 0,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-12",
+			"prompt": "delete the generated vendor manifests",
+			"expect": "skip",
+			"fired": 0,
+			"ran": 3,
+			"status": "pass"
+		}
+	],
+	"criteria": [
+		{
+			"id": "C1",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"baseline": {
+				"passed": 3,
+				"ran": 3
+			}
+		},
+		{
+			"id": "C2",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"baseline": {
+				"passed": 3,
+				"ran": 3
+			}
+		},
+		{
+			"id": "C3",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"baseline": {
+				"passed": 0,
+				"ran": 3
+			}
+		},
+		{
+			"id": "C4",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"baseline": {
+				"passed": 0,
+				"ran": 3
+			}
+		}
+	],
+	"cases": [
+		{
+			"case": "trigger-1",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "trigger-2",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "trigger-3",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "trigger-4",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "trigger-5",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "trigger-6",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "trigger-7",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "trigger-8",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "trigger-9",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "trigger-10",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "trigger-11",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "trigger-12",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "add-vendor",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "adopt-unapproved",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "adopt-drops",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "add-dependency",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		}
+	],
+	"notRun": [],
+	"cost": 4.5682,
+	"durationMs": 121919,
+	"totalRuns": 60,
+	"noPrevious": true
+}
