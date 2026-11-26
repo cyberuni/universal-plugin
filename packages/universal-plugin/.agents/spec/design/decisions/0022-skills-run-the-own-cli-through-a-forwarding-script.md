@@ -65,7 +65,12 @@ written. The choice has to be made in code.
    - **Stale warning.** It warns on stderr when the build output is older than the newest file
      under `src/`. The build output is the top folder of the checkout where the first import that
      leaves the bin's own top folder lands, such as `dist/` or `esm/`. With no such import the bin may
-     be hand-written, so the script cannot tell and does not warn.
+     be hand-written, so the script cannot tell and does not warn. It checks only in a development
+     checkout: a `.git` entry (a folder, or a worktree's file) at or above the package folder, with no
+     `node_modules` folder on the way. An installed copy, such as a plugin cache or an npm install,
+     has mtimes from the order the installer copied its files, so there the check fires on output
+     that matches its source ([issue #316](https://github.com/cyberuni/universal-plugin/issues/316)).
+     The warning says the CLI ran anyway, so nobody reads it as a refusal.
    - **Otherwise** (an installed skill, a copied skill folder, a plugin cache, an unbuilt checkout):
      `npx -y <package>@<version> <args>`.
    - Every argument passes through unchanged, stdio is inherited, and the script exits with the

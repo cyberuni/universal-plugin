@@ -345,7 +345,9 @@ not a build step.
     as a bin that cannot load (issue #303). It warns on stderr
     when the build output is older than the newest file under `src/`; the build output is the top
     folder of the checkout where the first such import that leaves the bin's own top folder lands
-    (`dist/`, `esm/`), and with no such import it does not warn. With no such `package.json`, or a bin
+    (`dist/`, `esm/`), and with no such import it does not warn. It warns only in a development
+    checkout, a `.git` entry at or above the package folder with no `node_modules` on the way, since
+    an installed copy's mtimes follow copy order (issue #316). With no such `package.json`, or a bin
     that cannot load, it runs `npx -y <package>@<version>`. Every argument, stdio
     and the exit code pass through; on Windows `npx` runs as `npx.cmd` through the shell, each
     argument quoted.
@@ -671,6 +673,7 @@ Grouped by use case; 1:1 with [`build.feature`](./build.feature).
 | guard: no package | `packagePath` set only in `plugin.json` | `a forward entry for a plugin that ships to no package fails the build` |
 | run: dev checkout | the script inside a checkout of the package | `the forwarder runs the checkout's bin with node` |
 | run: stale output | `src/` newer than the folder the bin imports | `the forwarder warns when the build output is older than src` |
+| run: installed copy | stale mtimes in a copy with no `.git` above it | `the forwarder does not warn in an installed copy` |
 | run: unknown output | the bin imports nothing outside its folder | `the forwarder does not warn when it cannot tell the build output` |
 | run: unbuilt | a git-sourced install: the bin imports build output that is not there | `an unbuilt checkout runs the pinned package through npx` |
 | run: copied | the script copied out of any checkout | `a copied forwarder runs the pinned package through npx` |

@@ -79,10 +79,24 @@ function readJson(file) {
 function runCheckout({ dir, target, imports }) {
 	const output = buildOutput(dir, target, imports)
 	const src = path.join(dir, 'src')
-	if (output && fs.existsSync(src) && newest(src) > newest(path.join(dir, output))) {
-		process.stderr.write(`${bin}: ${output}/ in ${dir} is older than src/ — rebuild to run your change\n`)
+	if (output && isDevCheckout(dir) && fs.existsSync(src) && newest(src) > newest(path.join(dir, output))) {
+		process.stderr.write(`${bin}: ${output}/ in ${dir} is older than src/; ran it anyway — rebuild to run your change\n`)
 	}
 	return spawnSync(process.execPath, [target, ...args], { stdio: 'inherit' })
+}
+
+/** Whether the package folder is a development checkout: a `.git` entry (a folder, or a worktree's
+ *  file) at or above it, with no `node_modules` on the way. An installed copy, such as a plugin cache
+ *  or an npm install, has mtimes from the order it was copied, so comparing them there only misleads
+ *  (issue #316). */
+function isDevCheckout(dir) {
+	for (;;) {
+		if (path.basename(dir) === 'node_modules') return false
+		if (fs.existsSync(path.join(dir, '.git'))) return true
+		const parent = path.dirname(dir)
+		if (parent === dir) return false
+		dir = parent
+	}
 }
 
 /** The top folder of the checkout that holds the build output: where the first import leaving the

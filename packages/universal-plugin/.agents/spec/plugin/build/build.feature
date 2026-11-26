@@ -1155,9 +1155,19 @@ Feature: plugin build — derive per-vendor manifests
 
   Scenario: the forwarder warns when the build output is older than src
     Given that checkout's bin imports "../esm/cli.mjs"
+    And the checkout has a ".git" entry at or above the package folder
     And it has a file under "src/" newer than everything under "esm/"
     When I run the forwarder
     Then stderr warns that "esm/" is older than src
+    And stderr says the CLI ran anyway
+    And the checkout's bin still runs
+
+  Scenario: the forwarder does not warn in an installed copy
+    Given that checkout's bin imports "../esm/cli.mjs"
+    And no ".git" entry exists at or above the package folder, or a "node_modules" folder lies on the way
+    And it has a file under "src/" newer than everything under "esm/"
+    When I run the forwarder
+    Then stderr is empty
     And the checkout's bin still runs
 
   Scenario: the forwarder does not warn when it cannot tell the build output
