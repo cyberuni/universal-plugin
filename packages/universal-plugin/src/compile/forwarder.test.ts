@@ -186,8 +186,9 @@ describe('the forwarder at run time', () => {
 	})
 
 	for (const output of ['dist', 'esm']) {
-		it(`warns when ${output}/, the folder the bin imports, is older than src, and still runs the bin`, () => {
+		it(`warns in a dev checkout when ${output}/, the folder the bin imports, is older than src, and still runs the bin`, () => {
 			builtCheckout('pkg', output)
+			fs.mkdirSync(path.join(dir, 'pkg/.git'))
 			write('pkg/src/cli.ts', '')
 			const past = new Date(Date.now() - 60_000)
 			fs.utimesSync(path.join(dir, `pkg/${output}/cli.mjs`), past, past)
@@ -196,9 +197,53 @@ describe('the forwarder at run time', () => {
 			const result = run('pkg/skills/demo/scripts/demo.mjs', ['x'])
 
 			expect(result.stderr).toMatch(new RegExp(`${output}/ in .* is older than src/`))
+			expect(result.stderr).toMatch(/ran it anyway/)
 			expect(result.stdout).toEqual({ cli: ['x'] })
 		})
 	}
+
+	it('warns when the package sits in a monorepo whose .git is above it, as a worktree .git file', () => {
+		builtCheckout('repo/packages/pkg', 'dist')
+		write('repo/.git', 'gitdir: /elsewhere/.git/worktrees/repo\n')
+		write('repo/packages/pkg/src/cli.ts', '')
+		const past = new Date(Date.now() - 60_000)
+		fs.utimesSync(path.join(dir, 'repo/packages/pkg/dist/cli.mjs'), past, past)
+		forwarder('repo/packages/pkg/skills/demo/scripts/demo.mjs', demo)
+
+		const result = run('repo/packages/pkg/skills/demo/scripts/demo.mjs', ['x'])
+
+		expect(result.stderr).toMatch(/dist\/ in .* is older than src\//)
+		expect(result.stdout).toEqual({ cli: ['x'] })
+	})
+
+	// An installer copies files in its own order, so mtimes say nothing about the build (issue #316).
+	it('does not warn in an installed copy with no .git, where mtimes follow copy order, and still runs the bin', () => {
+		builtCheckout('cache/demo-pkg/1.2.0', 'dist')
+		write('cache/demo-pkg/1.2.0/src/cli.ts', '')
+		const past = new Date(Date.now() - 60_000)
+		fs.utimesSync(path.join(dir, 'cache/demo-pkg/1.2.0/dist/cli.mjs'), past, past)
+		forwarder('cache/demo-pkg/1.2.0/skills/demo/scripts/demo.mjs', demo)
+
+		const result = run('cache/demo-pkg/1.2.0/skills/demo/scripts/demo.mjs', ['x'])
+
+		expect(result.stderr).toBe('')
+		expect(result.stdout).toEqual({ cli: ['x'] })
+		expect(result.status).toBe(4)
+	})
+
+	it('does not warn for a package installed under node_modules of a git project', () => {
+		write('project/.git/HEAD', 'ref: refs/heads/main\n')
+		builtCheckout('project/node_modules/demo-pkg', 'dist')
+		write('project/node_modules/demo-pkg/src/cli.ts', '')
+		const past = new Date(Date.now() - 60_000)
+		fs.utimesSync(path.join(dir, 'project/node_modules/demo-pkg/dist/cli.mjs'), past, past)
+		forwarder('project/node_modules/demo-pkg/skills/demo/scripts/demo.mjs', demo)
+
+		const result = run('project/node_modules/demo-pkg/skills/demo/scripts/demo.mjs', ['x'])
+
+		expect(result.stderr).toBe('')
+		expect(result.stdout).toEqual({ cli: ['x'] })
+	})
 
 	it('does not warn when the build output is newer than src', () => {
 		builtCheckout('pkg', 'esm')
